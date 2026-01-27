@@ -32,7 +32,7 @@
                 <small class="text-muted text-uppercase fw-bold px-3">Main</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.dashboard') ? 'active' : '' }}" 
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.dashboard') ? 'active' : '' }}"
                            href="{{ route('admin.dashboard') }}">
                             <i class="bi bi-speedometer2 me-2"></i> Dashboard
                         </a>
@@ -44,7 +44,7 @@
                 <small class="text-muted text-uppercase fw-bold px-3">User Management</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.users') ? 'active' : '' }}" 
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.users') ? 'active' : '' }}"
                            href="{{ route('admin.users.index') }}">
                             <i class="bi bi-people me-2"></i> Users
                         </a>
@@ -52,6 +52,25 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#">
                             <i class="bi bi-shield-check me-2"></i> Roles & Permissions
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            {{-- TEAM MANAGEMENT SECTION - ADDED FOR ADMIN --}}
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Team Management</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.teams.*') || str_contains($currentRoute, 'teams.index') ? 'active' : '' }}"
+                           href="{{ route('admin.teams.index') }}">
+                            <i class="bi bi-diagram-3 me-2"></i> Manage Teams
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'teams.show') ? 'active' : '' }}"
+                           href="#">
+                            <i class="bi bi-person-lines-fill me-2"></i> Team Members
                         </a>
                     </li>
                 </ul>
@@ -168,7 +187,7 @@
                 <small class="text-muted text-uppercase fw-bold px-3">Main</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.dashboard') ? 'active' : '' }}" 
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.dashboard') ? 'active' : '' }}"
                            href="{{ route('supervisor.dashboard') }}">
                             <i class="bi bi-speedometer2 me-2"></i> Dashboard
                         </a>
@@ -176,12 +195,17 @@
                 </ul>
             </div>
 
+            {{-- TEAM MANAGEMENT SECTION - UPDATED FOR SUPERVISOR --}}
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Team Management</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link" href="#">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.teams.index') || str_contains($currentRoute, 'supervisor.teams.show') ? 'active' : '' }}"
+                           href="{{ route('supervisor.teams.index') }}">
                             <i class="bi bi-people me-2"></i> My Team
+                            @if($user->technicians_count ?? 0 > 0)
+                                <span class="badge bg-success ms-auto">{{ $user->technicians_count }}</span>
+                            @endif
                         </a>
                     </li>
                     <li class="nav-item">
@@ -247,7 +271,7 @@
                 <small class="text-muted text-uppercase fw-bold px-3">Main</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'technician.dashboard') ? 'active' : '' }}" 
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.dashboard') ? 'active' : '' }}"
                            href="{{ route('technician.dashboard') }}">
                             <i class="bi bi-speedometer2 me-2"></i> Dashboard
                         </a>

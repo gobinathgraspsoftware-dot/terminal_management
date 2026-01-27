@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\TeamController;
 
 // =====================================================
 // PUBLIC ROUTES (Guest only)
@@ -13,7 +14,7 @@ Route::middleware('guest')->group(function () {
     // Login
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
-    
+
     // Password Reset
     Route::get('/forgot-password', [PasswordResetController::class, 'showForgotForm'])->name('password.request');
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
@@ -27,10 +28,10 @@ Route::middleware('guest')->group(function () {
 Route::middleware(['auth', 'active'])->group(function () {
     // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-    
+
     // Unified Dashboard (automatically shows role-based dashboard)
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    
+
     // Widget API Endpoint (for AJAX refresh)
     Route::get('/api/widget/data', [DashboardController::class, 'getWidgetData'])->name('api.widget.data');
 });
@@ -44,7 +45,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
 
     // User Management Routes
     Route::controller(UserController::class)->prefix('users')->name('users.')->group(function () {
-        
+
         // Main CRUD Routes
         Route::get('/', 'index')->name('index');
         Route::get('/datatable', 'datatable')->name('datatable');
@@ -54,30 +55,53 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/{user}/edit', 'edit')->name('edit');
         Route::put('/{user}', 'update')->name('update');
         Route::delete('/{user}', 'destroy')->name('destroy');
-        
+
         // Restore Soft-Deleted User
         Route::post('/{id}/restore', 'restore')->name('restore');
-        
+
         // Password Management
         Route::post('/{user}/change-password', 'changePassword')->name('change-password');
-        
+
         // Role & Supervisor Assignment
         Route::post('/{user}/assign-role', 'assignRole')->name('assign-role');
         Route::post('/{user}/assign-supervisor', 'assignSupervisor')->name('assign-supervisor');
-        
+
         // Status Management
         Route::post('/{user}/toggle-status', 'toggleStatus')->name('toggle-status');
-        
+
         // AJAX Endpoints
         Route::get('/ajax/list', 'getUsersList')->name('ajax.list');
-        
+
         // Bulk Operations
         Route::post('/bulk/delete', 'bulkDelete')->name('bulk.delete');
-        
+
         // Export
         Route::get('/export', 'export')->name('export');
     });
-    
+
+    // =====================================================
+    // TEAM MANAGEMENT ROUTES - ADMIN
+    // =====================================================
+    Route::controller(TeamController::class)->prefix('teams')->name('teams.')->group(function () {
+        // Main Team Management Dashboard
+        Route::get('/', 'adminIndex')->name('index');
+
+        // Single Technician Assignment
+        Route::post('/assign', 'assignTechnician')->name('assign');
+
+        // Bulk Assignment
+        Route::post('/bulk-assign', 'bulkAssign')->name('bulk-assign');
+
+        // Remove from Team (Make Independent)
+        Route::post('/{user}/remove', 'removeFromTeam')->name('remove');
+
+        // View Team Member Details
+        Route::get('/{user}', 'show')->name('show');
+
+        // Get Team Statistics (AJAX)
+        Route::get('/{user}/stats', 'getTeamStats')->name('stats');
+    });
+
     // Settings (requires specific permission)
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -97,15 +121,19 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/', 'index')->name('index');
         Route::get('/datatable', 'datatable')->name('datatable');
         Route::get('/{user}', 'show')->name('show');
-        
+
         // Can only view, cannot create/edit/delete (unless given specific permissions)
     });
-    
-    // Team Management
-    Route::get('/team', function () {
-        return 'Team Management - Supervisor Only';
-    })->name('team.index');
-    
+
+    // =====================================================
+    // TEAM MANAGEMENT ROUTES - SUPERVISOR
+    // =====================================================
+    Route::controller(TeamController::class)->prefix('teams')->name('teams.')->group(function () {
+        Route::get('/', 'supervisorDashboard')->name('index');
+        Route::get('/{user}', 'show')->name('show')->middleware('can:viewTeamMember,user');
+        Route::get('/{user}/stats', 'getTeamStats')->name('stats')->middleware('can:viewTeamStats,user');
+    });
+
     // Job Assignment (supervisor or admin)
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -125,17 +153,17 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         $user = auth()->user();
         return app(UserController::class)->show($user);
     })->name('profile.show');
-    
+
     // My Jobs
     Route::get('/jobs', function () {
         return 'My Jobs - Technician Only';
     })->name('jobs.index');
-    
+
     // My Inventory
     Route::get('/inventory', function () {
         return 'My Inventory - Technician Only';
     })->name('inventory.index');
-    
+
     // Claims
     Route::get('/claims', function () {
         return 'My Claims - Technician Only';
@@ -150,7 +178,7 @@ Route::middleware(['management'])->prefix('management')->name('management.')->gr
     Route::get('/reports', function () {
         return 'Reports - Admin or Supervisor';
     })->name('reports.index');
-    
+
     // Job overview
     Route::get('/jobs', function () {
         return 'All Jobs - Admin or Supervisor';
@@ -169,7 +197,7 @@ Route::middleware(['ajax.auth'])->prefix('api')->name('api.')->group(function ()
             'role' => auth()->user()->roles->first()?->name,
         ]);
     })->name('auth.check');
-    
+
     // Other AJAX endpoints...
 });
 
