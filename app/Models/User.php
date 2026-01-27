@@ -3,15 +3,22 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasApiTokens, HasRoles, SoftDeletes;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes;
+
+    /**
+     * Status constants
+     */
+    const STATUS_ACTIVE = 'active';
+    const STATUS_INACTIVE = 'inactive';
+    const STATUS_SUSPENDED = 'suspended';
 
     /**
      * The attributes that are mass assignable.
@@ -19,21 +26,22 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
+        'employee_id',
         'name',
         'email',
         'password',
         'phone',
-        'whatsapp_number',
-        'status',
-        'email_verified_at',
-        'last_login_at',
-        'failed_login_attempts',
-        'locked_until',
-        'last_login_ip',
-        'employee_id',
-        'supervisor_id',
         'avatar',
-        'is_active',
+        'supervisor_id',
+        'coverage_states',
+        'skill_tags',
+        'default_rate_card_id',
+        'address',
+        'bank_name',
+        'bank_account_no',
+        'bank_account_name',
+        'status',
+        'last_login_at',
     ];
 
     /**
@@ -56,218 +64,284 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
-            'locked_until' => 'datetime',
             'password' => 'hashed',
-            'failed_login_attempts' => 'integer',
-            'is_active' => 'boolean',
+            'coverage_states' => 'array',
+            'skill_tags' => 'array',
         ];
     }
 
-    // ==========================================
-    // RELATIONSHIPS
-    // ==========================================
-
     /**
-     * Get the student profile associated with the user.
+     * Boot method for model events
      */
-    public function student()
+    protected static function boot()
     {
-        return $this->hasOne(Student::class);
+        parent::boot();
+
+        static::creating(function ($user) {
+            if (empty($user->employee_id)) {
+                $user->employee_id = static::generateEmployeeId();
+            }
+        });
     }
 
     /**
-     * Get the parent profile associated with the user.
+     * Generate unique employee ID
      */
-    public function parent()
+    protected static function generateEmployeeId(): string
     {
-        return $this->hasOne(Parents::class);
+        $prefix = 'EMP';
+        $lastUser = static::withTrashed()
+            ->where('employee_id', 'like', $prefix . '%')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        if ($lastUser) {
+            $lastNumber = (int) substr($lastUser->employee_id, strlen($prefix));
+            $newNumber = $lastNumber + 1;
+        } else {
+            $newNumber = 1;
+        }
+
+        return $prefix . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
     }
 
     /**
-     * Get the teacher profile associated with the user.
+     * Relationships
      */
-    public function teacher()
-    {
-        return $this->hasOne(Teacher::class);
-    }
 
-    /**
-     * Get the staff profile associated with the user.
-     */
-    public function staff()
-    {
-        return $this->hasOne(Staff::class);
-    }
-
-    /**
-     * Get all notifications for this user.
-     */
-    public function notifications()
-    {
-        return $this->hasMany(Notification::class);
-    }
-
-    /**
-     * Get all notification logs for this user.
-     */
-    public function notificationLogs()
-    {
-        return $this->hasMany(NotificationLog::class);
-    }
-
-    /**
-     * Get announcements created by this user.
-     */
-    public function createdAnnouncements()
-    {
-        return $this->hasMany(Announcement::class, 'created_by');
-    }
-
-    /**
-     * Get announcement reads for this user.
-     */
-    public function announcementReads()
-    {
-        return $this->hasMany(AnnouncementRead::class);
-    }
-
-    // ==========================================
-    // TEAM MANAGEMENT RELATIONSHIPS - ADDED
-    // ==========================================
-
-    /**
-     * Get the supervisor assigned to this technician.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
+    // Self-referencing relationship - Supervisor
     public function supervisor()
     {
         return $this->belongsTo(User::class, 'supervisor_id');
     }
 
-    /**
-     * Get all technicians supervised by this supervisor.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
+    // Self-referencing relationship - Technicians under this supervisor
     public function technicians()
     {
         return $this->hasMany(User::class, 'supervisor_id');
     }
 
-    /**
-     * Get all job orders assigned to this user.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function jobOrders()
+    // Default rate card
+    public function defaultRateCard()
     {
-        return $this->hasMany(JobOrder::class, 'assigned_to');
+        return $this->belongsTo(RateCard::class, 'default_rate_card_id');
+    }
+
+    // Jobs assigned as technician
+    public function assignedJobs()
+    {
+        return $this->hasMany(JobOrder::class, 'technician_id');
+    }
+
+    // Jobs as supervisor
+    public function supervisedJobs()
+    {
+        return $this->hasMany(JobOrder::class, 'supervisor_id');
+    }
+
+    // Job assignments (for multi-technician jobs)
+    public function jobAssignments()
+    {
+        return $this->hasMany(JobAssignment::class, 'technician_id');
+    }
+
+    // Stock issues
+    public function stockIssues()
+    {
+        return $this->hasMany(StockIssue::class, 'to_technician_id');
+    }
+
+    // Claims
+    public function claims()
+    {
+        return $this->hasMany(Claim::class, 'technician_id');
+    }
+
+    // Payout lines
+    public function payoutLines()
+    {
+        return $this->hasMany(PayoutLine::class, 'technician_id');
+    }
+
+    // GPS tracks
+    public function gpsTracks()
+    {
+        return $this->hasMany(GpsTrack::class, 'technician_id');
     }
 
     /**
-     * Get all activity logs for this user.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * Scopes
      */
-    public function activityLogs()
-    {
-        return $this->hasMany(ActivityLog::class, 'user_id');
-    }
 
-    // ==========================================
-    // SCOPES
-    // ==========================================
-
-    /**
-     * Scope to get only active users.
-     */
     public function scopeActive($query)
     {
-        return $query->where('status', 'active');
+        return $query->where('status', self::STATUS_ACTIVE);
     }
 
-    /**
-     * Scope to get only inactive users.
-     */
     public function scopeInactive($query)
     {
-        return $query->where('status', 'inactive');
+        return $query->where('status', self::STATUS_INACTIVE);
     }
 
-    /**
-     * Scope to get only suspended users.
-     */
     public function scopeSuspended($query)
     {
-        return $query->where('status', 'suspended');
+        return $query->where('status', self::STATUS_SUSPENDED);
+    }
+
+    public function scopeByRole($query, $role)
+    {
+        return $query->role($role);
+    }
+
+    public function scopeSupervisors($query)
+    {
+        return $query->role('supervisor');
+    }
+
+    public function scopeTechnicians($query)
+    {
+        return $query->role('technician');
+    }
+
+    public function scopeWithSupervisor($query)
+    {
+        return $query->whereNotNull('supervisor_id');
+    }
+
+    public function scopeIndependent($query)
+    {
+        return $query->whereNull('supervisor_id')->role('technician');
+    }
+
+    public function scopeInState($query, $state)
+    {
+        return $query->whereJsonContains('coverage_states', $state);
     }
 
     /**
-     * Scope to get only pending users.
+     * Accessors
      */
-    public function scopePending($query)
+
+    public function getFullNameAttribute(): string
     {
-        return $query->where('status', 'pending');
+        return $this->name;
     }
 
-    // ==========================================
-    // HELPER METHODS
-    // ==========================================
-
-    /**
-     * Check if user is locked out.
-     */
-    public function isLockedOut(): bool
+    public function getRoleNameAttribute(): string
     {
-        return $this->locked_until && $this->locked_until->isFuture();
+        return $this->roles->first()?->name ?? 'No Role';
+    }
+
+    public function getIsSupervisorAttribute(): bool
+    {
+        return $this->hasRole('supervisor');
+    }
+
+    public function getIsTechnicianAttribute(): bool
+    {
+        return $this->hasRole('technician');
+    }
+
+    public function getIsAdminAttribute(): bool
+    {
+        return $this->hasRole('admin');
+    }
+
+    public function getIsIndependentAttribute(): bool
+    {
+        return $this->is_technician && is_null($this->supervisor_id);
+    }
+
+    public function getTeamMembersAttribute()
+    {
+        if (!$this->is_supervisor) {
+            return collect();
+        }
+        
+        return $this->technicians()->active()->get();
+    }
+
+    public function getTeamMembersCountAttribute(): int
+    {
+        if (!$this->is_supervisor) {
+            return 0;
+        }
+        
+        return $this->technicians()->active()->count();
+    }
+
+    public function getAvatarUrlAttribute(): string
+    {
+        if ($this->avatar) {
+            return asset('storage/' . $this->avatar);
+        }
+        
+        // Default avatar based on first letter
+        $initial = strtoupper(substr($this->name, 0, 1));
+        return "https://ui-avatars.com/api/?name={$initial}&size=200&background=random";
+    }
+
+    public function getStatusBadgeAttribute(): string
+    {
+        return match($this->status) {
+            self::STATUS_ACTIVE => '<span class="badge bg-success">Active</span>',
+            self::STATUS_INACTIVE => '<span class="badge bg-secondary">Inactive</span>',
+            self::STATUS_SUSPENDED => '<span class="badge bg-danger">Suspended</span>',
+            default => '<span class="badge bg-warning">Unknown</span>',
+        };
     }
 
     /**
-     * Check if user is active.
+     * Helper Methods
      */
-    public function isActive(): bool
-    {
-        return $this->status === 'active';
-    }
 
-    /**
-     * Get user's full profile based on role.
-     */
-    public function getProfile()
+    public function canManageUser(User $user): bool
     {
-        if ($this->hasRole('student')) {
-            return $this->student;
-        } elseif ($this->hasRole('parent')) {
-            return $this->parent;
-        } elseif ($this->hasRole('teacher')) {
-            return $this->teacher;
-        } elseif ($this->hasRole('staff')) {
-            return $this->staff;
+        if ($this->hasRole('admin')) {
+            return true;
         }
 
-        return null;
-    }
-
-    /**
-     * Get user's display role.
-     */
-    public function getDisplayRole(): string
-    {
-        if ($this->hasRole('super-admin')) {
-            return 'Super Admin';
-        } elseif ($this->hasRole('admin')) {
-            return 'Admin';
-        } elseif ($this->hasRole('staff')) {
-            return 'Staff';
-        } elseif ($this->hasRole('teacher')) {
-            return 'Teacher';
-        } elseif ($this->hasRole('parent')) {
-            return 'Parent';
-        } elseif ($this->hasRole('student')) {
-            return 'Student';
+        if ($this->hasRole('supervisor')) {
+            // Can manage own team members
+            return $user->supervisor_id === $this->id;
         }
 
-        return 'Unknown';
+        // Technicians can only view self
+        return $this->id === $user->id;
+    }
+
+    public function canViewJob(JobOrder $job): bool
+    {
+        if ($this->hasRole('admin')) {
+            return true;
+        }
+
+        if ($this->hasRole('supervisor')) {
+            // Can view jobs where they are supervisor or jobs of their team
+            return $job->supervisor_id === $this->id 
+                || $this->technicians->contains($job->technician_id);
+        }
+
+        // Technician can only view own jobs
+        return $job->technician_id === $this->id;
+    }
+
+    public function getTeamJobsQuery()
+    {
+        if ($this->hasRole('admin')) {
+            return JobOrder::query();
+        }
+
+        if ($this->hasRole('supervisor')) {
+            $teamTechnicianIds = $this->technicians->pluck('id')->toArray();
+            
+            return JobOrder::where(function($query) use ($teamTechnicianIds) {
+                $query->where('supervisor_id', $this->id)
+                    ->orWhereIn('technician_id', $teamTechnicianIds);
+            });
+        }
+
+        // Technician - only own jobs
+        return JobOrder::where('technician_id', $this->id);
     }
 }

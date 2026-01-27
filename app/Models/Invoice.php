@@ -4,222 +4,69 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Invoice extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    const TYPE_AR = 'ar';
+    const TYPE_AP = 'ap';
+
+    const PAYMENT_STATUS_UNPAID = 'unpaid';
+    const PAYMENT_STATUS_PARTIAL = 'partial';
+    const PAYMENT_STATUS_PAID = 'paid';
+    const PAYMENT_STATUS_OVERDUE = 'overdue';
+    const PAYMENT_STATUS_VOID = 'void';
+
+    const STATUS_DRAFT = 'draft';
+    const STATUS_PENDING_APPROVAL = 'pending_approval';
+    const STATUS_APPROVED = 'approved';
+    const STATUS_SENT = 'sent';
+    const STATUS_CANCELLED = 'cancelled';
 
     protected $fillable = [
-        'invoice_number',
-        'student_id',
-        'enrollment_id',
-        'type',
-        'billing_period_start',
-        'billing_period_end',
-        'subtotal',
-        'online_fee',
-        'discount',
-        'discount_reason',
-        'tax',
-        'total_amount',
-        'paid_amount',
-        'due_date',
-        'status',
-        'reminder_count',
-        'last_reminder_date',
-        'notes',
+        'invoice_no', 'invoice_date', 'invoice_type', 'client_id', 'vendor_id', 'partner_id',
+        'reference', 'billing_address', 'due_date', 'subtotal', 'tax_amount', 'discount_amount',
+        'total_amount', 'paid_amount', 'currency', 'payment_terms', 'terms_conditions', 'notes',
+        'payment_status', 'status', 'approved_at', 'approved_by', 'sent_at', 'last_reminder_at',
+        'reminder_count', 'created_by', 'updated_by',
     ];
 
-    protected $casts = [
-        'billing_period_start' => 'date',
-        'billing_period_end' => 'date',
-        'subtotal' => 'decimal:2',
-        'online_fee' => 'decimal:2',
-        'discount' => 'decimal:2',
-        'tax' => 'decimal:2',
-        'total_amount' => 'decimal:2',
-        'paid_amount' => 'decimal:2',
-        'due_date' => 'date',
-        'reminder_count' => 'integer',
-        'last_reminder_date' => 'date',
-    ];
-
-    // ==========================================
-    // RELATIONSHIPS
-    // ==========================================
-
-    public function student()
+    protected function casts(): array
     {
-        return $this->belongsTo(Student::class);
+        return [
+            'invoice_date' => 'date',
+            'due_date' => 'date',
+            'subtotal' => 'decimal:2',
+            'tax_amount' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+            'paid_amount' => 'decimal:2',
+            'approved_at' => 'datetime',
+            'sent_at' => 'datetime',
+            'last_reminder_at' => 'datetime',
+        ];
     }
 
-    public function enrollment()
-    {
-        return $this->belongsTo(Enrollment::class);
-    }
+    public function client() { return $this->belongsTo(Client::class); }
+    public function vendor() { return $this->belongsTo(Vendor::class); }
+    public function partner() { return $this->belongsTo(Partner::class); }
+    public function lines() { return $this->hasMany(InvoiceLine::class); }
+    public function payments() { return $this->hasMany(Payment::class); }
+    public function creditNotes() { return $this->hasMany(CreditNote::class); }
+    public function jobOrders() { return $this->hasMany(JobOrder::class); }
 
-    public function payments()
-    {
-        return $this->hasMany(Payment::class);
-    }
-
-    public function installments()
-    {
-        return $this->hasMany(Installment::class);
-    }
-
-    public function paymentReminders()
-    {
-        return $this->hasMany(PaymentReminder::class);
-    }
-
-    public function discountUsages()
-    {
-        return $this->hasMany(DiscountUsage::class);
-    }
-
-    public function gatewayTransactions()
-    {
-        return $this->hasMany(PaymentGatewayTransaction::class);
-    }
-
-    // ==========================================
-    // SCOPES
-    // ==========================================
-
-    public function scopePending($query)
-    {
-        return $query->where('status', 'pending');
-    }
-
-    public function scopePaid($query)
-    {
-        return $query->where('status', 'paid');
-    }
-
-    public function scopePartial($query)
-    {
-        return $query->where('status', 'partial');
-    }
-
-    public function scopeOverdue($query)
-    {
-        return $query->where('status', 'overdue')
-                     ->orWhere(function($q) {
-                         $q->where('status', 'pending')
-                           ->where('due_date', '<', now());
-                     });
-    }
-
-    public function scopeCancelled($query)
-    {
-        return $query->where('status', 'cancelled');
-    }
-
-    public function scopeRefunded($query)
-    {
-        return $query->where('status', 'refunded');
-    }
-
-    public function scopeUnpaid($query)
-    {
-        return $query->whereIn('status', ['pending', 'partial', 'overdue']);
-    }
-
-    public function scopeForStudent($query, $studentId)
-    {
-        return $query->where('student_id', $studentId);
-    }
-
-    public function scopeForEnrollment($query, $enrollmentId)
-    {
-        return $query->where('enrollment_id', $enrollmentId);
-    }
-
-    public function scopeByType($query, $type)
-    {
-        return $query->where('type', $type);
-    }
-
-    public function scopeThisMonth($query)
-    {
-        return $query->whereYear('billing_period_start', now()->year)
-                     ->whereMonth('billing_period_start', now()->month);
-    }
-
-    public function scopeDueWithin($query, $days = 7)
-    {
-        return $query->whereIn('status', ['pending', 'partial'])
-                     ->whereBetween('due_date', [now(), now()->addDays($days)]);
-    }
-
-    // ==========================================
-    // HELPER METHODS
-    // ==========================================
-
-    public function getBalanceAttribute(): float
+    public function getOutstandingAmountAttribute()
     {
         return $this->total_amount - $this->paid_amount;
     }
 
-    public function isOverdue(): bool
+    public function getDaysOverdueAttribute(): int
     {
-        return $this->status !== 'paid' && $this->due_date < today();
-    }
-
-    public function isPaid(): bool
-    {
-        return $this->status === 'paid';
-    }
-
-    public function canReceivePayment(): bool
-    {
-        return in_array($this->status, ['pending', 'partial', 'overdue']) && $this->balance > 0;
-    }
-
-    public function getBillingPeriodAttribute(): string
-    {
-        return $this->billing_period_start->format('M Y') . ' - ' . $this->billing_period_end->format('M Y');
-    }
-
-    /**
-     * Generate unique invoice number
-     */
-    public static function generateInvoiceNumber(): string
-    {
-        $year = date('Y');
-        $month = date('m');
-        $prefix = "INV{$year}{$month}";
-        
-        $lastInvoice = static::where('invoice_number', 'like', "{$prefix}%")
-                            ->orderBy('invoice_number', 'desc')
-                            ->first();
-        
-        if ($lastInvoice) {
-            $lastNumber = (int) substr($lastInvoice->invoice_number, -4);
-            $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
-        } else {
-            $newNumber = '0001';
+        if ($this->payment_status === self::PAYMENT_STATUS_PAID) {
+            return 0;
         }
-        
-        return $prefix . $newNumber;
-    }
-
-    /**
-     * Update invoice status based on payments
-     */
-    public function updateStatus(): void
-    {
-        if ($this->paid_amount <= 0) {
-            $status = $this->isOverdue() ? 'overdue' : 'pending';
-        } elseif ($this->paid_amount >= $this->total_amount) {
-            $status = 'paid';
-        } else {
-            $status = 'partial';
-        }
-
-        if ($this->status !== $status) {
-            $this->update(['status' => $status]);
-        }
+        return max(0, now()->diffInDays($this->due_date, false));
     }
 }
