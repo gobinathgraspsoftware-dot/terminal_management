@@ -1,0 +1,371 @@
+@php
+    $user = auth()->user();
+    $role = $user->roles->first()?->name;
+    $currentRoute = request()->route()->getName();
+@endphp
+
+<div class="sidebar-content p-3">
+    <!-- User Info -->
+    <div class="user-info mb-4 p-3 bg-light rounded">
+        <div class="d-flex align-items-center">
+            <div class="avatar me-3">
+                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 1.2rem;">
+                    {{ strtoupper(substr($user->name, 0, 1)) }}
+                </div>
+            </div>
+            <div class="flex-grow-1">
+                <div class="fw-bold text-truncate">{{ $user->name }}</div>
+                <small class="text-muted text-uppercase">
+                    <span class="badge bg-{{ $role === 'admin' ? 'danger' : ($role === 'supervisor' ? 'warning' : 'info') }}">
+                        {{ $role }}
+                    </span>
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Menu -->
+    <nav class="sidebar-nav">
+        @if($role === 'admin')
+            <!-- Admin Menu -->
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Main</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.dashboard') ? 'active' : '' }}" 
+                           href="{{ route('admin.dashboard') }}">
+                            <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">User Management</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.users') ? 'active' : '' }}" 
+                           href="{{ route('admin.users.index') }}">
+                            <i class="bi bi-people me-2"></i> Users
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-shield-check me-2"></i> Roles & Permissions
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Job Management</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-clipboard-check me-2"></i> All Jobs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-clock-history me-2"></i> Job History
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-exclamation-triangle me-2"></i> SLA Tracking
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-box-seam me-2"></i> Stock Management
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-arrow-left-right me-2"></i> Stock Movements
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-card-list me-2"></i> Serial Tracking
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Financial</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-receipt me-2"></i> Invoices
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-cash-coin me-2"></i> Payments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-pie-chart me-2"></i> Aging Analysis
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-wallet2 me-2"></i> Payouts
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Masters</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-building me-2"></i> Clients
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-bank me-2"></i> Vendors
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-geo-alt me-2"></i> Sites
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Reports</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-file-earmark-bar-graph me-2"></i> All Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-activity me-2"></i> Activity Logs
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+        @elseif($role === 'supervisor')
+            <!-- Supervisor Menu -->
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Main</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.dashboard') ? 'active' : '' }}" 
+                           href="{{ route('supervisor.dashboard') }}">
+                            <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Team Management</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-people me-2"></i> My Team
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-person-plus me-2"></i> Assign Jobs
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Job Management</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-clipboard-check me-2"></i> Team Jobs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-exclamation-triangle me-2"></i> SLA Tracking
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Approvals</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-file-earmark-check me-2"></i> Pending Claims
+                            <span class="badge bg-warning ms-auto">3</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-receipt me-2"></i> Job Approvals
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Reports</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-file-earmark-bar-graph me-2"></i> Team Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-graph-up me-2"></i> Performance
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+        @elseif($role === 'technician')
+            <!-- Technician Menu -->
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Main</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.dashboard') ? 'active' : '' }}" 
+                           href="{{ route('technician.dashboard') }}">
+                            <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">My Work</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-clipboard-check me-2"></i> My Jobs
+                            <span class="badge bg-primary ms-auto">5</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-clock-history me-2"></i> Job History
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-box-seam me-2"></i> My Stock
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-arrow-down-circle me-2"></i> Stock Request
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Claims & Payouts</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-file-earmark-text me-2"></i> My Claims
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-cash-coin me-2"></i> Commission
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Profile</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-person me-2"></i> My Profile
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+        @endif
+    </nav>
+</div>
+
+<style>
+    .sidebar-nav .nav-section {
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 15px;
+    }
+
+    .sidebar-nav .nav-section:last-child {
+        border-bottom: none;
+    }
+
+    .sidebar-nav .nav-link {
+        color: #4a5568;
+        padding: 10px 15px;
+        border-radius: 6px;
+        margin-bottom: 3px;
+        transition: all 0.2s;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+    }
+
+    .sidebar-nav .nav-link:hover {
+        background-color: #f7fafc;
+        color: #2d3748;
+    }
+
+    .sidebar-nav .nav-link.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .sidebar-nav .nav-link.active:hover {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .sidebar-nav .nav-link i {
+        font-size: 1.1rem;
+        width: 20px;
+    }
+
+    .sidebar-nav .badge {
+        font-size: 0.7rem;
+        padding: 0.25em 0.5em;
+    }
+
+    .user-info .avatar {
+        flex-shrink: 0;
+    }
+</style>
