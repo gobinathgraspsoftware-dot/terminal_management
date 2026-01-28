@@ -92,6 +92,37 @@
                 </ul>
             </div>
 
+            <!-- PROFILE SECTION -->
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.profile.index') ? 'active' : '' }}"
+                           href="{{ route('admin.profile.index') }}">
+                            <i class="bi bi-person-circle me-2"></i> View Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.profile.edit') ? 'active' : '' }}"
+                           href="{{ route('admin.profile.edit') }}">
+                            <i class="bi bi-person-fill-gear me-2"></i> Edit Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.profile.password') ? 'active' : '' }}"
+                           href="{{ route('admin.profile.password') }}">
+                            <i class="bi bi-key me-2"></i> Change Password
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.profile.avatar') ? 'active' : '' }}"
+                           href="{{ route('admin.profile.avatar') }}">
+                            <i class="bi bi-camera me-2"></i> Update Avatar
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Job Management</small>
                 <ul class="nav flex-column mt-2">
@@ -245,6 +276,37 @@
                 </ul>
             </div>
 
+            <!-- PROFILE SECTION - NEW -->
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.profile.index') ? 'active' : '' }}"
+                           href="{{ route('supervisor.profile.index') }}">
+                            <i class="bi bi-person-circle me-2"></i> View Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.profile.edit') ? 'active' : '' }}"
+                           href="{{ route('supervisor.profile.edit') }}">
+                            <i class="bi bi-person-fill-gear me-2"></i> Edit Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.profile.password') ? 'active' : '' }}"
+                           href="{{ route('supervisor.profile.password') }}">
+                            <i class="bi bi-key me-2"></i> Change Password
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.profile.avatar') ? 'active' : '' }}"
+                           href="{{ route('supervisor.profile.avatar') }}">
+                            <i class="bi bi-camera me-2"></i> Update Avatar
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Job Management</small>
                 <ul class="nav flex-column mt-2">
@@ -303,6 +365,43 @@
                         <a class="nav-link {{ str_contains($currentRoute, 'technician.dashboard') ? 'active' : '' }}"
                            href="{{ route('technician.dashboard') }}">
                             <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- PROFILE SECTION - NEW -->
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.profile.index') ? 'active' : '' }}"
+                           href="{{ route('technician.profile.index') }}">
+                            <i class="bi bi-person-circle me-2"></i> View Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.profile.edit') ? 'active' : '' }}"
+                           href="{{ route('technician.profile.edit') }}">
+                            <i class="bi bi-person-fill-gear me-2"></i> Edit Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.profile.password') ? 'active' : '' }}"
+                           href="{{ route('technician.profile.password') }}">
+                            <i class="bi bi-key me-2"></i> Change Password
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.profile.avatar') ? 'active' : '' }}"
+                           href="{{ route('technician.profile.avatar') }}">
+                            <i class="bi bi-camera me-2"></i> Update Avatar
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.profile.bank-details') ? 'active' : '' }}"
+                           href="{{ route('technician.profile.bank-details') }}">
+                            <i class="bi bi-bank me-2"></i> Bank Details
                         </a>
                     </li>
                 </ul>

@@ -40,6 +40,12 @@ class User extends Authenticatable
         'bank_name',
         'bank_account_no',
         'bank_account_name',
+        'ifsc_code',
+        'branch_name',
+        'date_of_birth',
+        'gender',
+        'emergency_contact_name',
+        'emergency_contact_phone',
         'status',
         'last_login_at',
     ];
@@ -66,6 +72,7 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'coverage_states' => 'array',
+            'date_of_birth' => 'date',
             'skill_tags' => 'array',
         ];
     }
@@ -125,6 +132,14 @@ class User extends Authenticatable
     public function defaultRateCard()
     {
         return $this->belongsTo(RateCard::class, 'default_rate_card_id');
+    }
+
+    /**
+     * Get the user's login histories.
+     */
+    public function loginHistories()
+    {
+        return $this->hasMany(LoginHistory::class);
     }
 
     // Jobs assigned as technician
@@ -257,7 +272,7 @@ class User extends Authenticatable
         if (!$this->is_supervisor) {
             return collect();
         }
-        
+
         return $this->technicians()->active()->get();
     }
 
@@ -266,7 +281,7 @@ class User extends Authenticatable
         if (!$this->is_supervisor) {
             return 0;
         }
-        
+
         return $this->technicians()->active()->count();
     }
 
@@ -275,7 +290,7 @@ class User extends Authenticatable
         if ($this->avatar) {
             return asset('storage/' . $this->avatar);
         }
-        
+
         // Default avatar based on first letter
         $initial = strtoupper(substr($this->name, 0, 1));
         return "https://ui-avatars.com/api/?name={$initial}&size=200&background=random";
@@ -318,7 +333,7 @@ class User extends Authenticatable
 
         if ($this->hasRole('supervisor')) {
             // Can view jobs where they are supervisor or jobs of their team
-            return $job->supervisor_id === $this->id 
+            return $job->supervisor_id === $this->id
                 || $this->technicians->contains($job->technician_id);
         }
 
@@ -334,7 +349,7 @@ class User extends Authenticatable
 
         if ($this->hasRole('supervisor')) {
             $teamTechnicianIds = $this->technicians->pluck('id')->toArray();
-            
+
             return JobOrder::where(function($query) use ($teamTechnicianIds) {
                 $query->where('supervisor_id', $this->id)
                     ->orWhereIn('technician_id', $teamTechnicianIds);

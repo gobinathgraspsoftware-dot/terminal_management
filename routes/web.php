@@ -7,6 +7,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\TeamController as AdminTeamController;
 use App\Http\Controllers\Supervisor\TeamController as SupervisorTeamController;
+use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
+use App\Http\Controllers\Supervisor\ProfileController as SupervisorProfileController;
+use App\Http\Controllers\Technician\ProfileController as TechnicianProfileController;
 
 // =====================================================
 // PUBLIC ROUTES (Guest only)
@@ -80,6 +83,21 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/export', 'export')->name('export');
     });
 
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', [AdminProfileController::class, 'index'])->name('index');
+        Route::get('/edit', [AdminProfileController::class, 'edit'])->name('edit');
+        Route::put('/update', [AdminProfileController::class, 'update'])->name('update');
+
+        Route::get('/password', [AdminProfileController::class, 'password'])->name('password');
+        Route::put('/password', [AdminProfileController::class, 'updatePassword'])->name('password.update');
+
+        Route::get('/avatar', [AdminProfileController::class, 'avatar'])->name('avatar');
+        Route::put('/avatar', [AdminProfileController::class, 'updateAvatar'])->name('avatar.update');
+        Route::delete('/avatar', [AdminProfileController::class, 'deleteAvatar'])->name('avatar.delete');
+
+        Route::get('/login-history', [AdminProfileController::class, 'loginHistory'])->name('login-history');
+    });
+
     // Team Management (Admin)
     Route::controller(AdminTeamController::class)->prefix('teams')->name('teams.')->group(function () {
         Route::get('/', 'index')->name('index');
@@ -125,6 +143,21 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{user}', 'show')->name('show');
     });
 
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', [SupervisorProfileController::class, 'index'])->name('index');
+        Route::get('/edit', [SupervisorProfileController::class, 'edit'])->name('edit');
+        Route::put('/update', [SupervisorProfileController::class, 'update'])->name('update');
+
+        Route::get('/password', [SupervisorProfileController::class, 'password'])->name('password');
+        Route::put('/password', [SupervisorProfileController::class, 'updatePassword'])->name('password.update');
+
+        Route::get('/avatar', [SupervisorProfileController::class, 'avatar'])->name('avatar');
+        Route::put('/avatar', [SupervisorProfileController::class, 'updateAvatar'])->name('avatar.update');
+        Route::delete('/avatar', [SupervisorProfileController::class, 'deleteAvatar'])->name('avatar.delete');
+
+        Route::get('/login-history', [SupervisorProfileController::class, 'loginHistory'])->name('login-history');
+    });
+
     // Job Assignment (supervisor or admin)
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -140,10 +173,23 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
     // Technician Dashboard (uses unified controller)
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('/profile', function() {
-        $user = auth()->user();
-        return app(UserController::class)->show($user);
-    })->name('profile.show');
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', [TechnicianProfileController::class, 'index'])->name('index');
+        Route::get('/edit', [TechnicianProfileController::class, 'edit'])->name('edit');
+        Route::put('/update', [TechnicianProfileController::class, 'update'])->name('update');
+
+        Route::get('/password', [TechnicianProfileController::class, 'password'])->name('password');
+        Route::put('/password', [TechnicianProfileController::class, 'updatePassword'])->name('password.update');
+
+        Route::get('/avatar', [TechnicianProfileController::class, 'avatar'])->name('avatar');
+        Route::put('/avatar', [TechnicianProfileController::class, 'updateAvatar'])->name('avatar.update');
+        Route::delete('/avatar', [TechnicianProfileController::class, 'deleteAvatar'])->name('avatar.delete');
+
+        Route::get('/bank-details', [TechnicianProfileController::class, 'bankDetails'])->name('bank-details');
+        Route::put('/bank-details', [TechnicianProfileController::class, 'updateBankDetails'])->name('bank-details.update');
+
+        Route::get('/login-history', [TechnicianProfileController::class, 'loginHistory'])->name('login-history');
+    });
 
     // My Jobs
     Route::get('/jobs', function () {
