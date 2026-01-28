@@ -57,20 +57,32 @@
                 </ul>
             </div>
 
-            {{-- TEAM MANAGEMENT SECTION - ADDED FOR ADMIN --}}
+            <!-- Team Management Section - SEPARATE DROPDOWN -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Team Management</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.teams.*') || str_contains($currentRoute, 'teams.index') ? 'active' : '' }}"
+                        <a class="nav-link {{ $currentRoute === 'admin.teams.index' ? 'active' : '' }}"
                            href="{{ route('admin.teams.index') }}">
-                            <i class="bi bi-diagram-3 me-2"></i> Manage Teams
+                            <i class="bi bi-diagram-3 me-2"></i> All Teams
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'teams.show') ? 'active' : '' }}"
-                           href="#">
-                            <i class="bi bi-person-lines-fill me-2"></i> Team Members
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.teams.supervisors') ? 'active' : '' }}"
+                           href="{{ route('admin.teams.index') }}?view=supervisors">
+                            <i class="bi bi-person-badge me-2"></i> Supervisors
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.teams.technicians') ? 'active' : '' }}"
+                           href="{{ route('admin.teams.index') }}?view=technicians">
+                            <i class="bi bi-person-gear me-2"></i> Technicians
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.teams.independent') ? 'active' : '' }}"
+                           href="{{ route('admin.teams.index') }}?view=independent">
+                            <i class="bi bi-person-dash me-2"></i> Independent
                         </a>
                     </li>
                 </ul>
@@ -195,22 +207,32 @@
                 </ul>
             </div>
 
-            {{-- TEAM MANAGEMENT SECTION - UPDATED FOR SUPERVISOR --}}
+            <!-- Team Management Section for Supervisor - SEPARATE DROPDOWN -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Team Management</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.teams.index') || str_contains($currentRoute, 'supervisor.teams.show') ? 'active' : '' }}"
+                        <a class="nav-link {{ $currentRoute === 'supervisor.teams.index' ? 'active' : '' }}"
                            href="{{ route('supervisor.teams.index') }}">
-                            <i class="bi bi-people me-2"></i> My Team
-                            @if($user->technicians_count ?? 0 > 0)
-                                <span class="badge bg-success ms-auto">{{ $user->technicians_count }}</span>
+                            <i class="bi bi-people-fill me-2"></i> My Team
+                            @php
+                                $teamCount = $user->technicians()->count();
+                            @endphp
+                            @if($teamCount > 0)
+                                <span class="badge bg-primary ms-auto">{{ $teamCount }}</span>
                             @endif
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-person-plus me-2"></i> Assign Jobs
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.teams.performance') ? 'active' : '' }}"
+                           href="{{ route('supervisor.teams.index') }}?view=performance">
+                            <i class="bi bi-graph-up-arrow me-2"></i> Team Performance
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.teams.coverage') ? 'active' : '' }}"
+                           href="{{ route('supervisor.teams.index') }}?view=coverage">
+                            <i class="bi bi-geo-alt me-2"></i> Coverage Areas
                         </a>
                     </li>
                 </ul>

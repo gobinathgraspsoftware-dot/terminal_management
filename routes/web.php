@@ -5,7 +5,8 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\TeamController;
+use App\Http\Controllers\Admin\TeamController as AdminTeamController;
+use App\Http\Controllers\Supervisor\TeamController as SupervisorTeamController;
 
 // =====================================================
 // PUBLIC ROUTES (Guest only)
@@ -79,27 +80,17 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/export', 'export')->name('export');
     });
 
-    // =====================================================
-    // TEAM MANAGEMENT ROUTES - ADMIN
-    // =====================================================
-    Route::controller(TeamController::class)->prefix('teams')->name('teams.')->group(function () {
-        // Main Team Management Dashboard
-        Route::get('/', 'adminIndex')->name('index');
-
-        // Single Technician Assignment
-        Route::post('/assign', 'assignTechnician')->name('assign');
-
-        // Bulk Assignment
+    // Team Management (Admin)
+    Route::controller(AdminTeamController::class)->prefix('teams')->name('teams.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/datatable', 'datatable')->name('datatable');
+        Route::post('/assign', 'assign')->name('assign');
         Route::post('/bulk-assign', 'bulkAssign')->name('bulk-assign');
-
-        // Remove from Team (Make Independent)
-        Route::post('/{user}/remove', 'removeFromTeam')->name('remove');
-
-        // View Team Member Details
+        Route::post('/{user}/remove', 'remove')->name('remove');
         Route::get('/{user}', 'show')->name('show');
-
-        // Get Team Statistics (AJAX)
-        Route::get('/{user}/stats', 'getTeamStats')->name('stats');
+        Route::get('/{user}/stats', 'stats')->name('stats');
+        Route::get('/ajax/supervisors', 'supervisorsList')->name('ajax.supervisors');
+        Route::get('/ajax/independent', 'independentList')->name('ajax.independent');
     });
 
     // Settings (requires specific permission)
@@ -125,13 +116,13 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         // Can only view, cannot create/edit/delete (unless given specific permissions)
     });
 
-    // =====================================================
-    // TEAM MANAGEMENT ROUTES - SUPERVISOR
-    // =====================================================
-    Route::controller(TeamController::class)->prefix('teams')->name('teams.')->group(function () {
-        Route::get('/', 'supervisorDashboard')->name('index');
-        Route::get('/{user}', 'show')->name('show')->middleware('can:viewTeamMember,user');
-        Route::get('/{user}/stats', 'getTeamStats')->name('stats')->middleware('can:viewTeamStats,user');
+    // Team Management (Supervisor - Read Only)
+    Route::controller(SupervisorTeamController::class)->prefix('teams')->name('teams.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/datatable', 'datatable')->name('datatable');
+        Route::get('/stats', 'stats')->name('stats');
+        Route::get('/performance', 'performance')->name('performance');
+        Route::get('/{user}', 'show')->name('show');
     });
 
     // Job Assignment (supervisor or admin)

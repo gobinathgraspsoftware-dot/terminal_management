@@ -1,0 +1,261 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Team\AssignTechnicianRequest;
+use App\Http\Requests\Admin\Team\BulkAssignRequest;
+use App\Models\User;
+use App\Services\TeamService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
+use Yajra\DataTables\Facades\DataTables;
+
+/**
+ * Admin TeamController
+ * 
+ * Handles all team management for Admin users:
+ * - View all teams and supervisors
+ * - Assign/reassign technicians
+ * - Bulk assignments
+ * - Remove from teams
+ * 
+ * @package App\Http\Controllers\Admin
+ */
+class TeamController extends Controller
+{
+    protected TeamService $teamService;
+
+    public function __construct(TeamService $teamService)
+    {
+        $this->teamService = $teamService;
+        $this->middleware('role:admin');
+    }
+
+    /**
+     * Display admin team management dashboard.
+     */
+    public function index(): View
+    {
+        $supervisors = User::role('supervisor')
+            ->withCount(['technicians' => fn($q) => $q->where('status', 'active')])
+            ->with(['technicians' => fn($q) => $q->where('status', 'active')->orderBy('name')])
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+
+        $independentTechnicians = User::role('technician')
+            ->whereNull('supervisor_id')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+
+        $allTechnicians = User::role('technician')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+
+        $statistics = $this->teamService->getTeamStatistics();
+
+        return view('admin.teams.index', compact('supervisors', 'independentTechnicians', 'allTechnicians', 'statistics'));
+    }
+
+    /**
+     * Get technicians datatable.
+     */
+    public function datatable(Request $request): JsonResponse
+    {
+        $query = User::role('technician')->with(['supervisor:id,name'])->select('users.*');
+
+        return DataTables::of($query)
+            ->addColumn('supervisor_name', fn($user) => $user->supervisor?->name ?? '<span class="badge bg-warning">Independent</span>')
+            ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . ($user->status == 'active' ? 'success' : 'secondary') . '">' . ucfirst($user->status) . '</span>')
+            ->addColumn('coverage', fn($user) => $user->coverage_states ? implode(', ', array_slice($user->coverage_states, 0, 3)) : '-')
+            ->addColumn('actions', function($user) {
+                $html = '<div class="btn-group btn-group-sm">';
+                $html .= '<a href="' . route('admin.teams.show', $user->id) . '" class="btn btn-info"><i class="fas fa-eye"></i></a>';
+                $html .= '<button class="btn btn-primary reassign-btn" data-id="' . $user->id . '" data-name="' . e($user->name) . '" data-supervisor="' . ($user->supervisor_id ?? '') . '"><i class="fas fa-exchange-alt"></i></button>';
+                if ($user->supervisor_id) {
+                    $html .= '<button class="btn btn-warning remove-btn" data-id="' . $user->id . '" data-name="' . e($user->name) . '"><i class="fas fa-user-minus"></i></button>';
+                }
+                $html .= '</div>';
+                return $html;
+            })
+            ->filter(function($query) use ($request) {
+                if ($search = $request->search['value'] ?? null) {
+                    $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")->orWhere('employee_id', 'like', "%{$search}%"));
+                }
+                if ($request->supervisor_id === 'independent') {
+                    $query->whereNull('supervisor_id');
+                } elseif ($request->supervisor_id) {
+                    $query->where('supervisor_id', $request->supervisor_id);
+                }
+                if ($request->status) {
+                    $query->where('status', $request->status);
+                }
+            })
+            ->rawColumns(['supervisor_name', 'status_badge', 'actions'])
+            ->make(true);
+    }
+
+    /**
+     * Show team member details.
+     */
+    public function show(User $user): View|JsonResponse
+    {
+        $user->load(['supervisor:id,name', 'roles']);
+        $statistics = $this->teamService->getMemberStatistics($user);
+        $recentJobs = $this->teamService->getMemberRecentJobs($user);
+        $chartData = $this->teamService->getMemberWeeklyPerformance($user);
+        $assignmentHistory = $this->teamService->getAssignmentHistory($user);
+
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'user' => [
+                    'id' => $user->id,
+                    'employee_id' => $user->employee_id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'status' => $user->status,
+                    'coverage_states' => $user->coverage_states ?? [],
+                    'skill_tags' => $user->skill_tags ?? [],
+                    'supervisor' => $user->supervisor,
+                ],
+                'statistics' => $statistics
+            ]);
+        }
+
+        $supervisors = User::role('supervisor')->where('status', 'active')->orderBy('name')->get();
+        return view('admin.teams.show', compact('user', 'statistics', 'recentJobs', 'chartData', 'assignmentHistory', 'supervisors'));
+    }
+
+    /**
+     * Assign single technician to supervisor.
+     */
+    public function assign(AssignTechnicianRequest $request): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $technician = User::findOrFail($request->technician_id);
+            $oldSupervisorId = $technician->supervisor_id;
+
+            $technician->update(['supervisor_id' => $request->supervisor_id]);
+            $this->teamService->logTeamChange($technician, $oldSupervisorId, $request->supervisor_id, Auth::user());
+
+            DB::commit();
+
+            $message = $request->supervisor_id
+                ? "Assigned to " . User::find($request->supervisor_id)->name
+                : "Now independent";
+
+            return response()->json(['success' => true, 'message' => $message]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Bulk assign technicians to supervisor.
+     */
+    public function bulkAssign(BulkAssignRequest $request): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $count = 0;
+            foreach ($request->technician_ids as $id) {
+                $technician = User::find($id);
+                if ($technician && $technician->hasRole('technician')) {
+                    $oldSupervisorId = $technician->supervisor_id;
+                    $technician->update(['supervisor_id' => $request->supervisor_id]);
+                    $this->teamService->logTeamChange($technician, $oldSupervisorId, $request->supervisor_id, Auth::user());
+                    $count++;
+                }
+            }
+
+            DB::commit();
+
+            $message = $request->supervisor_id
+                ? "{$count} technician(s) assigned to " . User::find($request->supervisor_id)->name
+                : "{$count} technician(s) now independent";
+
+            return response()->json(['success' => true, 'message' => $message, 'count' => $count]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Remove technician from team (make independent).
+     */
+    public function remove(User $user): JsonResponse
+    {
+        try {
+            if (!$user->hasRole('technician')) {
+                return response()->json(['success' => false, 'message' => 'Not a technician'], 422);
+            }
+
+            $oldSupervisorId = $user->supervisor_id;
+
+            DB::beginTransaction();
+            $user->update(['supervisor_id' => null]);
+            $this->teamService->logTeamChange($user, $oldSupervisorId, null, Auth::user());
+            DB::commit();
+
+            return response()->json(['success' => true, 'message' => "{$user->name} is now independent"]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get supervisor team stats.
+     */
+    public function stats(User $user): JsonResponse
+    {
+        if (!$user->hasRole('supervisor')) {
+            return response()->json(['success' => false, 'message' => 'Not a supervisor'], 422);
+        }
+
+        return response()->json(['success' => true, 'statistics' => $this->teamService->getSupervisorTeamStats($user)]);
+    }
+
+    /**
+     * Get supervisors list for dropdown.
+     */
+    public function supervisorsList(Request $request): JsonResponse
+    {
+        $query = User::role('supervisor')
+            ->where('status', 'active')
+            ->withCount(['technicians' => fn($q) => $q->where('status', 'active')]);
+
+        if ($search = $request->search) {
+            $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")->orWhere('employee_id', 'like', "%{$search}%"));
+        }
+
+        return response()->json(['success' => true, 'supervisors' => $query->orderBy('name')->limit(50)->get()]);
+    }
+
+    /**
+     * Get independent technicians list.
+     */
+    public function independentList(Request $request): JsonResponse
+    {
+        $query = User::role('technician')->whereNull('supervisor_id')->where('status', 'active');
+
+        if ($search = $request->search) {
+            $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")->orWhere('employee_id', 'like', "%{$search}%"));
+        }
+
+        return response()->json(['success' => true, 'technicians' => $query->orderBy('name')->limit(50)->get()]);
+    }
+}
