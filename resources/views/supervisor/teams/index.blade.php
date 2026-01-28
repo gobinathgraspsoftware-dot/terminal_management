@@ -1,4 +1,4 @@
-@extends('layouts.supervisor')
+@extends('layouts.app')
 
 @section('title', 'My Team')
 
@@ -94,7 +94,7 @@
                         <div class="col-12 text-center py-5"><i class="fas fa-users fa-3x text-muted mb-3 opacity-50"></i><p class="text-muted">No team members</p></div>
                     @endforelse
                 </div>
-                
+
                 <div id="listView" style="display: none;">
                     <div class="table-responsive">
                         <table class="table table-hover">
@@ -180,9 +180,9 @@
 $(document).ready(function() {
     $('#cardViewBtn').on('click', function() { $(this).addClass('active'); $('#listViewBtn').removeClass('active'); $('#cardView').show(); $('#listView').hide(); });
     $('#listViewBtn').on('click', function() { $(this).addClass('active'); $('#cardViewBtn').removeClass('active'); $('#listView').show(); $('#cardView').hide(); });
-    
+
     new Chart(document.getElementById('weeklyJobsChart').getContext('2d'), { type: 'bar', data: { labels: {!! json_encode($teamPerformance['jobs_this_week']['labels'] ?? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) !!}, datasets: [{ label: 'Jobs', data: {!! json_encode($teamPerformance['jobs_this_week']['data'] ?? [0,0,0,0,0,0,0]) !!}, backgroundColor: 'rgba(13, 110, 253, 0.8)', borderRadius: 4 }] }, options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } } });
-    
+
     $(document).on('click', '.view-member', function() {
         var id = $(this).data('id');
         $.ajax({ url: '/supervisor/teams/' + id, method: 'GET', success: function(response) {
@@ -190,7 +190,7 @@ $(document).ready(function() {
             $('#memberName').text(user.name); $('#memberEmployeeId').text(user.employee_id); $('#memberEmail').text(user.email);
             $('#memberPhone').text(user.phone || '-'); $('#memberStatus').html(user.status_badge);
             $('#memberTotalJobs').text(stats.total_jobs); $('#memberCompletedJobs').text(stats.completed_jobs); $('#memberPendingJobs').text(stats.pending_jobs);
-            
+
             var coverageHtml = '', skillsHtml = '';
             if (user.coverage_states && user.coverage_states.length > 0) { user.coverage_states.forEach(function(s) { coverageHtml += '<span class="badge bg-light text-dark me-1 mb-1">' + s + '</span>'; }); } else { coverageHtml = '<span class="text-muted">Not assigned</span>'; }
             if (user.skill_tags && user.skill_tags.length > 0) { user.skill_tags.forEach(function(s) { skillsHtml += '<span class="badge bg-info me-1 mb-1">' + s + '</span>'; }); } else { skillsHtml = '<span class="text-muted">Not tagged</span>'; }

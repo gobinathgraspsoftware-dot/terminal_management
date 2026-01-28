@@ -2,6 +2,7 @@
     $user = auth()->user();
     $role = $user->roles->first()?->name;
     $currentRoute = request()->route()->getName();
+    $currentView = request()->query('view', '');
 @endphp
 
 <div class="sidebar-content p-3">
@@ -58,29 +59,32 @@
             </div>
 
             <!-- Team Management Section - SEPARATE DROPDOWN -->
+            @php
+                $isTeamRoute = str_contains($currentRoute ?? '', 'admin.teams');
+            @endphp
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Team Management</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link {{ $currentRoute === 'admin.teams.index' ? 'active' : '' }}"
+                        <a class="nav-link {{ $isTeamRoute && ($currentView === '' || $currentView === 'all') ? 'active' : '' }}"
                            href="{{ route('admin.teams.index') }}">
                             <i class="bi bi-diagram-3 me-2"></i> All Teams
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.teams.supervisors') ? 'active' : '' }}"
+                        <a class="nav-link {{ $isTeamRoute && $currentView === 'supervisors' ? 'active' : '' }}"
                            href="{{ route('admin.teams.index') }}?view=supervisors">
                             <i class="bi bi-person-badge me-2"></i> Supervisors
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.teams.technicians') ? 'active' : '' }}"
+                        <a class="nav-link {{ $isTeamRoute && $currentView === 'technicians' ? 'active' : '' }}"
                            href="{{ route('admin.teams.index') }}?view=technicians">
                             <i class="bi bi-person-gear me-2"></i> Technicians
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.teams.independent') ? 'active' : '' }}"
+                        <a class="nav-link {{ $isTeamRoute && $currentView === 'independent' ? 'active' : '' }}"
                            href="{{ route('admin.teams.index') }}?view=independent">
                             <i class="bi bi-person-dash me-2"></i> Independent
                         </a>
@@ -208,11 +212,14 @@
             </div>
 
             <!-- Team Management Section for Supervisor - SEPARATE DROPDOWN -->
+            @php
+                $isTeamRoute = str_contains($currentRoute ?? '', 'supervisor.teams');
+            @endphp
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Team Management</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link {{ $currentRoute === 'supervisor.teams.index' ? 'active' : '' }}"
+                        <a class="nav-link {{ $isTeamRoute && ($currentView === '' || $currentView === 'all') ? 'active' : '' }}"
                            href="{{ route('supervisor.teams.index') }}">
                             <i class="bi bi-people-fill me-2"></i> My Team
                             @php
@@ -224,13 +231,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.teams.performance') ? 'active' : '' }}"
+                        <a class="nav-link {{ $isTeamRoute && $currentView === 'performance' ? 'active' : '' }}"
                            href="{{ route('supervisor.teams.index') }}?view=performance">
                             <i class="bi bi-graph-up-arrow me-2"></i> Team Performance
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.teams.coverage') ? 'active' : '' }}"
+                        <a class="nav-link {{ $isTeamRoute && $currentView === 'coverage' ? 'active' : '' }}"
                            href="{{ route('supervisor.teams.index') }}?view=coverage">
                             <i class="bi bi-geo-alt me-2"></i> Coverage Areas
                         </a>

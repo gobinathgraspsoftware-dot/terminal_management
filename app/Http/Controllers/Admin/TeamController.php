@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\TeamService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -16,23 +18,33 @@ use Yajra\DataTables\Facades\DataTables;
 
 /**
  * Admin TeamController
- * 
+ *
  * Handles all team management for Admin users:
  * - View all teams and supervisors
  * - Assign/reassign technicians
  * - Bulk assignments
  * - Remove from teams
- * 
+ *
  * @package App\Http\Controllers\Admin
  */
-class TeamController extends Controller
+class TeamController extends Controller implements HasMiddleware
 {
     protected TeamService $teamService;
+
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('auth'),
+            new Middleware('role:admin'),
+        ];
+    }
 
     public function __construct(TeamService $teamService)
     {
         $this->teamService = $teamService;
-        $this->middleware('role:admin');
     }
 
     /**
@@ -76,10 +88,10 @@ class TeamController extends Controller
             ->addColumn('coverage', fn($user) => $user->coverage_states ? implode(', ', array_slice($user->coverage_states, 0, 3)) : '-')
             ->addColumn('actions', function($user) {
                 $html = '<div class="btn-group btn-group-sm">';
-                $html .= '<a href="' . route('admin.teams.show', $user->id) . '" class="btn btn-info"><i class="fas fa-eye"></i></a>';
-                $html .= '<button class="btn btn-primary reassign-btn" data-id="' . $user->id . '" data-name="' . e($user->name) . '" data-supervisor="' . ($user->supervisor_id ?? '') . '"><i class="fas fa-exchange-alt"></i></button>';
+                $html .= '<a href="' . route('admin.teams.show', $user->id) . '" class="btn btn-info" title="View"><i class="bi bi-eye"></i></a>';
+                $html .= '<button class="btn btn-primary reassign-btn" data-id="' . $user->id . '" data-name="' . e($user->name) . '" data-supervisor="' . ($user->supervisor_id ?? '') . '" title="Reassign"><i class="bi bi-arrow-left-right"></i></button>';
                 if ($user->supervisor_id) {
-                    $html .= '<button class="btn btn-warning remove-btn" data-id="' . $user->id . '" data-name="' . e($user->name) . '"><i class="fas fa-user-minus"></i></button>';
+                    $html .= '<button class="btn btn-warning remove-btn" data-id="' . $user->id . '" data-name="' . e($user->name) . '" title="Remove"><i class="bi bi-person-dash"></i></button>';
                 }
                 $html .= '</div>';
                 return $html;

@@ -1,4 +1,4 @@
-@extends('layouts.supervisor')
+@extends('layouts.app')
 
 @section('title', 'Team Member - ' . $user->name)
 
@@ -26,12 +26,12 @@
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body text-center">
-                <img src="{{ $user->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode($user->name) }}" 
-                    class="rounded-circle mb-3 border border-4 border-primary" 
+                <img src="{{ $user->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode($user->name) }}"
+                    class="rounded-circle mb-3 border border-4 border-primary"
                     style="width: 120px; height: 120px; object-fit: cover;">
                 <h4 class="mb-1">{{ $user->name }}</h4>
                 <p class="text-muted mb-2">{{ $user->employee_id }}</p>
-                
+
                 @php
                     $statusClass = match($user->status) {
                         'active' => 'success',
@@ -41,9 +41,9 @@
                     };
                 @endphp
                 <span class="badge bg-{{ $statusClass }}">{{ ucfirst($user->status) }}</span>
-                
+
                 <hr class="my-3">
-                
+
                 <div class="text-start">
                     <div class="mb-3">
                         <small class="text-muted d-block"><i class="fas fa-envelope me-1"></i> Email</small>
@@ -75,7 +75,7 @@
                     </div>
                 </div>
             </div>
-            
+
             {{-- Quick Contact --}}
             <div class="card-footer bg-white">
                 <div class="d-flex justify-content-center gap-2">
@@ -83,7 +83,7 @@
                         <a href="tel:{{ $user->phone }}" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-phone"></i>
                         </a>
-                        <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $user->phone) }}" 
+                        <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $user->phone) }}"
                             target="_blank" class="btn btn-outline-success btn-sm">
                             <i class="fab fa-whatsapp"></i>
                         </a>

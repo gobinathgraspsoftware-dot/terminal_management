@@ -7,28 +7,40 @@ use App\Models\User;
 use App\Services\TeamService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
 
 /**
  * Supervisor TeamController
- * 
+ *
  * Handles team viewing for Supervisor users (READ-ONLY):
  * - View own team members only
  * - View team statistics
  * - View member performance
- * 
+ *
  * @package App\Http\Controllers\Supervisor
  */
-class TeamController extends Controller
+class TeamController extends Controller implements HasMiddleware
 {
     protected TeamService $teamService;
+
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('auth'),
+            new Middleware('role:supervisor'),
+        ];
+    }
 
     public function __construct(TeamService $teamService)
     {
         $this->teamService = $teamService;
-        $this->middleware('role:supervisor');
     }
 
     /**

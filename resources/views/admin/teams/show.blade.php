@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.app')
 
 @section('title', 'Team Member - ' . $user->name)
 
@@ -120,7 +120,7 @@
 <script>
 $(document).ready(function() {
     new Chart(document.getElementById('weeklyChart').getContext('2d'), { type: 'bar', data: { labels: {!! json_encode($chartData['labels'] ?? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) !!}, datasets: [{ label: 'Jobs', data: {!! json_encode($chartData['data'] ?? [0,0,0,0,0,0,0]) !!}, backgroundColor: 'rgba(54, 162, 235, 0.8)', borderRadius: 4 }] }, options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } } });
-    
+
     $('#reassignForm').on('submit', function(e) { e.preventDefault();
         $.ajax({ url: '{{ route("admin.teams.assign") }}', method: 'POST', data: { technician_id: {{ $user->id }}, supervisor_id: $('#reassignSupervisorSelect').val() }, success: function(response) { $('#reassignModal').modal('hide'); showToast('success', response.message); setTimeout(function() { location.reload(); }, 1000); }, error: function(xhr) { showToast('error', xhr.responseJSON?.message || 'Failed'); } });
     });
