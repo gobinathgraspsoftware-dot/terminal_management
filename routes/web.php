@@ -10,6 +10,8 @@ use App\Http\Controllers\Supervisor\TeamController as SupervisorTeamController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Supervisor\ProfileController as SupervisorProfileController;
 use App\Http\Controllers\Technician\ProfileController as TechnicianProfileController;
+use App\Http\Controllers\Admin\RoleController;
+use App\Http\Controllers\Admin\PermissionController;
 
 // =====================================================
 // PUBLIC ROUTES (Guest only)
@@ -109,6 +111,67 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/{user}/stats', 'stats')->name('stats');
         Route::get('/ajax/supervisors', 'supervisorsList')->name('ajax.supervisors');
         Route::get('/ajax/independent', 'independentList')->name('ajax.independent');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Role Management Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('roles')->name('roles.')->group(function () {
+        // List all roles (with DataTables AJAX support)
+        Route::get('/', [RoleController::class, 'index'])->name('index');
+
+        // Create new role
+        Route::get('/create', [RoleController::class, 'create'])->name('create');
+        Route::post('/', [RoleController::class, 'store'])->name('store');
+
+        // View role details
+        Route::get('/{role}', [RoleController::class, 'show'])->name('show');
+
+        // Edit role
+        Route::get('/{role}/edit', [RoleController::class, 'edit'])->name('edit');
+        Route::put('/{role}', [RoleController::class, 'update'])->name('update');
+
+        // Delete role
+        Route::delete('/{role}', [RoleController::class, 'destroy'])->name('destroy');
+
+        // AJAX: Get role details
+        Route::get('/{role}/details', [RoleController::class, 'getDetails'])->name('details');
+
+        // AJAX: Update role permissions
+        Route::post('/{role}/update-permissions', [RoleController::class, 'updatePermissions'])->name('update-permissions');
+
+        // AJAX: Clone role
+        Route::post('/{role}/clone', [RoleController::class, 'clone'])->name('clone');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Permission Management Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('permissions')->name('permissions.')->group(function () {
+        // List all permissions (with DataTables AJAX support)
+        Route::get('/', [PermissionController::class, 'index'])->name('index');
+
+        // Permission matrix view
+        Route::get('/matrix', [PermissionController::class, 'matrix'])->name('matrix');
+
+        // AJAX: Update single permission in matrix
+        Route::post('/update-matrix', [PermissionController::class, 'updateMatrix'])->name('update-matrix');
+
+        // AJAX: Bulk update permissions
+        Route::post('/bulk-update', [PermissionController::class, 'bulkUpdate'])->name('bulk-update');
+
+        // Export permission matrix to CSV
+        Route::get('/export-matrix', [PermissionController::class, 'exportMatrix'])->name('export-matrix');
+
+        // AJAX: Get permission details
+        Route::get('/{permission}/details', [PermissionController::class, 'getDetails'])->name('details');
+
+        // AJAX: Get permissions by group
+        Route::get('/group/{group}', [PermissionController::class, 'getByGroup'])->name('by-group');
     });
 
     // Settings (requires specific permission)

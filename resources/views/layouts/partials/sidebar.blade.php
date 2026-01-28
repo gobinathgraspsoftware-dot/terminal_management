@@ -41,18 +41,37 @@
                 </ul>
             </div>
 
+            {{-- User Management Section with Roles & Permissions --}}
+            @php
+                $isUserRoute = str_contains($currentRoute ?? '', 'admin.users');
+                $isRoleRoute = str_contains($currentRoute ?? '', 'admin.roles');
+                $isPermissionRoute = str_contains($currentRoute ?? '', 'admin.permissions');
+            @endphp
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">User Management</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.users') ? 'active' : '' }}"
+                        <a class="nav-link {{ $isUserRoute ? 'active' : '' }}"
                            href="{{ route('admin.users.index') }}">
                             <i class="bi bi-people me-2"></i> Users
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-shield-check me-2"></i> Roles & Permissions
+                        <a class="nav-link {{ $isRoleRoute ? 'active' : '' }}"
+                           href="{{ route('admin.roles.index') }}">
+                            <i class="bi bi-shield-lock me-2"></i> Roles
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isPermissionRoute && !str_contains($currentRoute, 'matrix') ? 'active' : '' }}"
+                           href="{{ route('admin.permissions.index') }}">
+                            <i class="bi bi-key me-2"></i> Permissions
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'admin.permissions.matrix') ? 'active' : '' }}"
+                           href="{{ route('admin.permissions.matrix') }}">
+                            <i class="bi bi-grid-3x3-gap me-2"></i> Permission Matrix
                         </a>
                     </li>
                 </ul>
@@ -451,17 +470,6 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#">
                             <i class="bi bi-cash-coin me-2"></i> Commission
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Profile</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-person me-2"></i> My Profile
                         </a>
                     </li>
                 </ul>
