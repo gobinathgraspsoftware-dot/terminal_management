@@ -8,7 +8,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0">Change Avatar</h1>
         <a href="{{ route('technician.profile.index') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Back to Profile
+            <i class="bi bi-arrow-left"></i> Back to Profile
         </a>
     </div>
 
@@ -23,15 +23,17 @@
                     <div class="text-center mb-4">
                         <h6 class="mb-3">Current Avatar</h6>
                         @if($user->avatar)
-                            <img src="{{ Storage::url($user->avatar) }}"
+                            {{-- Add cache busting timestamp to prevent browser caching --}}
+                            <img src="{{ asset('storage/' . $user->avatar) }}?v={{ time() }}"
                                  alt="Current Avatar"
                                  class="rounded-circle img-thumbnail mb-3"
+                                 id="currentAvatar"
                                  style="width: 200px; height: 200px; object-fit: cover;">
                         @else
-                            <img src="{{ asset('images/default-avatar.png') }}"
-                                 alt="Default Avatar"
-                                 class="rounded-circle img-thumbnail mb-3"
-                                 style="width: 200px; height: 200px; object-fit: cover;">
+                            <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3"
+                                 style="width: 200px; height: 200px; font-size: 5rem;">
+                                {{ strtoupper(substr($user->name, 0, 1)) }}
+                            </div>
                         @endif
 
                         @if($user->avatar)
@@ -45,7 +47,7 @@
                                 <button type="submit"
                                         class="btn btn-sm btn-outline-danger"
                                         onclick="return confirm('Are you sure you want to remove your avatar?')">
-                                    <i class="fas fa-trash"></i> Remove Avatar
+                                    <i class="bi bi-trash"></i> Remove Avatar
                                 </button>
                             </form>
                         </div>
@@ -110,8 +112,8 @@
                             <a href="{{ route('technician.profile.index') }}" class="btn btn-secondary">
                                 Cancel
                             </a>
-                            <button type="submit" class="btn btn-primary" id="submitBtn">
-                                <i class="fas fa-upload"></i> Upload Avatar
+                            <button type="submit" class="btn btn-primary" id="uploadBtn">
+                                <i class="bi bi-upload"></i> Upload Avatar
                             </button>
                         </div>
                     </form>
@@ -119,76 +121,47 @@
             </div>
         </div>
 
-        <!-- Help Card -->
+        <!-- Guidelines Card -->
         <div class="col-lg-6">
             <div class="card">
                 <div class="card-header">
                     <h6 class="mb-0">
-                        <i class="fas fa-info-circle"></i> Avatar Guidelines
+                        <i class="bi bi-info-circle"></i> Avatar Guidelines
                     </h6>
                 </div>
                 <div class="card-body">
                     <h6>Image Requirements:</h6>
-                    <ul>
-                        <li>Minimum dimensions: 100 x 100 pixels</li>
-                        <li>Maximum dimensions: 2000 x 2000 pixels</li>
-                        <li>Maximum file size: 2 MB</li>
-                        <li>Allowed formats: JPEG, PNG, JPG, GIF</li>
+                    <ul class="mb-3">
+                        <li><strong>File Format:</strong> JPEG, PNG, JPG, or GIF</li>
+                        <li><strong>File Size:</strong> Maximum 2MB</li>
+                        <li><strong>Dimensions:</strong> Minimum 100x100px, Maximum 2000x2000px</li>
+                        <li><strong>Recommended:</strong> Square images (1:1 ratio) for best results</li>
                     </ul>
 
-                    <h6 class="mt-4">Tips for Best Results:</h6>
-                    <ul>
-                        <li>Use a clear, high-quality photo</li>
-                        <li>Square images work best</li>
-                        <li>Ensure good lighting</li>
-                        <li>Center your face in the photo</li>
-                        <li>Use a neutral background</li>
+                    <h6>Tips for Best Results:</h6>
+                    <ul class="mb-0">
+                        <li>Use a clear, recent photo of yourself</li>
+                        <li>Ensure good lighting and focus</li>
+                        <li>Center your face in the frame</li>
+                        <li>Avoid busy backgrounds</li>
+                        <li>Use a professional-looking image for work profiles</li>
                     </ul>
-
-                    <div class="alert alert-info mt-3">
-                        <i class="fas fa-lightbulb"></i>
-                        <strong>Pro Tip:</strong> Your avatar will be displayed as a circle,
-                        so make sure important parts of the image are centered.
-                    </div>
                 </div>
             </div>
 
             <div class="card mt-3">
                 <div class="card-header">
                     <h6 class="mb-0">
-                        <i class="fas fa-images"></i> Sample Avatars
+                        <i class="bi bi-shield-check"></i> Privacy & Security
                     </h6>
                 </div>
                 <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-4 mb-3">
-                            <div class="avatar-sample">
-                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto"
-                                     style="width: 80px; height: 80px; font-size: 2rem;">
-                                    {{ substr($user->name, 0, 1) }}
-                                </div>
-                                <small class="d-block mt-2">Initials</small>
-                            </div>
-                        </div>
-                        <div class="col-4 mb-3">
-                            <div class="avatar-sample">
-                                <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mx-auto"
-                                     style="width: 80px; height: 80px;">
-                                    <i class="fas fa-user fa-2x"></i>
-                                </div>
-                                <small class="d-block mt-2">Icon</small>
-                            </div>
-                        </div>
-                        <div class="col-4 mb-3">
-                            <div class="avatar-sample">
-                                <div class="rounded-circle bg-info text-white d-flex align-items-center justify-content-center mx-auto"
-                                     style="width: 80px; height: 80px;">
-                                    <i class="fas fa-camera fa-2x"></i>
-                                </div>
-                                <small class="d-block mt-2">Photo</small>
-                            </div>
-                        </div>
-                    </div>
+                    <ul class="mb-0">
+                        <li>Your avatar is visible to other users in the system</li>
+                        <li>Previous avatars are automatically deleted when you upload a new one</li>
+                        <li>You can remove your avatar at any time</li>
+                        <li>Make sure you have the right to use the image you upload</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -203,9 +176,10 @@ $(document).ready(function() {
         const file = e.target.files[0];
 
         if (file) {
-            // Validate file size
-            if (file.size > 2 * 1024 * 1024) {
-                alert('File size must not exceed 2MB');
+            // Validate file size (2MB)
+            const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+            if (file.size > maxSize) {
+                alert('File size must be less than 2MB');
                 $(this).val('');
                 $('#imagePreviewContainer').hide();
                 return;
@@ -214,7 +188,7 @@ $(document).ready(function() {
             // Validate file type
             const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
             if (!allowedTypes.includes(file.type)) {
-                alert('Please select a valid image file (JPEG, PNG, JPG, GIF)');
+                alert('Please select a valid image file (JPEG, PNG, JPG, or GIF)');
                 $(this).val('');
                 $('#imagePreviewContainer').hide();
                 return;
@@ -224,7 +198,7 @@ $(document).ready(function() {
             const reader = new FileReader();
             reader.onload = function(e) {
                 $('#imagePreview').attr('src', e.target.result);
-                $('#imagePreviewContainer').show();
+                $('#imagePreviewContainer').slideDown();
             };
             reader.readAsDataURL(file);
 
@@ -235,13 +209,10 @@ $(document).ready(function() {
                     alert('Image dimensions must be at least 100x100 pixels');
                     $('#avatar').val('');
                     $('#imagePreviewContainer').hide();
-                    return;
-                }
-                if (this.width > 2000 || this.height > 2000) {
+                } else if (this.width > 2000 || this.height > 2000) {
                     alert('Image dimensions must not exceed 2000x2000 pixels');
                     $('#avatar').val('');
                     $('#imagePreviewContainer').hide();
-                    return;
                 }
             };
             img.src = URL.createObjectURL(file);
@@ -250,31 +221,41 @@ $(document).ready(function() {
         }
     });
 
-    // Form submission with progress
+    // Form submission
     $('#avatarForm').on('submit', function(e) {
-        if (!$('#avatar').val()) {
+        const file = $('#avatar')[0].files[0];
+
+        if (!file) {
             e.preventDefault();
             alert('Please select an image to upload');
             return false;
         }
 
-        // Show upload progress (simulated)
-        $('#uploadProgressContainer').show();
-        $('#submitBtn').prop('disabled', true);
+        // Show progress bar
+        $('#uploadBtn').prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> Uploading...');
+        $('#uploadProgressContainer').slideDown();
 
-        // Simulate upload progress
+        // Simulate progress (actual progress would need AJAX)
         let progress = 0;
-        const interval = setInterval(function() {
+        const progressInterval = setInterval(function() {
             progress += 10;
-            $('#uploadProgress')
-                .css('width', progress + '%')
-                .attr('aria-valuenow', progress)
-                .text(progress + '%');
-
-            if (progress >= 90) {
-                clearInterval(interval);
+            if (progress <= 90) {
+                $('#uploadProgress')
+                    .css('width', progress + '%')
+                    .attr('aria-valuenow', progress)
+                    .text(progress + '%');
+            } else {
+                clearInterval(progressInterval);
             }
-        }, 100);
+        }, 200);
+    });
+
+    // Delete avatar confirmation
+    $('#deleteAvatarForm').on('submit', function(e) {
+        if (!confirm('Are you sure you want to remove your avatar? This action cannot be undone.')) {
+            e.preventDefault();
+            return false;
+        }
     });
 });
 </script>
