@@ -8,9 +8,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * TeamService
- * 
+ *
  * Business logic for team management.
- * 
+ *
  * @package App\Services
  */
 class TeamService
@@ -37,7 +37,7 @@ class TeamService
             'assigned_technicians' => $assignedTechnicians,
             'independent_technicians' => $independentTechnicians,
             'avg_team_size' => $avgTeamSize,
-            'largest_team' => $largestTeam ? ['name' => $largestTeam->name, 'size' => $largestTeam->technicians_count] : null,
+            'largest_team' => $largestTeam ? ['name' => $largestTeam->name, 'team_size' => $largestTeam->technicians_count] : null,
         ];
     }
 
@@ -154,7 +154,7 @@ class TeamService
         return DB::table('job_orders')
             ->leftJoin('clients', 'job_orders.client_id', '=', 'clients.id')
             ->where('job_orders.technician_id', $member->id)
-            ->select('job_orders.id', 'job_orders.job_number', 'job_orders.job_type', 'job_orders.status', 'job_orders.scheduled_date', 'clients.name as client_name')
+            ->select('job_orders.id', 'job_orders.job_no', 'job_orders.job_type', 'job_orders.status', 'job_orders.scheduled_date', 'clients.client_name')
             ->orderByDesc('job_orders.created_at')
             ->limit($limit)
             ->get()
