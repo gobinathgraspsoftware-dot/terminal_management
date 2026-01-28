@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.app')
 
 @section('title', 'Change Password')
 
@@ -8,7 +8,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0">Change Password</h1>
         <a href="{{ route('admin.profile.index') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Back to Profile
+            <i class="bi bi-arrow-left"></i> Back to Profile
         </a>
     </div>
 
@@ -29,15 +29,15 @@
                                 Current Password <span class="text-danger">*</span>
                             </label>
                             <div class="input-group">
-                                <input type="password" 
-                                       class="form-control @error('current_password') is-invalid @enderror" 
-                                       id="current_password" 
+                                <input type="password"
+                                       class="form-control @error('current_password') is-invalid @enderror"
+                                       id="current_password"
                                        name="current_password"
                                        required>
-                                <button class="btn btn-outline-secondary" 
-                                        type="button" 
+                                <button class="btn btn-outline-secondary"
+                                        type="button"
                                         id="toggleCurrentPassword">
-                                    <i class="fas fa-eye"></i>
+                                    <i class="bi bi-eye"></i>
                                 </button>
                                 @error('current_password')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -51,15 +51,15 @@
                                 New Password <span class="text-danger">*</span>
                             </label>
                             <div class="input-group">
-                                <input type="password" 
-                                       class="form-control @error('password') is-invalid @enderror" 
-                                       id="password" 
+                                <input type="password"
+                                       class="form-control @error('password') is-invalid @enderror"
+                                       id="password"
                                        name="password"
                                        required>
-                                <button class="btn btn-outline-secondary" 
-                                        type="button" 
+                                <button class="btn btn-outline-secondary"
+                                        type="button"
                                         id="togglePassword">
-                                    <i class="fas fa-eye"></i>
+                                    <i class="bi bi-eye"></i>
                                 </button>
                                 @error('password')
                                     <div class="invalid-feedback">{{ $message }}</div>
@@ -72,9 +72,9 @@
                             <!-- Password Strength Meter -->
                             <div class="mt-2">
                                 <div class="progress" style="height: 5px;">
-                                    <div class="progress-bar" 
-                                         id="passwordStrength" 
-                                         role="progressbar" 
+                                    <div class="progress-bar"
+                                         id="passwordStrength"
+                                         role="progressbar"
                                          style="width: 0%"></div>
                                 </div>
                                 <small id="passwordStrengthText" class="text-muted"></small>
@@ -87,15 +87,15 @@
                                 Confirm New Password <span class="text-danger">*</span>
                             </label>
                             <div class="input-group">
-                                <input type="password" 
-                                       class="form-control @error('password_confirmation') is-invalid @enderror" 
-                                       id="password_confirmation" 
+                                <input type="password"
+                                       class="form-control @error('password_confirmation') is-invalid @enderror"
+                                       id="password_confirmation"
                                        name="password_confirmation"
                                        required>
-                                <button class="btn btn-outline-secondary" 
-                                        type="button" 
+                                <button class="btn btn-outline-secondary"
+                                        type="button"
                                         id="togglePasswordConfirmation">
-                                    <i class="fas fa-eye"></i>
+                                    <i class="bi bi-eye"></i>
                                 </button>
                             </div>
                             <div id="passwordMatchText" class="form-text"></div>
@@ -107,7 +107,7 @@
                                 Cancel
                             </a>
                             <button type="submit" class="btn btn-primary" id="submitBtn">
-                                <i class="fas fa-key"></i> Change Password
+                                <i class="bi bi-key"></i> Change Password
                             </button>
                         </div>
                     </form>
@@ -120,17 +120,17 @@
             <div class="card">
                 <div class="card-header">
                     <h6 class="mb-0">
-                        <i class="fas fa-shield-alt"></i> Password Security Tips
+                        <i class="bi bi-shield-check"></i> Password Security Tips
                     </h6>
                 </div>
                 <div class="card-body">
                     <ul class="mb-0">
                         <li class="mb-2">
-                            <strong>Use a strong password:</strong> At least 8 characters with a mix of uppercase, 
+                            <strong>Use a strong password:</strong> At least 8 characters with a mix of uppercase,
                             lowercase, numbers, and special characters
                         </li>
                         <li class="mb-2">
-                            <strong>Avoid common passwords:</strong> Don't use easily guessable passwords like 
+                            <strong>Avoid common passwords:</strong> Don't use easily guessable passwords like
                             "password123" or "12345678"
                         </li>
                         <li class="mb-2">
@@ -149,29 +149,29 @@
             <div class="card mt-3">
                 <div class="card-header">
                     <h6 class="mb-0">
-                        <i class="fas fa-info-circle"></i> Password Requirements
+                        <i class="bi bi-info-circle"></i> Password Requirements
                     </h6>
                 </div>
                 <div class="card-body">
                     <ul class="mb-0" id="passwordRequirements">
                         <li class="mb-1">
-                            <i class="fas fa-circle text-muted" id="req-length"></i>
+                            <i class="bi bi-circle text-muted" id="req-length"></i>
                             Minimum 8 characters
                         </li>
                         <li class="mb-1">
-                            <i class="fas fa-circle text-muted" id="req-uppercase"></i>
+                            <i class="bi bi-circle text-muted" id="req-uppercase"></i>
                             At least one uppercase letter
                         </li>
                         <li class="mb-1">
-                            <i class="fas fa-circle text-muted" id="req-lowercase"></i>
+                            <i class="bi bi-circle text-muted" id="req-lowercase"></i>
                             At least one lowercase letter
                         </li>
                         <li class="mb-1">
-                            <i class="fas fa-circle text-muted" id="req-number"></i>
+                            <i class="bi bi-circle text-muted" id="req-number"></i>
                             At least one number
                         </li>
                         <li class="mb-1">
-                            <i class="fas fa-circle text-muted" id="req-special"></i>
+                            <i class="bi bi-circle text-muted" id="req-special"></i>
                             At least one special character
                         </li>
                     </ul>
@@ -200,13 +200,13 @@ $(document).ready(function() {
     function togglePasswordVisibility(inputId, button) {
         const input = $(inputId);
         const icon = $(button).find('i');
-        
+
         if (input.attr('type') === 'password') {
             input.attr('type', 'text');
-            icon.removeClass('fa-eye').addClass('fa-eye-slash');
+            icon.removeClass('bi-eye').addClass('bi-eye-slash');
         } else {
             input.attr('type', 'password');
-            icon.removeClass('fa-eye-slash').addClass('fa-eye');
+            icon.removeClass('bi-eye-slash').addClass('bi-eye');
         }
     }
 
@@ -221,18 +221,18 @@ $(document).ready(function() {
     $('#password_confirmation').on('input', function() {
         const password = $('#password').val();
         const confirmation = $(this).val();
-        
+
         if (confirmation.length > 0) {
             if (password === confirmation) {
                 $('#passwordMatchText')
                     .removeClass('text-danger')
                     .addClass('text-success')
-                    .html('<i class="fas fa-check-circle"></i> Passwords match');
+                    .html('<i class="bi bi-check-circle"></i> Passwords match');
             } else {
                 $('#passwordMatchText')
                     .removeClass('text-success')
                     .addClass('text-danger')
-                    .html('<i class="fas fa-times-circle"></i> Passwords do not match');
+                    .html('<i class="bi bi-x-circle"></i> Passwords do not match');
             }
         } else {
             $('#passwordMatchText').html('');
@@ -280,11 +280,11 @@ $(document).ready(function() {
     function updateRequirement(id, met) {
         const icon = $('#' + id);
         if (met) {
-            icon.removeClass('fa-circle text-muted')
-                .addClass('fa-check-circle text-success');
+            icon.removeClass('bi-circle text-muted')
+                .addClass('bi-check-circle text-success');
         } else {
-            icon.removeClass('fa-check-circle text-success')
-                .addClass('fa-circle text-muted');
+            icon.removeClass('bi-check-circle text-success')
+                .addClass('bi-circle text-muted');
         }
     }
 

@@ -1,4 +1,4 @@
-@extends('layouts.supervisor')
+@extends('layouts.app')
 
 @section('title', 'Edit Profile')
 
@@ -28,10 +28,10 @@
                             <label for="name" class="form-label">
                                 Full Name <span class="text-danger">*</span>
                             </label>
-                            <input type="text" 
-                                   class="form-control @error('name') is-invalid @enderror" 
-                                   id="name" 
-                                   name="name" 
+                            <input type="text"
+                                   class="form-control @error('name') is-invalid @enderror"
+                                   id="name"
+                                   name="name"
                                    value="{{ old('name', $user->name) }}"
                                    required>
                             @error('name')
@@ -44,10 +44,10 @@
                             <label for="email" class="form-label">
                                 Email Address <span class="text-danger">*</span>
                             </label>
-                            <input type="email" 
-                                   class="form-control @error('email') is-invalid @enderror" 
-                                   id="email" 
-                                   name="email" 
+                            <input type="email"
+                                   class="form-control @error('email') is-invalid @enderror"
+                                   id="email"
+                                   name="email"
                                    value="{{ old('email', $user->email) }}"
                                    required>
                             @error('email')
@@ -58,10 +58,10 @@
                         <!-- Phone -->
                         <div class="mb-3">
                             <label for="phone" class="form-label">Phone Number</label>
-                            <input type="tel" 
-                                   class="form-control @error('phone') is-invalid @enderror" 
-                                   id="phone" 
-                                   name="phone" 
+                            <input type="tel"
+                                   class="form-control @error('phone') is-invalid @enderror"
+                                   id="phone"
+                                   name="phone"
                                    value="{{ old('phone', $user->phone) }}"
                                    placeholder="+91 9876543210">
                             @error('phone')
@@ -72,9 +72,9 @@
                         <!-- Address -->
                         <div class="mb-3">
                             <label for="address" class="form-label">Address</label>
-                            <textarea class="form-control @error('address') is-invalid @enderror" 
-                                      id="address" 
-                                      name="address" 
+                            <textarea class="form-control @error('address') is-invalid @enderror"
+                                      id="address"
+                                      name="address"
                                       rows="3"
                                       placeholder="Enter your complete address">{{ old('address', $user->address) }}</textarea>
                             @error('address')
@@ -86,10 +86,10 @@
                             <!-- Date of Birth -->
                             <div class="col-md-6 mb-3">
                                 <label for="date_of_birth" class="form-label">Date of Birth</label>
-                                <input type="date" 
-                                       class="form-control @error('date_of_birth') is-invalid @enderror" 
-                                       id="date_of_birth" 
-                                       name="date_of_birth" 
+                                <input type="date"
+                                       class="form-control @error('date_of_birth') is-invalid @enderror"
+                                       id="date_of_birth"
+                                       name="date_of_birth"
                                        value="{{ old('date_of_birth', $user->date_of_birth?->format('Y-m-d')) }}"
                                        max="{{ date('Y-m-d') }}">
                                 @error('date_of_birth')
@@ -100,8 +100,8 @@
                             <!-- Gender -->
                             <div class="col-md-6 mb-3">
                                 <label for="gender" class="form-label">Gender</label>
-                                <select class="form-select @error('gender') is-invalid @enderror" 
-                                        id="gender" 
+                                <select class="form-select @error('gender') is-invalid @enderror"
+                                        id="gender"
                                         name="gender">
                                     <option value="">Select Gender</option>
                                     <option value="male" {{ old('gender', $user->gender) == 'male' ? 'selected' : '' }}>
@@ -130,10 +130,10 @@
                                 <label for="emergency_contact_name" class="form-label">
                                     Contact Name
                                 </label>
-                                <input type="text" 
-                                       class="form-control @error('emergency_contact_name') is-invalid @enderror" 
-                                       id="emergency_contact_name" 
-                                       name="emergency_contact_name" 
+                                <input type="text"
+                                       class="form-control @error('emergency_contact_name') is-invalid @enderror"
+                                       id="emergency_contact_name"
+                                       name="emergency_contact_name"
                                        value="{{ old('emergency_contact_name', $user->emergency_contact_name) }}"
                                        placeholder="e.g., John Doe">
                                 @error('emergency_contact_name')
@@ -146,10 +146,10 @@
                                 <label for="emergency_contact_phone" class="form-label">
                                     Contact Phone
                                 </label>
-                                <input type="tel" 
-                                       class="form-control @error('emergency_contact_phone') is-invalid @enderror" 
-                                       id="emergency_contact_phone" 
-                                       name="emergency_contact_phone" 
+                                <input type="tel"
+                                       class="form-control @error('emergency_contact_phone') is-invalid @enderror"
+                                       id="emergency_contact_phone"
+                                       name="emergency_contact_phone"
                                        value="{{ old('emergency_contact_phone', $user->emergency_contact_phone) }}"
                                        placeholder="+91 9876543210">
                                 @error('emergency_contact_phone')

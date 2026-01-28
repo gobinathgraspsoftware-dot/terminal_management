@@ -1,4 +1,4 @@
-@extends('layouts.technician')
+@extends('layouts.app')
 
 @section('title', 'My Profile')
 
@@ -18,7 +18,7 @@
     @if($completionPercentage < 100)
     <div class="alert alert-info alert-dismissible fade show" role="alert">
         <i class="fas fa-info-circle"></i>
-        Your profile is <strong>{{ $completionPercentage }}% complete</strong>. 
+        Your profile is <strong>{{ $completionPercentage }}% complete</strong>.
         Please complete your profile for better experience.
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
@@ -32,13 +32,13 @@
                     <!-- Avatar -->
                     <div class="mb-3">
                         @if($user->avatar)
-                            <img src="{{ Storage::url($user->avatar) }}" 
-                                 alt="Avatar" 
+                            <img src="{{ Storage::url($user->avatar) }}"
+                                 alt="Avatar"
                                  class="rounded-circle img-thumbnail"
                                  style="width: 150px; height: 150px; object-fit: cover;">
                         @else
-                            <img src="{{ asset('images/default-avatar.png') }}" 
-                                 alt="Default Avatar" 
+                            <img src="{{ asset('images/default-avatar.png') }}"
+                                 alt="Default Avatar"
                                  class="rounded-circle img-thumbnail"
                                  style="width: 150px; height: 150px; object-fit: cover;">
                         @endif
@@ -70,11 +70,11 @@
                 </div>
                 <div class="card-body">
                     <div class="progress mb-2" style="height: 25px;">
-                        <div class="progress-bar" 
-                             role="progressbar" 
+                        <div class="progress-bar"
+                             role="progressbar"
                              style="width: {{ $completionPercentage }}%;"
-                             aria-valuenow="{{ $completionPercentage }}" 
-                             aria-valuemin="0" 
+                             aria-valuenow="{{ $completionPercentage }}"
+                             aria-valuemin="0"
                              aria-valuemax="100">
                             {{ $completionPercentage }}%
                         </div>

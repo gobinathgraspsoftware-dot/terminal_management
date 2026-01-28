@@ -1,4 +1,4 @@
-@extends('layouts.supervisor')
+@extends('layouts.app')
 
 @section('title', 'Change Avatar')
 
@@ -23,26 +23,26 @@
                     <div class="text-center mb-4">
                         <h6 class="mb-3">Current Avatar</h6>
                         @if($user->avatar)
-                            <img src="{{ Storage::url($user->avatar) }}" 
-                                 alt="Current Avatar" 
+                            <img src="{{ Storage::url($user->avatar) }}"
+                                 alt="Current Avatar"
                                  class="rounded-circle img-thumbnail mb-3"
                                  style="width: 200px; height: 200px; object-fit: cover;">
                         @else
-                            <img src="{{ asset('images/default-avatar.png') }}" 
-                                 alt="Default Avatar" 
+                            <img src="{{ asset('images/default-avatar.png') }}"
+                                 alt="Default Avatar"
                                  class="rounded-circle img-thumbnail mb-3"
                                  style="width: 200px; height: 200px; object-fit: cover;">
                         @endif
 
                         @if($user->avatar)
                         <div>
-                            <form action="{{ route('supervisor.profile.avatar.delete') }}" 
-                                  method="POST" 
+                            <form action="{{ route('supervisor.profile.avatar.delete') }}"
+                                  method="POST"
                                   id="deleteAvatarForm"
                                   class="d-inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" 
+                                <button type="submit"
                                         class="btn btn-sm btn-outline-danger"
                                         onclick="return confirm('Are you sure you want to remove your avatar?')">
                                     <i class="fas fa-trash"></i> Remove Avatar
@@ -55,8 +55,8 @@
                     <hr>
 
                     <!-- Upload New Avatar Form -->
-                    <form action="{{ route('supervisor.profile.avatar.update') }}" 
-                          method="POST" 
+                    <form action="{{ route('supervisor.profile.avatar.update') }}"
+                          method="POST"
                           enctype="multipart/form-data"
                           id="avatarForm">
                         @csrf
@@ -66,9 +66,9 @@
                             <label for="avatar" class="form-label">
                                 Upload New Avatar <span class="text-danger">*</span>
                             </label>
-                            <input type="file" 
-                                   class="form-control @error('avatar') is-invalid @enderror" 
-                                   id="avatar" 
+                            <input type="file"
+                                   class="form-control @error('avatar') is-invalid @enderror"
+                                   id="avatar"
                                    name="avatar"
                                    accept="image/jpeg,image/png,image/jpg,image/gif"
                                    required>
@@ -84,9 +84,9 @@
                         <div class="mb-3" id="imagePreviewContainer" style="display: none;">
                             <label class="form-label">Preview</label>
                             <div class="text-center">
-                                <img id="imagePreview" 
-                                     src="" 
-                                     alt="Preview" 
+                                <img id="imagePreview"
+                                     src=""
+                                     alt="Preview"
                                      class="rounded-circle img-thumbnail"
                                      style="width: 200px; height: 200px; object-fit: cover;">
                             </div>
@@ -95,12 +95,12 @@
                         <!-- Upload Progress -->
                         <div class="mb-3" id="uploadProgressContainer" style="display: none;">
                             <div class="progress">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                <div class="progress-bar progress-bar-striped progress-bar-animated"
                                      id="uploadProgress"
-                                     role="progressbar" 
+                                     role="progressbar"
                                      style="width: 0%"
-                                     aria-valuenow="0" 
-                                     aria-valuemin="0" 
+                                     aria-valuenow="0"
+                                     aria-valuemin="0"
                                      aria-valuemax="100">0%</div>
                             </div>
                         </div>
@@ -147,7 +147,7 @@
 
                     <div class="alert alert-info mt-3">
                         <i class="fas fa-lightbulb"></i>
-                        <strong>Pro Tip:</strong> Your avatar will be displayed as a circle, 
+                        <strong>Pro Tip:</strong> Your avatar will be displayed as a circle,
                         so make sure important parts of the image are centered.
                     </div>
                 </div>
@@ -163,7 +163,7 @@
                     <div class="row text-center">
                         <div class="col-4 mb-3">
                             <div class="avatar-sample">
-                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto" 
+                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto"
                                      style="width: 80px; height: 80px; font-size: 2rem;">
                                     {{ substr($user->name, 0, 1) }}
                                 </div>
@@ -172,7 +172,7 @@
                         </div>
                         <div class="col-4 mb-3">
                             <div class="avatar-sample">
-                                <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mx-auto" 
+                                <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mx-auto"
                                      style="width: 80px; height: 80px;">
                                     <i class="fas fa-user fa-2x"></i>
                                 </div>
@@ -181,7 +181,7 @@
                         </div>
                         <div class="col-4 mb-3">
                             <div class="avatar-sample">
-                                <div class="rounded-circle bg-info text-white d-flex align-items-center justify-content-center mx-auto" 
+                                <div class="rounded-circle bg-info text-white d-flex align-items-center justify-content-center mx-auto"
                                      style="width: 80px; height: 80px;">
                                     <i class="fas fa-camera fa-2x"></i>
                                 </div>
@@ -201,7 +201,7 @@ $(document).ready(function() {
     // Image preview
     $('#avatar').on('change', function(e) {
         const file = e.target.files[0];
-        
+
         if (file) {
             // Validate file size
             if (file.size > 2 * 1024 * 1024) {
