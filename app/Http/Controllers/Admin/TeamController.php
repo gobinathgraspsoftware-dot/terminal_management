@@ -50,8 +50,10 @@ class TeamController extends Controller implements HasMiddleware
     /**
      * Display admin team management dashboard.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
+        $currentView = $request->query('view', 'all');
+
         $supervisors = User::role('supervisor')
             ->withCount(['technicians' => fn($q) => $q->where('status', 'active')])
             ->with(['technicians' => fn($q) => $q->where('status', 'active')->orderBy('name')])
@@ -72,15 +74,36 @@ class TeamController extends Controller implements HasMiddleware
 
         $statistics = $this->teamService->getTeamStatistics();
 
-        return view('admin.teams.index', compact('supervisors', 'independentTechnicians', 'allTechnicians', 'statistics'));
+        return view('admin.teams.index', compact('supervisors', 'independentTechnicians', 'allTechnicians', 'statistics', 'currentView'));
     }
 
     /**
-     * Get technicians datatable.
+     * Get datatable data based on view type.
      */
     public function datatable(Request $request): JsonResponse
     {
+        $view = $request->get('view', 'all');
+
+        // For supervisors view, return supervisor list
+        if ($view === 'supervisors') {
+            return $this->supervisorsDatatable($request);
+        }
+
+        // For technicians views
         $query = User::role('technician')->with(['supervisor:id,name'])->select('users.*');
+
+        // Apply view-based filtering
+        switch ($view) {
+            case 'technicians':
+                // Show only assigned technicians (have a supervisor)
+                $query->whereNotNull('supervisor_id');
+                break;
+            case 'independent':
+                // Show only independent technicians (no supervisor)
+                $query->whereNull('supervisor_id');
+                break;
+            // 'all' shows everything - no additional filter
+        }
 
         return DataTables::of($query)
             ->addColumn('supervisor_name', fn($user) => $user->supervisor?->name ?? '<span class="badge bg-warning">Independent</span>')
@@ -110,6 +133,38 @@ class TeamController extends Controller implements HasMiddleware
                 }
             })
             ->rawColumns(['supervisor_name', 'status_badge', 'actions'])
+            ->make(true);
+    }
+
+    /**
+     * Get supervisors datatable.
+     */
+    protected function supervisorsDatatable(Request $request): JsonResponse
+    {
+        $query = User::role('supervisor')
+            ->withCount(['technicians' => fn($q) => $q->where('status', 'active')])
+            ->select('users.*');
+
+        return DataTables::of($query)
+            ->addColumn('team_count', fn($user) => '<span class="badge bg-primary">' . $user->technicians_count . ' members</span>')
+            ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . ($user->status == 'active' ? 'success' : 'secondary') . '">' . ucfirst($user->status) . '</span>')
+            ->addColumn('coverage', fn($user) => $user->coverage_states ? implode(', ', array_slice($user->coverage_states, 0, 3)) : '-')
+            ->addColumn('actions', function($user) {
+                $html = '<div class="btn-group btn-group-sm">';
+                $html .= '<a href="' . route('admin.teams.index') . '?supervisor=' . $user->id . '" class="btn btn-info" title="View Team"><i class="bi bi-people"></i></a>';
+                $html .= '<a href="' . route('admin.users.show', $user->id) . '" class="btn btn-secondary" title="View Profile"><i class="bi bi-person"></i></a>';
+                $html .= '</div>';
+                return $html;
+            })
+            ->filter(function($query) use ($request) {
+                if ($search = $request->search['value'] ?? null) {
+                    $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")->orWhere('employee_id', 'like', "%{$search}%"));
+                }
+                if ($request->status) {
+                    $query->where('status', $request->status);
+                }
+            })
+            ->rawColumns(['team_count', 'status_badge', 'actions'])
             ->make(true);
     }
 

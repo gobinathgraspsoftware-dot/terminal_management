@@ -15,9 +15,11 @@
                 </ol>
             </nav>
         </div>
+        @if($currentView !== 'supervisors')
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bulkAssignModal">
             <i class="bi bi-people me-1"></i> Bulk Assign
         </button>
+        @endif
     </div>
 
     {{-- Statistics Cards --}}
@@ -72,12 +74,30 @@
         </div>
     </div>
 
-    {{-- Table View --}}
+    {{-- View Title --}}
     <div class="card">
         <div class="card-header bg-white">
             <div class="row g-2 align-items-center">
+                <div class="col-md-4">
+                    <h5 class="mb-0">
+                        @switch($currentView)
+                            @case('supervisors')
+                                <i class="bi bi-person-badge me-2"></i>Supervisors List
+                                @break
+                            @case('technicians')
+                                <i class="bi bi-person-gear me-2"></i>Assigned Technicians
+                                @break
+                            @case('independent')
+                                <i class="bi bi-person-dash me-2"></i>Independent Technicians
+                                @break
+                            @default
+                                <i class="bi bi-diagram-3 me-2"></i>All Team Members
+                        @endswitch
+                    </h5>
+                </div>
+                @if($currentView !== 'supervisors')
                 <div class="col-md-3">
-                    <select id="filterSupervisor" class="form-select">
+                    <select id="filterSupervisor" class="form-select form-select-sm">
                         <option value="">All Supervisors</option>
                         <option value="independent">Independent Only</option>
                         @foreach($supervisors as $supervisor)
@@ -85,35 +105,56 @@
                         @endforeach
                     </select>
                 </div>
+                @endif
                 <div class="col-md-2">
-                    <select id="filterStatus" class="form-select">
+                    <select id="filterStatus" class="form-select form-select-sm">
                         <option value="">All Status</option>
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
                     </select>
                 </div>
-                <div class="col-md-7 text-end">
+                @if($currentView !== 'supervisors')
+                <div class="col-md-3 text-end">
                     <button type="button" class="btn btn-success btn-sm" id="assignSelectedBtn" disabled>
                         <i class="bi bi-person-plus me-1"></i> Assign Selected
                     </button>
                 </div>
+                @endif
             </div>
         </div>
         <div class="card-body">
-            <table id="techniciansTable" class="table table-hover" style="width:100%">
-                <thead>
-                    <tr>
-                        <th width="30"><input type="checkbox" id="selectAll" class="form-check-input"></th>
-                        <th>Employee</th>
-                        <th>Name</th>
-                        <th>Supervisor</th>
-                        <th>Coverage</th>
-                        <th>Status</th>
-                        <th width="120">Actions</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+            @if($currentView === 'supervisors')
+                {{-- Supervisors Table --}}
+                <table id="supervisorsTable" class="table table-hover" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Name</th>
+                            <th>Team Size</th>
+                            <th>Coverage</th>
+                            <th>Status</th>
+                            <th width="100">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            @else
+                {{-- Technicians Table --}}
+                <table id="techniciansTable" class="table table-hover" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th width="30"><input type="checkbox" id="selectAll" class="form-check-input"></th>
+                            <th>Employee</th>
+                            <th>Name</th>
+                            <th>Supervisor</th>
+                            <th>Coverage</th>
+                            <th>Status</th>
+                            <th width="120">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            @endif
         </div>
     </div>
 </div>
@@ -239,13 +280,42 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Initialize DataTable
+    var currentView = '{{ $currentView }}';
+
+    @if($currentView === 'supervisors')
+    // Initialize Supervisors DataTable
+    var table = $('#supervisorsTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: '{{ route("admin.teams.datatable") }}',
+            data: function(d) {
+                d.view = 'supervisors';
+                d.status = $('#filterStatus').val();
+            }
+        },
+        columns: [
+            { data: 'employee_id' },
+            { data: 'name' },
+            { data: 'team_count' },
+            { data: 'coverage' },
+            { data: 'status_badge' },
+            { data: 'actions', orderable: false }
+        ],
+        order: [[1, 'asc']],
+        language: {
+            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div>'
+        }
+    });
+    @else
+    // Initialize Technicians DataTable
     var table = $('#techniciansTable').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
             url: '{{ route("admin.teams.datatable") }}',
             data: function(d) {
+                d.view = currentView;
                 d.supervisor_id = $('#filterSupervisor').val();
                 d.status = $('#filterStatus').val();
             }
@@ -269,11 +339,6 @@ $(document).ready(function() {
         language: {
             processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div>'
         }
-    });
-
-    // Filter handlers
-    $('#filterSupervisor, #filterStatus').on('change', function() {
-        table.ajax.reload();
     });
 
     // Select all checkbox
@@ -389,36 +454,11 @@ $(document).ready(function() {
             });
         }
     });
+    @endif
 
-    // View member details
-    $(document).on('click', '.view-btn', function() {
-        var id = $(this).data('id');
-
-        $.ajax({
-            url: '/admin/teams/' + id,
-            method: 'GET',
-            success: function(response) {
-                var user = response.user;
-                var stats = response.statistics;
-
-                $('#memberDetailName').text(user.name);
-                $('#memberDetailEmployee').text(user.employee_id);
-                $('#memberDetailEmail').text(user.email);
-                $('#memberDetailPhone').text(user.phone || '-');
-                $('#memberDetailStatus').html('<span class="badge bg-' + (user.status == 'active' ? 'success' : 'secondary') + '">' + user.status + '</span>');
-                $('#memberDetailSupervisor').text(user.supervisor?.name || 'Independent');
-
-                $('#memberDetailTotalJobs').text(stats.total_jobs);
-                $('#memberDetailCompletedJobs').text(stats.completed_jobs);
-                $('#memberDetailPendingJobs').text(stats.pending_jobs);
-
-                $('#memberViewFullLink').attr('href', '/admin/teams/' + id);
-                $('#memberDetailModal').modal('show');
-            },
-            error: function() {
-                showToast('error', 'Failed to load member details');
-            }
-        });
+    // Filter handlers
+    $('#filterSupervisor, #filterStatus').on('change', function() {
+        table.ajax.reload();
     });
 
     // Toast notification
