@@ -13,43 +13,41 @@ use App\Http\Controllers\Technician\ProfileController as TechnicianProfileContro
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\PermissionController;
 
-// =====================================================
-// PUBLIC ROUTES (Guest only)
-// =====================================================
+/*
+|--------------------------------------------------------------------------
+| PUBLIC ROUTES (Guest only)
+|--------------------------------------------------------------------------
+*/
 Route::middleware('guest')->group(function () {
-    // Login
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
-
-    // Password Reset
     Route::get('/forgot-password', [PasswordResetController::class, 'showForgotForm'])->name('password.request');
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
     Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset');
     Route::post('/reset-password', [PasswordResetController::class, 'reset'])->name('password.update');
 });
 
-// =====================================================
-// AUTHENTICATED ROUTES
-// =====================================================
+/*
+|--------------------------------------------------------------------------
+| AUTHENTICATED ROUTES
+|--------------------------------------------------------------------------
+*/
 Route::middleware(['auth', 'active'])->group(function () {
-    // Logout
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-
-    // Unified Dashboard (automatically shows role-based dashboard)
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
-    // Widget API Endpoint (for AJAX refresh)
     Route::get('/api/widget/data', [DashboardController::class, 'getWidgetData'])->name('api.widget.data');
 });
 
-// =====================================================
-// ADMIN ROUTES
-// =====================================================
+/*
+|--------------------------------------------------------------------------
+| ADMIN ROUTES
+|--------------------------------------------------------------------------
+*/
 Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
-    // Admin Dashboard (uses unified controller)
+    /* Admin Dashboard */
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // User Management Routes
+    /* User Management Routes */
     Route::controller(UserController::class)->prefix('users')->name('users.')->group(function () {
 
         // Main CRUD Routes
@@ -85,6 +83,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/export', 'export')->name('export');
     });
 
+    /* Profile Management Routes */
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [AdminProfileController::class, 'index'])->name('index');
         Route::get('/edit', [AdminProfileController::class, 'edit'])->name('edit');
@@ -100,7 +99,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/login-history', [AdminProfileController::class, 'loginHistory'])->name('login-history');
     });
 
-    // Team Management (Admin)
+    /* Team Management Routes */
     Route::controller(AdminTeamController::class)->prefix('teams')->name('teams.')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/datatable', 'datatable')->name('datatable');
@@ -113,68 +112,32 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/ajax/independent', 'independentList')->name('ajax.independent');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Role Management Routes
-    |--------------------------------------------------------------------------
-    */
+    /* Role Management Routes */
     Route::prefix('roles')->name('roles.')->group(function () {
-        // List all roles (with DataTables AJAX support)
         Route::get('/', [RoleController::class, 'index'])->name('index');
-
-        // Create new role
         Route::get('/create', [RoleController::class, 'create'])->name('create');
         Route::post('/', [RoleController::class, 'store'])->name('store');
-
-        // View role details
         Route::get('/{role}', [RoleController::class, 'show'])->name('show');
-
-        // Edit role
         Route::get('/{role}/edit', [RoleController::class, 'edit'])->name('edit');
         Route::put('/{role}', [RoleController::class, 'update'])->name('update');
-
-        // Delete role
         Route::delete('/{role}', [RoleController::class, 'destroy'])->name('destroy');
-
-        // AJAX: Get role details
         Route::get('/{role}/details', [RoleController::class, 'getDetails'])->name('details');
-
-        // AJAX: Update role permissions
         Route::post('/{role}/update-permissions', [RoleController::class, 'updatePermissions'])->name('update-permissions');
-
-        // AJAX: Clone role
         Route::post('/{role}/clone', [RoleController::class, 'clone'])->name('clone');
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Permission Management Routes
-    |--------------------------------------------------------------------------
-    */
+    /* Permission Management Routes */
     Route::prefix('permissions')->name('permissions.')->group(function () {
-        // List all permissions (with DataTables AJAX support)
         Route::get('/', [PermissionController::class, 'index'])->name('index');
-
-        // Permission matrix view
         Route::get('/matrix', [PermissionController::class, 'matrix'])->name('matrix');
-
-        // AJAX: Update single permission in matrix
         Route::post('/update-matrix', [PermissionController::class, 'updateMatrix'])->name('update-matrix');
-
-        // AJAX: Bulk update permissions
         Route::post('/bulk-update', [PermissionController::class, 'bulkUpdate'])->name('bulk-update');
-
-        // Export permission matrix to CSV
         Route::get('/export-matrix', [PermissionController::class, 'exportMatrix'])->name('export-matrix');
-
-        // AJAX: Get permission details
         Route::get('/{permission}/details', [PermissionController::class, 'getDetails'])->name('details');
-
-        // AJAX: Get permissions by group
         Route::get('/group/{group}', [PermissionController::class, 'getByGroup'])->name('by-group');
     });
 
-    // Settings (requires specific permission)
+    /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
             return 'Settings - Admin with settings permission';
@@ -182,22 +145,23 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
     });
 });
 
-// =====================================================
-// SUPERVISOR ROUTES
-// =====================================================
+/*
+|--------------------------------------------------------------------------
+| SUPERVISOR ROUTES
+|--------------------------------------------------------------------------
+*/
 Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->group(function () {
-    // Supervisor Dashboard (uses unified controller)
+    /* Supervisor Dashboard */
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    /* User Management Routes */
     Route::controller(UserController::class)->prefix('users')->name('users.')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/datatable', 'datatable')->name('datatable');
         Route::get('/{user}', 'show')->name('show');
-
-        // Can only view, cannot create/edit/delete (unless given specific permissions)
     });
 
-    // Team Management (Supervisor - Read Only)
+    /* Team Management Routes */
     Route::controller(SupervisorTeamController::class)->prefix('teams')->name('teams.')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/datatable', 'datatable')->name('datatable');
@@ -206,22 +170,20 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{user}', 'show')->name('show');
     });
 
+    /* Profile Management Routes */
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [SupervisorProfileController::class, 'index'])->name('index');
         Route::get('/edit', [SupervisorProfileController::class, 'edit'])->name('edit');
         Route::put('/update', [SupervisorProfileController::class, 'update'])->name('update');
-
         Route::get('/password', [SupervisorProfileController::class, 'password'])->name('password');
         Route::put('/password', [SupervisorProfileController::class, 'updatePassword'])->name('password.update');
-
         Route::get('/avatar', [SupervisorProfileController::class, 'avatar'])->name('avatar');
         Route::put('/avatar', [SupervisorProfileController::class, 'updateAvatar'])->name('avatar.update');
         Route::delete('/avatar', [SupervisorProfileController::class, 'deleteAvatar'])->name('avatar.delete');
-
         Route::get('/login-history', [SupervisorProfileController::class, 'loginHistory'])->name('login-history');
     });
 
-    // Job Assignment (supervisor or admin)
+    /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
             return 'Assign Jobs - Admin or Supervisor';
@@ -229,42 +191,41 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
     });
 });
 
-// =====================================================
-// TECHNICIAN ROUTES
-// =====================================================
+/*
+|--------------------------------------------------------------------------
+| TECHNICIAN ROUTES
+|--------------------------------------------------------------------------
+*/
 Route::middleware(['technician'])->prefix('technician')->name('technician.')->group(function () {
-    // Technician Dashboard (uses unified controller)
+    /* Technician Dashboard */
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    /* Profile Management Routes */
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/', [TechnicianProfileController::class, 'index'])->name('index');
         Route::get('/edit', [TechnicianProfileController::class, 'edit'])->name('edit');
         Route::put('/update', [TechnicianProfileController::class, 'update'])->name('update');
-
         Route::get('/password', [TechnicianProfileController::class, 'password'])->name('password');
         Route::put('/password', [TechnicianProfileController::class, 'updatePassword'])->name('password.update');
-
         Route::get('/avatar', [TechnicianProfileController::class, 'avatar'])->name('avatar');
         Route::put('/avatar', [TechnicianProfileController::class, 'updateAvatar'])->name('avatar.update');
         Route::delete('/avatar', [TechnicianProfileController::class, 'deleteAvatar'])->name('avatar.delete');
-
         Route::get('/bank-details', [TechnicianProfileController::class, 'bankDetails'])->name('bank-details');
         Route::put('/bank-details', [TechnicianProfileController::class, 'updateBankDetails'])->name('bank-details.update');
-
         Route::get('/login-history', [TechnicianProfileController::class, 'loginHistory'])->name('login-history');
     });
 
-    // My Jobs
+    /* My Jobs */
     Route::get('/jobs', function () {
         return 'My Jobs - Technician Only';
     })->name('jobs.index');
 
-    // My Inventory
+    /* My Inventory */
     Route::get('/inventory', function () {
         return 'My Inventory - Technician Only';
     })->name('inventory.index');
 
-    // Claims
+    /* Claims */
     Route::get('/claims', function () {
         return 'My Claims - Technician Only';
     })->name('claims.index');
