@@ -21,6 +21,7 @@
         font-size: 0.8rem;
         margin: 2px;
         padding: 0.4em 0.6em;
+        display: inline-block;
     }
     .badge-action {
         font-size: 0.65rem;
@@ -34,6 +35,12 @@
         align-items: center;
         justify-content: center;
         font-size: 1.2rem;
+    }
+    .permission-group-item {
+        transition: all 0.3s ease;
+    }
+    .permission-group-item.hidden {
+        display: none !important;
     }
 </style>
 @endsection
@@ -187,6 +194,55 @@
                         'activity_logs' => 'secondary',
                         'notifications' => 'info',
                     ];
+                    $actionColors = [
+                        'view' => 'info',
+                        'view_all' => 'info',
+                        'view_team' => 'info',
+                        'view_own' => 'info',
+                        'view_history' => 'info',
+                        'view_assets' => 'info',
+                        'view_admin' => 'info',
+                        'view_supervisor' => 'info',
+                        'view_technician' => 'info',
+                        'view_executive' => 'info',
+                        'create' => 'success',
+                        'edit' => 'warning',
+                        'delete' => 'danger',
+                        'restore' => 'secondary',
+                        'approve' => 'primary',
+                        'reject' => 'danger',
+                        'submit' => 'primary',
+                        'cancel' => 'danger',
+                        'void' => 'danger',
+                        'post' => 'success',
+                        'close' => 'secondary',
+                        'export' => 'secondary',
+                        'import' => 'secondary',
+                        'print' => 'secondary',
+                        'send' => 'primary',
+                        'assign' => 'primary',
+                        'reassign' => 'warning',
+                        'assign_roles' => 'primary',
+                        'transfer' => 'warning',
+                        'adjust' => 'warning',
+                        'receive' => 'success',
+                        'dispatch' => 'info',
+                        'complete' => 'success',
+                        'start' => 'info',
+                        'fail' => 'danger',
+                        'convert' => 'primary',
+                        'convert_to_po' => 'primary',
+                        'apply' => 'success',
+                        'mark_paid' => 'success',
+                        'manage' => 'dark',
+                        'manage_system' => 'dark',
+                        'manage_workflows' => 'dark',
+                        'manage_number_series' => 'dark',
+                        'manage_contacts' => 'primary',
+                        'change_password' => 'warning',
+                        'send_reminders' => 'info',
+                        'schedule' => 'info',
+                    ];
                 @endphp
                 
                 @forelse($permissionGroups as $group => $data)
@@ -208,55 +264,6 @@
                             <div class="card-body">
                                 @foreach($data['permissions'] as $permission)
                                     @php
-                                        $actionColors = [
-                                            'view' => 'info',
-                                            'view_all' => 'info',
-                                            'view_team' => 'info',
-                                            'view_own' => 'info',
-                                            'view_history' => 'info',
-                                            'view_assets' => 'info',
-                                            'view_admin' => 'info',
-                                            'view_supervisor' => 'info',
-                                            'view_technician' => 'info',
-                                            'view_executive' => 'info',
-                                            'create' => 'success',
-                                            'edit' => 'warning',
-                                            'delete' => 'danger',
-                                            'restore' => 'secondary',
-                                            'approve' => 'primary',
-                                            'reject' => 'danger',
-                                            'submit' => 'primary',
-                                            'cancel' => 'danger',
-                                            'void' => 'danger',
-                                            'post' => 'success',
-                                            'close' => 'secondary',
-                                            'export' => 'secondary',
-                                            'import' => 'secondary',
-                                            'print' => 'secondary',
-                                            'send' => 'primary',
-                                            'assign' => 'primary',
-                                            'reassign' => 'warning',
-                                            'assign_roles' => 'primary',
-                                            'transfer' => 'warning',
-                                            'adjust' => 'warning',
-                                            'receive' => 'success',
-                                            'dispatch' => 'info',
-                                            'complete' => 'success',
-                                            'start' => 'info',
-                                            'fail' => 'danger',
-                                            'convert' => 'primary',
-                                            'convert_to_po' => 'primary',
-                                            'apply' => 'success',
-                                            'mark_paid' => 'success',
-                                            'manage' => 'dark',
-                                            'manage_system' => 'dark',
-                                            'manage_workflows' => 'dark',
-                                            'manage_number_series' => 'dark',
-                                            'manage_contacts' => 'primary',
-                                            'change_password' => 'warning',
-                                            'send_reminders' => 'info',
-                                            'schedule' => 'info',
-                                        ];
                                         $actionColor = $actionColors[$permission['action']] ?? 'secondary';
                                     @endphp
                                     <span class="badge bg-light text-dark permission-badge" 
@@ -301,56 +308,32 @@
                             <th>Module</th>
                             <th>Action</th>
                             <th>Roles</th>
-                            <th>Guard</th>
                         </tr>
                     </thead>
                     <tbody>
+                        @foreach($permissionGroups as $group => $data)
+                            @foreach($data['permissions'] as $permission)
+                                @php
+                                    $actionColor = $actionColors[$permission['action']] ?? 'secondary';
+                                @endphp
+                                <tr>
+                                    <td>{{ $permission['id'] }}</td>
+                                    <td><code>{{ $permission['name'] }}</code></td>
+                                    <td>{{ $permission['display_name'] }}</td>
+                                    <td><span class="badge bg-secondary">{{ $data['label'] }}</span></td>
+                                    <td><span class="badge bg-{{ $actionColor }}">{{ $permission['action'] }}</span></td>
+                                    <td>
+                                        @php
+                                            $perm = \Spatie\Permission\Models\Permission::find($permission['id']);
+                                            $rolesCount = $perm ? $perm->roles()->count() : 0;
+                                        @endphp
+                                        <span class="badge {{ $rolesCount > 0 ? 'bg-success' : 'bg-warning' }}">{{ $rolesCount }}</span>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @endforeach
                     </tbody>
                 </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Permission Detail Modal -->
-<div class="modal fade" id="permissionModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-key me-2"></i>Permission Details
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="text-center py-3" id="permission-loading">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div>
-                <div id="permission-details" style="display: none;">
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4">Name:</dt>
-                        <dd class="col-sm-8"><code id="perm-name"></code></dd>
-                        
-                        <dt class="col-sm-4">Module:</dt>
-                        <dd class="col-sm-8" id="perm-group"></dd>
-                        
-                        <dt class="col-sm-4">Guard:</dt>
-                        <dd class="col-sm-8"><code id="perm-guard"></code></dd>
-                        
-                        <dt class="col-sm-4">Created:</dt>
-                        <dd class="col-sm-8" id="perm-created"></dd>
-                        
-                        <dt class="col-sm-4">Assigned to:</dt>
-                        <dd class="col-sm-8">
-                            <span class="badge bg-primary" id="perm-roles-count">0</span> roles
-                        </dd>
-                    </dl>
-                    <hr>
-                    <h6>Roles with this permission:</h6>
-                    <div id="perm-roles-list"></div>
-                </div>
             </div>
         </div>
     </div>
@@ -368,104 +351,57 @@ $(document).ready(function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
-    // Initialize DataTable
+    // Initialize DataTable (client-side)
     var table = $('#permissions-table').DataTable({
-        processing: true,
-        serverSide: true,
-        ajax: {
-            url: '{{ route("admin.permissions.index") }}',
-            type: 'GET'
-        },
-        columns: [
-            { data: 'id', name: 'id', width: '5%' },
-            { 
-                data: 'name', 
-                name: 'name',
-                render: function(data) {
-                    return '<code>' + data + '</code>';
-                }
-            },
-            { data: 'display_name', name: 'display_name' },
-            { 
-                data: 'group_label', 
-                name: 'group_label',
-                render: function(data, type, row) {
-                    return '<span class="badge bg-secondary">' + data + '</span>';
-                }
-            },
-            { 
-                data: 'group', 
-                name: 'action',
-                render: function(data, type, row) {
-                    var actionColors = {
-                        'view': 'info',
-                        'create': 'success',
-                        'edit': 'warning',
-                        'update': 'warning',
-                        'delete': 'danger',
-                        'manage': 'primary'
-                    };
-                    var name = row.name;
-                    var action = name.split('.').pop() || name.split('_')[0];
-                    var color = actionColors[action] || 'secondary';
-                    return '<span class="badge bg-' + color + '">' + action + '</span>';
-                }
-            },
-            { 
-                data: 'roles_count', 
-                name: 'roles_count',
-                render: function(data) {
-                    var badgeClass = data > 0 ? 'bg-success' : 'bg-warning';
-                    return '<span class="badge ' + badgeClass + '">' + data + '</span>';
-                }
-            },
-            { 
-                data: 'guard_name', 
-                name: 'guard_name',
-                render: function(data) {
-                    return '<code>' + data + '</code>';
-                }
-            }
-        ],
-        order: [[1, 'asc']],
+        order: [[0, 'asc']],
         pageLength: 25,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
         language: {
-            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading...',
             emptyTable: 'No permissions found',
             zeroRecords: 'No matching permissions found'
         }
     });
 
-    // Search groups and permissions
+    // Search groups and permissions - FIXED VERSION
     $('#search-groups').on('input', function() {
-        var searchTerm = $(this).val().toLowerCase();
+        var searchTerm = $(this).val().toLowerCase().trim();
         
         if (searchTerm === '') {
-            $('.permission-group-item').show();
+            // Show all groups and permissions
+            $('.permission-group-item').removeClass('hidden').show();
             $('.permission-badge').show();
         } else {
+            // Filter each group
             $('.permission-group-item').each(function() {
-                var groupLabel = $(this).data('label');
-                var groupMatch = groupLabel.includes(searchTerm);
+                var $group = $(this);
+                var groupLabel = ($group.data('label') || '').toString().toLowerCase();
+                var groupName = ($group.data('group') || '').toString().toLowerCase();
+                var groupMatch = groupLabel.indexOf(searchTerm) !== -1 || groupName.indexOf(searchTerm) !== -1;
                 
                 // Check if any permission in this group matches
                 var permissionMatches = false;
-                $(this).find('.permission-badge').each(function() {
-                    var permName = $(this).data('permission');
-                    if (permName.includes(searchTerm)) {
-                        $(this).show();
+                $group.find('.permission-badge').each(function() {
+                    var $perm = $(this);
+                    var permName = ($perm.data('permission') || '').toString().toLowerCase();
+                    var permText = ($perm.text() || '').toString().toLowerCase();
+                    
+                    if (permName.indexOf(searchTerm) !== -1 || permText.indexOf(searchTerm) !== -1) {
+                        $perm.show();
                         permissionMatches = true;
                     } else {
-                        $(this).hide();
+                        $perm.hide();
                     }
                 });
                 
-                $(this).toggle(groupMatch || permissionMatches);
-                
-                // If group matches, show all permissions
-                if (groupMatch) {
-                    $(this).find('.permission-badge').show();
+                // Show/hide group based on matches
+                if (groupMatch || permissionMatches) {
+                    $group.removeClass('hidden').show();
+                    // If group name matches, show all permissions
+                    if (groupMatch) {
+                        $group.find('.permission-badge').show();
+                    }
+                } else {
+                    $group.addClass('hidden').hide();
                 }
             });
         }

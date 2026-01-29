@@ -33,13 +33,18 @@ class RoleController extends Controller
      */
     public function index(Request $request)
     {
-        if ($request->ajax()) {
-            return $this->roleService->getDatatableData($request);
-        }
-
         $stats = $this->roleService->getStatistics();
+        $roles = Role::withCount(['permissions', 'users'])->orderBy('id')->get();
         
-        return view('admin.roles.index', compact('stats'));
+        return view('admin.roles.index', compact('stats', 'roles'));
+    }
+
+    /**
+     * Get DataTable data for roles (AJAX endpoint).
+     */
+    public function datatable(Request $request)
+    {
+        return $this->roleService->getDatatableData($request);
     }
 
     /**

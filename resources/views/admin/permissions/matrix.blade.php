@@ -86,6 +86,10 @@
         font-size: 0.7rem;
         opacity: 0.8;
     }
+    .permission-row.hidden,
+    .group-header-row.hidden {
+        display: none !important;
+    }
 </style>
 @endsection
 
@@ -151,7 +155,7 @@
                 <div class="col-md-4">
                     <label class="form-label">Quick Filters:</label>
                     <div class="btn-group w-100">
-                        <button type="button" class="btn btn-outline-secondary quick-filter-btn" data-filter="all">
+                        <button type="button" class="btn btn-outline-secondary quick-filter-btn active" data-filter="all">
                             All
                         </button>
                         <button type="button" class="btn btn-outline-secondary quick-filter-btn" data-filter="granted">
@@ -174,7 +178,7 @@
             </h5>
             <div>
                 <span class="badge bg-secondary me-2">{{ $roles->count() }} Roles</span>
-                <span class="badge bg-primary">{{ collect($permissions)->flatten(1)->count() }} Permissions</span>
+                <span class="badge bg-primary">{{ collect($permissions)->sum(function($g) { return count($g['permissions']); }) }} Permissions</span>
             </div>
         </div>
         <div class="card-body p-0">
@@ -211,27 +215,20 @@
                             </tr>
                             
                             @foreach($data['permissions'] as $permission)
+                                @php
+                                    $actionColors = [
+                                        'view' => 'info', 'create' => 'success', 'edit' => 'warning',
+                                        'delete' => 'danger', 'manage' => 'primary', 'export' => 'secondary',
+                                        'import' => 'secondary', 'approve' => 'success', 'reject' => 'danger',
+                                    ];
+                                    $actionColor = $actionColors[$permission['action']] ?? 'secondary';
+                                @endphp
                                 <tr class="permission-row" 
                                     data-group="{{ $group }}" 
                                     data-permission="{{ strtolower($permission['name']) }}"
                                     data-permission-id="{{ $permission['id'] }}">
                                     <td class="permission-name">
                                         <code class="me-2">{{ $permission['name'] }}</code>
-                                        @php
-                                            $actionColors = [
-                                                'view' => 'info',
-                                                'create' => 'success',
-                                                'edit' => 'warning',
-                                                'update' => 'warning',
-                                                'delete' => 'danger',
-                                                'manage' => 'primary',
-                                                'export' => 'secondary',
-                                                'import' => 'secondary',
-                                                'approve' => 'success',
-                                                'reject' => 'danger',
-                                            ];
-                                            $actionColor = $actionColors[$permission['action']] ?? 'secondary';
-                                        @endphp
                                         <span class="badge bg-{{ $actionColor }}">{{ $permission['action'] }}</span>
                                     </td>
                                     @foreach($roles as $role)
@@ -290,13 +287,12 @@
 @section('scripts')
 <script>
 $(document).ready(function() {
-    // Handle checkbox changes
+    // Handle permission toggle via AJAX
     $('.matrix-checkbox:not(:disabled)').on('change', function() {
         var checkbox = $(this);
         var roleId = checkbox.data('role-id');
         var permissionId = checkbox.data('permission-id');
         var granted = checkbox.is(':checked');
-        var roleName = checkbox.data('role-name');
         var permissionName = checkbox.data('permission-name');
 
         // Show saving indicator
@@ -334,69 +330,95 @@ $(document).ready(function() {
         });
     });
 
-    // Filter by group
+    // Filter by group - FIXED
     $('#filter-group').on('change', function() {
         var selectedGroup = $(this).val();
         
         if (selectedGroup === '') {
-            $('.permission-row, .group-header-row').show();
+            $('.permission-row').removeClass('hidden');
+            $('.group-header-row').removeClass('hidden');
         } else {
-            $('.permission-row, .group-header-row').hide();
-            $('.permission-row[data-group="' + selectedGroup + '"]').show();
-            $('.group-header-row[data-group="' + selectedGroup + '"]').show();
+            $('.permission-row').addClass('hidden');
+            $('.group-header-row').addClass('hidden');
+            $('.permission-row[data-group="' + selectedGroup + '"]').removeClass('hidden');
+            $('.group-header-row[data-group="' + selectedGroup + '"]').removeClass('hidden');
         }
     });
 
-    // Search permission
+    // Search permission - FIXED
     $('#search-permission').on('input', function() {
-        var searchTerm = $(this).val().toLowerCase();
+        var searchTerm = $(this).val().toLowerCase().trim();
         
         if (searchTerm === '') {
-            $('.permission-row').show();
-            $('.group-header-row').show();
+            $('.permission-row').removeClass('hidden');
+            $('.group-header-row').removeClass('hidden');
         } else {
             $('.permission-row').each(function() {
-                var permissionName = $(this).data('permission');
-                var matches = permissionName.includes(searchTerm);
-                $(this).toggle(matches);
+                var $row = $(this);
+                var permissionName = ($row.data('permission') || '').toString().toLowerCase();
+                var matches = permissionName.indexOf(searchTerm) !== -1;
+                
+                if (matches) {
+                    $row.removeClass('hidden');
+                } else {
+                    $row.addClass('hidden');
+                }
             });
             
             // Show/hide group headers based on visible rows
             $('.group-header-row').each(function() {
-                var group = $(this).data('group');
-                var visibleRows = $('.permission-row[data-group="' + group + '"]:visible').length;
-                $(this).toggle(visibleRows > 0);
+                var $header = $(this);
+                var group = $header.data('group');
+                var visibleRows = $('.permission-row[data-group="' + group + '"]:not(.hidden)').length;
+                
+                if (visibleRows > 0) {
+                    $header.removeClass('hidden');
+                } else {
+                    $header.addClass('hidden');
+                }
             });
         }
     });
 
-    // Quick filters
-    var activeFilter = 'all';
-    
+    // Quick filters - FIXED
     $('.quick-filter-btn').on('click', function() {
         $('.quick-filter-btn').removeClass('active');
         $(this).addClass('active');
         
         var filter = $(this).data('filter');
-        activeFilter = filter;
-        
         applyQuickFilter(filter);
     });
 
     function applyQuickFilter(filter) {
+        // Reset search and group filter
+        $('#search-permission').val('');
+        $('#filter-group').val('');
+        
         if (filter === 'all') {
-            $('.permission-row').show();
-            $('.group-header-row').show();
+            $('.permission-row').removeClass('hidden');
+            $('.group-header-row').removeClass('hidden');
         } else if (filter === 'granted') {
             $('.permission-row').each(function() {
-                var hasGranted = $(this).find('.matrix-checkbox:checked').length > 0;
-                $(this).toggle(hasGranted);
+                var $row = $(this);
+                var hasGranted = $row.find('.matrix-checkbox:checked').length > 0;
+                
+                if (hasGranted) {
+                    $row.removeClass('hidden');
+                } else {
+                    $row.addClass('hidden');
+                }
             });
             updateGroupHeaderVisibility();
         } else if (filter === 'not-granted') {
             $('.permission-row').each(function() {
-                var hasNotGranted = $(this).find('.matrix-checkbox:not(:checked)').length > 0;
-                $(this).toggle(hasNotGranted);
+                var $row = $(this);
+                var hasNotGranted = $row.find('.matrix-checkbox:not(:checked)').length > 0;
+                
+                if (hasNotGranted) {
+                    $row.removeClass('hidden');
+                } else {
+                    $row.addClass('hidden');
+                }
             });
             updateGroupHeaderVisibility();
         }
@@ -404,28 +426,29 @@ $(document).ready(function() {
 
     function updateGroupHeaderVisibility() {
         $('.group-header-row').each(function() {
-            var group = $(this).data('group');
-            var visibleRows = $('.permission-row[data-group="' + group + '"]:visible').length;
-            $(this).toggle(visibleRows > 0);
+            var $header = $(this);
+            var group = $header.data('group');
+            var visibleRows = $('.permission-row[data-group="' + group + '"]:not(.hidden)').length;
+            
+            if (visibleRows > 0) {
+                $header.removeClass('hidden');
+            } else {
+                $header.addClass('hidden');
+            }
         });
     }
 
     // Toast notification helper
     function showToast(type, message) {
-        var toastHtml = `
-            <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
-                <div class="toast show" role="alert">
-                    <div class="toast-header bg-${type} text-white">
-                        <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
-                        <strong class="me-auto">${type === 'success' ? 'Success' : 'Error'}</strong>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-                    </div>
-                    <div class="toast-body">
-                        ${message}
-                    </div>
-                </div>
-            </div>
-        `;
+        var toastHtml = '<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100">' +
+            '<div class="toast show" role="alert">' +
+            '<div class="toast-header bg-' + type + ' text-white">' +
+            '<i class="bi bi-' + (type === 'success' ? 'check-circle' : 'exclamation-circle') + ' me-2"></i>' +
+            '<strong class="me-auto">' + (type === 'success' ? 'Success' : 'Error') + '</strong>' +
+            '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>' +
+            '</div>' +
+            '<div class="toast-body">' + message + '</div>' +
+            '</div></div>';
         
         // Remove existing toasts
         $('.position-fixed.bottom-0.end-0').remove();
@@ -440,9 +463,6 @@ $(document).ready(function() {
             });
         }, 3000);
     }
-
-    // Initialize first quick filter as active
-    $('.quick-filter-btn[data-filter="all"]').addClass('active');
 });
 </script>
 @endsection

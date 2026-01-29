@@ -4,7 +4,6 @@
 
 @section('styles')
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
-<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
 <style>
     .stat-card {
         transition: transform 0.2s ease-in-out;
@@ -20,13 +19,8 @@
         background-color: #198754;
         color: white;
     }
-    .table-actions .btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.875rem;
-    }
-    .permission-badge {
-        font-size: 0.75rem;
-        margin: 2px;
+    .table-actions .btn-group {
+        white-space: nowrap;
     }
 </style>
 @endsection
@@ -56,7 +50,7 @@
 
     <!-- Statistics Cards -->
     <div class="row mb-4">
-        <div class="col-md-2 col-sm-4 col-6 mb-3">
+        <div class="col-md-2 col-sm-4 mb-3">
             <div class="card stat-card h-100 border-primary">
                 <div class="card-body text-center">
                     <h3 class="text-primary mb-1">{{ $stats['total_roles'] }}</h3>
@@ -64,7 +58,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-2 col-sm-4 col-6 mb-3">
+        <div class="col-md-2 col-sm-4 mb-3">
             <div class="card stat-card h-100 border-secondary">
                 <div class="card-body text-center">
                     <h3 class="text-secondary mb-1">{{ $stats['system_roles'] }}</h3>
@@ -72,7 +66,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-2 col-sm-4 col-6 mb-3">
+        <div class="col-md-2 col-sm-4 mb-3">
             <div class="card stat-card h-100 border-success">
                 <div class="card-body text-center">
                     <h3 class="text-success mb-1">{{ $stats['custom_roles'] }}</h3>
@@ -80,7 +74,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-2 col-sm-4 col-6 mb-3">
+        <div class="col-md-2 col-sm-4 mb-3">
             <div class="card stat-card h-100 border-info">
                 <div class="card-body text-center">
                     <h3 class="text-info mb-1">{{ $stats['total_permissions'] }}</h3>
@@ -88,7 +82,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-2 col-sm-4 col-6 mb-3">
+        <div class="col-md-2 col-sm-4 mb-3">
             <div class="card stat-card h-100 border-warning">
                 <div class="card-body text-center">
                     <h3 class="text-warning mb-1">{{ $stats['roles_with_users'] }}</h3>
@@ -96,7 +90,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-2 col-sm-4 col-6 mb-3">
+        <div class="col-md-2 col-sm-4 mb-3">
             <div class="card stat-card h-100 border-danger">
                 <div class="card-body text-center">
                     <h3 class="text-danger mb-1">{{ $stats['unused_roles'] }}</h3>
@@ -123,7 +117,7 @@
 
     <!-- Roles Table -->
     <div class="card">
-        <div class="card-header bg-white">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
             <h5 class="card-title mb-0">
                 <i class="bi bi-shield-lock me-2"></i>All Roles
             </h5>
@@ -143,6 +137,65 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @foreach($roles as $role)
+                            @php
+                                $isSystem = in_array($role->name, ['admin', 'supervisor', 'technician']);
+                            @endphp
+                            <tr>
+                                <td>{{ $role->id }}</td>
+                                <td>
+                                    <strong>{{ ucwords(str_replace(['_', '-'], ' ', $role->name)) }}</strong>
+                                    <br><small class="text-muted">{{ $role->name }}</small>
+                                </td>
+                                <td>
+                                    @if($isSystem)
+                                        <span class="badge badge-system"><i class="bi bi-lock me-1"></i>System</span>
+                                    @else
+                                        <span class="badge badge-custom"><i class="bi bi-person-gear me-1"></i>Custom</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <span class="badge {{ $role->permissions_count > 0 ? 'bg-info' : 'bg-secondary' }}">
+                                        {{ $role->permissions_count }} permissions
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge {{ $role->users_count > 0 ? 'bg-success' : 'bg-warning' }}">
+                                        {{ $role->users_count }} users
+                                    </span>
+                                </td>
+                                <td>{{ $role->created_at ? $role->created_at->format('M d, Y') : '-' }}</td>
+                                <td class="table-actions">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ route('admin.roles.show', $role) }}" class="btn btn-info" title="View">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        @if($isSystem)
+                                            <button type="button" class="btn btn-secondary" disabled title="System Role">
+                                                <i class="bi bi-lock"></i>
+                                            </button>
+                                        @else
+                                            <a href="{{ route('admin.roles.edit', $role) }}" class="btn btn-warning" title="Edit">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-danger btn-delete" 
+                                                data-id="{{ $role->id }}" 
+                                                data-name="{{ $role->name }}" 
+                                                data-users="{{ $role->users_count }}"
+                                                title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-success btn-clone" 
+                                                data-id="{{ $role->id }}" 
+                                                data-name="{{ $role->name }}"
+                                                title="Clone">
+                                                <i class="bi bi-copy"></i>
+                                            </button>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
                     </tbody>
                 </table>
             </div>
@@ -150,21 +203,20 @@
     </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
+<!-- Delete Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-exclamation-triangle me-2"></i>Confirm Delete
-                </h5>
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Delete Role</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to delete the role "<strong id="delete-role-name"></strong>"?</p>
-                <div class="alert alert-warning mb-0" id="delete-warning" style="display: none;">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    This role has <strong id="delete-users-count"></strong> user(s) assigned. Please reassign them before deleting.
+                <p>Are you sure you want to delete the role <strong id="delete-role-name"></strong>?</p>
+                <div class="alert alert-warning" id="delete-warning" style="display: none;">
+                    <i class="bi bi-exclamation-circle me-2"></i>
+                    This role has <strong id="delete-users-count"></strong> user(s) assigned. 
+                    Please reassign them before deleting.
                 </div>
             </div>
             <div class="modal-footer">
@@ -177,25 +229,21 @@
     </div>
 </div>
 
-<!-- Clone Role Modal -->
+<!-- Clone Modal -->
 <div class="modal fade" id="cloneModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-copy me-2"></i>Clone Role
-                </h5>
+                <h5 class="modal-title"><i class="bi bi-copy me-2"></i>Clone Role</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form id="clone-form">
                 <div class="modal-body">
-                    <p>Create a copy of "<strong id="clone-source-name"></strong>" with all its permissions.</p>
+                    <p>Clone all permissions from <strong id="clone-source-name"></strong> to a new role.</p>
                     <div class="mb-3">
                         <label for="clone-name" class="form-label">New Role Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="clone-name" name="name" required
-                            pattern="[a-z][a-z0-9_-]*" 
-                            placeholder="e.g., senior_technician">
-                        <div class="form-text">Lowercase letters, numbers, underscores, and hyphens only. Must start with a letter.</div>
+                            placeholder="Enter new role name">
                     </div>
                     <div class="mb-3">
                         <label for="clone-description" class="form-label">Description</label>
@@ -218,71 +266,21 @@
 @section('scripts')
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Initialize DataTable
+    // Initialize DataTable (client-side)
     var table = $('#roles-table').DataTable({
-        processing: true,
-        serverSide: true,
         responsive: true,
-        ajax: {
-            url: '{{ route("admin.roles.index") }}',
-            type: 'GET'
-        },
-        columns: [
-            { data: 'id', name: 'id', width: '5%' },
-            { 
-                data: 'name', 
-                name: 'name',
-                render: function(data, type, row) {
-                    return '<strong>' + row.display_name + '</strong><br><small class="text-muted">' + data + '</small>';
-                }
-            },
-            { 
-                data: 'is_system', 
-                name: 'is_system',
-                render: function(data, type, row) {
-                    if (data) {
-                        return '<span class="badge badge-system"><i class="bi bi-lock me-1"></i>System</span>';
-                    }
-                    return '<span class="badge badge-custom"><i class="bi bi-person-gear me-1"></i>Custom</span>';
-                }
-            },
-            { 
-                data: 'permissions_count', 
-                name: 'permissions_count',
-                render: function(data, type, row) {
-                    var badgeClass = data > 0 ? 'bg-info' : 'bg-secondary';
-                    return '<span class="badge ' + badgeClass + '">' + data + ' permissions</span>';
-                }
-            },
-            { 
-                data: 'users_count', 
-                name: 'users_count',
-                render: function(data, type, row) {
-                    var badgeClass = data > 0 ? 'bg-success' : 'bg-warning';
-                    return '<span class="badge ' + badgeClass + '">' + data + ' users</span>';
-                }
-            },
-            { data: 'created_at', name: 'created_at' },
-            { 
-                data: 'actions', 
-                name: 'actions', 
-                orderable: false, 
-                searchable: false,
-                className: 'table-actions'
-            }
-        ],
-        order: [[1, 'asc']],
+        order: [[0, 'asc']],
         pageLength: 10,
         lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
         language: {
-            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading...',
             emptyTable: 'No roles found',
             zeroRecords: 'No matching roles found'
-        }
+        },
+        columnDefs: [
+            { orderable: false, targets: [6] }
+        ]
     });
 
     // Delete role
@@ -314,19 +312,18 @@ $(document).ready(function() {
         btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Deleting...');
         
         $.ajax({
-            url: '/admin/roles/' + deleteRoleId,
+            url: '{{ url("admin/roles") }}/' + deleteRoleId,
             type: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
             success: function(response) {
                 $('#deleteModal').modal('hide');
-                table.ajax.reload();
-                showAlert('success', response.message || 'Role deleted successfully.');
+                location.reload();
             },
             error: function(xhr) {
                 var message = xhr.responseJSON?.message || 'Failed to delete role.';
-                showAlert('danger', message);
+                alert(message);
             },
             complete: function() {
                 btn.prop('disabled', false).html('<i class="bi bi-trash me-1"></i>Delete Role');
@@ -358,7 +355,7 @@ $(document).ready(function() {
         btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Cloning...');
         
         $.ajax({
-            url: '/admin/roles/' + cloneRoleId + '/clone',
+            url: '{{ url("admin/roles") }}/' + cloneRoleId + '/clone',
             type: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -369,39 +366,20 @@ $(document).ready(function() {
             },
             success: function(response) {
                 $('#cloneModal').modal('hide');
-                table.ajax.reload();
-                showAlert('success', response.message || 'Role cloned successfully.');
+                location.reload();
             },
             error: function(xhr) {
                 var message = xhr.responseJSON?.message || 'Failed to clone role.';
                 if (xhr.responseJSON?.errors) {
-                    message = Object.values(xhr.responseJSON.errors).flat().join('<br>');
+                    message = Object.values(xhr.responseJSON.errors).flat().join('\n');
                 }
-                showAlert('danger', message);
+                alert(message);
             },
             complete: function() {
                 btn.prop('disabled', false).html('<i class="bi bi-copy me-1"></i>Clone Role');
-                cloneRoleId = null;
             }
         });
     });
-
-    // Show alert helper
-    function showAlert(type, message) {
-        var alertHtml = '<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
-            '<i class="bi bi-' + (type === 'success' ? 'check-circle' : 'exclamation-circle') + ' me-2"></i>' + 
-            message +
-            '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
-            '</div>';
-        
-        $('.container-fluid').find('.alert').remove();
-        $('.container-fluid .row.mb-4').first().before(alertHtml);
-        
-        // Auto-dismiss after 5 seconds
-        setTimeout(function() {
-            $('.container-fluid').find('.alert').fadeOut();
-        }, 5000);
-    }
 });
 </script>
 @endsection
