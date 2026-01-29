@@ -17,9 +17,6 @@ class PartnerController extends Controller
     public function __construct(PartnerService $partnerService)
     {
         $this->partnerService = $partnerService;
-
-        // Technicians have limited view access to partners
-        // $this->middleware('permission:view_partners');
     }
 
     /**

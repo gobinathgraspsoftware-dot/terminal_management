@@ -24,14 +24,6 @@ class PartnerController extends Controller
     public function __construct(PartnerService $partnerService)
     {
         $this->partnerService = $partnerService;
-
-        // Apply permission middleware
-        // $this->middleware('permission:view_partners')->only(['index', 'show', 'datatable']);
-        // $this->middleware('permission:create_partners')->only(['create', 'store']);
-        // $this->middleware('permission:edit_partners')->only(['edit', 'update', 'toggleStatus']);
-        // $this->middleware('permission:delete_partners')->only(['destroy', 'restore']);
-        // $this->middleware('permission:export_partners')->only(['export']);
-        // $this->middleware('permission:import_partners')->only(['import', 'importTemplate']);
     }
 
     /**
@@ -152,7 +144,7 @@ class PartnerController extends Controller
         } else {
             // Edit button
             if (Auth::user()->can('edit_partners')) {
-                $actions .= '<a href="' . route('admin.edit_partners', $partner->id) . '"
+                $actions .= '<a href="' . route('admin.partners.edit', $partner->id) . '"
                     class="btn btn-primary" title="Edit">
                     <i class="bi bi-pencil"></i>
                 </a>';
@@ -190,7 +182,7 @@ class PartnerController extends Controller
         $states = $this->getMalaysianStates();
         $jobIntakeMethods = $this->getJobIntakeMethods();
 
-        return view('admin.create_partners', compact('nextCode', 'states', 'jobIntakeMethods'));
+        return view('admin.partners.create', compact('nextCode', 'states', 'jobIntakeMethods'));
     }
 
     /**
@@ -261,7 +253,7 @@ class PartnerController extends Controller
         $states = $this->getMalaysianStates();
         $jobIntakeMethods = $this->getJobIntakeMethods();
 
-        return view('admin.edit_partners', compact('partner', 'states', 'jobIntakeMethods'));
+        return view('admin.partners.edit', compact('partner', 'states', 'jobIntakeMethods'));
     }
 
     /**

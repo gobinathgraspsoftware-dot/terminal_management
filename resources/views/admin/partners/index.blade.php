@@ -17,7 +17,7 @@
         </div>
         <div class="col-auto">
             @can('create_partners')
-            <a href="{{ route('admin.create_partners') }}" class="btn btn-primary">
+            <a href="{{ route('admin.partners.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-lg me-1"></i> Add Partner
             </a>
             @endcan
@@ -201,7 +201,7 @@
                         <i class="bi bi-info-circle me-2"></i>
                         <strong>Import Instructions:</strong>
                         <ul class="mb-0 mt-2">
-                            <li>Download the <a href="{{ route('admin.import_partners-template') }}" class="alert-link">import template</a> first</li>
+                            <li>Download the <a href="{{ route('admin.partners.import-template') }}" class="alert-link">import template</a> first</li>
                             <li>Fill in the required fields (Partner Name is mandatory)</li>
                             <li>Existing partners will be updated based on Partner Code</li>
                             <li>New partners will have codes auto-generated</li>
@@ -313,7 +313,7 @@ $(document).ready(function() {
             state: $('#filterState').val(),
             show_trashed: $('#showTrashed').is(':checked') ? 'true' : 'false'
         });
-        window.location.href = "{{ route('admin.export_partners') }}?" + params.toString();
+        window.location.href = "{{ route('admin.partners.export') }}?" + params.toString();
     });
     @endcan
 
@@ -334,7 +334,7 @@ $(document).ready(function() {
         });
 
         $.ajax({
-            url: "{{ route('admin.import_partners') }}",
+            url: "{{ route('admin.partners.import') }}",
             type: 'POST',
             data: formData,
             processData: false,
