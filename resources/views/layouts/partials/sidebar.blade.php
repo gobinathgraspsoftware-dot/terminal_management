@@ -142,6 +142,44 @@
                 </ul>
             </div>
 
+            <!-- Master Data Section -->
+            @php
+                $isPartnerRoute = str_contains($currentRoute ?? '', 'admin.partners');
+                $isClientRoute = str_contains($currentRoute ?? '', 'admin.clients');
+                $isVendorRoute = str_contains($currentRoute ?? '', 'admin.vendors');
+                $isSiteRoute = str_contains($currentRoute ?? '', 'admin.sites');
+                $isMasterDataActive = $isPartnerRoute || $isClientRoute || $isVendorRoute || $isSiteRoute;
+            @endphp
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Master Data</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isPartnerRoute ? 'active' : '' }}"
+                           href="{{ route('admin.partners.index') }}">
+                            <i class="bi bi-building-fill me-2"></i> Partners
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isClientRoute ? 'active' : '' }}"
+                           href="#">
+                            <i class="bi bi-shop me-2"></i> Clients
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isVendorRoute ? 'active' : '' }}"
+                           href="#">
+                            <i class="bi bi-truck me-2"></i> Vendors
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
+                           href="#">
+                            <i class="bi bi-geo-alt me-2"></i> Sites
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Job Management</small>
                 <ul class="nav flex-column mt-2">
@@ -326,6 +364,36 @@
                 </ul>
             </div>
 
+            <!-- Master Data Section -->
+            @php
+                $isPartnerRoute = str_contains($currentRoute ?? '', 'supervisor.partners');
+                $isClientRoute = str_contains($currentRoute ?? '', 'supervisor.clients');
+                $isSiteRoute = str_contains($currentRoute ?? '', 'supervisor.sites');
+            @endphp
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Master Data</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isPartnerRoute ? 'active' : '' }}"
+                           href="{{ route('supervisor.partners.index') }}">
+                            <i class="bi bi-building-fill me-2"></i> Partners
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isClientRoute ? 'active' : '' }}"
+                           href="#">
+                            <i class="bi bi-shop me-2"></i> Clients
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
+                           href="#">
+                            <i class="bi bi-geo-alt me-2"></i> Sites
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Job Management</small>
                 <ul class="nav flex-column mt-2">
@@ -421,6 +489,36 @@
                         <a class="nav-link {{ str_contains($currentRoute, 'technician.profile.bank-details') ? 'active' : '' }}"
                            href="{{ route('technician.profile.bank-details') }}">
                             <i class="bi bi-bank me-2"></i> Bank Details
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Reference Data Section -->
+            @php
+                $isPartnerRoute = str_contains($currentRoute ?? '', 'technician.partners');
+                $isClientRoute = str_contains($currentRoute ?? '', 'technician.clients');
+                $isSiteRoute = str_contains($currentRoute ?? '', 'technician.sites');
+            @endphp
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Reference Data</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isPartnerRoute ? 'active' : '' }}"
+                           href="{{ route('technician.partners.index') }}">
+                            <i class="bi bi-building me-2"></i> Partners
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isClientRoute ? 'active' : '' }}"
+                           href="#">
+                            <i class="bi bi-shop me-2"></i> Clients
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
+                           href="#">
+                            <i class="bi bi-geo-alt me-2"></i> Sites
                         </a>
                     </li>
                 </ul>

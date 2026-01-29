@@ -12,6 +12,9 @@ use App\Http\Controllers\Supervisor\ProfileController as SupervisorProfileContro
 use App\Http\Controllers\Technician\ProfileController as TechnicianProfileController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\PermissionController;
+use App\Http\Controllers\Admin\PartnerController as AdminPartnerController;
+use App\Http\Controllers\Supervisor\PartnerController as SupervisorPartnerController;
+use App\Http\Controllers\Technician\PartnerController as TechnicianPartnerController;
 
 /*
 |--------------------------------------------------------------------------
@@ -137,6 +140,24 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/group/{group}', [PermissionController::class, 'getByGroup'])->name('by-group');
     });
 
+    Route::prefix('partners')->name('partners.')->group(function () {
+        Route::get('/datatable', [AdminPartnerController::class, 'datatable'])->name('datatable');
+        Route::get('/export', [AdminPartnerController::class, 'export'])->name('export');
+        Route::post('/import', [AdminPartnerController::class, 'import'])->name('import');
+        Route::get('/import-template', [AdminPartnerController::class, 'importTemplate'])->name('import-template');
+        Route::post('/{partner}/restore', [AdminPartnerController::class, 'restore'])->name('restore')->withTrashed();
+        Route::patch('/{partner}/toggle-status', [AdminPartnerController::class, 'toggleStatus'])->name('toggle-status');
+        Route::post('/{partner}/regenerate-api-key', [AdminPartnerController::class, 'regenerateApiKey'])->name('regenerate-api-key');
+        Route::get('/ajax/list', [AdminPartnerController::class, 'getList'])->name('ajax.list');
+        Route::get('/', [AdminPartnerController::class, 'index'])->name('index');
+        Route::get('/create', [AdminPartnerController::class, 'create'])->name('create');
+        Route::post('/', [AdminPartnerController::class, 'store'])->name('store');
+        Route::get('/{partner}', [AdminPartnerController::class, 'show'])->name('show')->withTrashed();
+        Route::get('/{partner}/edit', [AdminPartnerController::class, 'edit'])->name('edit');
+        Route::put('/{partner}', [AdminPartnerController::class, 'update'])->name('update');
+        Route::delete('/{partner}', [AdminPartnerController::class, 'destroy'])->name('destroy');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -183,6 +204,13 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/login-history', [SupervisorProfileController::class, 'loginHistory'])->name('login-history');
     });
 
+    Route::prefix('partners')->name('partners.')->group(function () {
+        Route::get('/datatable', [SupervisorPartnerController::class, 'datatable'])->name('datatable');
+        Route::get('/ajax/list', [SupervisorPartnerController::class, 'getList'])->name('ajax.list');
+        Route::get('/', [SupervisorPartnerController::class, 'index'])->name('index');
+        Route::get('/{partner}', [SupervisorPartnerController::class, 'show'])->name('show');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -213,6 +241,13 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/bank-details', [TechnicianProfileController::class, 'bankDetails'])->name('bank-details');
         Route::put('/bank-details', [TechnicianProfileController::class, 'updateBankDetails'])->name('bank-details.update');
         Route::get('/login-history', [TechnicianProfileController::class, 'loginHistory'])->name('login-history');
+    });
+
+    Route::prefix('partners')->name('partners.')->group(function () {
+        Route::get('/datatable', [TechnicianPartnerController::class, 'datatable'])->name('datatable');
+        Route::get('/ajax/list', [TechnicianPartnerController::class, 'getList'])->name('ajax.list');
+        Route::get('/', [TechnicianPartnerController::class, 'index'])->name('index');
+        Route::get('/{partner}', [TechnicianPartnerController::class, 'show'])->name('show');
     });
 
     /* My Jobs */
