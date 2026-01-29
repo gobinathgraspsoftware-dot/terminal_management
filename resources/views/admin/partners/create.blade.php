@@ -51,22 +51,18 @@ $(document).ready(function() {
         
         let formData = new FormData(this);
         
-        // Collect SLA rules
-        let slaRules = [];
-        $('#slaRulesContainer .sla-rule-row').each(function() {
-            let rule = {
-                sla_type: $(this).find('[name="sla_type"]').val(),
-                priority: $(this).find('[name="sla_priority"]').val(),
-                response_hours: $(this).find('[name="response_hours"]').val(),
-                resolution_hours: $(this).find('[name="resolution_hours"]').val(),
-                escalation_enabled: $(this).find('[name="escalation_enabled"]').is(':checked'),
-                escalation_hours: $(this).find('[name="escalation_hours"]').val() || null
-            };
-            if (rule.sla_type) {
-                slaRules.push(rule);
+        // Collect SLA rules as array
+        $('#slaRulesContainer .sla-rule-row').each(function(index) {
+            let slaType = $(this).find('[name="sla_type"]').val();
+            if (slaType) {
+                formData.append('sla_rules[' + index + '][sla_type]', slaType);
+                formData.append('sla_rules[' + index + '][priority]', $(this).find('[name="sla_priority"]').val());
+                formData.append('sla_rules[' + index + '][response_hours]', $(this).find('[name="response_hours"]').val());
+                formData.append('sla_rules[' + index + '][resolution_hours]', $(this).find('[name="resolution_hours"]').val());
+                formData.append('sla_rules[' + index + '][escalation_enabled]', $(this).find('[name="escalation_enabled"]').is(':checked') ? '1' : '0');
+                formData.append('sla_rules[' + index + '][escalation_hours]', $(this).find('[name="escalation_hours"]').val() || '');
             }
         });
-        formData.append('sla_rules', JSON.stringify(slaRules));
         
         showLoading();
         

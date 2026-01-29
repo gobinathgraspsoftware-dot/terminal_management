@@ -16,8 +16,8 @@
             </nav>
         </div>
         <div class="col-auto">
-            @can('partners.create')
-            <a href="{{ route('admin.partners.create') }}" class="btn btn-primary">
+            @can('create_partners')
+            <a href="{{ route('admin.create_partners') }}" class="btn btn-primary">
                 <i class="bi bi-plus-lg me-1"></i> Add Partner
             </a>
             @endcan
@@ -135,12 +135,12 @@
                 <button type="button" id="btnResetFilters" class="btn btn-outline-secondary me-2">
                     <i class="bi bi-x-lg me-1"></i> Reset
                 </button>
-                @can('partners.export')
+                @can('export_partners')
                 <button type="button" id="btnExport" class="btn btn-success me-2">
                     <i class="bi bi-download me-1"></i> Export
                 </button>
                 @endcan
-                @can('partners.import')
+                @can('import_partners')
                 <button type="button" id="btnImport" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#importModal">
                     <i class="bi bi-upload me-1"></i> Import
                 </button>
@@ -181,7 +181,7 @@
 </div>
 
 <!-- Import Modal -->
-@can('partners.import')
+@can('import_partners')
 <div class="modal fade" id="importModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -201,7 +201,7 @@
                         <i class="bi bi-info-circle me-2"></i>
                         <strong>Import Instructions:</strong>
                         <ul class="mb-0 mt-2">
-                            <li>Download the <a href="{{ route('admin.partners.import-template') }}" class="alert-link">import template</a> first</li>
+                            <li>Download the <a href="{{ route('admin.import_partners-template') }}" class="alert-link">import template</a> first</li>
                             <li>Fill in the required fields (Partner Name is mandatory)</li>
                             <li>Existing partners will be updated based on Partner Code</li>
                             <li>New partners will have codes auto-generated</li>
@@ -305,7 +305,7 @@ $(document).ready(function() {
     });
 
     // Export functionality
-    @can('partners.export')
+    @can('export_partners')
     $('#btnExport').on('click', function() {
         let params = new URLSearchParams({
             status: $('#filterStatus').val(),
@@ -313,12 +313,12 @@ $(document).ready(function() {
             state: $('#filterState').val(),
             show_trashed: $('#showTrashed').is(':checked') ? 'true' : 'false'
         });
-        window.location.href = "{{ route('admin.partners.export') }}?" + params.toString();
+        window.location.href = "{{ route('admin.export_partners') }}?" + params.toString();
     });
     @endcan
 
     // Import functionality
-    @can('partners.import')
+    @can('import_partners')
     $('#importForm').on('submit', function(e) {
         e.preventDefault();
         
@@ -334,7 +334,7 @@ $(document).ready(function() {
         });
 
         $.ajax({
-            url: "{{ route('admin.partners.import') }}",
+            url: "{{ route('admin.import_partners') }}",
             type: 'POST',
             data: formData,
             processData: false,

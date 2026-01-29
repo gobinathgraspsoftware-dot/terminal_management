@@ -26,12 +26,12 @@ class PartnerController extends Controller
         $this->partnerService = $partnerService;
 
         // Apply permission middleware
-        // $this->middleware('permission:partners.view')->only(['index', 'show', 'datatable']);
-        // $this->middleware('permission:partners.create')->only(['create', 'store']);
-        // $this->middleware('permission:partners.edit')->only(['edit', 'update', 'toggleStatus']);
-        // $this->middleware('permission:partners.delete')->only(['destroy', 'restore']);
-        // $this->middleware('permission:partners.export')->only(['export']);
-        // $this->middleware('permission:partners.import')->only(['import', 'importTemplate']);
+        // $this->middleware('permission:view_partners')->only(['index', 'show', 'datatable']);
+        // $this->middleware('permission:create_partners')->only(['create', 'store']);
+        // $this->middleware('permission:edit_partners')->only(['edit', 'update', 'toggleStatus']);
+        // $this->middleware('permission:delete_partners')->only(['destroy', 'restore']);
+        // $this->middleware('permission:export_partners')->only(['export']);
+        // $this->middleware('permission:import_partners')->only(['import', 'importTemplate']);
     }
 
     /**
@@ -134,7 +134,7 @@ class PartnerController extends Controller
         $actions = '<div class="btn-group btn-group-sm" role="group">';
 
         // View button
-        if (Auth::user()->can('partners.view')) {
+        if (Auth::user()->can('view_partners')) {
             $actions .= '<a href="' . route('admin.partners.show', $partner->id) . '"
                 class="btn btn-info" title="View">
                 <i class="bi bi-eye"></i>
@@ -143,7 +143,7 @@ class PartnerController extends Controller
 
         if ($partner->trashed()) {
             // Restore button for deleted partners
-            if (Auth::user()->can('partners.delete')) {
+            if (Auth::user()->can('delete_partners')) {
                 $actions .= '<button type="button" class="btn btn-success restore-partner"
                     data-id="' . $partner->id . '" title="Restore">
                     <i class="bi bi-arrow-counterclockwise"></i>
@@ -151,15 +151,15 @@ class PartnerController extends Controller
             }
         } else {
             // Edit button
-            if (Auth::user()->can('partners.edit')) {
-                $actions .= '<a href="' . route('admin.partners.edit', $partner->id) . '"
+            if (Auth::user()->can('edit_partners')) {
+                $actions .= '<a href="' . route('admin.edit_partners', $partner->id) . '"
                     class="btn btn-primary" title="Edit">
                     <i class="bi bi-pencil"></i>
                 </a>';
             }
 
             // Toggle status button
-            if (Auth::user()->can('partners.edit')) {
+            if (Auth::user()->can('edit_partners')) {
                 $statusIcon = $partner->status === 'active' ? 'bi-toggle-on text-success' : 'bi-toggle-off text-secondary';
                 $statusTitle = $partner->status === 'active' ? 'Deactivate' : 'Activate';
                 $actions .= '<button type="button" class="btn btn-outline-secondary toggle-status"
@@ -169,7 +169,7 @@ class PartnerController extends Controller
             }
 
             // Delete button
-            if (Auth::user()->can('partners.delete')) {
+            if (Auth::user()->can('delete_partners')) {
                 $actions .= '<button type="button" class="btn btn-danger delete-partner"
                     data-id="' . $partner->id . '" title="Delete">
                     <i class="bi bi-trash"></i>
@@ -190,7 +190,7 @@ class PartnerController extends Controller
         $states = $this->getMalaysianStates();
         $jobIntakeMethods = $this->getJobIntakeMethods();
 
-        return view('admin.partners.create', compact('nextCode', 'states', 'jobIntakeMethods'));
+        return view('admin.create_partners', compact('nextCode', 'states', 'jobIntakeMethods'));
     }
 
     /**
@@ -261,7 +261,7 @@ class PartnerController extends Controller
         $states = $this->getMalaysianStates();
         $jobIntakeMethods = $this->getJobIntakeMethods();
 
-        return view('admin.partners.edit', compact('partner', 'states', 'jobIntakeMethods'));
+        return view('admin.edit_partners', compact('partner', 'states', 'jobIntakeMethods'));
     }
 
     /**

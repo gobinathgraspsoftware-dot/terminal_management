@@ -19,7 +19,7 @@ class PartnerController extends Controller
         $this->partnerService = $partnerService;
 
         // Technicians have limited view access to partners
-        // $this->middleware('permission:partners.view');
+        // $this->middleware('permission:view_partners');
     }
 
     /**

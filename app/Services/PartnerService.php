@@ -24,9 +24,11 @@ class PartnerService
             }
         }
 
-        // Process SLA rules
-        if (isset($data['sla_rules']) && is_array($data['sla_rules'])) {
+        // Process SLA rules (handles both array and JSON string)
+        if (isset($data['sla_rules'])) {
             $data['sla_rules'] = $this->processSlaRules($data['sla_rules']);
+        } else {
+            $data['sla_rules'] = [];
         }
 
         return Partner::create($data);
@@ -52,8 +54,8 @@ class PartnerService
             $data['api_key'] = null;
         }
 
-        // Process SLA rules
-        if (isset($data['sla_rules']) && is_array($data['sla_rules'])) {
+        // Process SLA rules (handles both array and JSON string)
+        if (isset($data['sla_rules'])) {
             $data['sla_rules'] = $this->processSlaRules($data['sla_rules']);
         }
 
@@ -67,9 +69,22 @@ class PartnerService
 
     /**
      * Process and validate SLA rules
+     * Handles both array and JSON string input
      */
-    private function processSlaRules(array $rules): array
+    private function processSlaRules($rules): array
     {
+        // Handle JSON string input
+        if (is_string($rules)) {
+            $rules = json_decode($rules, true);
+            if (!is_array($rules)) {
+                return [];
+            }
+        }
+
+        if (!is_array($rules)) {
+            return [];
+        }
+
         $processedRules = [];
 
         foreach ($rules as $rule) {
@@ -78,13 +93,25 @@ class PartnerService
                 continue;
             }
 
+            // Handle escalation_enabled - can be "1", "0", true, false, "true", "false"
+            $escalationEnabled = false;
+            if (isset($rule['escalation_enabled'])) {
+                $escalationEnabled = filter_var($rule['escalation_enabled'], FILTER_VALIDATE_BOOLEAN);
+            }
+
+            // Handle escalation_hours - only if enabled and has value
+            $escalationHours = null;
+            if ($escalationEnabled && !empty($rule['escalation_hours'])) {
+                $escalationHours = (int) $rule['escalation_hours'];
+            }
+
             $processedRules[] = [
-                'sla_type' => $rule['sla_type'] ?? '',
-                'priority' => $rule['priority'] ?? 'medium',
+                'sla_type' => trim($rule['sla_type'] ?? ''),
+                'priority' => trim($rule['priority'] ?? 'medium'),
                 'response_hours' => (int) ($rule['response_hours'] ?? 24),
                 'resolution_hours' => (int) ($rule['resolution_hours'] ?? 48),
-                'escalation_enabled' => filter_var($rule['escalation_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
-                'escalation_hours' => isset($rule['escalation_hours']) ? (int) $rule['escalation_hours'] : null,
+                'escalation_enabled' => $escalationEnabled,
+                'escalation_hours' => $escalationHours,
             ];
         }
 

@@ -12,7 +12,7 @@ class StorePartnerRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Auth::check() && Auth::user()->can('partners.create');
+        return Auth::check() && Auth::user()->can('create_partners');
     }
 
     /**
@@ -81,36 +81,35 @@ class StorePartnerRequest extends FormRequest
                 'max:100'
             ],
 
-            // SLA Rules (JSON)
+            // SLA Rules (Array from form)
             'sla_rules' => [
                 'nullable',
                 'array'
             ],
             'sla_rules.*.sla_type' => [
-                'required_with:sla_rules',
+                'nullable',
                 'string',
                 'max:50'
             ],
             'sla_rules.*.priority' => [
-                'required_with:sla_rules',
+                'nullable',
                 'string',
                 'in:low,medium,high,critical'
             ],
             'sla_rules.*.response_hours' => [
-                'required_with:sla_rules',
+                'nullable',
                 'integer',
                 'min:1',
                 'max:720' // Max 30 days
             ],
             'sla_rules.*.resolution_hours' => [
-                'required_with:sla_rules',
+                'nullable',
                 'integer',
                 'min:1',
                 'max:720'
             ],
             'sla_rules.*.escalation_enabled' => [
                 'nullable',
-                'boolean'
             ],
             'sla_rules.*.escalation_hours' => [
                 'nullable',
@@ -209,6 +208,27 @@ class StorePartnerRequest extends FormRequest
             if ($this->has($field) && $this->{$field} === '') {
                 $this->merge([$field => null]);
             }
+        }
+
+        // Process SLA rules - convert escalation_enabled to boolean
+        if ($this->has('sla_rules') && is_array($this->sla_rules)) {
+            $processedRules = [];
+            foreach ($this->sla_rules as $index => $rule) {
+                // Skip completely empty rules
+                if (empty($rule['sla_type'])) {
+                    continue;
+                }
+                
+                $processedRules[] = [
+                    'sla_type' => $rule['sla_type'] ?? '',
+                    'priority' => $rule['priority'] ?? 'medium',
+                    'response_hours' => (int) ($rule['response_hours'] ?? 24),
+                    'resolution_hours' => (int) ($rule['resolution_hours'] ?? 48),
+                    'escalation_enabled' => filter_var($rule['escalation_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                    'escalation_hours' => !empty($rule['escalation_hours']) ? (int) $rule['escalation_hours'] : null,
+                ];
+            }
+            $this->merge(['sla_rules' => $processedRules]);
         }
     }
 }

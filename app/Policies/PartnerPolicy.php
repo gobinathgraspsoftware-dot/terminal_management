@@ -28,7 +28,7 @@ class PartnerPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('partners.view');
+        return $user->can('view_partners');
     }
 
     /**
@@ -37,7 +37,7 @@ class PartnerPolicy
     public function view(User $user, Partner $partner): bool
     {
         // Check basic permission
-        if (!$user->can('partners.view')) {
+        if (!$user->can('view_partners')) {
             return false;
         }
 
@@ -54,7 +54,7 @@ class PartnerPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('partners.create');
+        return $user->can('create_partners');
     }
 
     /**
@@ -63,7 +63,7 @@ class PartnerPolicy
     public function update(User $user, Partner $partner): bool
     {
         // Only admins can update (supervisors and technicians are view-only)
-        return $user->can('partners.edit');
+        return $user->can('edit_partners');
     }
 
     /**
@@ -72,7 +72,7 @@ class PartnerPolicy
     public function delete(User $user, Partner $partner): bool
     {
         // Check permission
-        if (!$user->can('partners.delete')) {
+        if (!$user->can('delete_partners')) {
             return false;
         }
 
@@ -94,7 +94,7 @@ class PartnerPolicy
      */
     public function restore(User $user, Partner $partner): bool
     {
-        return $user->can('partners.delete');
+        return $user->can('delete_partners');
     }
 
     /**
@@ -103,7 +103,7 @@ class PartnerPolicy
     public function forceDelete(User $user, Partner $partner): bool
     {
         // Only admins can force delete
-        return $user->hasRole('admin') && $user->can('partners.delete');
+        return $user->hasRole('admin') && $user->can('delete_partners');
     }
 
     /**
@@ -111,7 +111,7 @@ class PartnerPolicy
      */
     public function export(User $user): bool
     {
-        return $user->can('partners.export');
+        return $user->can('export_partners');
     }
 
     /**
@@ -119,7 +119,7 @@ class PartnerPolicy
      */
     public function import(User $user): bool
     {
-        return $user->can('partners.import');
+        return $user->can('import_partners');
     }
 
     /**
@@ -127,7 +127,7 @@ class PartnerPolicy
      */
     public function toggleStatus(User $user, Partner $partner): bool
     {
-        return $user->can('partners.edit');
+        return $user->can('edit_partners');
     }
 
     /**
@@ -135,6 +135,6 @@ class PartnerPolicy
      */
     public function regenerateApiKey(User $user, Partner $partner): bool
     {
-        return $user->can('partners.edit');
+        return $user->can('edit_partners');
     }
 }

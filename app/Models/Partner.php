@@ -55,7 +55,11 @@ class Partner extends Model
         });
     }
 
-    protected static function generatePartnerCode(): string
+    /**
+     * Generate a new partner code (PTN000001 format)
+     * Changed from protected to PUBLIC so controller can call it
+     */
+    public static function generatePartnerCode(): string
     {
         $prefix = 'PTN';
         $lastPartner = static::withTrashed()

@@ -10,9 +10,16 @@
     <div class="user-info mb-4 p-3 bg-light rounded">
         <div class="d-flex align-items-center">
             <div class="avatar me-3">
-                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 1.2rem;">
-                    {{ strtoupper(substr($user->name, 0, 1)) }}
-                </div>
+                @if($user->avatar)
+                    <img src="{{ asset('storage/avatars/' . $user->avatar) }}"
+                         alt="{{ $user->name }}"
+                         class="rounded-circle"
+                         style="width: 45px; height: 45px; object-fit: cover;">
+                @else
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; font-size: 1.2rem;">
+                        {{ strtoupper(substr($user->name, 0, 1)) }}
+                    </div>
+                @endif
             </div>
             <div class="flex-grow-1">
                 <div class="fw-bold text-truncate">{{ $user->name }}</div>
@@ -28,7 +35,11 @@
     <!-- Navigation Menu -->
     <nav class="sidebar-nav">
         @if($role === 'admin')
-            <!-- Admin Menu -->
+            {{-- ============================================= --}}
+            {{-- ADMIN MENU --}}
+            {{-- ============================================= --}}
+
+            <!-- Dashboard -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Main</small>
                 <ul class="nav flex-column mt-2">
@@ -41,7 +52,7 @@
                 </ul>
             </div>
 
-            {{-- User Management Section with Roles & Permissions --}}
+            <!-- User Management Section -->
             @php
                 $isUserRoute = str_contains($currentRoute ?? '', 'admin.users');
                 $isRoleRoute = str_contains($currentRoute ?? '', 'admin.roles');
@@ -77,7 +88,7 @@
                 </ul>
             </div>
 
-            <!-- Team Management Section - SEPARATE DROPDOWN -->
+            <!-- Team Management Section -->
             @php
                 $isTeamRoute = str_contains($currentRoute ?? '', 'admin.teams');
             @endphp
@@ -111,38 +122,7 @@
                 </ul>
             </div>
 
-            <!-- PROFILE SECTION -->
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.profile.index') ? 'active' : '' }}"
-                           href="{{ route('admin.profile.index') }}">
-                            <i class="bi bi-person-circle me-2"></i> View Profile
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.profile.edit') ? 'active' : '' }}"
-                           href="{{ route('admin.profile.edit') }}">
-                            <i class="bi bi-person-fill-gear me-2"></i> Edit Profile
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.profile.password') ? 'active' : '' }}"
-                           href="{{ route('admin.profile.password') }}">
-                            <i class="bi bi-key me-2"></i> Change Password
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.profile.avatar') ? 'active' : '' }}"
-                           href="{{ route('admin.profile.avatar') }}">
-                            <i class="bi bi-camera me-2"></i> Update Avatar
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- Master Data Section -->
+            <!-- Master Data Section (NEW - Includes Partners) -->
             @php
                 $isPartnerRoute = str_contains($currentRoute ?? '', 'admin.partners');
                 $isClientRoute = str_contains($currentRoute ?? '', 'admin.clients');
@@ -180,11 +160,15 @@
                 </ul>
             </div>
 
+            <!-- Job Management Section -->
+            @php
+                $isJobRoute = str_contains($currentRoute ?? '', 'admin.jobs');
+            @endphp
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Job Management</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link" href="#">
+                        <a class="nav-link {{ $isJobRoute ? 'active' : '' }}" href="#">
                             <i class="bi bi-clipboard-check me-2"></i> All Jobs
                         </a>
                     </li>
@@ -201,6 +185,7 @@
                 </ul>
             </div>
 
+            <!-- Inventory Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
@@ -222,6 +207,7 @@
                 </ul>
             </div>
 
+            <!-- Financial Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Financial</small>
                 <ul class="nav flex-column mt-2">
@@ -248,27 +234,7 @@
                 </ul>
             </div>
 
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Masters</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-building me-2"></i> Clients
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-bank me-2"></i> Vendors
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-geo-alt me-2"></i> Sites
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
+            <!-- Reports Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Reports</small>
                 <ul class="nav flex-column mt-2">
@@ -285,8 +251,43 @@
                 </ul>
             </div>
 
+            <!-- Profile Section -->
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.profile.index') ? 'active' : '' }}"
+                           href="{{ route('admin.profile.index') }}">
+                            <i class="bi bi-person-circle me-2"></i> View Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.profile.edit') ? 'active' : '' }}"
+                           href="{{ route('admin.profile.edit') }}">
+                            <i class="bi bi-person-fill-gear me-2"></i> Edit Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.profile.password') ? 'active' : '' }}"
+                           href="{{ route('admin.profile.password') }}">
+                            <i class="bi bi-key me-2"></i> Change Password
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.profile.avatar') ? 'active' : '' }}"
+                           href="{{ route('admin.profile.avatar') }}">
+                            <i class="bi bi-camera me-2"></i> Update Avatar
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
         @elseif($role === 'supervisor')
-            <!-- Supervisor Menu -->
+            {{-- ============================================= --}}
+            {{-- SUPERVISOR MENU --}}
+            {{-- ============================================= --}}
+
+            <!-- Dashboard -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Main</small>
                 <ul class="nav flex-column mt-2">
@@ -299,7 +300,7 @@
                 </ul>
             </div>
 
-            <!-- Team Management Section for Supervisor - SEPARATE DROPDOWN -->
+            <!-- Team Management Section -->
             @php
                 $isTeamRoute = str_contains($currentRoute ?? '', 'supervisor.teams');
             @endphp
@@ -333,7 +334,91 @@
                 </ul>
             </div>
 
-            <!-- PROFILE SECTION - NEW -->
+            <!-- Master Data Section (View Only for Supervisor) -->
+            @php
+                $isPartnerRoute = str_contains($currentRoute ?? '', 'supervisor.partners');
+                $isClientRoute = str_contains($currentRoute ?? '', 'supervisor.clients');
+                $isSiteRoute = str_contains($currentRoute ?? '', 'supervisor.sites');
+            @endphp
+            @can('partners.view')
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Master Data</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isPartnerRoute ? 'active' : '' }}"
+                           href="{{ route('supervisor.partners.index') }}">
+                            <i class="bi bi-building-fill me-2"></i> Partners
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isClientRoute ? 'active' : '' }}"
+                           href="#">
+                            <i class="bi bi-shop me-2"></i> Clients
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
+                           href="#">
+                            <i class="bi bi-geo-alt me-2"></i> Sites
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            @endcan
+
+            <!-- Job Management Section -->
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Job Management</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-clipboard-check me-2"></i> Team Jobs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-exclamation-triangle me-2"></i> SLA Tracking
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Approvals Section -->
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Approvals</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-file-earmark-check me-2"></i> Pending Claims
+                            <span class="badge bg-warning ms-auto">3</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-receipt me-2"></i> Job Approvals
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Reports Section -->
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Reports</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-file-earmark-bar-graph me-2"></i> Team Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-graph-up me-2"></i> Performance
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Profile Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
                 <ul class="nav flex-column mt-2">
@@ -364,19 +449,56 @@
                 </ul>
             </div>
 
-            <!-- Master Data Section -->
-            @php
-                $isPartnerRoute = str_contains($currentRoute ?? '', 'supervisor.partners');
-                $isClientRoute = str_contains($currentRoute ?? '', 'supervisor.clients');
-                $isSiteRoute = str_contains($currentRoute ?? '', 'supervisor.sites');
-            @endphp
+        @elseif($role === 'technician')
+            {{-- ============================================= --}}
+            {{-- TECHNICIAN MENU --}}
+            {{-- ============================================= --}}
+
+            <!-- Dashboard -->
             <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Master Data</small>
+                <small class="text-muted text-uppercase fw-bold px-3">Main</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.dashboard') ? 'active' : '' }}"
+                           href="{{ route('technician.dashboard') }}">
+                            <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- My Work Section -->
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">My Work</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-clipboard-check me-2"></i> My Jobs
+                            <span class="badge bg-primary ms-auto">5</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-clock-history me-2"></i> Job History
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Reference Data Section (Limited View for Technician) -->
+            @php
+                $isPartnerRoute = str_contains($currentRoute ?? '', 'technician.partners');
+                $isClientRoute = str_contains($currentRoute ?? '', 'technician.clients');
+                $isSiteRoute = str_contains($currentRoute ?? '', 'technician.sites');
+            @endphp
+            @can('partners.view')
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Reference Data</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
                         <a class="nav-link {{ $isPartnerRoute ? 'active' : '' }}"
-                           href="{{ route('supervisor.partners.index') }}">
-                            <i class="bi bi-building-fill me-2"></i> Partners
+                           href="{{ route('technician.partners.index') }}">
+                            <i class="bi bi-building me-2"></i> Partners
                         </a>
                     </li>
                     <li class="nav-item">
@@ -393,71 +515,43 @@
                     </li>
                 </ul>
             </div>
+            @endcan
 
+            <!-- Inventory Section -->
             <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Job Management</small>
+                <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
                         <a class="nav-link" href="#">
-                            <i class="bi bi-clipboard-check me-2"></i> Team Jobs
+                            <i class="bi bi-box-seam me-2"></i> My Stock
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#">
-                            <i class="bi bi-exclamation-triangle me-2"></i> SLA Tracking
+                            <i class="bi bi-arrow-down-circle me-2"></i> Stock Request
                         </a>
                     </li>
                 </ul>
             </div>
 
+            <!-- Claims & Payouts Section -->
             <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Approvals</small>
+                <small class="text-muted text-uppercase fw-bold px-3">Claims & Payouts</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
                         <a class="nav-link" href="#">
-                            <i class="bi bi-file-earmark-check me-2"></i> Pending Claims
-                            <span class="badge bg-warning ms-auto">3</span>
+                            <i class="bi bi-file-earmark-text me-2"></i> My Claims
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#">
-                            <i class="bi bi-receipt me-2"></i> Job Approvals
+                            <i class="bi bi-cash-coin me-2"></i> Commission
                         </a>
                     </li>
                 </ul>
             </div>
 
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Reports</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-file-earmark-bar-graph me-2"></i> Team Reports
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-graph-up me-2"></i> Performance
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-        @elseif($role === 'technician')
-            <!-- Technician Menu -->
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Main</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'technician.dashboard') ? 'active' : '' }}"
-                           href="{{ route('technician.dashboard') }}">
-                            <i class="bi bi-speedometer2 me-2"></i> Dashboard
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- PROFILE SECTION - NEW -->
+            <!-- Profile Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
                 <ul class="nav flex-column mt-2">
@@ -489,85 +583,6 @@
                         <a class="nav-link {{ str_contains($currentRoute, 'technician.profile.bank-details') ? 'active' : '' }}"
                            href="{{ route('technician.profile.bank-details') }}">
                             <i class="bi bi-bank me-2"></i> Bank Details
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- Reference Data Section -->
-            @php
-                $isPartnerRoute = str_contains($currentRoute ?? '', 'technician.partners');
-                $isClientRoute = str_contains($currentRoute ?? '', 'technician.clients');
-                $isSiteRoute = str_contains($currentRoute ?? '', 'technician.sites');
-            @endphp
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Reference Data</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isPartnerRoute ? 'active' : '' }}"
-                           href="{{ route('technician.partners.index') }}">
-                            <i class="bi bi-building me-2"></i> Partners
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isClientRoute ? 'active' : '' }}"
-                           href="#">
-                            <i class="bi bi-shop me-2"></i> Clients
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
-                           href="#">
-                            <i class="bi bi-geo-alt me-2"></i> Sites
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">My Work</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-clipboard-check me-2"></i> My Jobs
-                            <span class="badge bg-primary ms-auto">5</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-clock-history me-2"></i> Job History
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-box-seam me-2"></i> My Stock
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-arrow-down-circle me-2"></i> Stock Request
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Claims & Payouts</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-file-earmark-text me-2"></i> My Claims
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-cash-coin me-2"></i> Commission
                         </a>
                     </li>
                 </ul>
@@ -625,5 +640,28 @@
 
     .user-info .avatar {
         flex-shrink: 0;
+    }
+
+    /* Scrollable sidebar */
+    .sidebar-content {
+        height: calc(100vh - 60px);
+        overflow-y: auto;
+    }
+
+    .sidebar-content::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    .sidebar-content::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .sidebar-content::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+
+    .sidebar-content::-webkit-scrollbar-thumb:hover {
+        background: #a1a1a1;
     }
 </style>
