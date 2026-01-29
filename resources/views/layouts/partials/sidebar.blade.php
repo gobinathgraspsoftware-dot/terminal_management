@@ -141,7 +141,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {{ $isClientRoute ? 'active' : '' }}"
-                           href="#">
+                           href="{{ route('admin.clients.index') }}">
                             <i class="bi bi-shop me-2"></i> Clients
                         </a>
                     </li>

@@ -15,6 +15,9 @@ use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\PartnerController as AdminPartnerController;
 use App\Http\Controllers\Supervisor\PartnerController as SupervisorPartnerController;
 use App\Http\Controllers\Technician\PartnerController as TechnicianPartnerController;
+use App\Http\Controllers\Admin\ClientController as AdminClientController;
+use App\Http\Controllers\Supervisor\ClientController as SupervisorClientController;
+use App\Http\Controllers\Technician\ClientController as TechnicianClientController;
 
 /*
 |--------------------------------------------------------------------------
@@ -140,6 +143,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/group/{group}', [PermissionController::class, 'getByGroup'])->name('by-group');
     });
 
+    /* Partners Management Routes */
     Route::prefix('partners')->name('partners.')->group(function () {
         Route::get('/datatable', [AdminPartnerController::class, 'datatable'])->name('datatable');
         Route::get('/export', [AdminPartnerController::class, 'export'])->name('export');
@@ -156,6 +160,30 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/{partner}/edit', [AdminPartnerController::class, 'edit'])->name('edit');
         Route::put('/{partner}', [AdminPartnerController::class, 'update'])->name('update');
         Route::delete('/{partner}', [AdminPartnerController::class, 'destroy'])->name('destroy');
+    });
+
+    /* Client Management Routes */
+    Route::prefix('clients')->name('clients.')->group(function () {
+        // Main CRUD
+        Route::get('/', [AdminClientController::class, 'index'])->name('index');
+        Route::get('/datatable', [AdminClientController::class, 'datatable'])->name('datatable');
+        Route::get('/create', [AdminClientController::class, 'create'])->name('create');
+        Route::post('/', [AdminClientController::class, 'store'])->name('store');
+        Route::get('/{client}', [AdminClientController::class, 'show'])->name('show');
+        Route::get('/{client}/edit', [AdminClientController::class, 'edit'])->name('edit');
+        Route::put('/{client}', [AdminClientController::class, 'update'])->name('update');
+        Route::delete('/{client}', [AdminClientController::class, 'destroy'])->name('destroy');
+
+        // Additional Actions
+        Route::post('/{client}/restore', [AdminClientController::class, 'restore'])->name('restore');
+        Route::post('/{client}/toggle-status', [AdminClientController::class, 'toggleStatus'])->name('toggle-status');
+
+        // Contact Management
+        Route::post('/{client}/contacts', [AdminClientController::class, 'addContact'])->name('contacts.store');
+        Route::put('/{client}/contacts/{contact}', [AdminClientController::class, 'updateContact'])->name('contacts.update');
+        Route::delete('/{client}/contacts/{contact}', [AdminClientController::class, 'removeContact'])->name('contacts.destroy');
+        Route::post('/{client}/contacts/{contact}/set-primary', [AdminClientController::class, 'setPrimaryContact'])->name('contacts.set-primary');
+        Route::get('/ajax/list', [AdminClientController::class, 'getList'])->name('ajax.list');
     });
 
     /* Settings (requires specific permission) */
@@ -204,11 +232,20 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/login-history', [SupervisorProfileController::class, 'loginHistory'])->name('login-history');
     });
 
+    /* Partners Management Routes */
     Route::prefix('partners')->name('partners.')->group(function () {
         Route::get('/datatable', [SupervisorPartnerController::class, 'datatable'])->name('datatable');
         Route::get('/ajax/list', [SupervisorPartnerController::class, 'getList'])->name('ajax.list');
         Route::get('/', [SupervisorPartnerController::class, 'index'])->name('index');
         Route::get('/{partner}', [SupervisorPartnerController::class, 'show'])->name('show');
+    });
+
+    /* Client Routes */
+    Route::prefix('clients')->name('clients.')->group(function () {
+        Route::get('/', [SupervisorClientController::class, 'index'])->name('index');
+        Route::get('/datatable', [SupervisorClientController::class, 'datatable'])->name('datatable');
+        Route::get('/{client}', [SupervisorClientController::class, 'show'])->name('show');
+        Route::get('/ajax/list', [SupervisorClientController::class, 'getList'])->name('ajax.list');
     });
 
     /* Job Assignment (supervisor or admin) */
@@ -243,11 +280,20 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/login-history', [TechnicianProfileController::class, 'loginHistory'])->name('login-history');
     });
 
+    /* Partners Management Routes */
     Route::prefix('partners')->name('partners.')->group(function () {
         Route::get('/datatable', [TechnicianPartnerController::class, 'datatable'])->name('datatable');
         Route::get('/ajax/list', [TechnicianPartnerController::class, 'getList'])->name('ajax.list');
         Route::get('/', [TechnicianPartnerController::class, 'index'])->name('index');
         Route::get('/{partner}', [TechnicianPartnerController::class, 'show'])->name('show');
+    });
+
+    /* Client Routes */
+    Route::prefix('clients')->name('clients.')->group(function () {
+        Route::get('/', [TechnicianClientController::class, 'index'])->name('index');
+        Route::get('/datatable', [TechnicianClientController::class, 'datatable'])->name('datatable');
+        Route::get('/{client}', [TechnicianClientController::class, 'show'])->name('show');
+        Route::get('/ajax/list', [TechnicianClientController::class, 'getList'])->name('ajax.list');
     });
 
     /* My Jobs */
