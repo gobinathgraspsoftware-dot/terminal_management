@@ -177,27 +177,62 @@ $(document).ready(function() {
         submitBtn.prop('disabled', true).html('<i class="spinner-border spinner-border-sm me-2"></i>Updating...');
         
         $.ajax({
-            url: '{{ route('admin.vendors.update', $vendor->id) }}',
+            url: '{{ route("admin.vendors.update", $vendor->id) }}',
             type: 'PUT',
             data: $(this).serialize(),
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
             success: function(response) {
+                console.log('Success response:', response);
+                
                 if (response.success) {
-                    toastr.success(response.message);
-                    window.location.href = response.redirect;
+                    // Show success message
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(response.message || 'Vendor updated successfully');
+                    } else {
+                        alert(response.message || 'Vendor updated successfully');
+                    }
+                    
+                    // Redirect after a short delay to ensure message is seen
+                    setTimeout(function() {
+                        window.location.href = response.redirect || '{{ route("admin.vendors.index") }}';
+                    }, 500);
                 } else {
-                    toastr.error(response.message);
+                    // Show error message
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(response.message || 'Failed to update vendor');
+                    } else {
+                        alert(response.message || 'Failed to update vendor');
+                    }
                     submitBtn.prop('disabled', false).html(originalText);
                 }
             },
             error: function(xhr) {
+                console.error('Error response:', xhr);
+                
+                let errorMessage = 'Failed to update vendor';
+                
                 if (xhr.status === 422) {
-                    const errors = xhr.responseJSON.errors;
+                    // Validation errors
+                    const errors = xhr.responseJSON?.errors || {};
                     for (let field in errors) {
-                        toastr.error(errors[field][0]);
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error(errors[field][0]);
+                        } else {
+                            alert(errors[field][0]);
+                        }
                     }
                 } else {
-                    toastr.error(xhr.responseJSON?.message || 'Failed to update vendor');
+                    // Other errors
+                    errorMessage = xhr.responseJSON?.message || 'Failed to update vendor. Please try again.';
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(errorMessage);
+                    } else {
+                        alert(errorMessage);
+                    }
                 }
+                
                 submitBtn.prop('disabled', false).html(originalText);
             }
         });
