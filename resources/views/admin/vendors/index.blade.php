@@ -2,6 +2,25 @@
 
 @section('title', 'Vendors - TMS')
 
+@push('styles')
+<style>
+/* Make status badges clickable - like Partner module */
+.status-toggle-badge {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.status-toggle-badge:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.status-toggle-badge.updating {
+    cursor: wait;
+}
+</style>
+@endpush
+
 @section('content')
 <div class="container-fluid">
     <!-- Page Header -->
@@ -18,18 +37,18 @@
             </nav>
         </div>
         <div>
-            @can('import_vendors')
+            {{-- @can('import_vendors')
             <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">
                 <i class="bi bi-upload"></i> Import
             </button>
-            @endcan
-            
+            @endcan --}}
+
             @can('export_vendors')
             <button type="button" class="btn btn-outline-success" id="exportBtn">
                 <i class="bi bi-download"></i> Export
             </button>
             @endcan
-            
+
             @can('create_vendors')
             <a href="{{ route('admin.vendors.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> New Vendor
@@ -244,11 +263,11 @@ $(document).ready(function() {
         },
         columns: [
             { data: 'vendor_code', name: 'vendor_code' },
-            { 
-                data: 'vendor_name', 
+            {
+                data: 'vendor_name',
                 name: 'vendor_name',
                 render: function(data, type, row) {
-                    return '<strong>' + data + '</strong>' + 
+                    return '<strong>' + data + '</strong>' +
                            (row.company_name ? '<br><small class="text-muted">' + row.company_name + '</small>' : '');
                 }
             },
@@ -281,7 +300,7 @@ $(document).ready(function() {
     // Delete vendor
     $(document).on('click', '.delete-vendor', function() {
         const id = $(this).data('id');
-        
+
         if (!confirm('Are you sure you want to delete this vendor?')) {
             return;
         }
@@ -309,7 +328,7 @@ $(document).ready(function() {
     // Restore vendor
     $(document).on('click', '.restore-vendor', function() {
         const id = $(this).data('id');
-        
+
         if (!confirm('Are you sure you want to restore this vendor?')) {
             return;
         }
@@ -334,26 +353,113 @@ $(document).ready(function() {
         });
     });
 
-    // Toggle status
-    $(document).on('click', '.toggle-status', function() {
-        const id = $(this).data('id');
-        
+    // Toggle status - Click on status badge (like Partner module)
+    $(document).on('click', '.status-toggle-badge', function(e) {
+        e.preventDefault();
+
+        const badge = $(this);
+        const vendorId = badge.data('vendor-id');
+
+        // Prevent double-clicks
+        if (badge.hasClass('updating')) {
+            return;
+        }
+
+        // Store original badge content
+        const originalClass = badge.attr('class');
+        const originalText = badge.text();
+
+        // Show updating state
+        badge.addClass('updating')
+             .removeClass('bg-success bg-secondary')
+             .addClass('bg-warning')
+             .html('<i class="spinner-border spinner-border-sm me-1"></i>Updating...');
+
         $.ajax({
-            url: `/admin/vendors/${id}/toggle-status`,
+            url: `/admin/vendors/${vendorId}/toggle-status`,
             type: 'POST',
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
             success: function(response) {
                 if (response.success) {
-                    toastr.success(response.message);
-                    table.draw();
+                    // Show success message
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(response.message);
+                    }
+
+                    // Reload table to reflect all changes including toggle button
+                    table.draw(false);
                 } else {
-                    toastr.error(response.message);
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(response.message);
+                    }
+                    // Restore original badge on error
+                    badge.attr('class', originalClass).text(originalText);
                 }
             },
             error: function(xhr) {
-                toastr.error(xhr.responseJSON?.message || 'Failed to update status');
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(xhr.responseJSON?.message || 'Failed to update status');
+                } else {
+                    alert(xhr.responseJSON?.message || 'Failed to update status');
+                }
+                // Restore original badge on error
+                badge.attr('class', originalClass).text(originalText);
+            }
+        });
+    });
+
+    // Toggle status - Click on toggle button in actions column
+    $(document).on('click', '.toggle-status', function(e) {
+        e.preventDefault();
+
+        const button = $(this);
+        const vendorId = button.data('id');
+
+        // Prevent double-clicks
+        if (button.prop('disabled')) {
+            return;
+        }
+
+        // Store original button content
+        const originalHtml = button.html();
+
+        // Show loading state
+        button.prop('disabled', true)
+              .html('<i class="spinner-border spinner-border-sm"></i>');
+
+        $.ajax({
+            url: `/admin/vendors/${vendorId}/toggle-status`,
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Show success message
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(response.message);
+                    }
+
+                    // Reload table to reflect changes
+                    table.draw(false);
+                } else {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(response.message);
+                    }
+                    // Restore original button
+                    button.prop('disabled', false).html(originalHtml);
+                }
+            },
+            error: function(xhr) {
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(xhr.responseJSON?.message || 'Failed to update status');
+                } else {
+                    alert(xhr.responseJSON?.message || 'Failed to update status');
+                }
+                // Restore original button
+                button.prop('disabled', false).html(originalHtml);
             }
         });
     });
@@ -365,7 +471,7 @@ $(document).ready(function() {
             vendor_type: $('#vendorTypeFilter').val(),
             state: $('#stateFilter').val()
         };
-        
+
         const queryString = $.param(filters);
         window.location.href = '{{ route('admin.vendors.export') }}?' + queryString;
     });
@@ -373,9 +479,9 @@ $(document).ready(function() {
     // Import
     $('#importForm').submit(function(e) {
         e.preventDefault();
-        
+
         const formData = new FormData(this);
-        
+
         $.ajax({
             url: '{{ route('admin.vendors.import') }}',
             type: 'POST',
@@ -388,7 +494,7 @@ $(document).ready(function() {
                     $('#importModal').modal('hide');
                     $('#importForm')[0].reset();
                     table.draw();
-                    
+
                     // Show detailed results if there are errors
                     if (response.results.failed > 0) {
                         console.log('Import errors:', response.results.errors);

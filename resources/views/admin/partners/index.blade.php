@@ -140,11 +140,11 @@
                     <i class="bi bi-download me-1"></i> Export
                 </button>
                 @endcan
-                @can('import_partners')
+                {{-- @can('import_partners')
                 <button type="button" id="btnImport" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#importModal">
                     <i class="bi bi-upload me-1"></i> Import
                 </button>
-                @endcan
+                @endcan --}}
             </div>
         </div>
     </div>
@@ -193,7 +193,7 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Select Excel File</label>
-                        <input type="file" class="form-control" id="importFile" name="file" 
+                        <input type="file" class="form-control" id="importFile" name="file"
                             accept=".xlsx,.xls,.csv" required>
                         <div class="form-text">Accepted formats: .xlsx, .xls, .csv (Max 10MB)</div>
                     </div>
@@ -241,8 +241,8 @@ $(document).ready(function() {
             { data: 'partner_code', name: 'partner_code' },
             { data: 'partner_name', name: 'partner_name' },
             { data: 'pic_info', name: 'pic_name', orderable: false },
-            { 
-                data: null, 
+            {
+                data: null,
                 name: 'city',
                 render: function(data) {
                     let parts = [];
@@ -252,16 +252,16 @@ $(document).ready(function() {
                 }
             },
             { data: 'job_intake_badge', name: 'job_intake_method', orderable: false },
-            { 
-                data: 'clients_count', 
+            {
+                data: 'clients_count',
                 name: 'clients_count',
                 className: 'text-center',
                 render: function(data) {
                     return '<span class="badge bg-info">' + data + '</span>';
                 }
             },
-            { 
-                data: 'job_orders_count', 
+            {
+                data: 'job_orders_count',
                 name: 'job_orders_count',
                 className: 'text-center',
                 render: function(data) {
@@ -321,9 +321,9 @@ $(document).ready(function() {
     @can('import_partners')
     $('#importForm').on('submit', function(e) {
         e.preventDefault();
-        
+
         let formData = new FormData(this);
-        
+
         Swal.fire({
             title: 'Importing...',
             text: 'Please wait while we process your file',
@@ -366,7 +366,7 @@ $(document).ready(function() {
     // Toggle status
     $(document).on('click', '.toggle-status', function() {
         let id = $(this).data('id');
-        
+
         $.ajax({
             url: "{{ url('admin/partners') }}/" + id + "/toggle-status",
             type: 'POST',
@@ -383,7 +383,7 @@ $(document).ready(function() {
     // Delete partner
     $(document).on('click', '.delete-partner', function() {
         let id = $(this).data('id');
-        
+
         Swal.fire({
             title: 'Delete Partner?',
             text: 'This partner will be soft-deleted and can be restored later.',
@@ -412,7 +412,7 @@ $(document).ready(function() {
     // Restore partner
     $(document).on('click', '.restore-partner', function() {
         let id = $(this).data('id');
-        
+
         Swal.fire({
             title: 'Restore Partner?',
             text: 'This partner will be restored and become active again.',

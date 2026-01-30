@@ -61,7 +61,17 @@ class VendorController extends Controller
                 if ($vendor->trashed()) {
                     return '<span class="badge bg-danger">Deleted</span>';
                 }
-                return $vendor->status_badge;
+                
+                // Add data-id and clickable class to badge
+                $badgeClass = $vendor->status === Vendor::STATUS_ACTIVE ? 'bg-success' : 'bg-secondary';
+                $statusText = ucfirst($vendor->status);
+                
+                return '<span class="badge ' . $badgeClass . ' status-toggle-badge" 
+                              data-vendor-id="' . $vendor->id . '" 
+                              style="cursor: pointer;" 
+                              title="Click to toggle status">' 
+                              . $statusText . 
+                        '</span>';
             })
             ->addColumn('vendor_type_badge', function ($vendor) {
                 return $this->getVendorTypeBadge($vendor->vendor_type);
