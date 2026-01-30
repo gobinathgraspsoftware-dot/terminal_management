@@ -18,6 +18,7 @@ use App\Http\Controllers\Technician\PartnerController as TechnicianPartnerContro
 use App\Http\Controllers\Admin\ClientController as AdminClientController;
 use App\Http\Controllers\Supervisor\ClientController as SupervisorClientController;
 use App\Http\Controllers\Technician\ClientController as TechnicianClientController;
+use App\Http\Controllers\Admin\VendorController as AdminVendorController;
 
 /*
 |--------------------------------------------------------------------------
@@ -185,6 +186,30 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/{client}/contacts/{contact}/set-primary', [AdminClientController::class, 'setPrimaryContact'])->name('contacts.set-primary');
         Route::get('/ajax/list', [AdminClientController::class, 'getList'])->name('ajax.list');
     });
+
+
+    /* Vendors Management Routes */
+    Route::prefix('vendors')->name('vendors.')->group(function () {
+        Route::get('/', [AdminVendorController::class, 'index'])->name('index');
+        Route::get('/datatable', [AdminVendorController::class, 'datatable'])->name('datatable');
+        Route::get('/create', [AdminVendorController::class, 'create'])->name('create');
+        Route::post('/', [AdminVendorController::class, 'store'])->name('store');
+        Route::get('/{vendor}', [AdminVendorController::class, 'show'])->name('show');
+        Route::get('/{vendor}/edit', [AdminVendorController::class, 'edit'])->name('edit');
+        Route::put('/{vendor}', [AdminVendorController::class, 'update'])->name('update');
+        Route::delete('/{vendor}', [AdminVendorController::class, 'destroy'])->name('destroy');
+        Route::post('/{vendor}/restore', [AdminVendorController::class, 'restore'])->name('restore');
+        Route::post('/{vendor}/toggle-status', [AdminVendorController::class, 'toggleStatus'])->name('toggle-status');
+
+        // Import/Export
+        Route::get('/export/excel', [AdminVendorController::class, 'export'])->name('export');
+        Route::post('/import/excel', [AdminVendorController::class, 'import'])->name('import');
+        Route::get('/import/template', [AdminVendorController::class, 'importTemplate'])->name('import-template');
+
+        // AJAX
+        Route::get('/api/list', [AdminVendorController::class, 'getList'])->name('api.list');
+    });
+
 
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {

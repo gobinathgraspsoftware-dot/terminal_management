@@ -147,7 +147,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {{ $isVendorRoute ? 'active' : '' }}"
-                           href="#">
+                           href="{{ route('admin.vendors.index') }}">
                             <i class="bi bi-truck me-2"></i> Vendors
                         </a>
                     </li>
