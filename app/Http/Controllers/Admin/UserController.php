@@ -14,11 +14,14 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Spatie\Permission\Models\Role;
 use Yajra\DataTables\Facades\DataTables;
 
 class UserController extends Controller
 {
+    use AuthorizesRequests;
+    
     protected UserService $userService;
 
     public function __construct(UserService $userService)
@@ -227,17 +230,14 @@ class UserController extends Controller
     /**
      * Display the specified user
      */
-    public function show(User $user): JsonResponse
+    public function show(User $user): View
     {
         // Check authorization
         $this->authorize('view', $user);
         
-        $user->load(['roles', 'supervisor']);
+        $user->load(['roles', 'supervisor', 'technicians']);
         
-        return response()->json([
-            'success' => true,
-            'user' => $user
-        ]);
+        return view('admin.users.show', compact('user'));
     }
 
     /**
