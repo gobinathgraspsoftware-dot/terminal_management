@@ -19,6 +19,10 @@ use App\Http\Controllers\Admin\ClientController as AdminClientController;
 use App\Http\Controllers\Supervisor\ClientController as SupervisorClientController;
 use App\Http\Controllers\Technician\ClientController as TechnicianClientController;
 use App\Http\Controllers\Admin\VendorController as AdminVendorController;
+use App\Http\Controllers\Admin\SiteController as AdminSiteController;
+use App\Http\Controllers\Admin\SiteContactController as AdminSiteContactController;
+use App\Http\Controllers\Supervisor\SiteController as SupervisorSiteController;
+use App\Http\Controllers\Technician\SiteController as TechnicianSiteController;
 
 /*
 |--------------------------------------------------------------------------
@@ -151,7 +155,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/import', [AdminPartnerController::class, 'import'])->name('import');
         Route::get('/import-template', [AdminPartnerController::class, 'importTemplate'])->name('import-template');
         Route::post('/{partner}/restore', [AdminPartnerController::class, 'restore'])->name('restore')->withTrashed();
-        Route::patch('/{partner}/toggle-status', [AdminPartnerController::class, 'toggleStatus'])->name('toggle-status');
+        Route::post('/{partner}/toggle-status', [AdminPartnerController::class, 'toggleStatus'])->name('toggle-status');
         Route::post('/{partner}/regenerate-api-key', [AdminPartnerController::class, 'regenerateApiKey'])->name('regenerate-api-key');
         Route::get('/ajax/list', [AdminPartnerController::class, 'getList'])->name('ajax.list');
         Route::get('/', [AdminPartnerController::class, 'index'])->name('index');
@@ -213,28 +217,28 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
     // Sites Management
     Route::prefix('sites')->name('sites.')->group(function () {
         // Main CRUD
-        Route::get('/', [App\Http\Controllers\Admin\SiteController::class, 'index'])->name('index');
-        Route::get('/datatable', [App\Http\Controllers\Admin\SiteController::class, 'datatable'])->name('datatable');
-        Route::get('/create', [App\Http\Controllers\Admin\SiteController::class, 'create'])->name('create');
-        Route::post('/', [App\Http\Controllers\Admin\SiteController::class, 'store'])->name('store');
-        Route::get('/{site}', [App\Http\Controllers\Admin\SiteController::class, 'show'])->name('show');
-        Route::get('/{site}/edit', [App\Http\Controllers\Admin\SiteController::class, 'edit'])->name('edit');
-        Route::put('/{site}', [App\Http\Controllers\Admin\SiteController::class, 'update'])->name('update');
-        Route::delete('/{site}', [App\Http\Controllers\Admin\SiteController::class, 'destroy'])->name('destroy');
-        Route::post('/{siteId}/restore', [App\Http\Controllers\Admin\SiteController::class, 'restore'])->name('restore');
+        Route::get('/', [AdminSiteController::class, 'index'])->name('index');
+        Route::get('/datatable', [AdminSiteController::class, 'datatable'])->name('datatable');
+        Route::get('/create', [AdminSiteController::class, 'create'])->name('create');
+        Route::post('/', [AdminSiteController::class, 'store'])->name('store');
+        Route::get('/{site}', [AdminSiteController::class, 'show'])->name('show');
+        Route::get('/{site}/edit', [AdminSiteController::class, 'edit'])->name('edit');
+        Route::put('/{site}', [AdminSiteController::class, 'update'])->name('update');
+        Route::delete('/{site}', [AdminSiteController::class, 'destroy'])->name('destroy');
+        Route::post('/{siteId}/restore', [AdminSiteController::class, 'restore'])->name('restore');
 
         // Export & GPS
-        Route::get('/export', [App\Http\Controllers\Admin\SiteController::class, 'export'])->name('export');
-        Route::post('/capture-gps', [App\Http\Controllers\Admin\SiteController::class, 'captureGps'])->name('capture-gps');
+        Route::get('/export', [AdminSiteController::class, 'export'])->name('export');
+        Route::post('/capture-gps', [AdminSiteController::class, 'captureGps'])->name('capture-gps');
 
         // Site Contacts Management
         Route::prefix('{site}/contacts')->name('contacts.')->group(function () {
-            Route::get('/', [App\Http\Controllers\Admin\SiteContactController::class, 'index'])->name('index');
-            Route::post('/', [App\Http\Controllers\Admin\SiteContactController::class, 'store'])->name('store');
-            Route::get('/{contact}', [App\Http\Controllers\Admin\SiteContactController::class, 'show'])->name('show');
-            Route::put('/{contact}', [App\Http\Controllers\Admin\SiteContactController::class, 'update'])->name('update');
-            Route::delete('/{contact}', [App\Http\Controllers\Admin\SiteContactController::class, 'destroy'])->name('destroy');
-            Route::post('/{contact}/set-primary', [App\Http\Controllers\Admin\SiteContactController::class, 'setPrimary'])->name('set-primary');
+            Route::get('/', [AdminSiteContactController::class, 'index'])->name('index');
+            Route::post('/', [AdminSiteContactController::class, 'store'])->name('store');
+            Route::get('/{contact}', [AdminSiteContactController::class, 'show'])->name('show');
+            Route::put('/{contact}', [AdminSiteContactController::class, 'update'])->name('update');
+            Route::delete('/{contact}', [AdminSiteContactController::class, 'destroy'])->name('destroy');
+            Route::post('/{contact}/set-primary', [AdminSiteContactController::class, 'setPrimary'])->name('set-primary');
         });
     });
 
@@ -302,9 +306,9 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
 
     // Sites (View Only - Filtered by Coverage States)
     Route::prefix('sites')->name('sites.')->group(function () {
-        Route::get('/', [App\Http\Controllers\Supervisor\SiteController::class, 'index'])->name('index');
-        Route::get('/datatable', [App\Http\Controllers\Supervisor\SiteController::class, 'datatable'])->name('datatable');
-        Route::get('/{site}', [App\Http\Controllers\Supervisor\SiteController::class, 'show'])->name('show');
+        Route::get('/', [SupervisorSiteController::class, 'index'])->name('index');
+        Route::get('/datatable', [SupervisorSiteController::class, 'datatable'])->name('datatable');
+        Route::get('/{site}', [SupervisorSiteController::class, 'show'])->name('show');
     });
 
     /* Job Assignment (supervisor or admin) */
@@ -357,8 +361,8 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
 
     // Sites (View Only - Own Assignments)
     Route::prefix('sites')->name('sites.')->group(function () {
-        Route::get('/', [App\Http\Controllers\Technician\SiteController::class, 'index'])->name('index');
-        Route::get('/{site}', [App\Http\Controllers\Technician\SiteController::class, 'show'])->name('show');
+        Route::get('/', [TechnicianSiteController::class, 'index'])->name('index');
+        Route::get('/{site}', [TechnicianSiteController::class, 'show'])->name('show');
     });
 
     /* My Jobs */
