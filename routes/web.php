@@ -210,6 +210,33 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/api/list', [AdminVendorController::class, 'getList'])->name('api.list');
     });
 
+    // Sites Management
+    Route::prefix('sites')->name('sites.')->group(function () {
+        // Main CRUD
+        Route::get('/', [App\Http\Controllers\Admin\SiteController::class, 'index'])->name('index');
+        Route::get('/datatable', [App\Http\Controllers\Admin\SiteController::class, 'datatable'])->name('datatable');
+        Route::get('/create', [App\Http\Controllers\Admin\SiteController::class, 'create'])->name('create');
+        Route::post('/', [App\Http\Controllers\Admin\SiteController::class, 'store'])->name('store');
+        Route::get('/{site}', [App\Http\Controllers\Admin\SiteController::class, 'show'])->name('show');
+        Route::get('/{site}/edit', [App\Http\Controllers\Admin\SiteController::class, 'edit'])->name('edit');
+        Route::put('/{site}', [App\Http\Controllers\Admin\SiteController::class, 'update'])->name('update');
+        Route::delete('/{site}', [App\Http\Controllers\Admin\SiteController::class, 'destroy'])->name('destroy');
+        Route::post('/{siteId}/restore', [App\Http\Controllers\Admin\SiteController::class, 'restore'])->name('restore');
+
+        // Export & GPS
+        Route::get('/export', [App\Http\Controllers\Admin\SiteController::class, 'export'])->name('export');
+        Route::post('/capture-gps', [App\Http\Controllers\Admin\SiteController::class, 'captureGps'])->name('capture-gps');
+
+        // Site Contacts Management
+        Route::prefix('{site}/contacts')->name('contacts.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\SiteContactController::class, 'index'])->name('index');
+            Route::post('/', [App\Http\Controllers\Admin\SiteContactController::class, 'store'])->name('store');
+            Route::get('/{contact}', [App\Http\Controllers\Admin\SiteContactController::class, 'show'])->name('show');
+            Route::put('/{contact}', [App\Http\Controllers\Admin\SiteContactController::class, 'update'])->name('update');
+            Route::delete('/{contact}', [App\Http\Controllers\Admin\SiteContactController::class, 'destroy'])->name('destroy');
+            Route::post('/{contact}/set-primary', [App\Http\Controllers\Admin\SiteContactController::class, 'setPrimary'])->name('set-primary');
+        });
+    });
 
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
@@ -273,6 +300,13 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/ajax/list', [SupervisorClientController::class, 'getList'])->name('ajax.list');
     });
 
+    // Sites (View Only - Filtered by Coverage States)
+    Route::prefix('sites')->name('sites.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Supervisor\SiteController::class, 'index'])->name('index');
+        Route::get('/datatable', [App\Http\Controllers\Supervisor\SiteController::class, 'datatable'])->name('datatable');
+        Route::get('/{site}', [App\Http\Controllers\Supervisor\SiteController::class, 'show'])->name('show');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -319,6 +353,12 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/datatable', [TechnicianClientController::class, 'datatable'])->name('datatable');
         Route::get('/{client}', [TechnicianClientController::class, 'show'])->name('show');
         Route::get('/ajax/list', [TechnicianClientController::class, 'getList'])->name('ajax.list');
+    });
+
+    // Sites (View Only - Own Assignments)
+    Route::prefix('sites')->name('sites.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Technician\SiteController::class, 'index'])->name('index');
+        Route::get('/{site}', [App\Http\Controllers\Technician\SiteController::class, 'show'])->name('show');
     });
 
     /* My Jobs */

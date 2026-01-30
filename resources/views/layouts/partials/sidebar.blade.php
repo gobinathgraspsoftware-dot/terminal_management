@@ -153,7 +153,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
-                           href="#">
+                           href="{{ route('admin.sites.index') }}">
                             <i class="bi bi-geo-alt me-2"></i> Sites
                         </a>
                     </li>
@@ -358,7 +358,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
-                           href="#">
+                           href="{{ route('supervisor.sites.index') }}">
                             <i class="bi bi-geo-alt me-2"></i> Sites
                         </a>
                     </li>
@@ -509,7 +509,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
-                           href="#">
+                           href="{{ route('technician.sites.index') }}">
                             <i class="bi bi-geo-alt me-2"></i> Sites
                         </a>
                     </li>
