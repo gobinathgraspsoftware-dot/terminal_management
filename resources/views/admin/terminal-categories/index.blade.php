@@ -97,9 +97,9 @@
                     <h5 class="mb-0">Category List</h5>
                 </div>
                 <div class="col-auto">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleSortMode">
+                    {{-- <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleSortMode">
                         <i class="bi bi-arrows-move me-1"></i> Enable Sorting
-                    </button>
+                    </button> --}}
                 </div>
             </div>
         </div>
@@ -190,7 +190,7 @@ $(document).ready(function() {
     $('#toggleSortMode').click(function() {
         sortingEnabled = !sortingEnabled;
         const btn = $(this);
-        
+
         if (sortingEnabled) {
             btn.html('<i class="bi bi-x-circle me-1"></i> Disable Sorting');
             btn.removeClass('btn-outline-secondary').addClass('btn-warning');
@@ -206,7 +206,7 @@ $(document).ready(function() {
         // Show drag handle column
         table.column(0).visible(true);
         $('#categoriesTable').addClass('sorting-enabled');
-        
+
         // Initialize sortable
         $('#sortableCategories').sortable({
             handle: '.sort-handle',
@@ -225,7 +225,7 @@ $(document).ready(function() {
     function disableSorting() {
         table.column(0).visible(false);
         $('#categoriesTable').removeClass('sorting-enabled');
-        
+
         if ($('#sortableCategories').hasClass('ui-sortable')) {
             $('#sortableCategories').sortable('destroy');
         }
