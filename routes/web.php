@@ -23,6 +23,9 @@ use App\Http\Controllers\Admin\SiteController as AdminSiteController;
 use App\Http\Controllers\Admin\SiteContactController as AdminSiteContactController;
 use App\Http\Controllers\Supervisor\SiteController as SupervisorSiteController;
 use App\Http\Controllers\Technician\SiteController as TechnicianSiteController;
+use App\Http\Controllers\Admin\TerminalCategoryController as AdminTerminalCategoryController;
+use App\Http\Controllers\Supervisor\TerminalCategoryController as SupervisorTerminalCategoryController;
+use App\Http\Controllers\Technician\TerminalCategoryController as TechnicianTerminalCategoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -214,7 +217,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/api/list', [AdminVendorController::class, 'getList'])->name('api.list');
     });
 
-    // Sites Management
+    /* Sites Management Routes */
     Route::prefix('sites')->name('sites.')->group(function () {
         // Main CRUD
         Route::get('/', [AdminSiteController::class, 'index'])->name('index');
@@ -231,7 +234,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/export', [AdminSiteController::class, 'export'])->name('export');
         Route::post('/capture-gps', [AdminSiteController::class, 'captureGps'])->name('capture-gps');
 
-        // Site Contacts Management
+        /* Site Contacts Management Routes */
         Route::prefix('{site}/contacts')->name('contacts.')->group(function () {
             Route::get('/', [AdminSiteContactController::class, 'index'])->name('index');
             Route::post('/', [AdminSiteContactController::class, 'store'])->name('store');
@@ -240,6 +243,20 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
             Route::delete('/{contact}', [AdminSiteContactController::class, 'destroy'])->name('destroy');
             Route::post('/{contact}/set-primary', [AdminSiteContactController::class, 'setPrimary'])->name('set-primary');
         });
+    });
+
+    /* Terminal categories routes */
+    Route::prefix('terminal-categories')->name('terminal-categories.')->group(function () {
+        Route::get('/', [AdminTerminalCategoryController::class, 'index'])->name('index');
+        Route::get('/datatable', [AdminTerminalCategoryController::class, 'datatable'])->name('datatable');
+        Route::get('/create', [AdminTerminalCategoryController::class, 'create'])->name('create');
+        Route::post('/', [AdminTerminalCategoryController::class, 'store'])->name('store');
+        Route::get('/{terminalCategory}/edit', [AdminTerminalCategoryController::class, 'edit'])->name('edit');
+        Route::put('/{terminalCategory}', [AdminTerminalCategoryController::class, 'update'])->name('update');
+        Route::delete('/{terminalCategory}', [AdminTerminalCategoryController::class, 'destroy'])->name('destroy');
+        Route::post('/{terminalCategory}/toggle-status', [AdminTerminalCategoryController::class, 'toggleStatus'])->name('toggle-status');
+        Route::post('/{terminalCategory}/toggle-serial-tracking', [AdminTerminalCategoryController::class, 'toggleSerialTracking'])->name('toggle-serial-tracking');
+        Route::post('/update-sort-order', [AdminTerminalCategoryController::class, 'updateSortOrder'])->name('update-sort-order');
     });
 
     /* Settings (requires specific permission) */
@@ -304,11 +321,17 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/ajax/list', [SupervisorClientController::class, 'getList'])->name('ajax.list');
     });
 
-    // Sites (View Only - Filtered by Coverage States)
+    /* Sites management Routes */
     Route::prefix('sites')->name('sites.')->group(function () {
         Route::get('/', [SupervisorSiteController::class, 'index'])->name('index');
         Route::get('/datatable', [SupervisorSiteController::class, 'datatable'])->name('datatable');
         Route::get('/{site}', [SupervisorSiteController::class, 'show'])->name('show');
+    });
+
+    /* Terminal Management Routes */
+    Route::prefix('terminal-categories')->name('terminal-categories.')->group(function () {
+        Route::get('/', [SupervisorTerminalCategoryController::class, 'index'])->name('index');
+        Route::get('/datatable', [SupervisorTerminalCategoryController::class, 'datatable'])->name('datatable');
     });
 
     /* Job Assignment (supervisor or admin) */
@@ -359,10 +382,16 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/ajax/list', [TechnicianClientController::class, 'getList'])->name('ajax.list');
     });
 
-    // Sites (View Only - Own Assignments)
+    /* Sites management Routes */
     Route::prefix('sites')->name('sites.')->group(function () {
         Route::get('/', [TechnicianSiteController::class, 'index'])->name('index');
         Route::get('/{site}', [TechnicianSiteController::class, 'show'])->name('show');
+    });
+
+    /* Terminal Management Routes */
+    Route::prefix('terminal-categories')->name('terminal-categories.')->group(function () {
+        Route::get('/', [TechnicianTerminalCategoryController::class, 'index'])->name('index');
+        Route::get('/datatable', [TechnicianTerminalCategoryController::class, 'datatable'])->name('datatable');
     });
 
     /* My Jobs */
