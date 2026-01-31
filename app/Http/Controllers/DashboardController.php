@@ -53,7 +53,7 @@ class DashboardController extends Controller
     protected function getSupervisorData(): array
     {
         $user = auth()->user();
-        
+
         return [
             'stats' => [
                 'team_jobs_today' => $this->getTeamJobsToday($user),
@@ -77,7 +77,7 @@ class DashboardController extends Controller
     protected function getTechnicianData(): array
     {
         $user = auth()->user();
-        
+
         return [
             'stats' => [
                 'today_jobs' => $this->getTechnicianTodayJobs($user),
@@ -103,7 +103,7 @@ class DashboardController extends Controller
     protected function getTodayJobsStats(): array
     {
         $today = Carbon::today();
-        
+
         return DB::table('job_orders')
             ->whereDate('created_at', $today)
             ->select('status', DB::raw('count(*) as count'))
@@ -165,7 +165,7 @@ class DashboardController extends Controller
 
         $labels = [];
         $data = [];
-        
+
         for ($date = $startOfWeek->copy(); $date <= $endOfWeek; $date->addDay()) {
             $labels[] = $date->format('D');
             $dateStr = $date->format('Y-m-d');
@@ -193,13 +193,13 @@ class DashboardController extends Controller
 
         $labels = [];
         $data = [];
-        
+
         // Group by week for monthly view
         $weeks = [];
         for ($i = 0; $i < 5; $i++) {
             $weekStart = $startOfMonth->copy()->addWeeks($i);
             if ($weekStart > $endOfMonth) break;
-            
+
             $weekEnd = $weekStart->copy()->addWeek()->min($endOfMonth);
             $weeks[] = ['start' => $weekStart, 'end' => $weekEnd];
             $labels[] = 'Week ' . ($i + 1);
@@ -240,7 +240,7 @@ class DashboardController extends Controller
     protected function getTeamJobsToday($user): int
     {
         $today = Carbon::today();
-        
+
         return DB::table('job_orders')
             ->where(function($query) use ($user) {
                 $query->where('supervisor_id', $user->id)
@@ -378,7 +378,7 @@ class DashboardController extends Controller
 
         $labels = [];
         $data = [];
-        
+
         for ($date = $startOfWeek->copy(); $date <= $endOfWeek; $date->addDay()) {
             $labels[] = $date->format('D');
             $dateStr = $date->format('Y-m-d');
@@ -455,7 +455,7 @@ class DashboardController extends Controller
     protected function getTechnicianTodayJobs($user): int
     {
         $today = Carbon::today();
-        
+
         return DB::table('job_orders')
             ->where('technician_id', $user->id)
             ->whereDate('scheduled_date', $today)
@@ -503,7 +503,7 @@ class DashboardController extends Controller
     protected function getTechnicianTodayJobsList($user): array
     {
         $today = Carbon::today();
-        
+
         return DB::table('job_orders')
             ->join('clients', 'job_orders.client_id', '=', 'clients.id')
             ->leftJoin('sites', 'job_orders.site_id', '=', 'sites.id')
@@ -511,8 +511,8 @@ class DashboardController extends Controller
             ->whereDate('job_orders.scheduled_date', $today)
             ->select(
                 'job_orders.*',
-                'clients.name as client_name',
-                'sites.name as site_name',
+                'clients.client_name as client_name',
+                'sites.site_name as site_name',
                 'sites.address as site_address'
             )
             ->orderBy('job_orders.priority', 'desc')
@@ -530,8 +530,8 @@ class DashboardController extends Controller
             ->where('job_orders.status', 'completed')
             ->select(
                 'job_orders.*',
-                'clients.name as client_name',
-                'sites.name as site_name'
+                'clients.client_name as client_name',
+                'sites.site_name as site_name'
             )
             ->orderBy('job_orders.completed_at', 'desc')
             ->limit($limit)
