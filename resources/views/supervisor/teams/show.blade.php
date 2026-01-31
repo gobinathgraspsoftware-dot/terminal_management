@@ -15,7 +15,7 @@
         </nav>
     </div>
     <a href="{{ route('supervisor.teams.index') }}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left me-1"></i> Back to Team
+        <i class="bi bi-arrow-left me-1"></i> Back to Team
     </a>
 </div>
 @endsection
@@ -26,9 +26,10 @@
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-body text-center">
-                <img src="{{ $user->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode($user->name) }}"
+                <img src="{{ $user->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode($user->name) . '&background=random&color=fff' }}"
                     class="rounded-circle mb-3 border border-4 border-primary"
-                    style="width: 120px; height: 120px; object-fit: cover;">
+                    style="width: 120px; height: 120px; object-fit: cover;"
+                    alt="{{ $user->name }}">
                 <h4 class="mb-1">{{ $user->name }}</h4>
                 <p class="text-muted mb-2">{{ $user->employee_id }}</p>
 
@@ -46,25 +47,33 @@
 
                 <div class="text-start">
                     <div class="mb-3">
-                        <small class="text-muted d-block"><i class="fas fa-envelope me-1"></i> Email</small>
+                        <small class="text-muted d-block">
+                            <i class="bi bi-envelope-fill me-1"></i> Email
+                        </small>
                         <span>{{ $user->email }}</span>
                     </div>
                     <div class="mb-3">
-                        <small class="text-muted d-block"><i class="fas fa-phone me-1"></i> Phone</small>
+                        <small class="text-muted d-block">
+                            <i class="bi bi-telephone-fill me-1"></i> Phone
+                        </small>
                         <span>{{ $user->phone ?? '-' }}</span>
                     </div>
                     <div class="mb-3">
-                        <small class="text-muted d-block"><i class="fas fa-map-marker-alt me-1"></i> Coverage Areas</small>
+                        <small class="text-muted d-block">
+                            <i class="bi bi-geo-alt-fill me-1"></i> Coverage Areas
+                        </small>
                         @if($user->coverage_states && count($user->coverage_states) > 0)
                             @foreach($user->coverage_states as $state)
-                                <span class="badge bg-light text-dark me-1 mb-1">{{ $state }}</span>
+                                <span class="badge bg-light text-dark border me-1 mb-1">{{ $state }}</span>
                             @endforeach
                         @else
                             <span class="text-muted">Not assigned</span>
                         @endif
                     </div>
                     <div>
-                        <small class="text-muted d-block"><i class="fas fa-tools me-1"></i> Skills</small>
+                        <small class="text-muted d-block">
+                            <i class="bi bi-tools me-1"></i> Skills
+                        </small>
                         @if($user->skill_tags && count($user->skill_tags) > 0)
                             @foreach($user->skill_tags as $skill)
                                 <span class="badge bg-info me-1 mb-1">{{ $skill }}</span>
@@ -80,16 +89,22 @@
             <div class="card-footer bg-white">
                 <div class="d-flex justify-content-center gap-2">
                     @if($user->phone)
-                        <a href="tel:{{ $user->phone }}" class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-phone"></i>
+                        <a href="tel:{{ $user->phone }}"
+                           class="btn btn-outline-primary btn-sm"
+                           title="Call">
+                            <i class="bi bi-telephone-fill"></i>
                         </a>
                         <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $user->phone) }}"
-                            target="_blank" class="btn btn-outline-success btn-sm">
-                            <i class="fab fa-whatsapp"></i>
+                            target="_blank"
+                            class="btn btn-outline-success btn-sm"
+                            title="WhatsApp">
+                            <i class="bi bi-whatsapp"></i>
                         </a>
                     @endif
-                    <a href="mailto:{{ $user->email }}" class="btn btn-outline-info btn-sm">
-                        <i class="fas fa-envelope"></i>
+                    <a href="mailto:{{ $user->email }}"
+                       class="btn btn-outline-info btn-sm"
+                       title="Email">
+                        <i class="bi bi-envelope-fill"></i>
                     </a>
                 </div>
             </div>
@@ -155,7 +170,9 @@
         {{-- Weekly Performance Chart --}}
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="fas fa-chart-bar me-2 text-primary"></i>Weekly Performance</h6>
+                <h6 class="mb-0">
+                    <i class="bi bi-bar-chart-fill me-2 text-primary"></i>Weekly Performance
+                </h6>
             </div>
             <div class="card-body">
                 <canvas id="weeklyChart" height="100"></canvas>
@@ -165,7 +182,9 @@
         {{-- Recent Jobs --}}
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="fas fa-clipboard-list me-2 text-info"></i>Recent Jobs</h6>
+                <h6 class="mb-0">
+                    <i class="bi bi-clipboard-check me-2 text-info"></i>Recent Jobs
+                </h6>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -209,7 +228,7 @@
                             @empty
                             <tr>
                                 <td colspan="5" class="text-center text-muted py-4">
-                                    <i class="fas fa-clipboard fa-2x mb-2 opacity-50"></i>
+                                    <i class="bi bi-clipboard fs-2 mb-2 opacity-50"></i>
                                     <p class="mb-0">No jobs found</p>
                                 </td>
                             </tr>
