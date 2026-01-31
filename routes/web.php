@@ -26,6 +26,9 @@ use App\Http\Controllers\Technician\SiteController as TechnicianSiteController;
 use App\Http\Controllers\Admin\TerminalCategoryController as AdminTerminalCategoryController;
 use App\Http\Controllers\Supervisor\TerminalCategoryController as SupervisorTerminalCategoryController;
 use App\Http\Controllers\Technician\TerminalCategoryController as TechnicianTerminalCategoryController;
+use App\Http\Controllers\Admin\TerminalModelController as AdminTerminalModelController;
+use App\Http\Controllers\Supervisor\TerminalModelController as SupervisorTerminalModelController;
+use App\Http\Controllers\Technician\TerminalModelController as TechnicianTerminalModelController;
 
 /*
 |--------------------------------------------------------------------------
@@ -259,6 +262,17 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/update-sort-order', [AdminTerminalCategoryController::class, 'updateSortOrder'])->name('update-sort-order');
     });
 
+    /* Terminal model routes */
+    Route::prefix('terminal-models')->name('terminal-models.')->group(function () {
+        Route::get('/datatable', [AdminTerminalModelController::class, 'datatable'])->name('datatable');
+        Route::post('/toggle-status/{terminalModel}', [AdminTerminalModelController::class, 'toggleStatus'])->name('toggle-status');
+        Route::delete('/{terminalModel}/delete-image', [AdminTerminalModelController::class, 'deleteImage'])->name('delete-image');
+        Route::get('/export', [AdminTerminalModelController::class, 'export'])->name('export');
+        Route::post('/import', [AdminTerminalModelController::class, 'import'])->name('import');
+        Route::resource('/', AdminTerminalModelController::class);
+    });
+
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -328,10 +342,17 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{site}', [SupervisorSiteController::class, 'show'])->name('show');
     });
 
-    /* Terminal Management Routes */
+    /* Terminal categories Management Routes */
     Route::prefix('terminal-categories')->name('terminal-categories.')->group(function () {
         Route::get('/', [SupervisorTerminalCategoryController::class, 'index'])->name('index');
         Route::get('/datatable', [SupervisorTerminalCategoryController::class, 'datatable'])->name('datatable');
+    });
+
+    /* Terminal Model Routes */
+    Route::prefix('terminal-models')->name('terminal-models.')->group(function () {
+        Route::get('/datatable', [SupervisorTerminalModelController::class, 'datatable'])->name('datatable');
+        Route::get('/', [SupervisorTerminalModelController::class, 'index'])->name('index');
+        Route::get('/{terminalModel}', [SupervisorTerminalModelController::class, 'show'])->name('show');
     });
 
     /* Job Assignment (supervisor or admin) */
@@ -388,10 +409,17 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/{site}', [TechnicianSiteController::class, 'show'])->name('show');
     });
 
-    /* Terminal Management Routes */
+    /* Terminal Categories Management Routes */
     Route::prefix('terminal-categories')->name('terminal-categories.')->group(function () {
         Route::get('/', [TechnicianTerminalCategoryController::class, 'index'])->name('index');
         Route::get('/datatable', [TechnicianTerminalCategoryController::class, 'datatable'])->name('datatable');
+    });
+
+    /* Terminal model Management Routes */
+    Route::prefix('terminal-models')->name('terminal-models.')->group(function () {
+        Route::get('/datatable', [TechnicianTerminalModelController::class, 'datatable'])->name('datatable');
+        Route::get('/', [TechnicianTerminalModelController::class, 'index'])->name('index');
+        Route::get('/{terminalModel}', [TechnicianTerminalModelController::class, 'show'])->name('show');
     });
 
     /* My Jobs */

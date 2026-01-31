@@ -128,8 +128,9 @@
                 $isClientRoute = str_contains($currentRoute ?? '', 'admin.clients');
                 $isVendorRoute = str_contains($currentRoute ?? '', 'admin.vendors');
                 $isSiteRoute = str_contains($currentRoute ?? '', 'admin.sites');
+                $isTerminalRoute = str_contains($currentRoute ?? '', 'admin.terminal-models');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'admin.terminal-categories');
-                $isMasterDataActive = $isPartnerRoute || $isClientRoute || $isVendorRoute || $isSiteRoute || $isCategoryRoute;
+                $isMasterDataActive = $isPartnerRoute || $isClientRoute || $isVendorRoute || $isSiteRoute || $isTerminalRoute || $isCategoryRoute;
             @endphp
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Master Data</small>
@@ -158,6 +159,18 @@
                             <i class="bi bi-geo-alt me-2"></i> Sites
                         </a>
                     </li>
+                    @can('view_models')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isTerminalRoute ? 'active' : '' }}"
+                        href="{{ route('admin.terminal-models.index') }}">
+                            <i class="bi bi-box-seam"></i>
+                            <span>Terminal Models</span>
+                            @if($unreadNotifications ?? 0)
+                                <span class="badge bg-danger ms-auto">{{ $unreadNotifications }}</span>
+                            @endif
+                        </a>
+                    </li>
+                    @endcan
                     <li class="nav-item">
                         <a class="nav-link {{ $isCategoryRoute ? 'active' : '' }}"
                         href="{{ route('admin.terminal-categories.index') }}">
@@ -346,6 +359,7 @@
                 $isPartnerRoute = str_contains($currentRoute ?? '', 'supervisor.partners');
                 $isClientRoute = str_contains($currentRoute ?? '', 'supervisor.clients');
                 $isSiteRoute = str_contains($currentRoute ?? '', 'supervisor.sites');
+                $isTerminalRoute = str_contains($currentRoute ?? '', 'supervisor.terminal-models');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'supervisor.terminal-categories');
             @endphp
             @can('partners.view')
@@ -370,6 +384,15 @@
                             <i class="bi bi-geo-alt me-2"></i> Sites
                         </a>
                     </li>
+                    @can('view_models')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isTerminalRoute ? 'active' : '' }}"
+                        href="{{ route('supervisor.terminal-models.index') }}">
+                            <i class="bi bi-box-seam"></i>
+                            <span>Terminal Models</span>
+                        </a>
+                    </li>
+                    @endcan
                     <li class="nav-item">
                         <a class="nav-link {{ $isCategoryRoute ? 'active' : '' }}"
                         href="{{ route('supervisor.terminal-categories.index') }}">
@@ -485,6 +508,7 @@
                 $isPartnerRoute = str_contains($currentRoute ?? '', 'technician.partners');
                 $isClientRoute = str_contains($currentRoute ?? '', 'technician.clients');
                 $isSiteRoute = str_contains($currentRoute ?? '', 'technician.sites');
+                $isTerminalRoute = str_contains($currentRoute ?? '', 'technician.terminal-models');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'technician.terminal-categories');
             @endphp
             <div class="nav-section mb-3">
@@ -514,7 +538,15 @@
                         </a>
                     </li>
                     @endcan
-                    {{-- NEW ITEM --}}
+                    @can('view_models')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isTerminalRoute ? 'active' : '' }}"
+                        href="{{ route('technician.terminal-models.index') }}">
+                            <i class="bi bi-box-seam"></i>
+                            <span>Terminal Models</span>
+                        </a>
+                    </li>
+                    @endcan
                     @can('view_categories')
                     <li class="nav-item">
                         <a class="nav-link {{ $isCategoryRoute ? 'active' : '' }}"
