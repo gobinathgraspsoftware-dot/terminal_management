@@ -269,9 +269,8 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::delete('/{terminalModel}/delete-image', [AdminTerminalModelController::class, 'deleteImage'])->name('delete-image');
         Route::get('/export', [AdminTerminalModelController::class, 'export'])->name('export');
         Route::post('/import', [AdminTerminalModelController::class, 'import'])->name('import');
-        Route::resource('/', AdminTerminalModelController::class);
+        Route::resource('', AdminTerminalModelController::class)->parameters(['' => 'terminalModel']);
     });
-
 
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {

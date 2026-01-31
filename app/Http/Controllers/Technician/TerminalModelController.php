@@ -24,8 +24,6 @@ class TerminalModelController extends Controller
      */
     public function index(): View
     {
-        $this->authorize('viewAny', TerminalModel::class);
-
         $statistics = $this->terminalModelService->getStatistics();
         $categories = $this->terminalModelService->getActiveCategories();
 
@@ -37,8 +35,6 @@ class TerminalModelController extends Controller
      */
     public function datatable(Request $request): JsonResponse
     {
-        $this->authorize('viewAny', TerminalModel::class);
-
         $query = TerminalModel::with(['category'])
             ->where('status', TerminalModel::STATUS_ACTIVE)
             ->select('terminal_models.*');
@@ -88,8 +84,6 @@ class TerminalModelController extends Controller
      */
     public function show(TerminalModel $terminalModel): View
     {
-        $this->authorize('view', $terminalModel);
-
         $terminalModel->load(['category']);
 
         // Get accessory models if default_accessories is set

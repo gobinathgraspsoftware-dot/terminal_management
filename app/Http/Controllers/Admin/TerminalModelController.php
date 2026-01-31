@@ -31,8 +31,6 @@ class TerminalModelController extends Controller
      */
     public function index(): View
     {
-        $this->authorize('viewAny', TerminalModel::class);
-
         $statistics = $this->terminalModelService->getStatistics();
         $categories = $this->terminalModelService->getActiveCategories();
 
@@ -44,8 +42,6 @@ class TerminalModelController extends Controller
      */
     public function datatable(Request $request): JsonResponse
     {
-        $this->authorize('viewAny', TerminalModel::class);
-
         $query = TerminalModel::with(['category'])
             ->withCount('inventorySerials')
             ->select('terminal_models.*');
@@ -126,8 +122,6 @@ class TerminalModelController extends Controller
      */
     public function create(): View
     {
-        $this->authorize('create', TerminalModel::class);
-
         $categories = $this->terminalModelService->getActiveCategories();
         $accessoryModels = $this->terminalModelService->getAccessoryModels();
         $modelCode = $this->terminalModelService->generateModelCode();
@@ -175,8 +169,6 @@ class TerminalModelController extends Controller
      */
     public function show(TerminalModel $terminalModel): View
     {
-        $this->authorize('view', $terminalModel);
-
         $terminalModel->load(['category']);
 
         $stockSummary = $this->terminalModelService->getStockSummary($terminalModel);
@@ -196,8 +188,6 @@ class TerminalModelController extends Controller
      */
     public function edit(TerminalModel $terminalModel): View
     {
-        $this->authorize('update', $terminalModel);
-
         $terminalModel->load(['category']);
 
         $categories = $this->terminalModelService->getActiveCategories();
@@ -246,8 +236,6 @@ class TerminalModelController extends Controller
      */
     public function destroy(TerminalModel $terminalModel)
     {
-        $this->authorize('delete', $terminalModel);
-
         try {
             $this->terminalModelService->delete($terminalModel);
 
@@ -269,8 +257,6 @@ class TerminalModelController extends Controller
      */
     public function toggleStatus(TerminalModel $terminalModel): JsonResponse
     {
-        $this->authorize('update', $terminalModel);
-
         try {
             $terminalModel = $this->terminalModelService->toggleStatus($terminalModel);
 
@@ -293,8 +279,6 @@ class TerminalModelController extends Controller
      */
     public function deleteImage(TerminalModel $terminalModel): JsonResponse
     {
-        $this->authorize('update', $terminalModel);
-
         try {
             $this->terminalModelService->deleteModelImage($terminalModel);
 
@@ -316,8 +300,6 @@ class TerminalModelController extends Controller
      */
     public function export(Request $request)
     {
-        $this->authorize('viewAny', TerminalModel::class);
-
         $filters = [
             'category_id' => $request->category_id,
             'status' => $request->status,
@@ -335,8 +317,6 @@ class TerminalModelController extends Controller
      */
     public function import(Request $request): JsonResponse
     {
-        $this->authorize('create', TerminalModel::class);
-
         $request->validate([
             'file' => 'required|mimes:xlsx,xls,csv|max:5120',
         ]);
@@ -380,23 +360,19 @@ class TerminalModelController extends Controller
         $buttons = '<div class="btn-group btn-group-sm" role="group">';
 
         // View button
-        if (Auth::user()->can('view', $model)) {
-            $buttons .= '<a href="' . route('admin.terminal-models.show', $model) . '"
-                class="btn btn-outline-primary" title="View">
-                <i class="bi bi-eye"></i>
-            </a>';
-        }
+        $buttons .= '<a href="' . route('admin.terminal-models.show', $model) . '"
+            class="btn btn-outline-primary" title="View">
+            <i class="bi bi-eye"></i>
+        </a>';
 
         // Edit button
-        if (Auth::user()->can('update', $model)) {
-            $buttons .= '<a href="' . route('admin.terminal-models.edit', $model) . '"
-                class="btn btn-outline-warning" title="Edit">
-                <i class="bi bi-pencil"></i>
-            </a>';
-        }
+        $buttons .= '<a href="' . route('admin.terminal-models.edit', $model) . '"
+            class="btn btn-outline-warning" title="Edit">
+            <i class="bi bi-pencil"></i>
+        </a>';
 
         // Delete button
-        if (Auth::user()->can('delete', $model) && !$model->trashed()) {
+        if (!$model->trashed()) {
             $buttons .= '<button type="button" class="btn btn-outline-danger delete-btn"
                 data-id="' . $model->id . '" title="Delete">
                 <i class="bi bi-trash"></i>

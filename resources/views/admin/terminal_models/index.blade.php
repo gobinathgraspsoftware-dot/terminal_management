@@ -97,9 +97,9 @@
                     <button type="button" class="btn btn-sm btn-outline-success" id="exportBtn">
                         <i class="bi bi-download"></i> Export
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">
+                    {{-- <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">
                         <i class="bi bi-upload"></i> Import
-                    </button>
+                    </button> --}}
                 </div>
             </div>
         </div>
@@ -270,7 +270,7 @@ $(document).ready(function() {
     $('#importForm').submit(function(e) {
         e.preventDefault();
         const formData = new FormData(this);
-        
+
         $.ajax({
             url: '{{ route("admin.terminal-models.import") }}',
             type: 'POST',
@@ -280,7 +280,7 @@ $(document).ready(function() {
             success: function(response) {
                 $('#importModal').modal('hide');
                 $('#importForm')[0].reset();
-                
+
                 if (response.success) {
                     toastr.success(response.message);
                     table.ajax.reload();
@@ -297,7 +297,7 @@ $(document).ready(function() {
     // Delete functionality
     $(document).on('click', '.delete-btn', function() {
         const id = $(this).data('id');
-        
+
         if (confirm('Are you sure you want to delete this terminal model?')) {
             $.ajax({
                 url: `/admin/terminal-models/${id}`,
