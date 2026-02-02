@@ -128,6 +128,7 @@
                 $isClientRoute = str_contains($currentRoute ?? '', 'admin.clients');
                 $isVendorRoute = str_contains($currentRoute ?? '', 'admin.vendors');
                 $isSiteRoute = str_contains($currentRoute ?? '', 'admin.sites');
+                $isDepotRoute = str_contains($currentRoute ?? '', 'admin.depots');
                 $ischargeCatelogRoute = str_contains($currentRoute ?? '', 'admin.charge-catalog');
                 $isRateCardRoute = str_contains($currentRoute ?? '', 'admin.rate-cards');
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'admin.terminal-models');
@@ -160,6 +161,14 @@
                             <i class="bi bi-geo-alt me-2"></i> Sites
                         </a>
                     </li>
+                    @can('view_depots')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isDepotRoute ? 'active' : '' }}"
+                        href="{{ route('admin.depots.index') }}">
+                            <i class="bi bi-building me-2"></i> Depots
+                        </a>
+                    </li>
+                    @endcan
                     <li class="nav-item">
                         <a href="{{ route('admin.charge-catalog.index') }}"
                         class="nav-link {{ $ischargeCatelogRoute ? 'active' : '' }}">
@@ -374,6 +383,7 @@
                 $isPartnerRoute = str_contains($currentRoute ?? '', 'supervisor.partners');
                 $isClientRoute = str_contains($currentRoute ?? '', 'supervisor.clients');
                 $isSiteRoute = str_contains($currentRoute ?? '', 'supervisor.sites');
+                $isDepotRoute = str_contains($currentRoute ?? '', 'supervisor.depots');
                 $isChargeCatelogRoute = str_contains($currentRoute ?? '', 'supervisor.charge-catalog');
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'supervisor.terminal-models');
                 $isRateCardRoute = str_contains($currentRoute ?? '', 'supervisor.rate-cards');
@@ -406,6 +416,14 @@
                         <a href="{{ route('supervisor.rate-cards.index') }}"
                         class="nav-link {{ $isRateCardRoute ? 'active' : '' }}">
                             <i class="bi bi-credit-card-2-front"></i> Rate Cards
+                        </a>
+                    </li>
+                    @endcan
+                    @can('view_depots')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isDepotRoute ? 'active' : '' }}"
+                        href="{{ route('supervisor.depots.index') }}">
+                            <i class="bi bi-building me-2"></i> Depots
                         </a>
                     </li>
                     @endcan
@@ -539,6 +557,7 @@
                 $isPartnerRoute = str_contains($currentRoute ?? '', 'technician.partners');
                 $isClientRoute = str_contains($currentRoute ?? '', 'technician.clients');
                 $isSiteRoute = str_contains($currentRoute ?? '', 'technician.sites');
+                $isDepotRoute = str_contains($currentRoute ?? '', 'technician.depots');
                 $isChargeCatelogRoute = str_contains($currentRoute ?? '', 'technician.charge-catalog');
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'technician.terminal-models');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'technician.terminal-categories');
@@ -577,6 +596,14 @@
                         href="{{ route('technician.terminal-models.index') }}">
                             <i class="bi bi-box-seam"></i>
                             <span>Terminal Models</span>
+                        </a>
+                    </li>
+                    @endcan
+                    @can('view_depots')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isDepotRoute ? 'active' : '' }}"
+                        href="{{ route('technician.depots.index') }}">
+                            <i class="bi bi-building me-2"></i> Depots
                         </a>
                     </li>
                     @endcan

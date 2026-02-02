@@ -35,6 +35,9 @@ use App\Http\Controllers\Technician\ChargeCatalogController as TechnicianChargeC
 use App\Http\Controllers\Admin\RateCardController as AdminRateCardController;
 use App\Http\Controllers\Supervisor\RateCardController as SupervisorRateCardController;
 use App\Http\Controllers\Technician\RateCardController as TechnicianRateCardController;
+use App\Http\Controllers\Admin\DepotController as AdminDepotController;
+use App\Http\Controllers\Supervisor\DepotController as SupervisorDepotController;
+use App\Http\Controllers\Technician\DepotController as TechnicianDepotController;
 
 /*
 |--------------------------------------------------------------------------
@@ -306,7 +309,13 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/{rate_card}/toggle-status', [AdminRateCardController::class, 'toggleStatus'])->name('toggle-status');
     });
 
-
+    /* Depots Routes */
+    Route::resource('depots', AdminDepotController::class);
+    Route::prefix('depots')->name('depots.')->group(function () {
+        Route::post('{id}/restore', [AdminDepotController::class, 'restore'])->name('restore');
+        Route::get('{depot}/stock-summary', [AdminDepotController::class, 'stockSummary'])->name('stock-summary');
+        Route::get('{depot}/movements', [AdminDepotController::class, 'movements'])->name('movements');
+    });
 
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
@@ -407,6 +416,14 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::post('/find-applicable', [SupervisorRateCardController::class, 'findApplicableRate'])->name('find-applicable');
     });
 
+    /* Depots Routes */
+    Route::prefix('depots')->name('depots.')->group(function () {
+        Route::get('/', [SupervisorDepotController::class, 'index'])->name('index');
+        Route::get('/{depot}', [SupervisorDepotController::class, 'show'])->name('show');
+        Route::get('/{depot}/stock-summary', [SupervisorDepotController::class, 'stockSummary'])->name('stock-summary');
+        Route::get('/{depot}/movements', [SupervisorDepotController::class, 'movements'])->name('movements');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -486,6 +503,13 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/', [TechnicianRateCardController::class, 'index'])->name('index');
         Route::post('/calculate-preview', [TechnicianRateCardController::class, 'calculatePreview'])->name('calculate-preview');
         Route::post('/find-applicable', [TechnicianRateCardController::class, 'findApplicableRate'])->name('find-applicable');
+    });
+
+    /* Depots Routes */
+    Route::prefix('depots')->name('depots.')->group(function () {
+        Route::get('/', [TechnicianDepotController::class, 'index'])->name('index');
+        Route::get('/{depot}', [TechnicianDepotController::class, 'show'])->name('show');
+        Route::get('/{depot}/stock-summary', [TechnicianDepotController::class, 'stockSummary'])->name('stock-summary');
     });
 
     /* My Jobs */
