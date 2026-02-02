@@ -7,6 +7,8 @@ use App\Policies\TeamPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
+use App\Models\RateCard;
+use App\Policies\RateCardPolicy;
 
 /**
  * AuthServiceProvider - Registers policies and gates.
@@ -15,6 +17,7 @@ class AuthServiceProvider extends ServiceProvider
 {
     protected $policies = [
         User::class => UserPolicy::class,
+        RateCard::class => RateCardPolicy::class,
     ];
 
     public function boot(): void

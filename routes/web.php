@@ -32,6 +32,9 @@ use App\Http\Controllers\Technician\TerminalModelController as TechnicianTermina
 use App\Http\Controllers\Admin\ChargeCatalogController as AdminChargeCatalogController;
 use App\Http\Controllers\Supervisor\ChargeCatalogController as SupervisorChargeCatalogController;
 use App\Http\Controllers\Technician\ChargeCatalogController as TechnicianChargeCatalogController;
+use App\Http\Controllers\Admin\RateCardController as AdminRateCardController;
+use App\Http\Controllers\Supervisor\RateCardController as SupervisorRateCardController;
+use App\Http\Controllers\Technician\RateCardController as TechnicianRateCardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -285,10 +288,24 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::put('/{chargeCatalog}', [AdminChargeCatalogController::class, 'update'])->name('update');
         Route::delete('/{chargeCatalog}', [AdminChargeCatalogController::class, 'destroy'])->name('destroy');
         Route::post('/{chargeCatalog}/toggle-status', [AdminChargeCatalogController::class, 'toggleStatus'])->name('toggle-status');
-
-        // AJAX endpoint for quotations/invoices
         Route::get('/search', [AdminChargeCatalogController::class, 'searchCharges'])->name('search');
     });
+
+    /* Charge Catalog Routes */
+    Route::prefix('rate-cards')->name('rate-cards.')->group(function () {
+        Route::get('/', [AdminRateCardController::class, 'index'])->name('index');
+        Route::get('/create', [AdminRateCardController::class, 'create'])->name('create');
+        Route::post('/', [AdminRateCardController::class, 'store'])->name('store');
+        Route::get('/{rate_card}', [AdminRateCardController::class, 'show'])->name('show');
+        Route::get('/{rate_card}/edit', [AdminRateCardController::class, 'edit'])->name('edit');
+        Route::put('/{rate_card}', [AdminRateCardController::class, 'update'])->name('update');
+        Route::delete('/{rate_card}', [AdminRateCardController::class, 'destroy'])->name('destroy');
+        Route::post('/calculate-preview', [AdminRateCardController::class, 'calculatePreview'])->name('calculate-preview');
+        Route::post('/find-applicable', [AdminRateCardController::class, 'findApplicableRate'])->name('find-applicable');
+        Route::get('/export', [AdminRateCardController::class, 'export'])->name('export');
+        Route::post('/{rate_card}/toggle-status', [AdminRateCardController::class, 'toggle-status'])->name('toggle-status');
+    });
+
 
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
@@ -381,6 +398,14 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/search', [SupervisorChargeCatalogController::class, 'searchCharges'])->name('search');
     });
 
+    /* Rate Cards Routes */
+    Route::prefix('rate-cards')->name('rate-cards.')->group(function () {
+        Route::get('/', [SupervisorRateCardController::class, 'index'])->name('index');
+        Route::get('/{rate_card}', [SupervisorRateCardController::class, 'show'])->name('show');
+        Route::post('/calculate-preview', [SupervisorRateCardController::class, 'calculatePreview'])->name('calculate-preview');
+        Route::post('/find-applicable', [SupervisorRateCardController::class, 'findApplicableRate'])->name('find-applicable');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -451,10 +476,15 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
     /* Charge Catalog Routes */
     Route::prefix('charge-catalog')->name('charge-catalog.')->group(function () {
         Route::get('/', [TechnicianChargeCatalogController::class, 'index'])->name('index');
-
-        // AJAX endpoints for mobile reference
         Route::get('/by-type', [TechnicianChargeCatalogController::class, 'getByType'])->name('by-type');
         Route::get('/search', [TechnicianChargeCatalogController::class, 'search'])->name('search');
+    });
+
+    /* Rate cards Routes */
+    Route::prefix('charge-catalog')->name('charge-catalog.')->group(function () {
+        Route::get('/', [TechnicianRateCardController::class, 'index'])->name('index');
+        Route::post('/calculate-preview', [TechnicianRateCardController::class, 'calculatePreview'])->name('calculate-preview');
+        Route::post('/find-applicable', [TechnicianRateCardController::class, 'findApplicableRate'])->name('find-applicable');
     });
 
     /* My Jobs */

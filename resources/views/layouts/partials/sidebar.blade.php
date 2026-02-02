@@ -129,6 +129,7 @@
                 $isVendorRoute = str_contains($currentRoute ?? '', 'admin.vendors');
                 $isSiteRoute = str_contains($currentRoute ?? '', 'admin.sites');
                 $ischargeCatelogRoute = str_contains($currentRoute ?? '', 'admin.charge-catalog');
+                $isRateCardRoute = str_contains($currentRoute ?? '', 'admin.rate-cards');
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'admin.terminal-models');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'admin.terminal-categories');
             @endphp
@@ -165,6 +166,14 @@
                             <i class="bi bi-tag"></i> Charge Catalog
                         </a>
                     </li>
+                    @can('view_rate_cards')
+                    <li class="nav-item">
+                        <a href="{{ route('admin.rate-cards.index') }}"
+                        class="nav-link {{ $isRateCardRoute ? 'active' : '' }}">
+                            <i class="bi bi-credit-card-2-front"></i> Rate Cards
+                        </a>
+                    </li>
+                    @endcan
                     @can('view_models')
                     <li class="nav-item">
                         <a class="nav-link {{ $isTerminalRoute ? 'active' : '' }}"
@@ -367,6 +376,7 @@
                 $isSiteRoute = str_contains($currentRoute ?? '', 'supervisor.sites');
                 $isChargeCatelogRoute = str_contains($currentRoute ?? '', 'supervisor.charge-catalog');
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'supervisor.terminal-models');
+                $isRateCardRoute = str_contains($currentRoute ?? '', 'supervisor.rate-cards');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'supervisor.terminal-categories');
             @endphp
             @can('partners.view')
@@ -391,6 +401,14 @@
                             <i class="bi bi-geo-alt me-2"></i> Sites
                         </a>
                     </li>
+                    @can('view_rate_cards')
+                    <li class="nav-item">
+                        <a href="{{ route('supervisor.rate-cards.index') }}"
+                        class="nav-link {{ $isRateCardRoute ? 'active' : '' }}">
+                            <i class="bi bi-credit-card-2-front"></i> Rate Cards
+                        </a>
+                    </li>
+                    @endcan
                     <li class="nav-item">
                         <a href="{{ route('supervisor.charge-catalog.index') }}"
                         class="nav-link {{ $isChargeCatelogRoute ? 'active' : '' }}">
@@ -524,6 +542,7 @@
                 $isChargeCatelogRoute = str_contains($currentRoute ?? '', 'technician.charge-catalog');
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'technician.terminal-models');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'technician.terminal-categories');
+                $isRateCardRoute = str_contains($currentRoute ?? '', 'technician.rate-cards');
             @endphp
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Reference Data</small>
@@ -567,6 +586,14 @@
                             <i class="bi bi-tag"></i> Charge Catalog
                         </a>
                     </li>
+                    @can('view_rate_cards')
+                    <li class="nav-item">
+                        <a href="{{ route('technician.rate-cards.index') }}"
+                        class="nav-link {{ $isRateCardRoute ? 'active' : '' }}">
+                            <i class="bi bi-credit-card-2-front"></i> My Commission Rates
+                        </a>
+                    </li>
+                    @endcan
                     @can('view_categories')
                     <li class="nav-item">
                         <a class="nav-link {{ $isCategoryRoute ? 'active' : '' }}"
