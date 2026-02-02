@@ -135,6 +135,26 @@ class User extends Authenticatable
     }
 
     /**
+     * Get stock balances for this technician
+     * Used when technician has their own stock depot
+     */
+    public function stockBalances()
+    {
+        return $this->hasMany(StockBalance::class, 'location_id')
+            ->where('location_type', 'technician');
+    }
+
+    /**
+     * Get stock balance for technician's personal depot
+     * Alternative method that's more specific
+     */
+    public function technicianStockBalances()
+    {
+        return $this->hasMany(StockBalance::class, 'location_id')
+            ->where('location_type', 'technician');
+    }
+
+    /**
      * Get the user's login histories.
      */
     public function loginHistories()

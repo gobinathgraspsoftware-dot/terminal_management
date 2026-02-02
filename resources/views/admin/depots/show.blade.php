@@ -105,7 +105,7 @@
                             </table>
                         </div>
                     </div>
-
+                    
                     @if($depot->pic_name)
                     <hr>
                     <div class="row">
@@ -368,12 +368,30 @@
                                         <td>{{ $tech->email }}</td>
                                         <td>{{ $tech->phone ?? '-' }}</td>
                                         <td>
+                                            @php
+                                                // Get stock balances safely
+                                                $stockCount = 0;
+                                                try {
+                                                    if (method_exists($tech, 'stockBalances')) {
+                                                        $stockCount = $tech->stockBalances()->count();
+                                                    } else {
+                                                        // Direct query if relationship doesn't exist
+                                                        $stockCount = \App\Models\StockBalance::where('location_type', 'technician')
+                                                            ->where('location_id', $tech->id)
+                                                            ->count();
+                                                    }
+                                                } catch (\Exception $e) {
+                                                    $stockCount = 0;
+                                                }
+                                            @endphp
                                             <span class="badge bg-primary">
-                                                {{ $tech->stockBalances->count() }} items
+                                                {{ $stockCount }} items
                                             </span>
                                         </td>
                                         <td>
-                                            <span class="badge bg-success">Active</span>
+                                            <span class="badge bg-{{ $tech->status === 'active' ? 'success' : 'secondary' }}">
+                                                {{ ucfirst($tech->status ?? 'Active') }}
+                                            </span>
                                         </td>
                                     </tr>
                                     @endforeach
@@ -393,31 +411,31 @@
 <script>
 $(document).ready(function() {
     const depotId = {{ $depot->id }};
-
+    
     // ========================================
     // AJAX: Refresh Stock Summary
     // ========================================
     $('#refreshStockBtn').on('click', function() {
         let btn = $(this);
         let originalHtml = btn.html();
-
+        
         // Show loading
         btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
-
+        
         $.ajax({
             url: "{{ route('admin.depots.stock-summary', $depot->id) }}",
             type: 'GET',
             dataType: 'json',
             success: function(response) {
                 console.log('Stock Summary Response:', response);
-
+                
                 if (response.success && response.data) {
                     // Update stock summary values
                     $('#totalQuantity').text(response.data.total_quantity.toLocaleString());
                     $('#totalAvailable').text(response.data.total_available.toLocaleString());
                     $('#totalReserved').text(response.data.total_reserved.toLocaleString());
                     $('#totalModels').text(response.data.total_models);
-
+                    
                     // Show success message
                     if (typeof toastr !== 'undefined') {
                         toastr.success('Stock summary refreshed!');
@@ -442,18 +460,18 @@ $(document).ready(function() {
             }
         });
     });
-
+    
     // ========================================
     // AJAX: Load More Movements
     // ========================================
     $('#loadMoreMovementsBtn').on('click', function() {
         let btn = $(this);
         let originalHtml = btn.html();
-
+        
         // Show loading
         btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Loading...');
         $('#movementsLoading').show();
-
+        
         $.ajax({
             url: "{{ route('admin.depots.movements', $depot->id) }}",
             type: 'GET',
@@ -463,14 +481,14 @@ $(document).ready(function() {
             dataType: 'json',
             success: function(response) {
                 console.log('Movements Response:', response);
-
+                
                 if (response.success && response.data) {
                     let movements = response.data;
                     let tbody = $('#movementsTableBody');
-
+                    
                     // Clear current rows
                     tbody.empty();
-
+                    
                     if (movements.length === 0) {
                         $('#movementsContent').html('<div class="alert alert-info mb-0"><i class="bi bi-info-circle me-1"></i> No movements found.</div>');
                     } else {
@@ -478,7 +496,7 @@ $(document).ready(function() {
                         movements.forEach(function(movement) {
                             let qtyClass = movement.quantity > 0 ? 'text-success' : 'text-danger';
                             let qtySign = movement.quantity > 0 ? '+' : '';
-
+                            
                             let row = `
                                 <tr>
                                     <td><small>${formatDate(movement.transaction_date)}</small></td>
@@ -492,7 +510,7 @@ $(document).ready(function() {
                             `;
                             tbody.append(row);
                         });
-
+                        
                         if (typeof toastr !== 'undefined') {
                             toastr.success(`Loaded ${movements.length} movements!`);
                         }
@@ -518,7 +536,7 @@ $(document).ready(function() {
             }
         });
     });
-
+    
     // ========================================
     // Helper Functions
     // ========================================
@@ -528,12 +546,12 @@ $(document).ready(function() {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
     }
-
+    
     function formatType(type) {
         if (!type) return '';
         return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
-
+    
     function ucfirst(str) {
         if (!str) return '';
         return str.charAt(0).toUpperCase() + str.slice(1);
