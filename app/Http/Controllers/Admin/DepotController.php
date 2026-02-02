@@ -67,11 +67,13 @@ class DepotController extends Controller
 
             DB::commit();
 
-            if ($request->ajax()) {
+            // Check if request is AJAX
+            if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
                     'message' => 'Depot created successfully.',
-                    'data' => $depot
+                    'data' => $depot,
+                    'redirect' => route('admin.depots.index')
                 ]);
             }
 
@@ -82,7 +84,9 @@ class DepotController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            if ($request->ajax()) {
+            \Log::error('Depot creation failed: ' . $e->getMessage());
+
+            if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Failed to create depot: ' . $e->getMessage()
@@ -160,11 +164,12 @@ class DepotController extends Controller
 
             DB::commit();
 
-            if ($request->ajax()) {
+            if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => true,
                     'message' => 'Depot updated successfully.',
-                    'data' => $depot
+                    'data' => $depot,
+                    'redirect' => route('admin.depots.index')
                 ]);
             }
 
@@ -175,7 +180,9 @@ class DepotController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            if ($request->ajax()) {
+            \Log::error('Depot update failed: ' . $e->getMessage());
+
+            if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Failed to update depot: ' . $e->getMessage()
