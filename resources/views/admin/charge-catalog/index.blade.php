@@ -133,24 +133,17 @@
 </div>
 @endsection
 
-@push('styles')
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
-@endpush
-
 @push('scripts')
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-
 <script>
 $(document).ready(function() {
-    let currentType = '';
+    var currentType = '';
 
     // Initialize DataTable
-    const table = $('#chargesTable').DataTable({
+    var table = $('#chargesTable').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
-            url: '{{ route('admin.charge-catalog.datatable') }}',
+            url: '{{ route("admin.charge-catalog.datatable") }}',
             data: function(d) {
                 d.charge_type = currentType;
             }
@@ -161,7 +154,7 @@ $(document).ready(function() {
                 data: 'charge_name', 
                 name: 'charge_name',
                 render: function(data, type, row) {
-                    let html = '<strong>' + data + '</strong>';
+                    var html = '<strong>' + data + '</strong>';
                     if (row.description) {
                         html += '<br><small class="text-muted">' + row.description + '</small>';
                     }
@@ -201,57 +194,71 @@ $(document).ready(function() {
 
     // Toggle Status
     $('#chargesTable').on('click', '.btn-toggle-status', function() {
-        const chargeId = $(this).data('id');
-        const currentStatus = $(this).data('status');
-        const btn = $(this);
+        var chargeId = $(this).data('id');
+        var btn = $(this);
 
-        if (confirm('Are you sure you want to change the status of this charge?')) {
-            $.ajax({
-                url: `/admin/charge-catalog/${chargeId}/toggle-status`,
-                type: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(response) {
-                    if (response.success) {
-                        toastr.success(response.message);
+        confirmAction(
+            'Change Status',
+            'Are you sure you want to change the status of this charge?',
+            function() {
+                // Show loading state on button
+                btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
+
+                $.ajax({
+                    url: '/admin/charge-catalog/' + chargeId + '/toggle-status',
+                    type: 'POST',
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success) {
+                            showToast(response.message, 'success');
+                            table.ajax.reload(null, false);
+                        } else {
+                            showToast(response.message || 'Failed to update status', 'error');
+                            table.ajax.reload(null, false);
+                        }
+                    },
+                    error: function(xhr) {
+                        var msg = (xhr.responseJSON && xhr.responseJSON.message)
+                                  ? xhr.responseJSON.message
+                                  : 'Failed to update status';
+                        showToast(msg, 'error');
                         table.ajax.reload(null, false);
-                    } else {
-                        toastr.error(response.message);
                     }
-                },
-                error: function(xhr) {
-                    toastr.error('Failed to update status');
-                }
-            });
-        }
+                });
+            }
+        );
     });
 
     // Delete Charge
     $('#chargesTable').on('click', '.btn-delete', function() {
-        const chargeId = $(this).data('id');
-        const chargeName = $(this).data('name');
+        var chargeId = $(this).data('id');
+        var chargeName = $(this).data('name');
 
-        if (confirm(`Are you sure you want to delete "${chargeName}"?`)) {
-            $.ajax({
-                url: `/admin/charge-catalog/${chargeId}`,
-                type: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(response) {
-                    if (response.success) {
-                        toastr.success(response.message);
-                        table.ajax.reload();
-                    } else {
-                        toastr.error(response.message);
+        confirmAction(
+            'Delete Charge',
+            'Are you sure you want to delete "' + chargeName + '"? This action cannot be undone.',
+            function() {
+                $.ajax({
+                    url: '/admin/charge-catalog/' + chargeId,
+                    type: 'DELETE',
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success) {
+                            showToast(response.message, 'success');
+                            table.ajax.reload();
+                        } else {
+                            showToast(response.message || 'Failed to delete charge', 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        var msg = (xhr.responseJSON && xhr.responseJSON.message)
+                                  ? xhr.responseJSON.message
+                                  : 'Failed to delete charge';
+                        showToast(msg, 'error');
                     }
-                },
-                error: function(xhr) {
-                    toastr.error('Failed to delete charge');
-                }
-            });
-        }
+                });
+            }
+        );
     });
 });
 </script>

@@ -121,6 +121,7 @@
                                 
                                 <!-- Is Taxable -->
                                 <div class="form-check mb-3">
+                                    <input type="hidden" name="is_taxable" value="0">
                                     <input class="form-check-input" 
                                            type="checkbox" 
                                            id="is_taxable" 
@@ -247,40 +248,45 @@ $(document).ready(function() {
         $('.is-invalid').removeClass('is-invalid');
         $('.invalid-feedback').text('');
 
-        const submitBtn = $('#submitBtn');
-        const originalBtnText = submitBtn.html();
+        var submitBtn = $('#submitBtn');
+        var originalBtnText = submitBtn.html();
+        var formData = $('#editChargeForm').serialize();
         
         submitBtn.prop('disabled', true)
                  .html('<span class="spinner-border spinner-border-sm me-1"></span> Updating...');
 
         $.ajax({
-            url: '{{ route('admin.charge-catalog.update', $charge->id) }}',
-            type: 'PUT',
-            data: $(this).serialize(),
+            url: '{{ route("admin.charge-catalog.update", $charge->id) }}',
+            type: 'POST',
+            data: formData,
+            dataType: 'json',
             success: function(response) {
                 if (response.success) {
-                    toastr.success(response.message);
+                    showToast(response.message, 'success');
                     setTimeout(function() {
-                        window.location.href = '{{ route('admin.charge-catalog.index') }}';
+                        window.location.href = '{{ route("admin.charge-catalog.index") }}';
                     }, 1000);
                 } else {
-                    toastr.error(response.message);
+                    showToast(response.message || 'Something went wrong', 'error');
                     submitBtn.prop('disabled', false).html(originalBtnText);
                 }
             },
             error: function(xhr) {
                 submitBtn.prop('disabled', false).html(originalBtnText);
 
-                if (xhr.status === 422) {
-                    const errors = xhr.responseJSON.errors;
+                if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                    var errors = xhr.responseJSON.errors;
                     $.each(errors, function(field, messages) {
-                        const input = $('[name="' + field + '"]');
+                        var input = $('[name="' + field + '"]');
                         input.addClass('is-invalid');
                         input.siblings('.invalid-feedback').text(messages[0]);
                     });
-                    toastr.error('Please correct the errors in the form');
+                    showToast('Please correct the errors in the form', 'error');
                 } else {
-                    toastr.error('An error occurred. Please try again.');
+                    var msg = (xhr.responseJSON && xhr.responseJSON.message) 
+                              ? xhr.responseJSON.message 
+                              : 'An error occurred. Please try again.';
+                    showToast(msg, 'error');
                 }
             }
         });
