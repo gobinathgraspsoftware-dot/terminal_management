@@ -29,6 +29,9 @@ use App\Http\Controllers\Technician\TerminalCategoryController as TechnicianTerm
 use App\Http\Controllers\Admin\TerminalModelController as AdminTerminalModelController;
 use App\Http\Controllers\Supervisor\TerminalModelController as SupervisorTerminalModelController;
 use App\Http\Controllers\Technician\TerminalModelController as TechnicianTerminalModelController;
+use App\Http\Controllers\Admin\ChargeCatalogController as AdminChargeCatalogController;
+use App\Http\Controllers\Supervisor\ChargeCatalogController as SupervisorChargeCatalogController;
+use App\Http\Controllers\Technician\ChargeCatalogController as TechnicianChargeCatalogController;
 
 /*
 |--------------------------------------------------------------------------
@@ -272,6 +275,21 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::resource('', AdminTerminalModelController::class)->parameters(['' => 'terminalModel']);
     });
 
+    /* Charge Catalog Routes */
+    Route::prefix('charge-catalog')->name('charge-catalog.')->group(function () {
+        Route::get('/', [AdminChargeCatalogController::class, 'index'])->name('index');
+        Route::get('/datatable', [AdminChargeCatalogController::class, 'datatable'])->name('datatable');
+        Route::get('/create', [AdminChargeCatalogController::class, 'create'])->name('create');
+        Route::post('/', [AdminChargeCatalogController::class, 'store'])->name('store');
+        Route::get('/{chargeCatalog}/edit', [AdminChargeCatalogController::class, 'edit'])->name('edit');
+        Route::put('/{chargeCatalog}', [AdminChargeCatalogController::class, 'update'])->name('update');
+        Route::delete('/{chargeCatalog}', [AdminChargeCatalogController::class, 'destroy'])->name('destroy');
+        Route::post('/{chargeCatalog}/toggle-status', [AdminChargeCatalogController::class, 'toggleStatus'])->name('toggle-status');
+
+        // AJAX endpoint for quotations/invoices
+        Route::get('/search', [AdminChargeCatalogController::class, 'searchCharges'])->name('search');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -354,6 +372,15 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{terminalModel}', [SupervisorTerminalModelController::class, 'show'])->name('show');
     });
 
+    /* Charge Catalog Routes */
+    Route::prefix('charge-catalog')->name('charge-catalog.')->group(function () {
+        Route::get('/', [SupervisorChargeCatalogController::class, 'index'])->name('index');
+        Route::get('/datatable', [SupervisorChargeCatalogController::class, 'datatable'])->name('datatable');
+
+        // AJAX endpoint for quotations
+        Route::get('/search', [SupervisorChargeCatalogController::class, 'searchCharges'])->name('search');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -419,6 +446,15 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/datatable', [TechnicianTerminalModelController::class, 'datatable'])->name('datatable');
         Route::get('/', [TechnicianTerminalModelController::class, 'index'])->name('index');
         Route::get('/{terminalModel}', [TechnicianTerminalModelController::class, 'show'])->name('show');
+    });
+
+    /* Charge Catalog Routes */
+    Route::prefix('charge-catalog')->name('charge-catalog.')->group(function () {
+        Route::get('/', [TechnicianChargeCatalogController::class, 'index'])->name('index');
+
+        // AJAX endpoints for mobile reference
+        Route::get('/by-type', [TechnicianChargeCatalogController::class, 'getByType'])->name('by-type');
+        Route::get('/search', [TechnicianChargeCatalogController::class, 'search'])->name('search');
     });
 
     /* My Jobs */

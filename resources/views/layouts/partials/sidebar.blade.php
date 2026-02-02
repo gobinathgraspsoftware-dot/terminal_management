@@ -11,7 +11,7 @@
         <div class="d-flex align-items-center">
             <div class="avatar me-3">
                 @if($user->avatar)
-                    <img src="{{ asset('storage/avatars/' . $user->avatar) }}"
+                    <img src="{{ asset('storage/' . $user->avatar) }}"
                          alt="{{ $user->name }}"
                          class="rounded-circle"
                          style="width: 45px; height: 45px; object-fit: cover;">
@@ -128,9 +128,9 @@
                 $isClientRoute = str_contains($currentRoute ?? '', 'admin.clients');
                 $isVendorRoute = str_contains($currentRoute ?? '', 'admin.vendors');
                 $isSiteRoute = str_contains($currentRoute ?? '', 'admin.sites');
+                $ischargeCatelogRoute = str_contains($currentRoute ?? '', 'admin.charge-catalog');
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'admin.terminal-models');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'admin.terminal-categories');
-                $isMasterDataActive = $isPartnerRoute || $isClientRoute || $isVendorRoute || $isSiteRoute || $isTerminalRoute || $isCategoryRoute;
             @endphp
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Master Data</small>
@@ -157,6 +157,12 @@
                         <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
                            href="{{ route('admin.sites.index') }}">
                             <i class="bi bi-geo-alt me-2"></i> Sites
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('admin.charge-catalog.index') }}"
+                        class="nav-link {{ $ischargeCatelogRoute ? 'active' : '' }}">
+                            <i class="bi bi-tag"></i> Charge Catalog
                         </a>
                     </li>
                     @can('view_models')
@@ -359,6 +365,7 @@
                 $isPartnerRoute = str_contains($currentRoute ?? '', 'supervisor.partners');
                 $isClientRoute = str_contains($currentRoute ?? '', 'supervisor.clients');
                 $isSiteRoute = str_contains($currentRoute ?? '', 'supervisor.sites');
+                $isChargeCatelogRoute = str_contains($currentRoute ?? '', 'supervisor.charge-catalog');
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'supervisor.terminal-models');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'supervisor.terminal-categories');
             @endphp
@@ -382,6 +389,12 @@
                         <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
                            href="{{ route('supervisor.sites.index') }}">
                             <i class="bi bi-geo-alt me-2"></i> Sites
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('supervisor.charge-catalog.index') }}"
+                        class="nav-link {{ $isChargeCatelogRoute ? 'active' : '' }}">
+                            <i class="bi bi-tag"></i> Charge Catalog
                         </a>
                     </li>
                     @can('view_models')
@@ -508,6 +521,7 @@
                 $isPartnerRoute = str_contains($currentRoute ?? '', 'technician.partners');
                 $isClientRoute = str_contains($currentRoute ?? '', 'technician.clients');
                 $isSiteRoute = str_contains($currentRoute ?? '', 'technician.sites');
+                $isChargeCatelogRoute = str_contains($currentRoute ?? '', 'technician.charge-catalog');
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'technician.terminal-models');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'technician.terminal-categories');
             @endphp
@@ -547,6 +561,12 @@
                         </a>
                     </li>
                     @endcan
+                    <li class="nav-item">
+                        <a href="{{ route('technician.charge-catalog.index') }}"
+                        class="nav-link {{ $isChargeCatelogRoute ? 'active' : '' }}">
+                            <i class="bi bi-tag"></i> Charge Catalog
+                        </a>
+                    </li>
                     @can('view_categories')
                     <li class="nav-item">
                         <a class="nav-link {{ $isCategoryRoute ? 'active' : '' }}"
