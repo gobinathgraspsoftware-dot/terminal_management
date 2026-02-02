@@ -291,20 +291,21 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/search', [AdminChargeCatalogController::class, 'searchCharges'])->name('search');
     });
 
-    /* Charge Catalog Routes */
+    /* Rate Card Routes */
     Route::prefix('rate-cards')->name('rate-cards.')->group(function () {
         Route::get('/', [AdminRateCardController::class, 'index'])->name('index');
         Route::get('/create', [AdminRateCardController::class, 'create'])->name('create');
-        Route::post('/', [AdminRateCardController::class, 'store'])->name('store');
-        Route::get('/{rate_card}', [AdminRateCardController::class, 'show'])->name('show');
-        Route::get('/{rate_card}/edit', [AdminRateCardController::class, 'edit'])->name('edit');
-        Route::put('/{rate_card}', [AdminRateCardController::class, 'update'])->name('update');
-        Route::delete('/{rate_card}', [AdminRateCardController::class, 'destroy'])->name('destroy');
+        Route::get('/export', [AdminRateCardController::class, 'export'])->name('export');
         Route::post('/calculate-preview', [AdminRateCardController::class, 'calculatePreview'])->name('calculate-preview');
         Route::post('/find-applicable', [AdminRateCardController::class, 'findApplicableRate'])->name('find-applicable');
-        Route::get('/export', [AdminRateCardController::class, 'export'])->name('export');
-        Route::post('/{rate_card}/toggle-status', [AdminRateCardController::class, 'toggle-status'])->name('toggle-status');
+        Route::get('/{rate_card}', [AdminRateCardController::class, 'show'])->name('show');
+        Route::get('/{rate_card}/edit', [AdminRateCardController::class, 'edit'])->name('edit');
+        Route::post('/', [AdminRateCardController::class, 'store'])->name('store');
+        Route::put('/{rate_card}', [AdminRateCardController::class, 'update'])->name('update');
+        Route::delete('/{rate_card}', [AdminRateCardController::class, 'destroy'])->name('destroy');
+        Route::post('/{rate_card}/toggle-status', [AdminRateCardController::class, 'toggleStatus'])->name('toggle-status');
     });
+
 
 
     /* Settings (requires specific permission) */
