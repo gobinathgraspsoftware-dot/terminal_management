@@ -71,7 +71,7 @@
                 <div class="row g-3 align-items-end">
                     <div class="col-md-2">
                         <label class="form-label fw-semibold">Movement Type</label>
-                        <select id="filter_type" class="form-select form-select-sm">
+                        <select id="filter_type" name="filter_type" class="form-select form-select-sm">
                             <option value="">All Types</option>
                             @foreach($filterOptions['movement_types'] as $key => $label)
                                 <option value="{{ $key }}">{{ $label }}</option>
@@ -80,20 +80,20 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label fw-semibold">Serial No</label>
-                        <input type="text" id="filter_serial" class="form-control form-control-sm"
+                        <input type="text" id="filter_serial" name="filter_serial" class="form-control form-control-sm"
                                placeholder="Search serial...">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label fw-semibold">Date From</label>
-                        <input type="date" id="filter_date_from" class="form-control form-control-sm">
+                        <input type="date" id="filter_date_from" name="filter_date_from" class="form-control form-control-sm">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label fw-semibold">Date To</label>
-                        <input type="date" id="filter_date_to" class="form-control form-control-sm">
+                        <input type="date" id="filter_date_to" name="filter_date_to" class="form-control form-control-sm">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label fw-semibold">Status</label>
-                        <select id="filter_reversed" class="form-select form-select-sm">
+                        <select id="filter_reversed" name="filter_reversed" class="form-select form-select-sm">
                             <option value="">All</option>
                             <option value="active_only">Active Only</option>
                             <option value="reversed_only">Reversed Only</option>
@@ -169,36 +169,85 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 $(document).ready(function() {
+    console.log('Initializing Serial Movement History DataTable...');
+
     // Initialize DataTable
     var table = $('#movementTable').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
             url: '{{ route("admin.serial-movement-history.datatable") }}',
+            type: 'GET',
             data: function(d) {
-                d.transaction_type = $('#filter_type').val();
-                d.serial_no        = $('#filter_serial').val();
-                d.date_from        = $('#filter_date_from').val();
-                d.date_to          = $('#filter_date_to').val();
-                d.show_reversed    = $('#filter_reversed').val();
+                // Get filter values
+                var filterType = $('#filter_type').val();
+                var filterSerial = $('#filter_serial').val();
+                var filterDateFrom = $('#filter_date_from').val();
+                var filterDateTo = $('#filter_date_to').val();
+                var filterReversed = $('#filter_reversed').val();
+
+                // Only add non-empty values
+                if (filterType && filterType !== '') {
+                    d.transaction_type = filterType;
+                }
+                if (filterSerial && filterSerial.trim() !== '') {
+                    d.serial_no = filterSerial.trim();
+                }
+                if (filterDateFrom && filterDateFrom !== '') {
+                    d.date_from = filterDateFrom;
+                }
+                if (filterDateTo && filterDateTo !== '') {
+                    d.date_to = filterDateTo;
+                }
+                if (filterReversed && filterReversed !== '') {
+                    d.show_reversed = filterReversed;
+                }
+
+                // Debug: Log filter values
+                console.log('DataTable Filter Values:', {
+                    transaction_type: d.transaction_type,
+                    serial_no: d.serial_no,
+                    date_from: d.date_from,
+                    date_to: d.date_to,
+                    show_reversed: d.show_reversed
+                });
+
+                return d;
             },
-            error: function(xhr) {
-                console.error('DataTable AJAX error:', xhr);
+            error: function(xhr, error, code) {
+                console.error('DataTable AJAX Error Details:', {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    responseText: xhr.responseText,
+                    error: error,
+                    code: code
+                });
+
                 if (typeof toastr !== 'undefined') {
-                    toastr.error('Failed to load movement data.');
+                    var errorMsg = 'Failed to load movement data.';
+                    if (xhr.status === 403) {
+                        errorMsg = 'Permission denied. Please check your access rights.';
+                    } else if (xhr.status === 404) {
+                        errorMsg = 'DataTable endpoint not found. Please check the route configuration.';
+                    } else if (xhr.status === 500) {
+                        errorMsg = 'Server error occurred. Please check the logs.';
+                    }
+                    toastr.error(errorMsg);
+                } else {
+                    alert('Error loading data. Status: ' + xhr.status);
                 }
             }
         },
         columns: [
             { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
             { data: 'date_display', name: 'transaction_date' },
-            { data: 'serial_info', name: 'serial_no' },
-            { data: 'type_badge', name: 'transaction_type' },
+            { data: 'serial_info', name: 'serial_no', orderable: false },
+            { data: 'type_badge', name: 'transaction_type', orderable: false },
             { data: 'from_to', name: 'from_location_type', orderable: false },
-            { data: 'reference_display', name: 'reference_type' },
+            { data: 'reference_display', name: 'reference_type', orderable: false },
             { data: 'performed_by', name: 'created_by', orderable: false },
             { data: 'action', name: 'action', orderable: false, searchable: false },
         ],
@@ -207,15 +256,54 @@ $(document).ready(function() {
         responsive: true,
         language: {
             emptyTable: 'No movement records found',
-            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading...'
+            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading...',
+            zeroRecords: 'No matching records found with current filters'
         },
+        drawCallback: function(settings) {
+            console.log('DataTable drawn. Records:', settings.json ? settings.json.recordsTotal : 'N/A');
+        }
     });
 
-    // Filter buttons
-    $('#btnFilter').on('click', function() { table.draw(); });
+    // Filter button click handler
+    $('#btnFilter').on('click', function() {
+        console.log('Filter button clicked');
+        console.log('Current filter values:', {
+            type: $('#filter_type').val(),
+            serial: $('#filter_serial').val(),
+            date_from: $('#filter_date_from').val(),
+            date_to: $('#filter_date_to').val(),
+            reversed: $('#filter_reversed').val()
+        });
+
+        // Reload the DataTable with new filters
+        table.ajax.reload(function(json) {
+            console.log('DataTable reloaded with filters:', json);
+        }, false); // false = don't reset pagination
+    });
+
+    // Reset button click handler
     $('#btnReset').on('click', function() {
+        console.log('Reset button clicked');
+
+        // Clear all filter fields
         $('#filterForm')[0].reset();
-        table.draw();
+        $('#filter_type').val('');
+        $('#filter_serial').val('');
+        $('#filter_date_from').val('');
+        $('#filter_date_to').val('');
+        $('#filter_reversed').val('');
+
+        // Reload DataTable
+        table.ajax.reload(function(json) {
+            console.log('DataTable reset and reloaded:', json);
+        }, true); // true = reset to page 1
+    });
+
+    // Allow Enter key to trigger filter
+    $('#filterForm').on('submit', function(e) {
+        e.preventDefault();
+        $('#btnFilter').click();
+        return false;
     });
 
     // Reversal flow
@@ -240,7 +328,8 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.success) {
                     $('#reversalModal').modal('hide');
-                    table.draw();
+                    table.ajax.reload(null, false); // Reload without resetting pagination
+
                     if (typeof toastr !== 'undefined') {
                         toastr.success(response.message);
                     } else {
@@ -256,6 +345,8 @@ $(document).ready(function() {
             },
             error: function(xhr) {
                 var msg = xhr.responseJSON?.message || 'Failed to reverse movement.';
+                console.error('Reversal error:', xhr);
+
                 if (typeof toastr !== 'undefined') {
                     toastr.error(msg);
                 } else {
@@ -267,6 +358,10 @@ $(document).ready(function() {
             }
         });
     });
+
+    // Debug: Log when page is ready
+    console.log('Serial Movement History page initialized successfully');
+    console.log('DataTable object:', table);
 });
 </script>
-@endsection
+@endpush
