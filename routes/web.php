@@ -38,6 +38,10 @@ use App\Http\Controllers\Technician\RateCardController as TechnicianRateCardCont
 use App\Http\Controllers\Admin\DepotController as AdminDepotController;
 use App\Http\Controllers\Supervisor\DepotController as SupervisorDepotController;
 use App\Http\Controllers\Technician\DepotController as TechnicianDepotController;
+use App\Http\Controllers\Admin\InventorySerialController as AdminInventorySerialController;
+use App\Http\Controllers\Supervisor\InventorySerialController as SupervisorInventorySerialController;
+use App\Http\Controllers\Technician\InventorySerialController as TechnicianInventorySerialController;
+use App\Http\Controllers\SerialLookupController;
 
 /*
 |--------------------------------------------------------------------------
@@ -62,6 +66,15 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/api/widget/data', [DashboardController::class, 'getWidgetData'])->name('api.widget.data');
+
+    /* Serial Lookup API Routes */
+    Route::prefix('api/serials')->name('api.serials.')->group(function () {
+        Route::get('/autocomplete', [SerialLookupController::class, 'autocomplete'])->name('autocomplete');
+        Route::get('/validate', [SerialLookupController::class, 'validateSerial'])->name('validate');
+        Route::post('/batch-lookup', [SerialLookupController::class, 'batchLookup'])->name('batch-lookup');
+        Route::get('/search', [SerialLookupController::class, 'search'])->name('search');
+        Route::get('/{id}/history', [SerialLookupController::class, 'history'])->name('history');
+    });
 });
 
 /*
@@ -317,6 +330,19 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('{depot}/movements', [AdminDepotController::class, 'movements'])->name('movements');
     });
 
+    /* Inventory Serial Tracking Routes */
+    Route::prefix('inventory-serials')->name('inventory-serials.')->group(function () {
+        Route::get('/datatable', [AdminInventorySerialController::class, 'datatable'])->name('datatable');
+        Route::post('/{id}/restore', [AdminInventorySerialController::class, 'restore'])->name('restore');
+        Route::get('/', [AdminInventorySerialController::class, 'index'])->name('index');
+        Route::get('/create', [AdminInventorySerialController::class, 'create'])->name('create');
+        Route::post('/', [AdminInventorySerialController::class, 'store'])->name('store');
+        Route::get('/{inventorySerial}', [AdminInventorySerialController::class, 'show'])->name('show');
+        Route::get('/{inventorySerial}/edit', [AdminInventorySerialController::class, 'edit'])->name('edit');
+        Route::put('/{inventorySerial}', [AdminInventorySerialController::class, 'update'])->name('update');
+        Route::delete('/{inventorySerial}', [AdminInventorySerialController::class, 'destroy'])->name('destroy');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -424,6 +450,13 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{depot}/movements', [SupervisorDepotController::class, 'movements'])->name('movements');
     });
 
+    /* Inventory Serial Tracking Routes */
+    Route::prefix('inventory-serials')->name('inventory-serials.')->group(function () {
+        Route::get('/datatable', [SupervisorInventorySerialController::class, 'datatable'])->name('datatable');
+        Route::get('/', [SupervisorInventorySerialController::class, 'index'])->name('index');
+        Route::get('/{inventorySerial}', [SupervisorInventorySerialController::class, 'show'])->name('show');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -517,10 +550,15 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         return 'My Jobs - Technician Only';
     })->name('jobs.index');
 
-    /* My Inventory */
-    Route::get('/inventory', function () {
-        return 'My Inventory - Technician Only';
-    })->name('inventory.index');
+    /* My Stock (Inventory Serials) */
+    Route::prefix('inventory-serials')->name('inventory-serials.')->group(function () {
+        Route::get('/datatable', [TechnicianInventorySerialController::class, 'datatable'])->name('datatable');
+        Route::get('/', [TechnicianInventorySerialController::class, 'index'])->name('index');
+        Route::get('/{inventorySerial}', [TechnicianInventorySerialController::class, 'show'])->name('show');
+    });
+    // Route::get('/inventory', function () {
+    //     return 'My Inventory - Technician Only';
+    // })->name('inventory.index');
 
     /* Claims */
     Route::get('/claims', function () {

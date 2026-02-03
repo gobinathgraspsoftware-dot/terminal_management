@@ -229,6 +229,9 @@
                 </ul>
             </div>
 
+            @php
+                $isInventorySerialRoute = str_contains($currentRoute ?? '', 'admin.inventory-serials');
+            @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
@@ -243,11 +246,14 @@
                             <i class="bi bi-arrow-left-right me-2"></i> Stock Movements
                         </a>
                     </li>
+                    @can('view_inventory')
                     <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-card-list me-2"></i> Serial Tracking
+                        <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
+                        href="{{ route('admin.inventory-serials.index') }}">
+                            <i class="bi bi-upc-scan me-2"></i> Serial Tracking
                         </a>
                     </li>
+                    @endcan
                 </ul>
             </div>
 
@@ -446,6 +452,29 @@
                         <a class="nav-link {{ $isCategoryRoute ? 'active' : '' }}"
                         href="{{ route('supervisor.terminal-categories.index') }}">
                             <i class="bi bi-grid-3x3-gap me-2"></i> Categories
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            @endcan
+
+            @php
+                $isInventorySerialRoute = str_contains($currentRoute ?? '', 'supervisor.inventory-serials');
+            @endphp
+            <!-- Inventory Section -->
+            @can('view_inventory')
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
+                        href="{{ route('supervisor.inventory-serials.index') }}">
+                            <i class="bi bi-upc-scan me-2"></i> Serial Tracking
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-box-seam me-2"></i> Team Stock
                         </a>
                     </li>
                 </ul>
@@ -682,12 +711,17 @@
             </div>
             @endcan
 
+            @php
+                $isInventorySerialRoute = str_contains($currentRoute ?? '', 'technician.inventory-serials');
+            @endphp
+
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link" href="#">
+                        <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
+                        href="{{ route('technician.inventory-serials.index') }}">
                             <i class="bi bi-box-seam me-2"></i> My Stock
                         </a>
                     </li>
