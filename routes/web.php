@@ -42,6 +42,9 @@ use App\Http\Controllers\Admin\InventorySerialController as AdminInventorySerial
 use App\Http\Controllers\Supervisor\InventorySerialController as SupervisorInventorySerialController;
 use App\Http\Controllers\Technician\InventorySerialController as TechnicianInventorySerialController;
 use App\Http\Controllers\SerialLookupController;
+use App\Http\Controllers\Admin\SerialMovementHistoryController as AdminSerialMovementHistoryController;
+use App\Http\Controllers\Supervisor\SerialMovementHistoryController as SupervisorSerialMovementHistoryController;
+use App\Http\Controllers\Technician\SerialMovementHistoryController as TechnicianSerialMovementHistoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -345,6 +348,15 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::delete('/{inventorySerial}', [AdminInventorySerialController::class, 'destroy'])->name('destroy');
     });
 
+    /* Serial Movement History Routes */
+    Route::prefix('serial-movement-history')->name('serial-movement-history.')->group(function () {
+        Route::get('/datatable', [AdminSerialMovementHistoryController::class, 'datatable'])->name('datatable');
+        Route::get('/', [AdminSerialMovementHistoryController::class, 'index'])->name('index');
+        Route::get('/{serialId}', [AdminSerialMovementHistoryController::class, 'show'])->name('show');
+        Route::get('/{serialId}/timeline', [AdminSerialMovementHistoryController::class, 'timeline'])->name('timeline');
+        Route::post('/{ledgerId}/reverse', [AdminSerialMovementHistoryController::class, 'reverse'])->name('reverse');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -459,6 +471,14 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{inventorySerial}', [SupervisorInventorySerialController::class, 'show'])->name('show');
     });
 
+    /* Serial Movement History Routes */
+    Route::prefix('serial-movement-history')->name('serial-movement-history.')->group(function () {
+        Route::get('/datatable', [SupervisorSerialMovementHistoryController::class, 'datatable'])->name('datatable');
+        Route::get('/', [SupervisorSerialMovementHistoryController::class, 'index'])->name('index');
+        Route::get('/{serialId}', [SupervisorSerialMovementHistoryController::class, 'show'])->name('show');
+        Route::get('/{serialId}/timeline', [SupervisorSerialMovementHistoryController::class, 'timeline'])->name('timeline');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -558,6 +578,15 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/', [TechnicianInventorySerialController::class, 'index'])->name('index');
         Route::get('/{inventorySerial}', [TechnicianInventorySerialController::class, 'show'])->name('show');
     });
+
+    // Serial Movement History Routes
+    Route::prefix('serial-movement-history')->name('serial-movement-history.')->group(function () {
+        Route::get('/datatable', [TechnicianSerialMovementHistoryController::class, 'datatable'])->name('datatable');
+        Route::get('/', [TechnicianSerialMovementHistoryController::class, 'index'])->name('index');
+        Route::get('/{serialId}', [TechnicianSerialMovementHistoryController::class, 'show'])->name('show');
+        Route::get('/{serialId}/timeline', [TechnicianSerialMovementHistoryController::class, 'timeline'])->name('timeline');
+    });
+
     // Route::get('/inventory', function () {
     //     return 'My Inventory - Technician Only';
     // })->name('inventory.index');

@@ -231,6 +231,7 @@
 
             @php
                 $isInventorySerialRoute = str_contains($currentRoute ?? '', 'admin.inventory-serials');
+                $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'admin.serial-movement-history');
             @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
@@ -244,6 +245,12 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#">
                             <i class="bi bi-arrow-left-right me-2"></i> Stock Movements
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isMovementHistoryRoute ? 'active' : '' }}"
+                        href="{{ route('admin.serial-movement-history.index') }}">
+                            <i class="bi bi-clock-history me-2"></i> Movement History
                         </a>
                     </li>
                     @can('view_inventory')
@@ -460,12 +467,19 @@
 
             @php
                 $isInventorySerialRoute = str_contains($currentRoute ?? '', 'supervisor.inventory-serials');
+                $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'supervisor.serial-movement-history');
             @endphp
             <!-- Inventory Section -->
             @can('view_inventory')
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isMovementHistoryRoute ? 'active' : '' }}"
+                        href="{{ route('supervisor.serial-movement-history.index') }}">
+                            <i class="bi bi-clock-history me-2"></i> Movement History
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
                         href="{{ route('supervisor.inventory-serials.index') }}">
@@ -713,12 +727,19 @@
 
             @php
                 $isInventorySerialRoute = str_contains($currentRoute ?? '', 'technician.inventory-serials');
+                $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'technician.serial-movement-history');
             @endphp
 
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isMovementHistoryRoute ? 'active' : '' }}"
+                        href="{{ route('technician.serial-movement-history.index') }}">
+                            <i class="bi bi-clock-history me-2"></i> Movement History
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
                         href="{{ route('technician.inventory-serials.index') }}">
