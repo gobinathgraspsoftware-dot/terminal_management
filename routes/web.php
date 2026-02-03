@@ -333,6 +333,8 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
     /* Inventory Serial Tracking Routes */
     Route::prefix('inventory-serials')->name('inventory-serials.')->group(function () {
         Route::get('/datatable', [AdminInventorySerialController::class, 'datatable'])->name('datatable');
+        Route::get('/export', [AdminInventorySerialController::class, 'export'])->name('export');
+        Route::get('/lookup', [AdminInventorySerialController::class, 'lookup'])->name('lookup');
         Route::post('/{id}/restore', [AdminInventorySerialController::class, 'restore'])->name('restore');
         Route::get('/', [AdminInventorySerialController::class, 'index'])->name('index');
         Route::get('/create', [AdminInventorySerialController::class, 'create'])->name('create');

@@ -7,10 +7,12 @@ use App\Models\InventorySerial;
 use App\Models\TerminalModel;
 use App\Models\Depot;
 use App\Services\InventorySerialService;
+use App\Exports\InventorySerialsExport;
 use App\Http\Requests\StoreInventorySerialRequest;
 use App\Http\Requests\UpdateInventorySerialRequest;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Maatwebsite\Excel\Facades\Excel;
 
 class InventorySerialController extends Controller
 {
@@ -195,5 +197,60 @@ class InventorySerialController extends Controller
         }
 
         return back()->with('success', "Serial [{$serial->serial_no}] restored successfully.");
+    }
+
+    /**
+     * Lookup serial by serial_no (AJAX – barcode scanner).
+     */
+    public function lookup(Request $request)
+    {
+        $this->authorize('view_inventory');
+
+        $serialNo = $request->input('serial_no');
+
+        if (empty($serialNo)) {
+            return response()->json(['exists' => false, 'serial' => null]);
+        }
+
+        $serial = InventorySerial::where('serial_no', $serialNo)
+            ->with('model.category')
+            ->first();
+
+        if ($serial) {
+            return response()->json([
+                'exists' => true,
+                'serial' => [
+                    'id'        => $serial->id,
+                    'serial_no' => $serial->serial_no,
+                    'model'     => $serial->model->model_name ?? '-',
+                    'category'  => $serial->model->category->category_name ?? '-',
+                    'status'    => $serial->current_status,
+                ],
+            ]);
+        }
+
+        return response()->json(['exists' => false, 'serial' => null]);
+    }
+
+    /**
+     * Export inventory serials to Excel with current filter state.
+     */
+    public function export(Request $request)
+    {
+        $this->authorize('view_inventory');
+
+        $filters = $request->only([
+            'status',
+            'location_type',
+            'depot_id',
+            'model_id',
+            'category_id',
+            'warranty_status',
+            'search',
+        ]);
+
+        $filename = 'inventory_serials_' . date('Y-m-d_His') . '.xlsx';
+
+        return Excel::download(new InventorySerialsExport($filters), $filename);
     }
 }

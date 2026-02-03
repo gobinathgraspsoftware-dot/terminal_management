@@ -182,7 +182,7 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="bi bi-table me-2"></i>Serial Numbers</h5>
-        @can('export_inventory')
+        @can('view_inventory')
         <button class="btn btn-sm btn-outline-success" id="btnExport">
             <i class="bi bi-download me-1"></i> Export
         </button>
@@ -216,16 +216,19 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Initialize DataTable
+
+    // ──────────────────────────────────────────────
+    //  DataTable Initialisation
+    // ──────────────────────────────────────────────
     var table = $('#serialsTable').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
             url: '{{ route("admin.inventory-serials.datatable") }}',
             data: function(d) {
-                d.status = $('#filterStatus').val();
-                d.location_type = $('#filterLocationType').val();
-                d.depot_id = $('#filterDepot').val();
+                d.status          = $('#filterStatus').val();
+                d.location_type   = $('#filterLocationType').val();
+                d.depot_id        = $('#filterDepot').val();
                 d.warranty_status = $('#filterWarranty').val();
             },
             error: function(xhr) {
@@ -254,7 +257,9 @@ $(document).ready(function() {
         }
     });
 
-    // Filter change handlers
+    // ──────────────────────────────────────────────
+    //  Filter change → reload table
+    // ──────────────────────────────────────────────
     $('#filterStatus, #filterLocationType, #filterDepot, #filterWarranty').on('change', function() {
         table.ajax.reload();
     });
@@ -265,7 +270,57 @@ $(document).ready(function() {
         table.ajax.reload();
     });
 
-    // Barcode Scanner Input - auto-submit on Enter or after pause
+    // ──────────────────────────────────────────────
+    //  Export – passes current filters to download
+    // ──────────────────────────────────────────────
+    $('#btnExport').on('click', function() {
+        var btn = $(this);
+        var originalHtml = btn.html();
+
+        // Build query string from the current filter + DataTable search
+        var params = {
+            status:          $('#filterStatus').val(),
+            location_type:   $('#filterLocationType').val(),
+            depot_id:        $('#filterDepot').val(),
+            warranty_status: $('#filterWarranty').val(),
+            search:          table.search() || ''
+        };
+
+        // Keep only non-empty values
+        var queryParts = [];
+        $.each(params, function(key, val) {
+            if (val && val.length > 0) {
+                queryParts.push(encodeURIComponent(key) + '=' + encodeURIComponent(val));
+            }
+        });
+
+        var exportUrl = '{{ route("admin.inventory-serials.export") }}';
+        if (queryParts.length > 0) {
+            exportUrl += '?' + queryParts.join('&');
+        }
+
+        // Loading state
+        btn.prop('disabled', true)
+           .html('<span class="spinner-border spinner-border-sm me-1"></span> Exporting...');
+
+        // Trigger download via hidden iframe (keeps page alive)
+        var $iframe = $('<iframe>', {
+            id:  'exportFrame',
+            src: exportUrl,
+            style: 'display:none;'
+        }).appendTo('body');
+
+        // Re-enable after download starts (no JS callback for file downloads)
+        setTimeout(function() {
+            btn.prop('disabled', false).html(originalHtml);
+            showToast('Export file downloaded successfully.', 'success');
+            setTimeout(function() { $('#exportFrame').remove(); }, 5000);
+        }, 3000);
+    });
+
+    // ──────────────────────────────────────────────
+    //  Barcode Scanner Input
+    // ──────────────────────────────────────────────
     var barcodeTimer;
     $('#barcodeInput').on('keypress', function(e) {
         if (e.which === 13) { // Enter key
@@ -280,21 +335,20 @@ $(document).ready(function() {
         var input = $(this);
         barcodeTimer = setTimeout(function() {
             var serial = input.val().trim();
-            if (serial.length >= 5) { // Auto-trigger after pause for barcode scanners
+            if (serial.length >= 5) {
                 lookupSerial(serial);
             }
-        }, 300); // 300ms delay for barcode scanner
+        }, 300);
     });
 
-    // Serial lookup from barcode
     function lookupSerial(serialNo) {
         $.ajax({
-            url: '{{ route("api.serials.validate") }}',
+            url: '{{ route("admin.inventory-serials.lookup") }}',
             data: { serial_no: serialNo },
+            dataType: 'json',
             success: function(response) {
                 if (response.exists && response.serial) {
-                    // Redirect to detail page
-                    window.location.href = '{{ route("admin.inventory-serials.show", ":id") }}'.replace(':id', response.serial.id);
+                    window.location.href = '{{ route("admin.inventory-serials.index") }}/' + response.serial.id;
                 } else {
                     showToast('Serial number not found: ' + serialNo, 'warning');
                     $('#barcodeInput').val('').focus();
@@ -307,9 +361,11 @@ $(document).ready(function() {
         });
     }
 
-    // Delete handler
+    // ──────────────────────────────────────────────
+    //  Delete handler
+    // ──────────────────────────────────────────────
     $(document).on('click', '.btn-delete', function() {
-        var id = $(this).data('id');
+        var id     = $(this).data('id');
         var serial = $(this).data('serial');
 
         confirmAction(
@@ -319,10 +375,11 @@ $(document).ready(function() {
                 $.ajax({
                     url: '{{ route("admin.inventory-serials.index") }}/' + id,
                     type: 'DELETE',
+                    dataType: 'json',
                     success: function(response) {
                         if (response.success) {
                             showToast(response.message, 'success');
-                            table.ajax.reload();
+                            table.ajax.reload(null, false);
                         } else {
                             showToast(response.message || 'Delete failed.', 'error');
                         }
@@ -335,6 +392,7 @@ $(document).ready(function() {
             }
         );
     });
+
 });
 </script>
 @endpush
