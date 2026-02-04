@@ -8,7 +8,6 @@ use App\Models\TerminalModel;
 use App\Models\Depot;
 use App\Models\User;
 use App\Services\Inventory\StockLedgerService;
-use App\Helpers\DataTableHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -110,14 +109,45 @@ class StockLedgerController extends Controller
      */
     protected function getDatatableData(Request $request)
     {
-        $query = StockLedger::with(['model', 'serial', 'createdBy'])
-            ->orderBy('transaction_date', 'desc')
-            ->orderBy('id', 'desc');
+        $query = StockLedger::with(['model', 'serial', 'createdBy']);
 
         // Apply filters
         $this->applyFilters($query, $request);
 
-        return DataTableHelper::make($query, $request, function ($ledger) {
+        // Get total count before pagination
+        $totalRecords = StockLedger::count();
+        $filteredRecords = $query->count();
+
+        // Apply sorting
+        $orderColumn = $request->input('order.0.column', 0);
+        $orderDir = $request->input('order.0.dir', 'desc');
+
+        $columns = [
+            'transaction_date',
+            'transaction_no',
+            'transaction_type',
+            'model_id',
+            'serial_no',
+            'quantity',
+            'from_location_type',
+            'to_location_type',
+            'created_by',
+        ];
+
+        if (isset($columns[$orderColumn])) {
+            $query->orderBy($columns[$orderColumn], $orderDir);
+        } else {
+            $query->orderBy('transaction_date', 'desc')->orderBy('id', 'desc');
+        }
+
+        // Apply pagination
+        $start = $request->input('start', 0);
+        $length = $request->input('length', 25);
+
+        $ledgers = $query->skip($start)->take($length)->get();
+
+        // Format data
+        $data = $ledgers->map(function ($ledger) {
             return [
                 'id' => $ledger->id,
                 'transaction_date' => $ledger->transaction_date->format('Y-m-d'),
@@ -138,6 +168,13 @@ class StockLedgerController extends Controller
                 'can_reverse' => $ledger->is_reversible,
             ];
         });
+
+        return response()->json([
+            'draw' => intval($request->input('draw')),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $filteredRecords,
+            'data' => $data,
+        ]);
     }
 
     /**

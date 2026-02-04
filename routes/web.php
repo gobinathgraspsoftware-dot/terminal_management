@@ -52,6 +52,8 @@ use App\Http\Controllers\Admin\StockLedgerController as AdminStockLedgerControll
 use App\Http\Controllers\Admin\StockBalanceController as AdminStockBalanceController;
 use App\Http\Controllers\Supervisor\StockLedgerController as SupervisorStockLedgerController;
 use App\Http\Controllers\Supervisor\StockBalanceController as SupervisorStockBalanceController;
+use App\Http\Controllers\Technician\StockLedgerController as TechnicianStockLedgerController;
+use App\Http\Controllers\Technician\StockBalanceController as TechnicianStockBalanceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -647,6 +649,19 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::post('/generate-labels', [TechnicianBulkSerialController::class, 'generateLabels'])->name('generate-labels');
         Route::post('/export-serials', [TechnicianBulkSerialController::class, 'exportSerials'])->name('export-serials');
     });
+
+    /* Stock Ledger Routes */
+    Route::prefix('stock-ledger')->name('stock-ledger.')->group(function () {
+        Route::get('/', [TechnicianStockLedgerController::class, 'index'])->name('stock-ledger.index');
+        Route::get('/stock-ledger/{stockLedger}', [TechnicianStockLedgerController::class, 'show'])->name('stock-ledger.show');
+    });
+
+    /* Stock Balance Routes */
+    Route::prefix('stock-balance')->name('stock-balance.')->group(function () {
+        Route::get('/', [TechnicianStockBalanceController::class, 'index'])->name('stock-balance.index');
+    });
+
+
 
     // Route::get('/inventory', function () {
     //     return 'My Inventory - Technician Only';

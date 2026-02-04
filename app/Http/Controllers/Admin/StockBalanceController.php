@@ -9,7 +9,6 @@ use App\Models\TerminalCategory;
 use App\Models\Depot;
 use App\Models\User;
 use App\Services\Inventory\StockBalanceService;
-use App\Helpers\DataTableHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -211,14 +210,51 @@ class StockBalanceController extends Controller
      */
     protected function getDatatableData(Request $request)
     {
-        $query = StockBalance::with(['model'])
-            ->where('quantity_on_hand', '>', 0)
-            ->orderBy('model_id');
+        $query = StockBalance::with(['model.category']);
 
         // Apply filters
         $this->applyFilters($query, $request);
 
-        return DataTableHelper::make($query, $request, function ($balance) {
+        // Get total count
+        $totalRecords = StockBalance::count();
+        $filteredRecords = $query->count();
+
+        // Apply sorting
+        $orderColumn = $request->input('order.0.column', 0);
+        $orderDir = $request->input('order.0.dir', 'asc');
+
+        $columns = [
+            'model_id',
+            'category',
+            'location_type',
+            'location_id',
+            'quantity_on_hand',
+            'quantity_reserved',
+            'quantity_available',
+            'last_movement_date',
+        ];
+
+        if (isset($columns[$orderColumn])) {
+            if ($orderColumn == 1) { // Category
+                $query->join('terminal_models', 'stock_balances.model_id', '=', 'terminal_models.id')
+                    ->join('terminal_categories', 'terminal_models.category_id', '=', 'terminal_categories.id')
+                    ->orderBy('terminal_categories.category_name', $orderDir)
+                    ->select('stock_balances.*');
+            } else {
+                $query->orderBy($columns[$orderColumn], $orderDir);
+            }
+        } else {
+            $query->orderBy('model_id', 'asc');
+        }
+
+        // Apply pagination
+        $start = $request->input('start', 0);
+        $length = $request->input('length', 25);
+
+        $balances = $query->skip($start)->take($length)->get();
+
+        // Format data
+        $data = $balances->map(function ($balance) {
             $model = $balance->model;
             $minStock = $model->min_stock_level ?? 5;
 
@@ -251,6 +287,13 @@ class StockBalanceController extends Controller
                 'last_movement_date' => $balance->last_movement_date?->format('Y-m-d') ?? '-',
             ];
         });
+
+        return response()->json([
+            'draw' => intval($request->input('draw')),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $filteredRecords,
+            'data' => $data,
+        ]);
     }
 
     /**

@@ -193,7 +193,7 @@ $(document).ready(function() {
             { data: 'quantity', className: 'text-end' },
             { data: 'from_location' },
             { data: 'to_location' },
-            { 
+            {
                 data: null,
                 orderable: false,
                 render: function(data) {
@@ -212,14 +212,14 @@ $(document).ready(function() {
                     let actions = '<div class="btn-group" role="group">';
                     actions += '<a href="/admin/stock-ledger/' + data.id + '" class="btn btn-sm btn-info">';
                     actions += '<i class="bi bi-eye"></i></a>';
-                    
+
                     @can('reverse_stock_ledger')
                     if (data.can_reverse && !data.is_reversed) {
                         actions += '<button type="button" class="btn btn-sm btn-warning reverse-btn" data-id="' + data.id + '">';
                         actions += '<i class="bi bi-arrow-counterclockwise"></i></button>';
                     }
                     @endcan
-                    
+
                     actions += '</div>';
                     return actions;
                 }
@@ -248,9 +248,9 @@ $(document).ready(function() {
     $('#locationTypeFilter').on('change', function() {
         const type = $(this).val();
         const $locationId = $('#locationIdFilter');
-        
+
         $locationId.empty().append('<option value="">Loading...</option>');
-        
+
         if (!type) {
             $locationId.empty().append('<option value="">Select location type first</option>');
             return;
@@ -282,10 +282,10 @@ $(document).ready(function() {
     // Reversal form submission
     $('#reversalForm').on('submit', function(e) {
         e.preventDefault();
-        
+
         const ledgerId = $('#reversalLedgerId').val();
         const reason = $('textarea[name="reason"]').val();
-        
+
         $.ajax({
             url: '/admin/stock-ledger/' + ledgerId + '/reverse',
             method: 'POST',
