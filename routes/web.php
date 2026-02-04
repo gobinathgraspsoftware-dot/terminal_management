@@ -370,20 +370,20 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
     /* Stock-ledger Routes */
     Route::prefix('stock-ledger')->name('stock-ledger.')->group(function () {
         Route::get('/', [AdminStockLedgerController::class, 'index'])->name('index');
+        Route::get('/export', [AdminStockLedgerController::class, 'export'])->name('export');
         Route::get('/{stockLedger}', [AdminStockLedgerController::class, 'show'])->name('show');
         Route::post('/{stockLedger}/reverse', [AdminStockLedgerController::class, 'reverse'])->name('reverse');
-        Route::get('/export', [AdminStockLedgerController::class, 'export'])->name('export');
     });
 
     /* Stock-balance Routes */
     Route::prefix('stock-balance')->name('stock-balance.')->group(function () {
         Route::get('/', [AdminStockBalanceController::class, 'index'])->name('index');
+        Route::get('/export', [AdminStockBalanceController::class, 'export'])->name('export');
         Route::get('/{locationType}/{locationId}', [AdminStockBalanceController::class, 'show'])->name('show');
         Route::get('/alerts', [AdminStockBalanceController::class, 'alerts'])->name('alerts');
         Route::post('/recalculate', [AdminStockBalanceController::class, 'recalculate'])->name('recalculate');
         Route::post('/reserve', [AdminStockBalanceController::class, 'reserve'])->name('reserve');
         Route::post('/release', [AdminStockBalanceController::class, 'releaseReservation'])->name('release');
-        Route::get('/export', [AdminStockBalanceController::class, 'export'])->name('export');
     });
 
     /* Settings (requires specific permission) */
