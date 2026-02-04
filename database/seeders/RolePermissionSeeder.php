@@ -98,6 +98,14 @@ class RolePermissionSeeder extends Seeder
 
             // Notifications
             'view_notifications', 'create_notifications', 'send_notifications',
+
+            // Stock Ledger Permissions
+            'view_stock_ledger',
+            'reverse_stock_ledger',
+
+            // Stock Balance Permissions
+            'view_stock_balance',
+            'view_stock_alerts',
         ];
 
         $supervisorRole->syncPermissions($supervisorPermissions);
@@ -142,6 +150,12 @@ class RolePermissionSeeder extends Seeder
 
             // Notifications
             'view_notifications',
+
+            // Stock Ledger Permissions
+            'view_stock_ledger',
+
+            // Stock Balance Permissions
+            'view_stock_balance',
         ];
 
         $technicianRole->syncPermissions($technicianPermissions);

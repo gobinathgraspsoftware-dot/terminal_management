@@ -12,6 +12,10 @@ use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvid
 use Illuminate\Support\Facades\Gate;
 use App\Models\RateCard;
 use App\Policies\RateCardPolicy;
+use App\Models\StockLedger;
+use App\Models\StockBalance;
+use App\Policies\StockLedgerPolicy;
+use App\Policies\StockBalancePolicy;
 
 /**
  * AuthServiceProvider - Registers policies and gates.
@@ -22,6 +26,8 @@ class AuthServiceProvider extends ServiceProvider
         User::class => UserPolicy::class,
         RateCard::class => RateCardPolicy::class,
         InventorySerial::class => InventorySerialPolicy::class,
+        StockLedger::class => StockLedgerPolicy::class,
+        StockBalance::class => StockBalancePolicy::class,
     ];
 
     public function boot(): void
@@ -31,7 +37,7 @@ class AuthServiceProvider extends ServiceProvider
         /* Register Observers */
         InventorySerial::observe(InventorySerialObserver::class);
 
-        // Team Gates
+        /* Team Gates */
         Gate::define('viewAnyTeam', fn(User $u) => $u->hasRole('admin'));
         Gate::define('viewOwnTeam', fn(User $u) => $u->hasRole(['admin', 'supervisor']));
         Gate::define('viewTeamMember', fn(User $u, User $m) => $u->hasRole('admin') || ($u->hasRole('supervisor') && $m->supervisor_id === $u->id) || $u->id === $m->id);

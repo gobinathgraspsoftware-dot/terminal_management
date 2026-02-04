@@ -48,6 +48,10 @@ use App\Http\Controllers\Technician\SerialMovementHistoryController as Technicia
 use App\Http\Controllers\Admin\BulkSerialController as AdminBulkSerialController;
 use App\Http\Controllers\Supervisor\BulkSerialController as SupervisorBulkSerialController;
 use App\Http\Controllers\Technician\BulkSerialController as TechnicianBulkSerialController;
+use App\Http\Controllers\Admin\StockLedgerController as AdminStockLedgerController;
+use App\Http\Controllers\Admin\StockBalanceController as AdminStockBalanceController;
+use App\Http\Controllers\Supervisor\StockLedgerController as SupervisorStockLedgerController;
+use App\Http\Controllers\Supervisor\StockBalanceController as SupervisorStockBalanceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -361,6 +365,25 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/get-locations', [AdminBulkSerialController::class, 'getLocations'])->name('get-locations');
     });
 
+    /* Stock-ledger Routes */
+    Route::prefix('stock-ledger')->name('stock-ledger.')->group(function () {
+        Route::get('/', [AdminStockLedgerController::class, 'index'])->name('index');
+        Route::get('/{stockLedger}', [AdminStockLedgerController::class, 'show'])->name('show');
+        Route::post('/{stockLedger}/reverse', [AdminStockLedgerController::class, 'reverse'])->name('reverse');
+        Route::get('/export', [AdminStockLedgerController::class, 'export'])->name('export');
+    });
+
+    /* Stock-balance Routes */
+    Route::prefix('stock-balance')->name('stock-balance.')->group(function () {
+        Route::get('/', [AdminStockBalanceController::class, 'index'])->name('index');
+        Route::get('/{locationType}/{locationId}', [AdminStockBalanceController::class, 'show'])->name('show');
+        Route::get('/alerts', [AdminStockBalanceController::class, 'alerts'])->name('alerts');
+        Route::post('/recalculate', [AdminStockBalanceController::class, 'recalculate'])->name('recalculate');
+        Route::post('/reserve', [AdminStockBalanceController::class, 'reserve'])->name('reserve');
+        Route::post('/release', [AdminStockBalanceController::class, 'releaseReservation'])->name('release');
+        Route::get('/export', [AdminStockBalanceController::class, 'export'])->name('export');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -495,6 +518,19 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::post('/generate-labels', [SupervisorBulkSerialController::class, 'generateLabels'])->name('generate-labels');
         Route::post('/export-serials', [SupervisorBulkSerialController::class, 'exportSerials'])->name('export-serials');
         Route::get('/get-locations', [SupervisorBulkSerialController::class, 'getLocations'])->name('get-locations');
+    });
+
+    /* Stock Ledger Routes */
+    Route::prefix('stock-ledger')->name('stock-ledger.')->group(function () {
+        Route::get('/', [SupervisorStockLedgerController::class, 'index'])->name('index');
+        Route::get('/{stockLedger}', [SupervisorStockLedgerController::class, 'show'])->name('show');
+        Route::post('/{stockLedger}/reverse', [SupervisorStockLedgerController::class, 'reverse'])->name('reverse');
+    });
+
+    /* Stock Balance Routes */
+    Route::prefix('stock-balance')->name('stock-balance.')->group(function () {
+        Route::get('/', [SupervisorStockBalanceController::class, 'index'])->name('index');
+        Route::get('/technician/{technician}', [SupervisorStockBalanceController::class, 'show'])->name('show');
     });
 
     /* Job Assignment (supervisor or admin) */

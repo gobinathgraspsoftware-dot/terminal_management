@@ -59,6 +59,12 @@ class PermissionSeeder extends Seeder
             // Inventory - Stock Adjustments
             'stock_adjustments' => ['view', 'create', 'approve', 'reject', 'post'],
 
+            // Inventory - Stock Ledger
+            'stock_ledger' => ['view', 'create', 'reverse', 'export'],
+
+            // Inventory - Stock Balance
+            'stock_balance' => ['view', 'recalculate', 'reserve', 'release_reservation', 'view_alerts', 'export'],
+
             // Procurement - Quotations
             'quotations' => ['view', 'create', 'edit', 'delete', 'approve', 'reject', 'send', 'convert_to_po', 'export'],
 
