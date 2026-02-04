@@ -1,398 +1,316 @@
 @extends('layouts.app')
 
-@section('title', 'Inventory Serial Tracking - Admin')
+@section('title', 'Inventory Serials')
 
 @section('content')
-<div class="page-header">
-    <div class="d-flex justify-content-between align-items-center">
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1><i class="bi bi-upc-scan me-2"></i>Inventory Serial Tracking</h1>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item active">Serial Tracking</li>
-                </ol>
-            </nav>
+            <h1 class="h3 mb-0">Inventory Serials</h1>
+            <p class="text-muted mb-0">Manage all terminal serial numbers and their lifecycle</p>
         </div>
         <div class="d-flex gap-2">
-            <!-- Barcode Scanner Input -->
-            <div class="input-group" style="width: 280px;">
-                <span class="input-group-text bg-warning text-dark"><i class="bi bi-upc-scan"></i></span>
-                <input type="text" id="barcodeInput" class="form-control" placeholder="Scan barcode or type serial..."
-                       autofocus autocomplete="off">
-            </div>
-            <!-- Serial Lookup Button -->
-            <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#serialLookupModal">
-                <i class="bi bi-search me-1"></i> Serial Lookup
+            <button type="button" class="btn btn-outline-secondary" id="btnColumnToggle">
+                <i class="bi bi-columns"></i> Columns
             </button>
+            <button type="button" class="btn btn-success" id="btnExport">
+                <i class="bi bi-file-earmark-excel"></i> Export
+            </button>
+            @can('bulk_import_inventory')
+            <a href="{{ route('admin.bulk-serials.import-form') }}" class="btn btn-primary">
+                <i class="bi bi-upload"></i> Bulk Import
+            </a>
+            @endcan
             @can('create_inventory')
             <a href="{{ route('admin.inventory-serials.create') }}" class="btn btn-primary">
-                <i class="bi bi-plus-lg me-1"></i> Add Serial
+                <i class="bi bi-plus-lg"></i> Add Serial
             </a>
             @endcan
         </div>
     </div>
-</div>
 
-<!-- Statistics Cards -->
-<div class="row mb-4">
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="stats-card">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <div class="stats-label">Total Serials</div>
-                    <div class="stats-value">{{ number_format($stats['total']) }}</div>
-                </div>
-                <div class="stats-icon bg-primary bg-opacity-10 text-primary">
-                    <i class="bi bi-hash"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="stats-card">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <div class="stats-label">In Stock</div>
-                    <div class="stats-value text-success">{{ number_format($stats['in_stock']) }}</div>
-                </div>
-                <div class="stats-icon bg-success bg-opacity-10 text-success">
-                    <i class="bi bi-box-seam"></i>
+    <!-- Statistics Cards -->
+    @include('admin.inventory-serials._statistics')
+
+    <!-- Filters Card -->
+    @include('admin.inventory-serials._filters')
+
+    <!-- Data Table Card -->
+    <div class="card">
+        <div class="card-header bg-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Serial Number List</h5>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnRefresh">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnClearFilters">
+                        <i class="bi bi-x-circle"></i> Clear Filters
+                    </button>
                 </div>
             </div>
         </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="stats-card">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <div class="stats-label">Issued to Tech</div>
-                    <div class="stats-value text-info">{{ number_format($stats['issued_to_tech']) }}</div>
-                </div>
-                <div class="stats-icon bg-info bg-opacity-10 text-info">
-                    <i class="bi bi-person-gear"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-sm-6 mb-3">
-        <div class="stats-card">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <div class="stats-label">Installed</div>
-                    <div class="stats-value text-primary">{{ number_format($stats['installed']) }}</div>
-                </div>
-                <div class="stats-icon bg-primary bg-opacity-10 text-primary">
-                    <i class="bi bi-check-circle"></i>
-                </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped" id="serialsTable" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th width="5%">#</th>
+                            <th width="15%">Serial Number</th>
+                            <th width="12%">Category</th>
+                            <th width="12%">Model</th>
+                            <th width="10%">Status</th>
+                            <th width="12%">Location</th>
+                            <th width="10%">Warranty</th>
+                            <th width="10%">GRN Info</th>
+                            <th width="14%">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- DataTable content -->
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Secondary Stats Row -->
-<div class="row mb-4">
-    <div class="col-md-2 col-sm-4 mb-2">
-        <div class="card text-center p-2">
-            <small class="text-muted">Under Service</small>
-            <strong class="text-warning">{{ $stats['under_service'] }}</strong>
-        </div>
-    </div>
-    <div class="col-md-2 col-sm-4 mb-2">
-        <div class="card text-center p-2">
-            <small class="text-muted">Reserved</small>
-            <strong class="text-dark">{{ $stats['reserved'] }}</strong>
-        </div>
-    </div>
-    <div class="col-md-2 col-sm-4 mb-2">
-        <div class="card text-center p-2">
-            <small class="text-muted">Returned</small>
-            <strong class="text-secondary">{{ $stats['returned_to_vendor'] }}</strong>
-        </div>
-    </div>
-    <div class="col-md-2 col-sm-4 mb-2">
-        <div class="card text-center p-2">
-            <small class="text-muted">Wasted</small>
-            <strong class="text-danger">{{ $stats['wasted'] }}</strong>
-        </div>
-    </div>
-    <div class="col-md-2 col-sm-4 mb-2">
-        <div class="card text-center p-2">
-            <small class="text-muted">Warranty Active</small>
-            <strong class="text-success">{{ $stats['warranty_active'] }}</strong>
-        </div>
-    </div>
-    <div class="col-md-2 col-sm-4 mb-2">
-        <div class="card text-center p-2">
-            <small class="text-muted">Expiring (30d)</small>
-            <strong class="text-warning">{{ $stats['warranty_expiring'] }}</strong>
+<!-- Column Visibility Modal -->
+<div class="modal fade" id="columnToggleModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Column Visibility</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-check mb-2">
+                    <input class="form-check-input column-toggle" type="checkbox" value="1" id="col1" checked>
+                    <label class="form-check-label" for="col1">Serial Number</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input column-toggle" type="checkbox" value="2" id="col2" checked>
+                    <label class="form-check-label" for="col2">Category</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input column-toggle" type="checkbox" value="3" id="col3" checked>
+                    <label class="form-check-label" for="col3">Model</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input column-toggle" type="checkbox" value="4" id="col4" checked>
+                    <label class="form-check-label" for="col4">Status</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input column-toggle" type="checkbox" value="5" id="col5" checked>
+                    <label class="form-check-label" for="col5">Location</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input column-toggle" type="checkbox" value="6" id="col6" checked>
+                    <label class="form-check-label" for="col6">Warranty</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input column-toggle" type="checkbox" value="7" id="col7" checked>
+                    <label class="form-check-label" for="col7">GRN Info</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="btnShowAll">Show All</button>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Filters -->
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="row g-3">
-            <div class="col-md-3">
-                <label class="form-label fw-bold">Status</label>
-                <select id="filterStatus" class="form-select">
-                    <option value="">All Statuses</option>
-                    @foreach($filterOptions['statuses'] as $key => $label)
-                        <option value="{{ $key }}">{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label fw-bold">Location Type</label>
-                <select id="filterLocationType" class="form-select">
-                    <option value="">All Locations</option>
-                    @foreach($filterOptions['location_types'] as $key => $label)
-                        <option value="{{ $key }}">{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label fw-bold">Depot</label>
-                <select id="filterDepot" class="form-select">
-                    <option value="">All Depots</option>
-                    @foreach($filterOptions['depots'] as $depot)
-                        <option value="{{ $depot->id }}">{{ $depot->depot_name }} ({{ $depot->depot_code }})</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label fw-bold">Warranty</label>
-                <select id="filterWarranty" class="form-select">
-                    <option value="">All</option>
-                    <option value="active">Active Warranty</option>
-                    <option value="expired">Expired Warranty</option>
-                </select>
-            </div>
-        </div>
-        <div class="mt-3 text-end">
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnClearFilters">
-                <i class="bi bi-x-circle me-1"></i> Clear Filters
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- DataTable -->
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-table me-2"></i>Serial Numbers</h5>
-        @can('view_inventory')
-        <button class="btn btn-sm btn-outline-success" id="btnExport">
-            <i class="bi bi-download me-1"></i> Export
-        </button>
-        @endcan
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table id="serialsTable" class="table table-hover table-striped" style="width:100%">
-                <thead>
-                    <tr>
-                        <th width="30">#</th>
-                        <th>Serial / Model</th>
-                        <th>Category</th>
-                        <th>Status</th>
-                        <th>Location</th>
-                        <th>Warranty</th>
-                        <th>GRN</th>
-                        <th width="120">Actions</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- Include Reusable Serial Lookup Modal -->
-@include('components.serial-lookup-modal')
-@endsection
+@push('styles')
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+<style>
+    .stat-card {
+        transition: all 0.3s;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .filter-badge {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #dc3545;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: bold;
+    }
+</style>
+@endpush
 
 @push('scripts')
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+
 <script>
 $(document).ready(function() {
+    let table;
 
-    // ──────────────────────────────────────────────
-    //  DataTable Initialisation
-    // ──────────────────────────────────────────────
-    var table = $('#serialsTable').DataTable({
-        processing: true,
-        serverSide: true,
-        ajax: {
-            url: '{{ route("admin.inventory-serials.datatable") }}',
-            data: function(d) {
-                d.status          = $('#filterStatus').val();
-                d.location_type   = $('#filterLocationType').val();
-                d.depot_id        = $('#filterDepot').val();
-                d.warranty_status = $('#filterWarranty').val();
-            },
-            error: function(xhr) {
-                console.error('DataTable AJAX error:', xhr);
-                if (xhr.status === 401) {
-                    window.location.href = '{{ route("login") }}';
-                }
-            }
-        },
-        columns: [
-            { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
-            { data: 'serial_info', name: 'serial_no' },
-            { data: 'category_name', name: 'category_name', orderable: false },
-            { data: 'status_badge', name: 'current_status' },
-            { data: 'location_info', name: 'current_location_type' },
-            { data: 'warranty', name: 'warranty_end', orderable: false },
-            { data: 'grn_info', name: 'grn_id', orderable: false },
-            { data: 'action', name: 'action', orderable: false, searchable: false }
-        ],
-        order: [[1, 'asc']],
-        pageLength: 25,
-        responsive: true,
-        language: {
-            processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
-            emptyTable: 'No serial records found.',
+    // Initialize DataTable
+    function initDataTable() {
+        if ($.fn.DataTable.isDataTable('#serialsTable')) {
+            $('#serialsTable').DataTable().destroy();
         }
+
+        table = $('#serialsTable').DataTable({
+            processing: true,
+            serverSide: true,
+            responsive: true,
+            ajax: {
+                url: '{{ route('admin.inventory-serials.datatable') }}',
+                data: function(d) {
+                    d.status = $('#filterStatus').val();
+                    d.model_id = $('#filterModel').val();
+                    d.category_id = $('#filterCategory').val();
+                    d.location_type = $('#filterLocationType').val();
+                    d.depot_id = $('#filterDepot').val();
+                    d.warranty_status = $('#filterWarranty').val();
+                    d.search = $('#searchInput').val();
+                }
+            },
+            columns: [
+                { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
+                { data: 'serial_info', name: 'serial_no' },
+                { data: 'category_name', name: 'terminalModel.category.category_name' },
+                { data: 'model_name', name: 'terminalModel.model_name' },
+                { data: 'status_badge', name: 'current_status' },
+                { data: 'location_info', name: 'current_location_type' },
+                { data: 'warranty', name: 'warranty_end', orderable: false },
+                { data: 'grn_info', name: 'grn.grn_no' },
+                { data: 'action', name: 'action', orderable: false, searchable: false }
+            ],
+            order: [[1, 'asc']],
+            pageLength: 25,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+            dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip',
+            language: {
+                processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
+                emptyTable: 'No serial numbers found',
+                zeroRecords: 'No matching serial numbers found'
+            },
+            drawCallback: function() {
+                initializeDeleteButtons();
+            }
+        });
+    }
+
+    initDataTable();
+
+    // Filter handlers
+    $('.filter-select').on('change', function() {
+        table.ajax.reload();
+        updateFilterBadge();
     });
 
-    // ──────────────────────────────────────────────
-    //  Filter change → reload table
-    // ──────────────────────────────────────────────
-    $('#filterStatus, #filterLocationType, #filterDepot, #filterWarranty').on('change', function() {
+    $('#searchInput').on('keyup', function() {
+        table.ajax.reload();
+    });
+
+    // Refresh button
+    $('#btnRefresh').on('click', function() {
         table.ajax.reload();
     });
 
     // Clear filters
     $('#btnClearFilters').on('click', function() {
-        $('#filterStatus, #filterLocationType, #filterDepot, #filterWarranty').val('');
+        $('.filter-select').val('').trigger('change');
+        $('#searchInput').val('');
         table.ajax.reload();
+        updateFilterBadge();
     });
 
-    // ──────────────────────────────────────────────
-    //  Export – passes current filters to download
-    // ──────────────────────────────────────────────
+    // Export functionality
     $('#btnExport').on('click', function() {
-        var btn = $(this);
-        var originalHtml = btn.html();
-
-        // Build query string from the current filter + DataTable search
-        var params = {
-            status:          $('#filterStatus').val(),
-            location_type:   $('#filterLocationType').val(),
-            depot_id:        $('#filterDepot').val(),
-            warranty_status: $('#filterWarranty').val(),
-            search:          table.search() || ''
-        };
-
-        // Keep only non-empty values
-        var queryParts = [];
-        $.each(params, function(key, val) {
-            if (val && val.length > 0) {
-                queryParts.push(encodeURIComponent(key) + '=' + encodeURIComponent(val));
-            }
+        const params = new URLSearchParams({
+            status: $('#filterStatus').val() || '',
+            model_id: $('#filterModel').val() || '',
+            category_id: $('#filterCategory').val() || '',
+            location_type: $('#filterLocationType').val() || '',
+            depot_id: $('#filterDepot').val() || '',
+            warranty_status: $('#filterWarranty').val() || '',
+            search: $('#searchInput').val() || ''
         });
-
-        var exportUrl = '{{ route("admin.inventory-serials.export") }}';
-        if (queryParts.length > 0) {
-            exportUrl += '?' + queryParts.join('&');
-        }
-
-        // Loading state
-        btn.prop('disabled', true)
-           .html('<span class="spinner-border spinner-border-sm me-1"></span> Exporting...');
-
-        // Trigger download via hidden iframe (keeps page alive)
-        var $iframe = $('<iframe>', {
-            id:  'exportFrame',
-            src: exportUrl,
-            style: 'display:none;'
-        }).appendTo('body');
-
-        // Re-enable after download starts (no JS callback for file downloads)
-        setTimeout(function() {
-            btn.prop('disabled', false).html(originalHtml);
-            showToast('Export file downloaded successfully.', 'success');
-            setTimeout(function() { $('#exportFrame').remove(); }, 5000);
-        }, 3000);
+        
+        window.location.href = '{{ route('admin.inventory-serials.export') }}?' + params.toString();
     });
 
-    // ──────────────────────────────────────────────
-    //  Barcode Scanner Input
-    // ──────────────────────────────────────────────
-    var barcodeTimer;
-    $('#barcodeInput').on('keypress', function(e) {
-        if (e.which === 13) { // Enter key
-            e.preventDefault();
-            var serial = $(this).val().trim();
-            if (serial.length > 0) {
-                lookupSerial(serial);
-            }
-        }
-    }).on('input', function() {
-        clearTimeout(barcodeTimer);
-        var input = $(this);
-        barcodeTimer = setTimeout(function() {
-            var serial = input.val().trim();
-            if (serial.length >= 5) {
-                lookupSerial(serial);
-            }
-        }, 300);
+    // Column visibility toggle
+    $('#btnColumnToggle').on('click', function() {
+        $('#columnToggleModal').modal('show');
     });
 
-    function lookupSerial(serialNo) {
-        $.ajax({
-            url: '{{ route("admin.inventory-serials.lookup") }}',
-            data: { serial_no: serialNo },
-            dataType: 'json',
-            success: function(response) {
-                if (response.exists && response.serial) {
-                    window.location.href = '{{ route("admin.inventory-serials.index") }}/' + response.serial.id;
-                } else {
-                    showToast('Serial number not found: ' + serialNo, 'warning');
-                    $('#barcodeInput').val('').focus();
-                }
-            },
-            error: function() {
-                showToast('Error looking up serial number.', 'error');
-                $('#barcodeInput').val('').focus();
+    $('.column-toggle').on('change', function() {
+        const column = table.column($(this).val());
+        column.visible(!column.visible());
+    });
+
+    $('#btnShowAll').on('click', function() {
+        $('.column-toggle').prop('checked', true);
+        table.columns().visible(true);
+    });
+
+    // Delete functionality
+    function initializeDeleteButtons() {
+        $('.btn-delete').off('click').on('click', function() {
+            const serialId = $(this).data('id');
+            const serialNo = $(this).data('serial');
+            
+            if (confirm(`Are you sure you want to delete serial number: ${serialNo}?`)) {
+                $.ajax({
+                    url: `/admin/inventory-serials/${serialId}`,
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            toastr.success(response.message);
+                            table.ajax.reload();
+                        }
+                    },
+                    error: function(xhr) {
+                        const message = xhr.responseJSON?.message || 'Failed to delete serial';
+                        toastr.error(message);
+                    }
+                });
             }
         });
     }
 
-    // ──────────────────────────────────────────────
-    //  Delete handler
-    // ──────────────────────────────────────────────
-    $(document).on('click', '.btn-delete', function() {
-        var id     = $(this).data('id');
-        var serial = $(this).data('serial');
-
-        confirmAction(
-            'Delete Serial?',
-            'Are you sure you want to delete serial ' + serial + '? This action can be undone.',
-            function() {
-                $.ajax({
-                    url: '{{ route("admin.inventory-serials.index") }}/' + id,
-                    type: 'DELETE',
-                    dataType: 'json',
-                    success: function(response) {
-                        if (response.success) {
-                            showToast(response.message, 'success');
-                            table.ajax.reload(null, false);
-                        } else {
-                            showToast(response.message || 'Delete failed.', 'error');
-                        }
-                    },
-                    error: function(xhr) {
-                        var msg = xhr.responseJSON?.message || 'Failed to delete serial.';
-                        showToast(msg, 'error');
-                    }
-                });
+    // Update filter badge count
+    function updateFilterBadge() {
+        let count = 0;
+        $('.filter-select').each(function() {
+            if ($(this).val()) count++;
+        });
+        if ($('#searchInput').val()) count++;
+        
+        if (count > 0) {
+            if (!$('.filter-badge').length) {
+                $('#filterCard').prepend('<span class="filter-badge">' + count + '</span>');
+            } else {
+                $('.filter-badge').text(count);
             }
-        );
-    });
-
+        } else {
+            $('.filter-badge').remove();
+        }
+    }
 });
 </script>
 @endpush
+@endsection
