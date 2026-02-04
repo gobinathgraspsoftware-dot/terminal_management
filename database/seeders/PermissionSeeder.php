@@ -48,7 +48,7 @@ class PermissionSeeder extends Seeder
             'rate_cards' => ['view', 'create', 'edit', 'delete'],
 
             // Inventory - Serial Numbers
-            'inventory' => ['view', 'create', 'edit', 'delete', 'adjust', 'transfer', 'view_history', 'export'],
+            'inventory' => ['view', 'create', 'edit', 'delete', 'adjust', 'transfer', 'view_history', 'export', 'bulk_import', 'bulk_update', 'bulk_transfer', 'print_labels',],
 
             // Inventory - Stock Issues
             'stock_issues' => ['view', 'create', 'edit', 'post', 'cancel'],

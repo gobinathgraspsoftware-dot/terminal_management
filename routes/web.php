@@ -45,6 +45,9 @@ use App\Http\Controllers\SerialLookupController;
 use App\Http\Controllers\Admin\SerialMovementHistoryController as AdminSerialMovementHistoryController;
 use App\Http\Controllers\Supervisor\SerialMovementHistoryController as SupervisorSerialMovementHistoryController;
 use App\Http\Controllers\Technician\SerialMovementHistoryController as TechnicianSerialMovementHistoryController;
+use App\Http\Controllers\Admin\BulkSerialController as AdminBulkSerialController;
+use App\Http\Controllers\Supervisor\BulkSerialController as SupervisorBulkSerialController;
+use App\Http\Controllers\Technician\BulkSerialController as TechnicianBulkSerialController;
 
 /*
 |--------------------------------------------------------------------------
@@ -130,14 +133,11 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/', [AdminProfileController::class, 'index'])->name('index');
         Route::get('/edit', [AdminProfileController::class, 'edit'])->name('edit');
         Route::put('/update', [AdminProfileController::class, 'update'])->name('update');
-
         Route::get('/password', [AdminProfileController::class, 'password'])->name('password');
         Route::put('/password', [AdminProfileController::class, 'updatePassword'])->name('password.update');
-
         Route::get('/avatar', [AdminProfileController::class, 'avatar'])->name('avatar');
         Route::put('/avatar', [AdminProfileController::class, 'updateAvatar'])->name('avatar.update');
         Route::delete('/avatar', [AdminProfileController::class, 'deleteAvatar'])->name('avatar.delete');
-
         Route::get('/login-history', [AdminProfileController::class, 'loginHistory'])->name('login-history');
     });
 
@@ -200,7 +200,6 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
 
     /* Client Management Routes */
     Route::prefix('clients')->name('clients.')->group(function () {
-        // Main CRUD
         Route::get('/', [AdminClientController::class, 'index'])->name('index');
         Route::get('/datatable', [AdminClientController::class, 'datatable'])->name('datatable');
         Route::get('/create', [AdminClientController::class, 'create'])->name('create');
@@ -209,12 +208,8 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/{client}/edit', [AdminClientController::class, 'edit'])->name('edit');
         Route::put('/{client}', [AdminClientController::class, 'update'])->name('update');
         Route::delete('/{client}', [AdminClientController::class, 'destroy'])->name('destroy');
-
-        // Additional Actions
         Route::post('/{client}/restore', [AdminClientController::class, 'restore'])->name('restore');
         Route::post('/{client}/toggle-status', [AdminClientController::class, 'toggleStatus'])->name('toggle-status');
-
-        // Contact Management
         Route::post('/{client}/contacts', [AdminClientController::class, 'addContact'])->name('contacts.store');
         Route::put('/{client}/contacts/{contact}', [AdminClientController::class, 'updateContact'])->name('contacts.update');
         Route::delete('/{client}/contacts/{contact}', [AdminClientController::class, 'removeContact'])->name('contacts.destroy');
@@ -235,19 +230,14 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::delete('/{vendor}', [AdminVendorController::class, 'destroy'])->name('destroy');
         Route::post('/{vendor}/restore', [AdminVendorController::class, 'restore'])->name('restore');
         Route::post('/{vendor}/toggle-status', [AdminVendorController::class, 'toggleStatus'])->name('toggle-status');
-
-        // Import/Export
         Route::get('/export/excel', [AdminVendorController::class, 'export'])->name('export');
         Route::post('/import/excel', [AdminVendorController::class, 'import'])->name('import');
         Route::get('/import/template', [AdminVendorController::class, 'importTemplate'])->name('import-template');
-
-        // AJAX
         Route::get('/api/list', [AdminVendorController::class, 'getList'])->name('api.list');
     });
 
     /* Sites Management Routes */
     Route::prefix('sites')->name('sites.')->group(function () {
-        // Main CRUD
         Route::get('/', [AdminSiteController::class, 'index'])->name('index');
         Route::get('/datatable', [AdminSiteController::class, 'datatable'])->name('datatable');
         Route::get('/create', [AdminSiteController::class, 'create'])->name('create');
@@ -257,8 +247,6 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::put('/{site}', [AdminSiteController::class, 'update'])->name('update');
         Route::delete('/{site}', [AdminSiteController::class, 'destroy'])->name('destroy');
         Route::post('/{siteId}/restore', [AdminSiteController::class, 'restore'])->name('restore');
-
-        // Export & GPS
         Route::get('/export', [AdminSiteController::class, 'export'])->name('export');
         Route::post('/capture-gps', [AdminSiteController::class, 'captureGps'])->name('capture-gps');
 
@@ -355,6 +343,22 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/{serialId}', [AdminSerialMovementHistoryController::class, 'show'])->name('show');
         Route::get('/{serialId}/timeline', [AdminSerialMovementHistoryController::class, 'timeline'])->name('timeline');
         Route::post('/{ledgerId}/reverse', [AdminSerialMovementHistoryController::class, 'reverse'])->name('reverse');
+    });
+
+    /* Bulk-serials Routes */
+    Route::prefix('bulk-serials')->name('bulk-serials.')->group(function () {
+        Route::get('/', [AdminBulkSerialController::class, 'index'])->name('index');
+        Route::get('/import', [AdminBulkSerialController::class, 'importForm'])->name('import-form');
+        Route::post('/import', [AdminBulkSerialController::class, 'import'])->name('import');
+        Route::get('/download-template', [AdminBulkSerialController::class, 'downloadTemplate'])->name('download-template');
+        Route::get('/bulk-update-form', [AdminBulkSerialController::class, 'bulkUpdateForm'])->name('bulk-update-form');
+        Route::post('/bulk-update', [AdminBulkSerialController::class, 'bulkUpdate'])->name('bulk-update');
+        Route::get('/transfer-form', [AdminBulkSerialController::class, 'transferForm'])->name('transfer-form');
+        Route::post('/validate-serials', [AdminBulkSerialController::class, 'validateSerials'])->name('validate-serials');
+        Route::post('/preview', [AdminBulkSerialController::class, 'preview'])->name('preview');
+        Route::post('/generate-labels', [AdminBulkSerialController::class, 'generateLabels'])->name('generate-labels');
+        Route::post('/export-serials', [AdminBulkSerialController::class, 'exportSerials'])->name('export-serials');
+        Route::get('/get-locations', [AdminBulkSerialController::class, 'getLocations'])->name('get-locations');
     });
 
     /* Settings (requires specific permission) */
@@ -479,6 +483,20 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{serialId}/timeline', [SupervisorSerialMovementHistoryController::class, 'timeline'])->name('timeline');
     });
 
+    /* Bulk-serials Routes */
+    Route::prefix('bulk-serials')->name('bulk-serials.')->group(function () {
+        Route::get('/', [SupervisorBulkSerialController::class, 'index'])->name('index');
+        Route::get('/import', [SupervisorBulkSerialController::class, 'importForm'])->name('import-form');
+        Route::post('/import', [SupervisorBulkSerialController::class, 'import'])->name('import');
+        Route::get('/download-template', [SupervisorBulkSerialController::class, 'downloadTemplate'])->name('download-template');
+        Route::get('/bulk-update-form', [SupervisorBulkSerialController::class, 'bulkUpdateForm'])->name('bulk-update-form');
+        Route::post('/bulk-update', [SupervisorBulkSerialController::class, 'bulkUpdate'])->name('bulk-update');
+        Route::get('/transfer-form', [SupervisorBulkSerialController::class, 'transferForm'])->name('transfer-form');
+        Route::post('/generate-labels', [SupervisorBulkSerialController::class, 'generateLabels'])->name('generate-labels');
+        Route::post('/export-serials', [SupervisorBulkSerialController::class, 'exportSerials'])->name('export-serials');
+        Route::get('/get-locations', [SupervisorBulkSerialController::class, 'getLocations'])->name('get-locations');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -579,12 +597,19 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/{inventorySerial}', [TechnicianInventorySerialController::class, 'show'])->name('show');
     });
 
-    // Serial Movement History Routes
+    /* Serial Movement History Routes */
     Route::prefix('serial-movement-history')->name('serial-movement-history.')->group(function () {
         Route::get('/datatable', [TechnicianSerialMovementHistoryController::class, 'datatable'])->name('datatable');
         Route::get('/', [TechnicianSerialMovementHistoryController::class, 'index'])->name('index');
         Route::get('/{serialId}', [TechnicianSerialMovementHistoryController::class, 'show'])->name('show');
         Route::get('/{serialId}/timeline', [TechnicianSerialMovementHistoryController::class, 'timeline'])->name('timeline');
+    });
+
+    /* Bulk-serials Routes */
+    Route::prefix('bulk-serials')->name('bulk-serials.')->group(function () {
+        Route::get('/', [TechnicianBulkSerialController::class, 'index'])->name('index');
+        Route::post('/generate-labels', [TechnicianBulkSerialController::class, 'generateLabels'])->name('generate-labels');
+        Route::post('/export-serials', [TechnicianBulkSerialController::class, 'exportSerials'])->name('export-serials');
     });
 
     // Route::get('/inventory', function () {

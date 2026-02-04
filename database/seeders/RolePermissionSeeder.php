@@ -46,6 +46,11 @@ class RolePermissionSeeder extends Seeder
 
             // Inventory - Full access except adjustments
             'view_inventory', 'view_history_inventory', 'export_inventory',
+
+            // Bulk Operations Permissions
+            'bulk_import_inventory', 'bulk_update_inventory', 'bulk_transfer_inventory', 'print_labels_inventory',
+
+            // Stock Issues/Transfers
             'view_stock_issues', 'create_stock_issues', 'post_stock_issues',
             'view_stock_transfers', 'create_stock_transfers', 'approve_stock_transfers',
 
@@ -111,6 +116,9 @@ class RolePermissionSeeder extends Seeder
             // Inventory - View own issued stock
             'view_inventory', // Limited to own stock in controller
             'view_stock_issues', // Limited to own issues
+
+            // Can print labels for own serials
+            'print_labels_inventory',
 
             // Job Orders - Own jobs only
             'view_jobs', 'start_jobs', 'complete_jobs', 'fail_jobs',

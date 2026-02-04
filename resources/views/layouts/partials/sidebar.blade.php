@@ -232,35 +232,54 @@
             @php
                 $isInventorySerialRoute = str_contains($currentRoute ?? '', 'admin.inventory-serials');
                 $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'admin.serial-movement-history');
+                $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'admin.bulk-serials');
             @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
+                    @can('view_inventory')
                     <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-box-seam me-2"></i> Stock Management
+                        <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
+                        href="{{ route('admin.inventory-serials.index') }}">
+                            <i class="bi bi-upc-scan me-2"></i> Serial Numbers
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-arrow-left-right me-2"></i> Stock Movements
-                        </a>
-                    </li>
+                    @endcan
+
+                    @can('view_inventory')
                     <li class="nav-item">
                         <a class="nav-link {{ $isMovementHistoryRoute ? 'active' : '' }}"
                         href="{{ route('admin.serial-movement-history.index') }}">
                             <i class="bi bi-clock-history me-2"></i> Movement History
                         </a>
                     </li>
-                    @can('view_inventory')
+                    @endcan
+
+                    @can('bulk_import_inventory')
                     <li class="nav-item">
-                        <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
-                        href="{{ route('admin.inventory-serials.index') }}">
-                            <i class="bi bi-upc-scan me-2"></i> Serial Tracking
+                        <a class="nav-link {{ $isBulkSerialsRoute ? 'active' : '' }}"
+                        href="{{ route('admin.bulk-serials.index') }}">
+                            <i class="bi bi-boxes me-2"></i> Bulk Operations
                         </a>
                     </li>
                     @endcan
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-graph-up me-2"></i> Stock Balances
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-arrow-left-right me-2"></i> Stock Transfers
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-tools me-2"></i> Stock Adjustments
+                        </a>
+                    </li>
                 </ul>
             </div>
 
@@ -468,32 +487,51 @@
             @php
                 $isInventorySerialRoute = str_contains($currentRoute ?? '', 'supervisor.inventory-serials');
                 $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'supervisor.serial-movement-history');
+                $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'supervisor.bulk-serials');
             @endphp
             <!-- Inventory Section -->
-            @can('view_inventory')
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
+                    @can('view_team_inventory')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
+                        href="{{ route('supervisor.inventory-serials.index') }}">
+                            <i class="bi bi-upc-scan me-2"></i> Serial Numbers
+                        </a>
+                    </li>
+                    @endcan
+
+                    @can('view_team_inventory')
                     <li class="nav-item">
                         <a class="nav-link {{ $isMovementHistoryRoute ? 'active' : '' }}"
                         href="{{ route('supervisor.serial-movement-history.index') }}">
                             <i class="bi bi-clock-history me-2"></i> Movement History
                         </a>
                     </li>
+                    @endcan
+
+                    @can('import_team_inventory')
                     <li class="nav-item">
-                        <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.inventory-serials.index') }}">
-                            <i class="bi bi-upc-scan me-2"></i> Serial Tracking
+                        <a class="nav-link {{ $isBulkSerialsRoute ? 'active' : '' }}"
+                        href="{{ route('supervisor.bulk-serials.index') }}">
+                            <i class="bi bi-boxes me-2"></i> Bulk Operations
+                        </a>
+                    </li>
+                    @endcan
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-graph-up me-2"></i> Team Stock
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#">
-                            <i class="bi bi-box-seam me-2"></i> Team Stock
+                            <i class="bi bi-arrow-down-circle me-2"></i> Stock Requests
                         </a>
                     </li>
                 </ul>
             </div>
-            @endcan
 
             <!-- Job Management Section -->
             <div class="nav-section mb-3">
@@ -728,6 +766,7 @@
             @php
                 $isInventorySerialRoute = str_contains($currentRoute ?? '', 'technician.inventory-serials');
                 $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'technician.serial-movement-history');
+                $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'technician.bulk-serials');
             @endphp
 
             <!-- Inventory Section -->
@@ -735,15 +774,21 @@
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
+                        <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
+                        href="{{ route('technician.inventory-serials.index') }}">
+                            <i class="bi bi-box-seam me-2"></i> My Stock
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {{ $isMovementHistoryRoute ? 'active' : '' }}"
                         href="{{ route('technician.serial-movement-history.index') }}">
                             <i class="bi bi-clock-history me-2"></i> Movement History
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
-                        href="{{ route('technician.inventory-serials.index') }}">
-                            <i class="bi bi-box-seam me-2"></i> My Stock
+                        <a class="nav-link {{ $isBulkSerialsRoute ? 'active' : '' }}"
+                        href="{{ route('technician.bulk-serials.index') }}">
+                            <i class="bi bi-box me-2"></i> My Inventory
                         </a>
                     </li>
                     <li class="nav-item">
