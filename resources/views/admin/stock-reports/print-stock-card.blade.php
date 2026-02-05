@@ -188,20 +188,20 @@
         <div class="row mb-4">
             <div class="col-md-4 mb-3">
                 <div class="info-box">
-                    <div class="info-label">Purchase Date</div>
-                    <div class="info-value">{{ $stockCardData['serial']->purchase_date ? $stockCardData['serial']->purchase_date->format('M d, Y') : 'N/A' }}</div>
+                    <div class="info-label">GRN Date</div>
+                    <div class="info-value">{{ $stockCardData['serial']->grn_date ? \Carbon\Carbon::parse($stockCardData['serial']->grn_date)->format('M d, Y') : 'N/A' }}</div>
                 </div>
             </div>
             <div class="col-md-4 mb-3">
                 <div class="info-box">
                     <div class="info-label">Warranty Expiry</div>
-                    <div class="info-value">{{ $stockCardData['serial']->warranty_expiry_date ? $stockCardData['serial']->warranty_expiry_date->format('M d, Y') : 'N/A' }}</div>
+                    <div class="info-value">{{ $stockCardData['serial']->warranty_end ? \Carbon\Carbon::parse($stockCardData['serial']->warranty_end)->format('M d, Y') : 'N/A' }}</div>
                 </div>
             </div>
             <div class="col-md-4 mb-3">
                 <div class="info-box">
-                    <div class="info-label">Cost</div>
-                    <div class="info-value">RM {{ number_format($stockCardData['serial']->cost ?? 0, 2) }}</div>
+                    <div class="info-label">Purchase Price</div>
+                    <div class="info-value">RM {{ number_format($stockCardData['serial']->purchase_price ?? 0, 2) }}</div>
                 </div>
             </div>
         </div>

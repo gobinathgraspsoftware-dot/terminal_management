@@ -108,7 +108,7 @@
                         <label class="form-label">To Date</label>
                         <input type="date" name="to_date" class="form-control" value="{{ $filters['to_date'] ?? '' }}">
                     </div>
-                    
+
                     <!-- Category Filter -->
                     <div class="col-md-3">
                         <label class="form-label">Category</label>
@@ -240,7 +240,7 @@
                                 </td>
                                 <td>
                                     @if($movement->serial_id)
-                                        <a href="{{ route('admin.stock-reports.stock-card', $movement->serial_id) }}" 
+                                        <a href="{{ route('admin.stock-reports.stock-card', $movement->serial_id) }}"
                                            class="btn btn-sm btn-outline-info" title="View Stock Card">
                                             <i class="bi bi-card-text"></i>
                                         </a>
@@ -258,7 +258,7 @@
                     </tbody>
                 </table>
             </div>
-            
+
             <!-- Pagination -->
             <div class="mt-3">
                 {{ $movements->links() }}
@@ -271,18 +271,18 @@
 <script>
 function exportToExcel() {
     const form = document.getElementById('filterForm');
-    form.action = "{{ route('admin.stock-reports.export-movement') }}";
+    form.action = "{{ route('admin.stock-reports.movement-export') }}";
     form.method = "POST";
-    
+
     // Add CSRF token
     const csrfInput = document.createElement('input');
     csrfInput.type = 'hidden';
     csrfInput.name = '_token';
     csrfInput.value = '{{ csrf_token() }}';
     form.appendChild(csrfInput);
-    
+
     form.submit();
-    
+
     // Reset form
     setTimeout(() => {
         form.action = "{{ route('admin.stock-reports.movement') }}";

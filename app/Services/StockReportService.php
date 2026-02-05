@@ -109,10 +109,15 @@ class StockReportService
 
     /**
      * Get stock card for a specific serial number
+     *
+     * FIXED: Removed 'currentLocation' eager loading to prevent polymorphic relationship error
+     * The views use 'current_location_name' attribute instead
      */
     public function getStockCard(int $serialId)
     {
-        $serial = InventorySerial::with(['model.category', 'currentLocation'])
+        // Don't eager load currentLocation - it causes polymorphic errors
+        // The model has getCurrentLocationNameAttribute() accessor which is used in views
+        $serial = InventorySerial::with(['model.category'])
             ->findOrFail($serialId);
 
         $movements = StockLedger::where('serial_id', $serialId)
@@ -211,7 +216,7 @@ class StockReportService
         $byModel = [];
         foreach ($movements as $movement) {
             $modelKey = $movement->model_id;
-            
+
             if (!isset($byModel[$modelKey])) {
                 $byModel[$modelKey] = [
                     'model' => $movement->model ? $movement->model->model_name : 'Unknown',
@@ -306,7 +311,7 @@ class StockReportService
         if ($role === 'supervisor' && $user) {
             // Supervisor can only see their team's movements
             $teamTechnicianIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
-            
+
             if (!empty($teamTechnicianIds)) {
                 $query->where(function ($q) use ($teamTechnicianIds) {
                     $q->where(function ($sub) use ($teamTechnicianIds) {

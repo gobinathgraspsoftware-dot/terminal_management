@@ -392,13 +392,13 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
     /* Stock-reports Routes */
     Route::prefix('stock-reports')->name('stock-reports.')->group(function () {
         Route::get('/', [AdminStockReportController::class, 'index'])->name('index');
-        Route::get('/movement', [AdminStockReportController::class, 'movementReport'])->name('movement');
+        Route::get('/movement', [AdminStockReportController::class, 'movement'])->name('movement');
         Route::get('/stock-card/{serialId?}', [AdminStockReportController::class, 'stockCard'])->name('stock-card');
-        Route::get('/summary', [AdminStockReportController::class, 'summaryReport'])->name('summary');
-        Route::post('/export-movement', [AdminStockReportController::class, 'exportMovement'])->name('export-movement');
-        Route::get('/export-stock-card/{serialId}', [AdminStockReportController::class, 'exportStockCard'])->name('export-stock-card');
-        Route::post('/export-summary', [AdminStockReportController::class, 'exportSummary'])->name('export-summary');
-        Route::get('/print-stock-card/{serialId}', [AdminStockReportController::class, 'printStockCard'])->name('print-stock-card');
+        Route::get('/summary', [AdminStockReportController::class, 'summary'])->name('summary');
+        Route::get('/movement/export', [AdminStockReportController::class, 'exportMovement'])->name('movement-export');
+        Route::get('/summary/export', [AdminStockReportController::class, 'exportSummary'])->name('summary-export');
+        Route::get('/stock-card/{serialId}/export', [AdminStockReportController::class, 'exportStockCard'])->name('stock-card-export');
+        Route::get('/stock-card/{serialId}/print', [AdminStockReportController::class, 'printStockCard'])->name('stock-card-print');
         Route::get('/search-serials', [AdminStockReportController::class, 'searchSerials'])->name('search-serials');
     });
 

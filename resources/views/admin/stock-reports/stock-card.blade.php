@@ -116,10 +116,10 @@
     <!-- Action Buttons -->
     <div class="row mb-3">
         <div class="col-12 text-end">
-            <a href="{{ route('admin.stock-reports.export-stock-card', $stockCardData['serial']->id) }}" class="btn btn-success">
+            <a href="{{ route('admin.stock-reports.stock-card-export', $stockCardData['serial']->id) }}" class="btn btn-success">
                 <i class="bi bi-file-earmark-excel me-2"></i>Export to Excel
             </a>
-            <a href="{{ route('admin.stock-reports.print-stock-card', $stockCardData['serial']->id) }}" target="_blank" class="btn btn-secondary">
+            <a href="{{ route('admin.stock-reports.stock-card-print', $stockCardData['serial']->id) }}" target="_blank" class="btn btn-secondary">
                 <i class="bi bi-printer me-2"></i>Print
             </a>
         </div>
