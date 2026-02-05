@@ -57,6 +57,8 @@ use App\Http\Controllers\Technician\StockBalanceController as TechnicianStockBal
 use App\Http\Controllers\Admin\StockReportController as AdminStockReportController;
 use App\Http\Controllers\Supervisor\StockReportController as SupervisorStockReportController;
 use App\Http\Controllers\Technician\StockReportController as TechnicianStockReportController;
+use App\Http\Controllers\Admin\StockValuationController as AdminStockValuationController;
+use App\Http\Controllers\Supervisor\StockValuationController as SupervisorStockValuationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -402,6 +404,19 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/search-serials', [AdminStockReportController::class, 'searchSerials'])->name('search-serials');
     });
 
+    /* Stock-valuation Routes */
+    Route::prefix('stock-valuation')->name('stock-valuation.')->group(function () {
+        Route::get('/', [AdminStockValuationController::class, 'index'])->name('index');
+        Route::get('/detailed', [AdminStockValuationController::class, 'detailed'])->name('detailed');
+        Route::get('/movement-value', [AdminStockValuationController::class, 'movementValue'])->name('movement-value');
+        Route::get('/aging', [AdminStockValuationController::class, 'aging'])->name('aging');
+
+        // Export routes
+        Route::get('/export-summary', [AdminStockValuationController::class, 'exportSummary'])->name('export-summary');
+        Route::get('/export-detailed', [AdminStockValuationController::class, 'exportDetailed'])->name('export-detailed');
+        Route::get('/export-movement-value', [AdminStockValuationController::class, 'exportMovementValue'])->name('export-movement-value');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -562,6 +577,14 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::post('/export-summary', [SupervisorStockReportController::class, 'exportSummary'])->name('export-summary');
         Route::get('/print-stock-card/{serialId}', [SupervisorStockReportController::class, 'printStockCard'])->name('print-stock-card');
         Route::get('/search-serials', [SupervisorStockReportController::class, 'searchSerials'])->name('search-serials');
+    });
+
+    /* Stock valuation Routes */
+    Route::prefix('stock-valuation')->name('stock-valuation.')->group(function () {
+        Route::get('/', [SupervisorStockValuationController::class, 'index'])->name('index');
+        Route::get('/detailed', [SupervisorStockValuationController::class, 'detailed'])->name('detailed');
+        Route::get('/export-summary', [SupervisorStockValuationController::class, 'exportSummary'])->name('export-summary');
+        Route::get('/export-detailed', [SupervisorStockValuationController::class, 'exportDetailed'])->name('export-detailed');
     });
 
     /* Job Assignment (supervisor or admin) */

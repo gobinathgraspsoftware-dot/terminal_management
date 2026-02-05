@@ -107,6 +107,11 @@ class RolePermissionSeeder extends Seeder
             'view_stock_balance',
             'view_stock_alerts',
 
+            /* Stock Valuation Permissions */
+            'view_stock_valuation',
+            'view_detailed_stock_valuation',
+            'export_stock_valuation',
+
             /* Stock report permissions */
             'view_stock_reports',
             'view_movement_report_stock_reports',

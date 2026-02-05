@@ -65,6 +65,9 @@ class PermissionSeeder extends Seeder
             // Inventory - Stock Balance
             'stock_balance' => ['view', 'recalculate', 'reserve', 'release_reservation', 'view_alerts', 'export'],
 
+            /* Inventory - Stock Valuation */
+            'stock_valuation' => ['view', 'view_detailed', 'view_movement_value', 'view_aging', 'export' ],
+
             /* stock reports */
             'stock_reports' => ['view', 'view_movement_report', 'view_stock_card', 'view_summary_report', 'export', 'print_stock_card'],
 

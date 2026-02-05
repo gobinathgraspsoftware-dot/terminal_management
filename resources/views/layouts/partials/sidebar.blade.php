@@ -235,6 +235,7 @@
                 $isStockBalanceRoute = str_contains($currentRoute ?? '', 'admin.stock-balance');
                 $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'admin.serial-movement-history');
                 $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'admin.bulk-serials');
+                $isStockValuationRoute = str_contains($currentRoute ?? '', 'admin.stock-valuation');
             @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
@@ -283,6 +284,14 @@
                         <a class="nav-link {{ $isStockBalanceRoute && !str_contains($currentRoute ?? '', 'alerts') ? 'active' : '' }}"
                         href="{{ route('admin.stock-balance.index') }}">
                             <i class="bi bi-boxes me-2"></i> Stock Balance
+                        </a>
+                    </li>
+                    @endcan
+                    @can('view_stock_valuation')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isStockValuationRoute ? 'active' : '' }}"
+                        href="{{ route('admin.stock-valuation.index') }}">
+                            <i class="bi bi-cash-stack me-2"></i> Stock Valuation
                         </a>
                     </li>
                     @endcan
@@ -551,6 +560,7 @@
                 $isStockLedgerRoute = str_contains($currentRoute ?? '', 'supervisor.stock-ledger');
                 $isStockBalanceRoute = str_contains($currentRoute ?? '', 'supervisor.stock-balance');
                 $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'supervisor.bulk-serials');
+                $isStockValuationRoute = str_contains($currentRoute ?? '', 'supervisor.stock-valuation');
             @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
@@ -599,6 +609,14 @@
                         <a class="nav-link {{ $isStockBalanceRoute ? 'active' : '' }}"
                         href="{{ route('supervisor.stock-balance.index') }}">
                             <i class="bi bi-boxes me-2"></i> Stock Balance
+                        </a>
+                    </li>
+                    @endcan
+                    @can('view_stock_valuation')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isStockValuationRoute ? 'active' : '' }}"
+                        href="{{ route('supervisor.stock-valuation.index') }}">
+                            <i class="bi bi-cash-stack me-2"></i> Stock Valuation
                         </a>
                     </li>
                     @endcan
