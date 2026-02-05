@@ -167,6 +167,12 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
+    // Store location data from backend
+    const locationData = {
+        depot: @json($depots->map(function($d) { return ['id' => $d->id, 'name' => $d->depot_name]; })),
+        technician: @json($technicians->map(function($t) { return ['id' => $t->id, 'name' => $t->name]; }))
+    };
+
     // Initialize DataTable
     const table = $('#ledgerTable').DataTable({
         processing: true,
@@ -241,34 +247,35 @@ $(document).ready(function() {
     // Reset filters
     $('#resetFilters').on('click', function() {
         $('#filterForm')[0].reset();
+        $('#locationIdFilter').empty().append('<option value="">Select location type first</option>');
         table.ajax.reload();
     });
 
-    // Location type change - load specific locations
+    // FIXED: Location type change - populate specific locations dropdown
     $('#locationTypeFilter').on('change', function() {
         const type = $(this).val();
         const $locationId = $('#locationIdFilter');
 
-        $locationId.empty().append('<option value="">Loading...</option>');
+        // Clear the dropdown
+        $locationId.empty().prop('disabled', true);
 
         if (!type) {
-            $locationId.empty().append('<option value="">Select location type first</option>');
+            $locationId.append('<option value="">Select location type first</option>');
             return;
         }
 
-        let url = '';
-        if (type === 'depot') {
-            url = '{{ route("admin.depots.index") }}';
-        } else if (type === 'technician') {
-            url = '{{ route("admin.users.index") }}?role=technician';
-        }
+        // Enable dropdown and add "All" option
+        $locationId.prop('disabled', false);
+        $locationId.append('<option value="">All ' + type.charAt(0).toUpperCase() + type.slice(1) + 's</option>');
 
-        if (url) {
-            $.get(url, function(data) {
-                $locationId.empty().append('<option value="">All ' + type + 's</option>');
-                // Populate based on response
-                // This is a simplified version - adjust based on your actual API response
+        // Populate with actual data
+        if (locationData[type]) {
+            locationData[type].forEach(function(location) {
+                $locationId.append('<option value="' + location.id + '">' + location.name + '</option>');
             });
+        } else {
+            // For site, vendor, etc. (no data loaded)
+            console.log('No location data for type: ' + type);
         }
     });
 

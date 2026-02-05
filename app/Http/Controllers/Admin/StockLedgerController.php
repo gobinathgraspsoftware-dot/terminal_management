@@ -174,6 +174,7 @@ class StockLedgerController extends Controller
 
     /**
      * Apply filters to query
+     * FIXED: Location filter now works with location_type alone OR with both location_type and location_id
      */
     protected function applyFilters($query, Request $request): void
     {
@@ -185,8 +186,27 @@ class StockLedgerController extends Controller
             $query->where('transaction_type', $request->transaction_type);
         }
 
-        if ($request->filled('location_type') && $request->filled('location_id')) {
-            $query->byLocation($request->location_type, $request->location_id);
+        // FIXED: Allow filtering by location_type alone OR both location_type and location_id
+        if ($request->filled('location_type')) {
+            if ($request->filled('location_id')) {
+                // Filter by specific location (e.g., specific depot)
+                $query->where(function($q) use ($request) {
+                    $q->where(function($subQ) use ($request) {
+                        $subQ->where('from_location_type', $request->location_type)
+                             ->where('from_location_id', $request->location_id);
+                    })
+                    ->orWhere(function($subQ) use ($request) {
+                        $subQ->where('to_location_type', $request->location_type)
+                             ->where('to_location_id', $request->location_id);
+                    });
+                });
+            } else {
+                // Filter by location type only (e.g., all depots)
+                $query->where(function($q) use ($request) {
+                    $q->where('from_location_type', $request->location_type)
+                      ->orWhere('to_location_type', $request->location_type);
+                });
+            }
         }
 
         if ($request->filled('from_date')) {
@@ -207,16 +227,18 @@ class StockLedgerController extends Controller
 
         if ($request->filled('show_reversed')) {
             if ($request->show_reversed == '0') {
-                $query->notReversed();
+                $query->where('is_reversed', false);
             }
+            // If show_reversed == '1', show all (no filter)
         } else {
             // Default: exclude reversed entries
-            $query->activeMovements();
+            $query->where('is_reversed', false);
         }
     }
 
     /**
      * Build filters for export
+     * FIXED: Also updated to support location_type without location_id
      */
     protected function buildFilters(Request $request): array
     {
@@ -230,9 +252,13 @@ class StockLedgerController extends Controller
             $filters['transaction_type'] = $request->transaction_type;
         }
 
-        if ($request->filled('location_type') && $request->filled('location_id')) {
+        // FIXED: Include location_type even without location_id
+        if ($request->filled('location_type')) {
             $filters['location_type'] = $request->location_type;
-            $filters['location_id'] = $request->location_id;
+
+            if ($request->filled('location_id')) {
+                $filters['location_id'] = $request->location_id;
+            }
         }
 
         if ($request->filled('from_date')) {
@@ -241,6 +267,14 @@ class StockLedgerController extends Controller
 
         if ($request->filled('to_date')) {
             $filters['to_date'] = $request->to_date;
+        }
+
+        if ($request->filled('serial_no')) {
+            $filters['serial_no'] = $request->serial_no;
+        }
+
+        if ($request->filled('show_reversed')) {
+            $filters['show_reversed'] = $request->show_reversed;
         }
 
         return $filters;
