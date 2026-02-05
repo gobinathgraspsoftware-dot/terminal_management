@@ -21,13 +21,13 @@
                 @endif
             </a>
             @endcan
-            
+
             @can('recalculate_stock_balance')
             <button type="button" class="btn btn-info" id="recalculateBtn">
                 <i class="bi bi-arrow-repeat me-1"></i>Recalculate Balances
             </button>
             @endcan
-            
+
             @can('export_stock_balance')
             <button type="button" class="btn btn-success" id="exportBtn">
                 <i class="bi bi-file-earmark-excel me-1"></i>Export
@@ -255,7 +255,6 @@
     </div>
 </div>
 @endsection
-
 @push('scripts')
 <script>
 $(document).ready(function() {
@@ -309,27 +308,48 @@ $(document).ready(function() {
 
     // Recalculate balances
     $('#recalculateBtn').on('click', function() {
-        if (!confirm('This will recalculate all stock balances from the ledger. Continue?')) {
-            return;
-        }
-
-        const btn = $(this);
-        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Recalculating...');
-
-        $.ajax({
-            url: '{{ route("admin.stock-balance.recalculate") }}',
-            method: 'POST',
-            data: { _token: '{{ csrf_token() }}' },
-            success: function(response) {
-                toastr.success('Balances recalculated successfully');
-                table.ajax.reload();
-            },
-            error: function(xhr) {
-                toastr.error(xhr.responseJSON?.message || 'Recalculation failed');
-            },
-            complete: function() {
-                btn.prop('disabled', false).html('<i class="bi bi-arrow-repeat me-1"></i>Recalculate Balances');
+        Swal.fire({
+            title: 'Recalculate Balances?',
+            text: 'This will recalculate all stock balances from the ledger.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, recalculate!',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (!result.isConfirmed) {
+                return;
             }
+
+            const btn = $('#recalculateBtn');
+            btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Recalculating...');
+
+            $.ajax({
+                url: '{{ route("admin.stock-balance.recalculate") }}',
+                method: 'POST',
+                data: { _token: '{{ csrf_token() }}' },
+                success: function(response) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: 'Balances recalculated successfully',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    table.ajax.reload();
+                },
+                error: function(xhr) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: xhr.responseJSON?.message || 'Recalculation failed'
+                    });
+                },
+                complete: function() {
+                    btn.prop('disabled', false).html('<i class="bi bi-arrow-repeat me-1"></i>Recalculate Balances');
+                }
+            });
         });
     });
 

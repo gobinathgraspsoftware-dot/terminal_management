@@ -293,7 +293,7 @@ $(document).ready(function() {
             data: data,
             success: function(response) {
                 if (response.success) {
-                    toastr.success(response.message);
+                    Swal.fire({icon:'success',title:'Success!',text:response.message,timer:1500,showConfirmButton:false}).then(() => { window.location.reload(); });
                     setTimeout(function() {
                         window.location.reload();
                     }, 1500);
@@ -301,7 +301,7 @@ $(document).ready(function() {
             },
             error: function(xhr) {
                 const error = xhr.responseJSON?.message || 'Failed to reverse movement';
-                toastr.error(error);
+                Swal.fire({icon:'error',title:'Error!',text:error});
             }
         });
     });

@@ -198,11 +198,18 @@ class StockBalanceController extends Controller
     {
         Gate::authorize('export', StockBalance::class);
 
-        // Export implementation here
-        return response()->json([
-            'success' => false,
-            'message' => 'Export feature not yet implemented'
-        ]);
+        $filters = [
+            'model_id' => $request->model_id,
+            'category_id' => $request->category_id,
+            'location_type' => $request->location_type,
+            'location_id' => $request->location_id,
+            'stock_status' => $request->stock_status,
+        ];
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\StockBalanceExport($filters),
+            'stock-balance-' . date('Y-m-d-His') . '.xlsx'
+        );
     }
 
     /**

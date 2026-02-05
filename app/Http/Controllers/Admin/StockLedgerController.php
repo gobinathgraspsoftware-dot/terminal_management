@@ -93,15 +93,10 @@ class StockLedgerController extends Controller
 
         $filters = $this->buildFilters($request);
 
-        $ledgers = $this->ledgerService->getMovementHistory($filters)->get();
-
-        // Export implementation here
-        // return Excel::download(new StockLedgerExport($ledgers), 'stock-ledger-' . date('Y-m-d') . '.xlsx');
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Export feature not yet implemented'
-        ]);
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\StockLedgerExport($filters),
+            'stock-ledger-' . date('Y-m-d-His') . '.xlsx'
+        );
     }
 
     /**

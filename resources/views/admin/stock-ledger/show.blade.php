@@ -171,7 +171,7 @@
             <div class="row mt-4">
                 <div class="col-md-12">
                     <h5 class="border-bottom pb-2 mb-3">Reversal Information</h5>
-                    
+
                     @if($stockLedger->is_reversed)
                     <div class="alert alert-danger">
                         <h6><i class="bi bi-x-circle me-2"></i>This movement has been reversed</h6>
@@ -259,7 +259,7 @@
                     <div class="alert alert-warning">
                         <strong>Warning:</strong> This will create a counter-entry to reverse this stock movement. This action cannot be undone.
                     </div>
-                    
+
                     <div class="mb-3">
                         <label class="form-label">Reason for Reversal</label>
                         <textarea class="form-control" name="reason" rows="3" placeholder="Optional: Enter reason for reversing this movement"></textarea>
@@ -282,26 +282,35 @@
 $(document).ready(function() {
     $('#reverseForm').on('submit', function(e) {
         e.preventDefault();
-        
+
         const form = $(this);
         const url = form.attr('action');
         const data = form.serialize();
-        
+
         $.ajax({
             url: url,
             method: 'POST',
             data: data,
             success: function(response) {
                 if (response.success) {
-                    toastr.success(response.message);
-                    setTimeout(function() {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: response.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
                         window.location.reload();
-                    }, 1500);
+                    });
                 }
             },
             error: function(xhr) {
                 const error = xhr.responseJSON?.message || 'Failed to reverse movement';
-                toastr.error(error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: error
+                });
             }
         });
     });

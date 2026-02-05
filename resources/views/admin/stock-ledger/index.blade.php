@@ -295,12 +295,22 @@ $(document).ready(function() {
             },
             success: function(response) {
                 $('#reversalModal').modal('hide');
-                toastr.success(response.message);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: response.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
                 table.ajax.reload();
             },
             error: function(xhr) {
                 const error = xhr.responseJSON?.message || 'Reversal failed';
-                toastr.error(error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: error
+                });
             }
         });
     });
