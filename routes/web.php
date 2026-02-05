@@ -54,6 +54,9 @@ use App\Http\Controllers\Supervisor\StockLedgerController as SupervisorStockLedg
 use App\Http\Controllers\Supervisor\StockBalanceController as SupervisorStockBalanceController;
 use App\Http\Controllers\Technician\StockLedgerController as TechnicianStockLedgerController;
 use App\Http\Controllers\Technician\StockBalanceController as TechnicianStockBalanceController;
+use App\Http\Controllers\Admin\StockReportController as AdminStockReportController;
+use App\Http\Controllers\Supervisor\StockReportController as SupervisorStockReportController;
+use App\Http\Controllers\Technician\StockReportController as TechnicianStockReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -386,6 +389,19 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/release', [AdminStockBalanceController::class, 'releaseReservation'])->name('release');
     });
 
+    /* Stock-reports Routes */
+    Route::prefix('stock-reports')->name('stock-reports.')->group(function () {
+        Route::get('/', [AdminStockReportController::class, 'index'])->name('index');
+        Route::get('/movement', [AdminStockReportController::class, 'movementReport'])->name('movement');
+        Route::get('/stock-card/{serialId?}', [AdminStockReportController::class, 'stockCard'])->name('stock-card');
+        Route::get('/summary', [AdminStockReportController::class, 'summaryReport'])->name('summary');
+        Route::post('/export-movement', [AdminStockReportController::class, 'exportMovement'])->name('export-movement');
+        Route::get('/export-stock-card/{serialId}', [AdminStockReportController::class, 'exportStockCard'])->name('export-stock-card');
+        Route::post('/export-summary', [AdminStockReportController::class, 'exportSummary'])->name('export-summary');
+        Route::get('/print-stock-card/{serialId}', [AdminStockReportController::class, 'printStockCard'])->name('print-stock-card');
+        Route::get('/search-serials', [AdminStockReportController::class, 'searchSerials'])->name('search-serials');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -535,6 +551,19 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/technician/{technician}', [SupervisorStockBalanceController::class, 'show'])->name('show');
     });
 
+    /* Stock Reports Routes */
+    Route::prefix('stock-reports')->name('stock-reports.')->group(function () {
+        Route::get('/', [SupervisorStockReportController::class, 'index'])->name('index');
+        Route::get('/movement', [SupervisorStockReportController::class, 'movementReport'])->name('movement');
+        Route::get('/stock-card/{serialId?}', [SupervisorStockReportController::class, 'stockCard'])->name('stock-card');
+        Route::get('/summary', [SupervisorStockReportController::class, 'summaryReport'])->name('summary');
+        Route::post('/export-movement', [SupervisorStockReportController::class, 'exportMovement'])->name('export-movement');
+        Route::get('/export-stock-card/{serialId}', [SupervisorStockReportController::class, 'exportStockCard'])->name('export-stock-card');
+        Route::post('/export-summary', [SupervisorStockReportController::class, 'exportSummary'])->name('export-summary');
+        Route::get('/print-stock-card/{serialId}', [SupervisorStockReportController::class, 'printStockCard'])->name('print-stock-card');
+        Route::get('/search-serials', [SupervisorStockReportController::class, 'searchSerials'])->name('search-serials');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -661,7 +690,14 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/', [TechnicianStockBalanceController::class, 'index'])->name('stock-balance.index');
     });
 
-
+    /* Stock Reports Routes */
+    Route::prefix('stock-reports')->name('stock-reports.')->group(function () {
+        Route::get('/my-inventory', [TechnicianStockReportController::class, 'myInventory'])->name('my-inventory');
+        Route::get('/stock-card/{serialId?}', [TechnicianStockReportController::class, 'stockCard'])->name('stock-card');
+        Route::get('/export-stock-card/{serialId}', [TechnicianStockReportController::class, 'exportStockCard'])->name('export-stock-card');
+        Route::get('/print-stock-card/{serialId}', [TechnicianStockReportController::class, 'printStockCard'])->name('print-stock-card');
+        Route::get('/search-serials', [TechnicianStockReportController::class, 'searchSerials'])->name('search-serials');
+    });
 
     // Route::get('/inventory', function () {
     //     return 'My Inventory - Technician Only';

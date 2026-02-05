@@ -106,6 +106,14 @@ class RolePermissionSeeder extends Seeder
             // Stock Balance Permissions
             'view_stock_balance',
             'view_stock_alerts',
+
+            /* Stock report permissions */
+            'view_stock_reports',
+            'view_movement_report_stock_reports',
+            'view_stock_card_stock_reports',
+            'view_summary_report_stock_reports',
+            'export_stock_reports',
+            'print_stock_card_stock_reports',
         ];
 
         $supervisorRole->syncPermissions($supervisorPermissions);
@@ -156,6 +164,10 @@ class RolePermissionSeeder extends Seeder
 
             // Stock Balance Permissions
             'view_stock_balance',
+
+            /* Stock report permisions */
+            'view_stock_card_stock_reports',
+            'print_stock_card_stock_reports',
         ];
 
         $technicianRole->syncPermissions($technicianPermissions);

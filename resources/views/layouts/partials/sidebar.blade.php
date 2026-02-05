@@ -343,6 +343,51 @@
                 </ul>
             </div>
 
+            <!-- Stock Reports Section -->
+            @php
+                $isStockReportsRoute = str_contains($currentRoute ?? '', 'admin.stock-reports');
+            @endphp
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Stock Reports</small>
+                <ul class="nav flex-column mt-2">
+                    @can('view_stock_reports')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isStockReportsRoute && !str_contains($currentRoute ?? '', 'movement') && !str_contains($currentRoute ?? '', 'stock-card') && !str_contains($currentRoute ?? '', 'summary') ? 'active' : '' }}"
+                        href="{{ route('admin.stock-reports.index') }}">
+                            <i class="bi bi-bar-chart me-2"></i> Reports Dashboard
+                        </a>
+                    </li>
+                    @endcan
+
+                    @can('view_movement_report_stock_reports')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.movement') ? 'active' : '' }}"
+                        href="{{ route('admin.stock-reports.movement') }}">
+                            <i class="bi bi-arrow-left-right me-2"></i> Movement Report
+                        </a>
+                    </li>
+                    @endcan
+
+                    @can('view_stock_card_stock_reports')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.stock-card') ? 'active' : '' }}"
+                        href="{{ route('admin.stock-reports.stock-card') }}">
+                            <i class="bi bi-credit-card me-2"></i> Stock Card
+                        </a>
+                    </li>
+                    @endcan
+
+                    @can('view_summary_report_stock_reports')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.summary') ? 'active' : '' }}"
+                        href="{{ route('admin.stock-reports.summary') }}">
+                            <i class="bi bi-file-earmark-bar-graph me-2"></i> Summary Report
+                        </a>
+                    </li>
+                    @endcan
+                </ul>
+            </div>
+
             <!-- Profile Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
@@ -622,6 +667,51 @@
                 </ul>
             </div>
 
+            <!-- Stock Reports Section -->
+            @php
+                $isStockReportsRoute = str_contains($currentRoute ?? '', 'supervisor.stock-reports');
+            @endphp
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Stock Reports</small>
+                <ul class="nav flex-column mt-2">
+                    @can('view_stock_reports')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isStockReportsRoute && !str_contains($currentRoute ?? '', 'movement') && !str_contains($currentRoute ?? '', 'stock-card') && !str_contains($currentRoute ?? '', 'summary') ? 'active' : '' }}"
+                        href="{{ route('supervisor.stock-reports.index') }}">
+                            <i class="bi bi-bar-chart me-2"></i> Reports Dashboard
+                        </a>
+                    </li>
+                    @endcan
+
+                    @can('view_movement_report_stock_reports')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.movement') ? 'active' : '' }}"
+                        href="{{ route('supervisor.stock-reports.movement') }}">
+                            <i class="bi bi-arrow-left-right me-2"></i> Movement Report
+                        </a>
+                    </li>
+                    @endcan
+
+                    @can('view_stock_card_stock_reports')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.stock-card') ? 'active' : '' }}"
+                        href="{{ route('supervisor.stock-reports.stock-card') }}">
+                            <i class="bi bi-credit-card me-2"></i> Stock Card
+                        </a>
+                    </li>
+                    @endcan
+
+                    @can('view_summary_report_stock_reports')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.summary') ? 'active' : '' }}"
+                        href="{{ route('supervisor.stock-reports.summary') }}">
+                            <i class="bi bi-file-earmark-bar-graph me-2"></i> Summary Report
+                        </a>
+                    </li>
+                    @endcan
+                </ul>
+            </div>
+
             <!-- Profile Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
@@ -765,6 +855,24 @@
                             <i class="bi bi-clock-history me-2"></i> Job History
                         </a>
                     </li>
+                </ul>
+            </div>
+
+            <!-- My Stock Reports Section -->
+            @php
+                $isStockReportsRoute = str_contains($currentRoute ?? '', 'technician.stock-reports');
+            @endphp
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">My Stock Reports</small>
+                <ul class="nav flex-column mt-2">
+                    @can('view_stock_card_stock_reports')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.stock-card') ? 'active' : '' }}"
+                        href="{{ route('technician.stock-reports.stock-card') }}">
+                            <i class="bi bi-credit-card me-2"></i> My Stock Card
+                        </a>
+                    </li>
+                    @endcan
                 </ul>
             </div>
 
