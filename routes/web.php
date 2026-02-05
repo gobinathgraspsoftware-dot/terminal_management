@@ -410,8 +410,6 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/detailed', [AdminStockValuationController::class, 'detailed'])->name('detailed');
         Route::get('/movement-value', [AdminStockValuationController::class, 'movementValue'])->name('movement-value');
         Route::get('/aging', [AdminStockValuationController::class, 'aging'])->name('aging');
-
-        // Export routes
         Route::get('/export-summary', [AdminStockValuationController::class, 'exportSummary'])->name('export-summary');
         Route::get('/export-detailed', [AdminStockValuationController::class, 'exportDetailed'])->name('export-detailed');
         Route::get('/export-movement-value', [AdminStockValuationController::class, 'exportMovementValue'])->name('export-movement-value');

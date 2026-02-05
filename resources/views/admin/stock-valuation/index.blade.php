@@ -9,9 +9,9 @@
             <p class="text-muted mb-0">Overview of inventory value across all locations</p>
         </div>
         <div>
-            <button type="button" class="btn btn-outline-primary me-2" onclick="window.print()">
+            {{-- <button type="button" class="btn btn-outline-primary me-2" onclick="window.print()">
                 <i class="bi bi-printer"></i> Print
-            </button>
+            </button> --}}
             <button type="button" class="btn btn-success" onclick="exportSummary()">
                 <i class="bi bi-file-earmark-excel"></i> Export
             </button>
