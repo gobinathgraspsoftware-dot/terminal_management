@@ -90,144 +90,152 @@
     {{-- Row 1: Stock by Category + Category Distribution Chart --}}
     <div class="row g-3 mb-4">
         <div class="col-lg-7">
-            <x-widgets.inventory-widget
-                id="stockByCategory"
-                title="Stock Summary by Category"
-                icon="bi-grid-3x3-gap"
-                :ajaxUrl="route('admin.inventory-dashboard.stock-by-category')"
-                height="320px"
-            >
-                <div class="text-center py-4 text-muted">
-                    <div class="spinner-border spinner-border-sm" role="status"></div>
-                    <div class="mt-2"><small>Loading categories...</small></div>
-                </div>
-            </x-widgets.inventory-widget>
+            @include('components.inventory-widget', [
+                'widgetId'      => 'stockByCategory',
+                'widgetTitle'   => 'Stock Summary by Category',
+                'widgetIcon'    => 'bi-grid-3x3-gap',
+                'widgetColor'   => 'primary',
+                'widgetHeight'  => '320px',
+                'widgetContent' => '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><div class="mt-2"><small>Loading categories...</small></div></div>',
+            ])
         </div>
         <div class="col-lg-5">
-            <x-widgets.inventory-widget
-                id="categoryChart"
-                title="Category Distribution"
-                icon="bi-pie-chart"
-                :ajaxUrl="route('admin.inventory-dashboard.category-distribution')"
-                height="320px"
-            >
-                <canvas id="categoryPieChart" height="250"></canvas>
-            </x-widgets.inventory-widget>
+            @include('components.inventory-widget', [
+                'widgetId'      => 'categoryChart',
+                'widgetTitle'   => 'Category Distribution',
+                'widgetIcon'    => 'bi-pie-chart',
+                'widgetColor'   => 'primary',
+                'widgetHeight'  => '320px',
+                'widgetContent' => '<canvas id="categoryPieChart" height="250"></canvas>',
+            ])
         </div>
     </div>
 
     {{-- Row 2: Stock by Status + Stock by Depot --}}
     <div class="row g-3 mb-4">
         <div class="col-lg-5">
-            <x-widgets.inventory-widget
-                id="stockByStatus"
-                title="Stock by Status"
-                icon="bi-tags"
-                :ajaxUrl="route('admin.inventory-dashboard.stock-by-status')"
-                height="320px"
-            >
-                <div class="text-center py-4 text-muted">
-                    <div class="spinner-border spinner-border-sm" role="status"></div>
-                    <div class="mt-2"><small>Loading statuses...</small></div>
-                </div>
-            </x-widgets.inventory-widget>
+            @include('components.inventory-widget', [
+                'widgetId'      => 'stockByStatus',
+                'widgetTitle'   => 'Stock by Status',
+                'widgetIcon'    => 'bi-tags',
+                'widgetColor'   => 'primary',
+                'widgetHeight'  => '320px',
+                'widgetContent' => '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><div class="mt-2"><small>Loading statuses...</small></div></div>',
+            ])
         </div>
         <div class="col-lg-7">
-            <x-widgets.inventory-widget
-                id="stockByDepot"
-                title="Stock by Depot"
-                icon="bi-building"
-                :ajaxUrl="route('admin.inventory-dashboard.stock-by-depot')"
-                height="320px"
-            >
-                <div class="text-center py-4 text-muted">
-                    <div class="spinner-border spinner-border-sm" role="status"></div>
-                    <div class="mt-2"><small>Loading depots...</small></div>
-                </div>
-            </x-widgets.inventory-widget>
+            @include('components.inventory-widget', [
+                'widgetId'      => 'stockByDepot',
+                'widgetTitle'   => 'Stock by Depot',
+                'widgetIcon'    => 'bi-building',
+                'widgetColor'   => 'primary',
+                'widgetHeight'  => '320px',
+                'widgetContent' => '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><div class="mt-2"><small>Loading depots...</small></div></div>',
+            ])
         </div>
     </div>
 
     {{-- Row 3: Low Stock Alerts --}}
     <div class="row g-3 mb-4">
         <div class="col-12">
-            <x-widgets.inventory-widget
-                id="lowStockAlerts"
-                title="Low Stock Alerts"
-                icon="bi-exclamation-triangle"
-                color="danger"
-                :ajaxUrl="route('admin.inventory-dashboard.low-stock-alerts')"
-                height="350px"
-            >
-                <div class="text-center py-4 text-muted">
-                    <div class="spinner-border spinner-border-sm" role="status"></div>
-                    <div class="mt-2"><small>Loading alerts...</small></div>
-                </div>
-            </x-widgets.inventory-widget>
+            @include('components.inventory-widget', [
+                'widgetId'      => 'lowStockAlerts',
+                'widgetTitle'   => 'Low Stock Alerts',
+                'widgetIcon'    => 'bi-exclamation-triangle',
+                'widgetColor'   => 'danger',
+                'widgetHeight'  => '350px',
+                'widgetContent' => '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><div class="mt-2"><small>Loading alerts...</small></div></div>',
+            ])
         </div>
     </div>
 
     {{-- Row 4: Recent Movements + Movement Trend --}}
     <div class="row g-3 mb-4">
         <div class="col-lg-7">
-            <x-widgets.inventory-widget
-                id="recentMovements"
-                title="Recent Stock Movements"
-                icon="bi-arrow-left-right"
-                :ajaxUrl="route('admin.inventory-dashboard.recent-movements')"
-                height="400px"
-            >
-                <div class="text-center py-4 text-muted">
-                    <div class="spinner-border spinner-border-sm" role="status"></div>
-                    <div class="mt-2"><small>Loading movements...</small></div>
-                </div>
-            </x-widgets.inventory-widget>
+            @include('components.inventory-widget', [
+                'widgetId'      => 'recentMovements',
+                'widgetTitle'   => 'Recent Stock Movements',
+                'widgetIcon'    => 'bi-arrow-left-right',
+                'widgetColor'   => 'primary',
+                'widgetHeight'  => '400px',
+                'widgetContent' => '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><div class="mt-2"><small>Loading movements...</small></div></div>',
+            ])
         </div>
         <div class="col-lg-5">
-            <x-widgets.inventory-widget
-                id="movementTrend"
-                title="Movement Trend (7 Days)"
-                icon="bi-graph-up"
-                :ajaxUrl="route('admin.inventory-dashboard.movement-trend')"
-                height="400px"
-            >
-                <canvas id="movementTrendChart" height="300"></canvas>
-            </x-widgets.inventory-widget>
+            @include('components.inventory-widget', [
+                'widgetId'      => 'movementTrend',
+                'widgetTitle'   => 'Movement Trend (7 Days)',
+                'widgetIcon'    => 'bi-graph-up',
+                'widgetColor'   => 'primary',
+                'widgetHeight'  => '400px',
+                'widgetContent' => '<canvas id="movementTrendChart" height="300"></canvas>',
+            ])
         </div>
     </div>
 
     {{-- Row 5: Stock Aging + Top Models --}}
     <div class="row g-3 mb-4">
         <div class="col-lg-5">
-            <x-widgets.inventory-widget
-                id="stockAging"
-                title="Stock Aging Analysis"
-                icon="bi-hourglass-split"
-                color="warning"
-                :ajaxUrl="route('admin.inventory-dashboard.stock-aging')"
-                height="380px"
-            >
-                <canvas id="agingChart" height="200"></canvas>
-                <div id="agingDetails" class="mt-2"></div>
-            </x-widgets.inventory-widget>
+            @include('components.inventory-widget', [
+                'widgetId'      => 'stockAging',
+                'widgetTitle'   => 'Stock Aging Analysis',
+                'widgetIcon'    => 'bi-hourglass-split',
+                'widgetColor'   => 'warning',
+                'widgetHeight'  => '380px',
+                'widgetContent' => '<canvas id="agingChart" height="200"></canvas><div id="agingDetails" class="mt-2"></div>',
+            ])
         </div>
         <div class="col-lg-7">
-            <x-widgets.inventory-widget
-                id="topModels"
-                title="Top Models by Quantity"
-                icon="bi-trophy"
-                color="success"
-                :ajaxUrl="route('admin.inventory-dashboard.top-models')"
-                height="380px"
-            >
-                <div class="text-center py-4 text-muted">
-                    <div class="spinner-border spinner-border-sm" role="status"></div>
-                    <div class="mt-2"><small>Loading top models...</small></div>
-                </div>
-            </x-widgets.inventory-widget>
+            @include('components.inventory-widget', [
+                'widgetId'      => 'topModels',
+                'widgetTitle'   => 'Top Models by Quantity',
+                'widgetIcon'    => 'bi-trophy',
+                'widgetColor'   => 'success',
+                'widgetHeight'  => '380px',
+                'widgetContent' => '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><div class="mt-2"><small>Loading top models...</small></div></div>',
+            ])
         </div>
     </div>
 @endsection
+
+@push('styles')
+<style>
+    .inventory-widget {
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        transition: box-shadow 0.2s;
+    }
+    .inventory-widget:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .inventory-widget .card-header {
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+        border-radius: 8px 8px 0 0;
+    }
+    .inventory-widget .card-header h6 {
+        font-size: 0.875rem;
+    }
+    .inventory-widget .widget-loading {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.85);
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .inventory-widget .widget-refresh-btn {
+        padding: 0.15rem 0.4rem;
+        font-size: 0.75rem;
+        line-height: 1;
+    }
+</style>
+@endpush
 
 @push('scripts')
 <script>

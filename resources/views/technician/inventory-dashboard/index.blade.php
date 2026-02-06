@@ -64,109 +64,100 @@
     {{-- Row 1: Stock by Category + Category Chart --}}
     <div class="row g-3 mb-4">
         <div class="col-lg-7">
-            <x-widgets.inventory-widget
-                id="stockByCategory"
-                title="My Stock by Category"
-                icon="bi-grid-3x3-gap"
-                :ajaxUrl="route('technician.inventory-dashboard.stock-by-category')"
-                height="300px"
-            >
-                <div class="text-center py-4 text-muted">
-                    <div class="spinner-border spinner-border-sm" role="status"></div>
-                    <div class="mt-2"><small>Loading...</small></div>
-                </div>
-            </x-widgets.inventory-widget>
+            @include('partials.inventory-widget', [
+                'widgetId'      => 'stockByCategory',
+                'widgetTitle'   => 'My Stock by Category',
+                'widgetIcon'    => 'bi-grid-3x3-gap',
+                'widgetColor'   => 'primary',
+                'widgetHeight'  => '300px',
+                'widgetContent' => '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><div class="mt-2"><small>Loading...</small></div></div>',
+            ])
         </div>
         <div class="col-lg-5">
-            <x-widgets.inventory-widget
-                id="categoryChart"
-                title="Category Distribution"
-                icon="bi-pie-chart"
-                :ajaxUrl="route('technician.inventory-dashboard.category-distribution')"
-                height="300px"
-            >
-                <canvas id="categoryPieChart" height="220"></canvas>
-            </x-widgets.inventory-widget>
+            @include('partials.inventory-widget', [
+                'widgetId'      => 'categoryChart',
+                'widgetTitle'   => 'Category Distribution',
+                'widgetIcon'    => 'bi-pie-chart',
+                'widgetColor'   => 'primary',
+                'widgetHeight'  => '300px',
+                'widgetContent' => '<canvas id="categoryPieChart" height="220"></canvas>',
+            ])
         </div>
     </div>
 
     {{-- Row 2: Low Stock + Movement Trend --}}
     <div class="row g-3 mb-4">
         <div class="col-lg-6">
-            <x-widgets.inventory-widget
-                id="lowStockAlerts"
-                title="Low Stock Alerts"
-                icon="bi-exclamation-triangle"
-                color="danger"
-                :ajaxUrl="route('technician.inventory-dashboard.low-stock-alerts')"
-                height="320px"
-            >
-                <div class="text-center py-4 text-muted">
-                    <div class="spinner-border spinner-border-sm" role="status"></div>
-                </div>
-            </x-widgets.inventory-widget>
+            @include('partials.inventory-widget', [
+                'widgetId'      => 'lowStockAlerts',
+                'widgetTitle'   => 'Low Stock Alerts',
+                'widgetIcon'    => 'bi-exclamation-triangle',
+                'widgetColor'   => 'danger',
+                'widgetHeight'  => '320px',
+                'widgetContent' => '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" role="status"></div></div>',
+            ])
         </div>
         <div class="col-lg-6">
-            <x-widgets.inventory-widget
-                id="movementTrend"
-                title="Movement Trend (7 Days)"
-                icon="bi-graph-up"
-                :ajaxUrl="route('technician.inventory-dashboard.movement-trend')"
-                height="320px"
-            >
-                <canvas id="movementTrendChart" height="250"></canvas>
-            </x-widgets.inventory-widget>
+            @include('partials.inventory-widget', [
+                'widgetId'      => 'movementTrend',
+                'widgetTitle'   => 'Movement Trend (7 Days)',
+                'widgetIcon'    => 'bi-graph-up',
+                'widgetColor'   => 'primary',
+                'widgetHeight'  => '320px',
+                'widgetContent' => '<canvas id="movementTrendChart" height="250"></canvas>',
+            ])
         </div>
     </div>
 
     {{-- Row 3: Recent Movements --}}
     <div class="row g-3 mb-4">
         <div class="col-12">
-            <x-widgets.inventory-widget
-                id="recentMovements"
-                title="My Recent Movements"
-                icon="bi-arrow-left-right"
-                :ajaxUrl="route('technician.inventory-dashboard.recent-movements')"
-                height="380px"
-            >
-                <div class="text-center py-4 text-muted">
-                    <div class="spinner-border spinner-border-sm" role="status"></div>
-                </div>
-            </x-widgets.inventory-widget>
+            @include('partials.inventory-widget', [
+                'widgetId'      => 'recentMovements',
+                'widgetTitle'   => 'My Recent Movements',
+                'widgetIcon'    => 'bi-arrow-left-right',
+                'widgetColor'   => 'primary',
+                'widgetHeight'  => '380px',
+                'widgetContent' => '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" role="status"></div></div>',
+            ])
         </div>
     </div>
 
     {{-- Row 4: Stock Aging + Top Models --}}
     <div class="row g-3 mb-4">
         <div class="col-lg-5">
-            <x-widgets.inventory-widget
-                id="stockAging"
-                title="Stock Aging"
-                icon="bi-hourglass-split"
-                color="warning"
-                :ajaxUrl="route('technician.inventory-dashboard.stock-aging')"
-                height="350px"
-            >
-                <canvas id="agingChart" height="180"></canvas>
-                <div id="agingDetails" class="mt-2"></div>
-            </x-widgets.inventory-widget>
+            @include('partials.inventory-widget', [
+                'widgetId'      => 'stockAging',
+                'widgetTitle'   => 'Stock Aging',
+                'widgetIcon'    => 'bi-hourglass-split',
+                'widgetColor'   => 'warning',
+                'widgetHeight'  => '350px',
+                'widgetContent' => '<canvas id="agingChart" height="180"></canvas><div id="agingDetails" class="mt-2"></div>',
+            ])
         </div>
         <div class="col-lg-7">
-            <x-widgets.inventory-widget
-                id="topModels"
-                title="My Top Models"
-                icon="bi-trophy"
-                color="success"
-                :ajaxUrl="route('technician.inventory-dashboard.top-models')"
-                height="350px"
-            >
-                <div class="text-center py-4 text-muted">
-                    <div class="spinner-border spinner-border-sm" role="status"></div>
-                </div>
-            </x-widgets.inventory-widget>
+            @include('partials.inventory-widget', [
+                'widgetId'      => 'topModels',
+                'widgetTitle'   => 'My Top Models',
+                'widgetIcon'    => 'bi-trophy',
+                'widgetColor'   => 'success',
+                'widgetHeight'  => '350px',
+                'widgetContent' => '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm" role="status"></div></div>',
+            ])
         </div>
     </div>
 @endsection
+
+@push('styles')
+<style>
+    .inventory-widget { border: none; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: box-shadow 0.2s; }
+    .inventory-widget:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .inventory-widget .card-header { background: white; border-bottom: 1px solid #e2e8f0; border-radius: 8px 8px 0 0; }
+    .inventory-widget .card-header h6 { font-size: 0.875rem; }
+    .inventory-widget .widget-loading { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.85); z-index: 5; display: flex; align-items: center; justify-content: center; }
+    .inventory-widget .widget-refresh-btn { padding: 0.15rem 0.4rem; font-size: 0.75rem; line-height: 1; }
+</style>
+@endpush
 
 @push('scripts')
 <script>
@@ -201,7 +192,6 @@ $(document).ready(function() {
         loadWidget('stockByCategory', '{{ route("technician.inventory-dashboard.stock-by-category") }}', function(response) {
             let html = '<table class="table table-sm table-hover mb-0"><thead><tr>' +
                 '<th>Category</th><th class="text-end">On Hand</th><th class="text-end">Available</th></tr></thead><tbody>';
-
             if (response.data.length === 0) {
                 html += '<tr><td colspan="3" class="text-center text-muted py-3">No stock assigned</td></tr>';
             } else {
@@ -211,7 +201,6 @@ $(document).ready(function() {
                         <td class="text-end fw-bold">${parseFloat(item.total_available).toLocaleString()}</td></tr>`;
                 });
             }
-
             html += '</tbody></table>';
             $('#stockByCategory-content').html(html);
         });
@@ -223,7 +212,6 @@ $(document).ready(function() {
             const ctx = document.getElementById('categoryPieChart');
             if (!ctx) return;
             if (categoryPieChart) categoryPieChart.destroy();
-
             categoryPieChart = new Chart(ctx.getContext('2d'), {
                 type: 'doughnut',
                 data: { labels: response.data.labels, datasets: [{ data: response.data.data, backgroundColor: response.data.colors, borderWidth: 2, borderColor: '#fff' }] },
@@ -236,7 +224,6 @@ $(document).ready(function() {
     function loadLowStockAlerts() {
         loadWidget('lowStockAlerts', '{{ route("technician.inventory-dashboard.low-stock-alerts") }}', function(response) {
             let html = '';
-
             if (response.data.length === 0) {
                 html = '<div class="text-center py-4"><i class="bi bi-check-circle text-success fs-3 d-block mb-2"></i><span class="text-muted">All stock levels healthy!</span></div>';
             } else {
@@ -251,7 +238,6 @@ $(document).ready(function() {
                 });
                 html += '</div>';
             }
-
             $('#lowStockAlerts-content').html(html);
         });
     }
@@ -262,16 +248,12 @@ $(document).ready(function() {
             const ctx = document.getElementById('movementTrendChart');
             if (!ctx) return;
             if (movementTrendChart) movementTrendChart.destroy();
-
             movementTrendChart = new Chart(ctx.getContext('2d'), {
                 type: 'bar',
-                data: {
-                    labels: response.data.labels,
-                    datasets: [
-                        { label: 'Received', data: response.data.inbound, backgroundColor: 'rgba(25, 135, 84, 0.7)', borderRadius: 4 },
-                        { label: 'Issued', data: response.data.outbound, backgroundColor: 'rgba(220, 53, 69, 0.7)', borderRadius: 4 }
-                    ]
-                },
+                data: { labels: response.data.labels, datasets: [
+                    { label: 'Received', data: response.data.inbound, backgroundColor: 'rgba(25, 135, 84, 0.7)', borderRadius: 4 },
+                    { label: 'Issued', data: response.data.outbound, backgroundColor: 'rgba(220, 53, 69, 0.7)', borderRadius: 4 }
+                ]},
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
             });
         });
@@ -281,7 +263,6 @@ $(document).ready(function() {
     function loadRecentMovements() {
         loadWidget('recentMovements', '{{ route("technician.inventory-dashboard.recent-movements") }}', function(response) {
             let html = '<div class="list-group list-group-flush">';
-
             if (response.data.length === 0) {
                 html += '<div class="text-center text-muted py-3">No recent movements</div>';
             } else {
@@ -298,7 +279,6 @@ $(document).ready(function() {
                     </div>`;
                 });
             }
-
             html += '</div>';
             $('#recentMovements-content').html(html);
         });
@@ -310,14 +290,12 @@ $(document).ready(function() {
             const ctx = document.getElementById('agingChart');
             if (!ctx) return;
             if (agingChart) agingChart.destroy();
-
             let brackets = response.aging.brackets;
             agingChart = new Chart(ctx.getContext('2d'), {
                 type: 'bar',
                 data: { labels: brackets.map(b => b.label), datasets: [{ data: brackets.map(b => b.count), backgroundColor: brackets.map(b => b.color), borderRadius: 4 }] },
                 options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
             });
-
             $('#agingDetails').html(`<div class="text-center"><small class="text-muted">Total with me: <strong>${response.aging.total_in_stock}</strong></small></div>`);
         });
     }
@@ -327,7 +305,6 @@ $(document).ready(function() {
         loadWidget('topModels', '{{ route("technician.inventory-dashboard.top-models") }}', function(response) {
             let html = '<table class="table table-sm table-hover mb-0"><thead><tr>' +
                 '<th>#</th><th>Model</th><th class="text-end">On Hand</th><th class="text-end">Available</th></tr></thead><tbody>';
-
             if (response.data.length === 0) {
                 html += '<tr><td colspan="4" class="text-center text-muted py-3">No models found</td></tr>';
             } else {
@@ -337,7 +314,6 @@ $(document).ready(function() {
                         <td class="text-end fw-bold">${parseFloat(item.total_available).toLocaleString()}</td></tr>`;
                 });
             }
-
             html += '</tbody></table>';
             $('#topModels-content').html(html);
         });
@@ -355,10 +331,7 @@ $(document).ready(function() {
 
     loadAllWidgets();
 
-    $('#btnRefreshAll').on('click', function() {
-        loadAllWidgets();
-        showToast('Dashboard refreshed', 'success');
-    });
+    $('#btnRefreshAll').on('click', function() { loadAllWidgets(); showToast('Dashboard refreshed', 'success'); });
 
     $(document).on('click', '.widget-refresh-btn', function() {
         let widgetId = $(this).data('widget-id');
