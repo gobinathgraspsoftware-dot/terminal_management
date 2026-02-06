@@ -51,7 +51,7 @@ class RolePermissionSeeder extends Seeder
             'bulk_import_inventory', 'bulk_update_inventory', 'bulk_transfer_inventory', 'print_labels_inventory',
 
             // Stock Issues/Transfers
-            'view_stock_issues', 'create_stock_issues', 'post_stock_issues',
+            'view_stock_issues', 'create_stock_issues', 'post_stock_issues', 'edit_stock_issues',
             'view_stock_transfers', 'create_stock_transfers', 'approve_stock_transfers',
 
             // Procurement - View and create

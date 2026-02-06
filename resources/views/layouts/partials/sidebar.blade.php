@@ -237,6 +237,7 @@
                 $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'admin.serial-movement-history');
                 $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'admin.bulk-serials');
                 $isStockValuationRoute = str_contains($currentRoute ?? '', 'admin.stock-valuation');
+                $isStockIssueRoute = str_contains($currentRoute ?? '', 'admin.stock-issues');
             @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
@@ -283,6 +284,16 @@
                         <a class="nav-link {{ $isStockLedgerRoute ? 'active' : '' }}"
                         href="{{ route('admin.stock-ledger.index') }}">
                             <i class="bi bi-journal-text me-2"></i> Stock Ledger
+                        </a>
+                    </li>
+                    @endcan
+
+                    {{-- Stock Issues --}}
+                    @can('view_stock_issues')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isStockIssueRoute ? 'active' : '' }}"
+                        href="{{ route('admin.stock-issues.index') }}">
+                            <i class="bi bi-box-arrow-right me-2"></i> Stock Issues
                         </a>
                     </li>
                     @endcan
@@ -571,6 +582,7 @@
                 $isStockBalanceRoute = str_contains($currentRoute ?? '', 'supervisor.stock-balance');
                 $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'supervisor.bulk-serials');
                 $isStockValuationRoute = str_contains($currentRoute ?? '', 'supervisor.stock-valuation');
+                $isStockIssueRoute = str_contains($currentRoute ?? '', 'supervisor.stock-issues');
             @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
@@ -617,6 +629,16 @@
                         <a class="nav-link {{ $isStockLedgerRoute ? 'active' : '' }}"
                         href="{{ route('supervisor.stock-ledger.index') }}">
                             <i class="bi bi-journal-text me-2"></i> Stock Ledger
+                        </a>
+                    </li>
+                    @endcan
+
+                    {{-- Stock Issues --}}
+                    @can('view_stock_issues')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isStockIssueRoute ? 'active' : '' }}"
+                        href="{{ route('supervisor.stock-issues.index') }}">
+                            <i class="bi bi-box-arrow-right me-2"></i> Stock Issues
                         </a>
                     </li>
                     @endcan
@@ -951,6 +973,7 @@
                 $isStockLedgerRoute = str_contains($currentRoute ?? '', 'technician.stock-ledger');
                 $isStockBalanceRoute = str_contains($currentRoute ?? '', 'technician.stock-balance');
                 $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'technician.bulk-serials');
+                $isStockIssueRoute = str_contains($currentRoute ?? '', 'technician.stock-issues');
             @endphp
 
             <!-- Inventory Section -->
@@ -992,6 +1015,17 @@
                         </a>
                     </li>
                     @endcan
+
+                    {{-- My Stock Issues --}}
+                    @can('view_stock_issues')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isStockIssueRoute ? 'active' : '' }}"
+                        href="{{ route('technician.stock-issues.index') }}">
+                            <i class="bi bi-box-arrow-right me-2"></i> My Stock Issues
+                        </a>
+                    </li>
+                    @endcan
+
 
                     {{-- My Stock Balance --}}
                     @can('view_stock_balance')

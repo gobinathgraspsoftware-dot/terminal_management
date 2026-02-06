@@ -62,6 +62,9 @@ use App\Http\Controllers\Supervisor\StockValuationController as SupervisorStockV
 use App\Http\Controllers\Admin\InventoryDashboardController as AdminInventoryDashboardController;
 use App\Http\Controllers\Supervisor\InventoryDashboardController as SupervisorInventoryDashboardController;
 use App\Http\Controllers\Technician\InventoryDashboardController as TechnicianInventoryDashboardController;
+use App\Http\Controllers\Admin\StockIssueController as AdminStockIssueController;
+use App\Http\Controllers\Supervisor\StockIssueController as SupervisorStockIssueController;
+use App\Http\Controllers\Technician\StockIssueController as TechnicianStockIssueController;
 
 /*
 |--------------------------------------------------------------------------
@@ -433,6 +436,17 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/movement-summary', [AdminInventoryDashboardController::class, 'movementSummary'])->name('movement-summary');
     });
 
+    /* Stock Issues Routes */
+    Route::prefix('stock-issues')->name('stock-issues.')->group(function () {
+        Route::get('/export', [AdminStockIssueController::class, 'export'])->name('export');
+        Route::get('/get-available-serials', [AdminStockIssueController::class, 'getAvailableSerials'])->name('get-available-serials');
+        Route::get('/get-technician-serials', [AdminStockIssueController::class, 'getTechnicianSerials'])->name('get-technician-serials');
+        Route::post('/{stockIssue}/post', [AdminStockIssueController::class, 'post'])->name('post');
+        Route::post('/{stockIssue}/cancel', [AdminStockIssueController::class, 'cancel'])->name('cancel');
+        Route::get('/{stockIssue}/print', [AdminStockIssueController::class, 'print'])->name('print');
+        Route::resource('/', AdminStockIssueController::class);
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -617,6 +631,16 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/movement-summary', [SupervisorInventoryDashboardController::class, 'movementSummary'])->name('movement-summary');
     });
 
+    /* Stock Issues Routes */
+    Route::prefix('stock-issues')->name('stock-issues.')->group(function () {
+        Route::get('/export', [SupervisorStockIssueController::class, 'export'])->name('export');
+        Route::get('/get-available-serials', [SupervisorStockIssueController::class, 'getAvailableSerials'])->name('get-available-serials');
+        Route::get('/get-technician-serials', [SupervisorStockIssueController::class, 'getTechnicianSerials'])->name('get-technician-serials');
+        Route::post('/{stockIssue}/post', [SupervisorStockIssueController::class, 'post'])->name('post');
+        Route::get('/{stockIssue}/print', [SupervisorStockIssueController::class, 'print'])->name('print');
+        Route::resource('/', SupervisorStockIssueController::class);
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -763,6 +787,11 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/movement-trend', [TechnicianInventoryDashboardController::class, 'movementTrend'])->name('movement-trend');
         Route::get('/category-distribution', [TechnicianInventoryDashboardController::class, 'categoryDistribution'])->name('category-distribution');
         Route::get('/movement-summary', [TechnicianInventoryDashboardController::class, 'movementSummary'])->name('movement-summary');
+    });
+
+    /* Stock Issues (View Only) */
+    Route::prefix('stock-issues')->name('stock-issues')->group(function () {
+        Route::resource('/', TechnicianStockIssueController::class)->only(['index', 'show']);
     });
 
     /* Claims */
