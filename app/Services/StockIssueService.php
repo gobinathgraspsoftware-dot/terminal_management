@@ -20,8 +20,8 @@ class StockIssueService
     public function getFilteredStockIssues($request, $role, $userId)
     {
         $query = StockIssue::with([
-            'fromDepot:id,name',
-            'toDepot:id,name',
+            'fromDepot:id,depot_name',
+            'toDepot:id,depot_name',
             'toTechnician:id,name',
             'fromTechnician:id,name',
         ]);

@@ -444,7 +444,14 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/{stockIssue}/post', [AdminStockIssueController::class, 'post'])->name('post');
         Route::post('/{stockIssue}/cancel', [AdminStockIssueController::class, 'cancel'])->name('cancel');
         Route::get('/{stockIssue}/print', [AdminStockIssueController::class, 'print'])->name('print');
-        Route::resource('/', AdminStockIssueController::class);
+        Route::get('/', [AdminStockIssueController::class, 'index'])->name('index');
+        Route::get('/create', [AdminStockIssueController::class, 'create'])->name('create');
+        Route::post('/', [AdminStockIssueController::class, 'store'])->name('store');
+        Route::get('/{stockIssue}', [AdminStockIssueController::class, 'show'])->name('show');
+        Route::get('/{stockIssue}/edit', [AdminStockIssueController::class, 'edit'])->name('edit');
+        Route::put('/{stockIssue}', [AdminStockIssueController::class, 'update'])->name('update');
+        Route::patch('/{stockIssue}', [AdminStockIssueController::class, 'update'])->name('update');
+        Route::delete('/{stockIssue}', [AdminStockIssueController::class, 'destroy'])->name('destroy');
     });
 
     /* Settings (requires specific permission) */
@@ -638,7 +645,14 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/get-technician-serials', [SupervisorStockIssueController::class, 'getTechnicianSerials'])->name('get-technician-serials');
         Route::post('/{stockIssue}/post', [SupervisorStockIssueController::class, 'post'])->name('post');
         Route::get('/{stockIssue}/print', [SupervisorStockIssueController::class, 'print'])->name('print');
-        Route::resource('/', SupervisorStockIssueController::class);
+        Route::get('/', [SupervisorStockIssueController::class, 'index'])->name('index');
+        Route::get('/create', [SupervisorStockIssueController::class, 'create'])->name('create');
+        Route::post('/', [SupervisorStockIssueController::class, 'store'])->name('store');
+        Route::get('/{stockIssue}', [SupervisorStockIssueController::class, 'show'])->name('show');
+        Route::get('/{stockIssue}/edit', [SupervisorStockIssueController::class, 'edit'])->name('edit');
+        Route::put('/{stockIssue}', [SupervisorStockIssueController::class, 'update'])->name('update');
+        Route::patch('/{stockIssue}', [SupervisorStockIssueController::class, 'update'])->name('update');
+        Route::delete('/{stockIssue}', [SupervisorStockIssueController::class, 'destroy'])->name('destroy');
     });
 
     /* Job Assignment (supervisor or admin) */
@@ -789,9 +803,10 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/movement-summary', [TechnicianInventoryDashboardController::class, 'movementSummary'])->name('movement-summary');
     });
 
-    /* Stock Issues (View Only) */
+    /* Stock Issues */
     Route::prefix('stock-issues')->name('stock-issues')->group(function () {
-        Route::resource('/', TechnicianStockIssueController::class)->only(['index', 'show']);
+        Route::get('/', [TechnicianStockIssueController::class, 'index'])->name('index');
+        Route::get('/{stockIssue}', [TechnicianStockIssueController::class, 'show'])->name('show');
     });
 
     /* Claims */
