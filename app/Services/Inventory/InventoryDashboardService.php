@@ -196,30 +196,22 @@ class InventoryDashboardService
     {
         $threshold = self::DEFAULT_LOW_STOCK_THRESHOLD;
 
-        $baseQuery = DB::table('stock_balances');
+        $baseQuery = DB::table('stock_balances')
+            ->where('quantity_on_hand', '>', 0);
 
-        if ($locationType) {
-            $baseQuery->where('stock_balances.location_type', $locationType);
-        }
-        if ($locationId) {
-            $baseQuery->where('stock_balances.location_id', $locationId);
-        }
+        $this->applyLocationFilter($baseQuery, $locationType, $locationId);
 
+        $totalAlerts = (clone $baseQuery)->where('quantity_available', '<=', $threshold)->count();
+        $outOfStock = (clone $baseQuery)->where('quantity_available', '<=', 0)->count();
         $lowStock = (clone $baseQuery)
-            ->where('stock_balances.quantity_on_hand', '>', 0)
-            ->where('stock_balances.quantity_available', '<=', $threshold)
-            ->where('stock_balances.quantity_available', '>', 0)
-            ->count();
-
-        $outOfStock = (clone $baseQuery)
-            ->where('stock_balances.quantity_available', '<=', 0)
-            ->where('stock_balances.quantity_on_hand', '>', 0)
+            ->where('quantity_available', '>', 0)
+            ->where('quantity_available', '<=', $threshold)
             ->count();
 
         return (object) [
-            'low_stock' => $lowStock,
+            'total_alerts' => $totalAlerts,
             'out_of_stock' => $outOfStock,
-            'total_alerts' => $lowStock + $outOfStock,
+            'low_stock'    => $lowStock,
         ];
     }
 
@@ -228,7 +220,7 @@ class InventoryDashboardService
     // =========================================================================
 
     /**
-     * Get recent stock movements
+     * Get recent stock movements (from stock_ledger)
      */
     public function getRecentMovements(?string $locationType = null, ?int $locationId = null, int $limit = 15): Collection
     {
@@ -246,8 +238,6 @@ class InventoryDashboardService
                 'stock_ledger.from_location_id',
                 'stock_ledger.to_location_type',
                 'stock_ledger.to_location_id',
-                'stock_ledger.reference_type',
-                'stock_ledger.reference_id',
                 'stock_ledger.remarks',
                 'stock_ledger.created_at',
                 'stock_ledger.is_reversed',
@@ -281,114 +271,93 @@ class InventoryDashboardService
         });
     }
 
-    /**
-     * Get movement summary for a date range
-     */
-    public function getMovementSummary(int $days = 7, ?string $locationType = null, ?int $locationId = null): Collection
-    {
-        $startDate = Carbon::now()->subDays($days)->startOfDay();
-
-        $query = DB::table('stock_ledger')
-            ->select(
-                'transaction_type',
-                DB::raw('COUNT(*) as total_count'),
-                DB::raw('SUM(ABS(quantity)) as total_quantity')
-            )
-            ->where('transaction_date', '>=', $startDate->toDateString())
-            ->where('is_reversed', false)
-            ->groupBy('transaction_type')
-            ->orderBy('total_count', 'desc');
-
-        if ($locationType && $locationId) {
-            $query->where(function ($q) use ($locationType, $locationId) {
-                $q->where(function ($sub) use ($locationType, $locationId) {
-                    $sub->where('from_location_type', $locationType)
-                        ->where('from_location_id', $locationId);
-                })->orWhere(function ($sub) use ($locationType, $locationId) {
-                    $sub->where('to_location_type', $locationType)
-                        ->where('to_location_id', $locationId);
-                });
-            });
-        }
-
-        return $query->get()->map(function ($item) {
-            $item->type_label = StockLedger::TYPE_OPTIONS[$item->transaction_type] ?? ucfirst(str_replace('_', ' ', $item->transaction_type));
-            $item->type_color = StockLedger::TYPE_COLORS[$item->transaction_type] ?? 'secondary';
-            $item->type_icon = StockLedger::TYPE_ICONS[$item->transaction_type] ?? 'bi-arrow-left-right';
-            return $item;
-        });
-    }
-
     // =========================================================================
-    // WIDGET 4: STOCK AGING
+    // WIDGET 4: STOCK AGING ANALYSIS
     // =========================================================================
 
     /**
-     * Get stock aging data (items in stock > X days)
-     * Based on inventory_serials.grn_date or created_at
+     * Get stock aging analysis
+     * Groups inventory serials by age brackets (0-30, 31-60, 61-90, 90+ days)
      */
-    public function getStockAging(?string $locationType = null, ?int $locationId = null): object
+    public function getStockAging(?string $locationType = null, ?int $locationId = null): array
     {
-        $now = Carbon::now();
-
-        $baseQuery = DB::table('inventory_serials')
-            ->where('current_status', 'in_stock')
-            ->whereNull('deleted_at');
+        $query = DB::table('inventory_serials')
+            ->whereNull('deleted_at')
+            ->whereIn('current_status', ['in_stock', 'reserved', 'issued_to_tech']);
 
         if ($locationType) {
-            $baseQuery->where('current_location_type', $locationType);
+            $query->where('current_location_type', $locationType);
         }
         if ($locationId) {
-            $baseQuery->where('current_location_id', $locationId);
+            $query->where('current_location_id', $locationId);
         }
 
-        // Define aging brackets (days)
+        $serials = $query->get();
+        $now = Carbon::now();
+
+        // Initialize age brackets
         $brackets = [
-            ['label' => '0-30 Days',   'min' => 0,   'max' => 30,  'color' => '#198754'],
-            ['label' => '31-60 Days',  'min' => 31,  'max' => 60,  'color' => '#0dcaf0'],
-            ['label' => '61-90 Days',  'min' => 61,  'max' => 90,  'color' => '#ffc107'],
-            ['label' => '91-180 Days', 'min' => 91,  'max' => 180, 'color' => '#fd7e14'],
-            ['label' => '180+ Days',   'min' => 181, 'max' => 99999, 'color' => '#dc3545'],
+            [
+                'label' => '0-30 days',
+                'min'   => 0,
+                'max'   => 30,
+                'count' => 0,
+                'color' => 'rgba(25, 135, 84, 0.7)', // Green
+            ],
+            [
+                'label' => '31-60 days',
+                'min'   => 31,
+                'max'   => 60,
+                'count' => 0,
+                'color' => 'rgba(13, 110, 253, 0.7)', // Blue
+            ],
+            [
+                'label' => '61-90 days',
+                'min'   => 61,
+                'max'   => 90,
+                'count' => 0,
+                'color' => 'rgba(255, 193, 7, 0.7)', // Yellow
+            ],
+            [
+                'label' => '90+ days',
+                'min'   => 91,
+                'max'   => 99999,
+                'count' => 0,
+                'color' => 'rgba(220, 53, 69, 0.7)', // Red
+            ],
         ];
 
-        $results = [];
-        foreach ($brackets as $bracket) {
-            $fromDate = $now->copy()->subDays($bracket['max'])->startOfDay();
-            $toDate   = $now->copy()->subDays($bracket['min'])->endOfDay();
+        // Count serials in each bracket
+        foreach ($serials as $serial) {
+            $receiveDate = $serial->grn_date ? Carbon::parse($serial->grn_date) : null;
 
-            $count = (clone $baseQuery)
-                ->where(function ($q) use ($fromDate, $toDate) {
-                    $q->whereBetween('grn_date', [$fromDate->toDateString(), $toDate->toDateString()])
-                      ->orWhere(function ($sub) use ($fromDate, $toDate) {
-                          $sub->whereNull('grn_date')
-                              ->whereBetween('created_at', [$fromDate, $toDate]);
-                      });
-                })
-                ->count();
+            if (!$receiveDate) {
+                continue; // Skip if no GRN date
+            }
 
-            $results[] = (object) [
-                'label' => $bracket['label'],
-                'count' => $count,
-                'color' => $bracket['color'],
-                'min_days' => $bracket['min'],
-                'max_days' => $bracket['max'],
-            ];
+            $ageInDays = $receiveDate->diffInDays($now);
+
+            foreach ($brackets as &$bracket) {
+                if ($ageInDays >= $bracket['min'] && $ageInDays <= $bracket['max']) {
+                    $bracket['count']++;
+                    break;
+                }
+            }
         }
 
-        $totalInStock = (clone $baseQuery)->count();
-
-        return (object) [
-            'brackets' => collect($results),
-            'total_in_stock' => $totalInStock,
+        return [
+            'brackets'       => $brackets,
+            'total_in_stock' => $serials->count(),
         ];
     }
 
     /**
-     * Get aged stock items (older than X days)
+     * Get aged stock items (items older than threshold days)
+     * Returns detailed list of items exceeding the age threshold
      */
-    public function getAgedStockItems(int $daysThreshold = 90, ?string $locationType = null, ?int $locationId = null, int $limit = 20): Collection
+    public function getAgedStockItems(int $thresholdDays = 90, ?string $locationType = null, ?int $locationId = null, int $limit = 20): Collection
     {
-        $cutoffDate = Carbon::now()->subDays($daysThreshold);
+        $cutoffDate = Carbon::now()->subDays($thresholdDays)->format('Y-m-d');
 
         $query = DB::table('inventory_serials')
             ->join('terminal_models', 'inventory_serials.model_id', '=', 'terminal_models.id')
@@ -397,24 +366,19 @@ class InventoryDashboardService
                 'inventory_serials.id',
                 'inventory_serials.serial_no',
                 'inventory_serials.grn_date',
-                'inventory_serials.created_at',
+                'inventory_serials.current_status',
                 'inventory_serials.current_location_type',
                 'inventory_serials.current_location_id',
-                'inventory_serials.purchase_price',
                 'terminal_models.model_name',
                 'terminal_models.model_code',
-                'terminal_categories.category_name'
+                'terminal_categories.category_name',
+                DB::raw("DATEDIFF(NOW(), inventory_serials.grn_date) as age_days")
             )
-            ->where('inventory_serials.current_status', 'in_stock')
             ->whereNull('inventory_serials.deleted_at')
-            ->where(function ($q) use ($cutoffDate) {
-                $q->where('inventory_serials.grn_date', '<=', $cutoffDate->toDateString())
-                  ->orWhere(function ($sub) use ($cutoffDate) {
-                      $sub->whereNull('inventory_serials.grn_date')
-                          ->where('inventory_serials.created_at', '<=', $cutoffDate);
-                  });
-            })
-            ->orderByRaw('COALESCE(inventory_serials.grn_date, DATE(inventory_serials.created_at)) ASC')
+            ->whereNotNull('inventory_serials.grn_date')
+            ->where('inventory_serials.grn_date', '<=', $cutoffDate)
+            ->whereIn('inventory_serials.current_status', ['in_stock', 'reserved', 'issued_to_tech'])
+            ->orderBy('inventory_serials.grn_date', 'asc')
             ->limit($limit);
 
         if ($locationType) {
@@ -425,9 +389,23 @@ class InventoryDashboardService
         }
 
         return $query->get()->map(function ($item) {
-            $receivedDate = $item->grn_date ?? Carbon::parse($item->created_at)->toDateString();
-            $item->days_in_stock = Carbon::parse($receivedDate)->diffInDays(Carbon::now());
             $item->location_name = $this->resolveLocationName($item->current_location_type, $item->current_location_id);
+            $item->status_label = InventorySerial::STATUS_OPTIONS[$item->current_status] ?? ucfirst(str_replace('_', ' ', $item->current_status));
+            $item->status_badge = InventorySerial::STATUS_BADGES[$item->current_status] ?? 'secondary';
+            $item->grn_date_formatted = $item->grn_date ? Carbon::parse($item->grn_date)->format('d M Y') : '-';
+
+            // Age severity classification
+            if ($item->age_days >= 180) {
+                $item->age_severity = 'critical';
+                $item->age_badge = '<span class="badge bg-danger">' . $item->age_days . ' days</span>';
+            } elseif ($item->age_days >= 120) {
+                $item->age_severity = 'warning';
+                $item->age_badge = '<span class="badge bg-warning text-dark">' . $item->age_days . ' days</span>';
+            } else {
+                $item->age_severity = 'normal';
+                $item->age_badge = '<span class="badge bg-info">' . $item->age_days . ' days</span>';
+            }
+
             return $item;
         });
     }
@@ -437,7 +415,7 @@ class InventoryDashboardService
     // =========================================================================
 
     /**
-     * Get top models by total quantity on hand
+     * Get top terminal models by quantity on hand
      */
     public function getTopModelsByQuantity(int $limit = 10, ?string $locationType = null, ?int $locationId = null): Collection
     {
@@ -451,7 +429,6 @@ class InventoryDashboardService
                 'terminal_models.brand',
                 'terminal_categories.category_name',
                 DB::raw('SUM(stock_balances.quantity_on_hand) as total_on_hand'),
-                DB::raw('SUM(stock_balances.quantity_reserved) as total_reserved'),
                 DB::raw('SUM(stock_balances.quantity_available) as total_available'),
                 DB::raw('COUNT(DISTINCT CONCAT(stock_balances.location_type, "-", stock_balances.location_id)) as location_count')
             )
@@ -472,69 +449,60 @@ class InventoryDashboardService
     }
 
     // =========================================================================
-    // SUPERVISOR-SPECIFIC METHODS
+    // WIDGET 6: MOVEMENT SUMMARY
     // =========================================================================
 
     /**
-     * Get team technician IDs for a supervisor
+     * Get movement summary for the last N days
      */
-    public function getTeamTechnicianIds(int $supervisorId): array
+    public function getMovementSummary(int $days = 7, ?string $locationType = null, ?int $locationId = null): object
     {
-        return User::where('supervisor_id', $supervisorId)
-            ->pluck('id')
-            ->toArray();
-    }
+        $startDate = Carbon::now()->subDays($days)->format('Y-m-d');
 
-    /**
-     * Get stock by technician (for supervisor view)
-     */
-    public function getStockByTechnician(array $technicianIds): Collection
-    {
-        return DB::table('stock_balances')
-            ->join('users', function ($join) {
-                $join->on('stock_balances.location_id', '=', 'users.id')
-                    ->where('stock_balances.location_type', '=', 'technician');
-            })
-            ->select(
-                'users.id as technician_id',
-                'users.name as technician_name',
-                DB::raw('COUNT(DISTINCT stock_balances.model_id) as unique_models'),
-                DB::raw('SUM(stock_balances.quantity_on_hand) as total_on_hand'),
-                DB::raw('SUM(stock_balances.quantity_available) as total_available')
-            )
-            ->whereIn('stock_balances.location_id', $technicianIds)
-            ->where('stock_balances.quantity_on_hand', '>', 0)
-            ->groupBy('users.id', 'users.name')
-            ->orderBy('users.name')
-            ->get();
-    }
+        $baseQuery = DB::table('stock_ledger')
+            ->where('transaction_date', '>=', $startDate)
+            ->where('is_reversed', false);
 
-    // =========================================================================
-    // TECHNICIAN-SPECIFIC METHODS
-    // =========================================================================
+        if ($locationType && $locationId) {
+            $inbound = (clone $baseQuery)
+                ->where('to_location_type', $locationType)
+                ->where('to_location_id', $locationId)
+                ->sum('quantity');
 
-    /**
-     * Get technician's personal stock summary
-     */
-    public function getTechnicianStockSummary(int $technicianId): object
-    {
-        $totals = DB::table('stock_balances')
-            ->select(
-                DB::raw('COUNT(DISTINCT model_id) as unique_models'),
-                DB::raw('SUM(quantity_on_hand) as total_on_hand'),
-                DB::raw('SUM(quantity_available) as total_available')
-            )
-            ->where('location_type', 'technician')
-            ->where('location_id', $technicianId)
-            ->where('quantity_on_hand', '>', 0)
-            ->first();
+            $outbound = (clone $baseQuery)
+                ->where('from_location_type', $locationType)
+                ->where('from_location_id', $locationId)
+                ->sum('quantity');
+        } else {
+            $inbound = (clone $baseQuery)
+                ->where('quantity', '>', 0)
+                ->sum('quantity');
 
+            $outbound = (clone $baseQuery)
+                ->where('quantity', '<', 0)
+                ->sum(DB::raw('ABS(quantity)'));
+        }
+
+        $totalTransactions = (clone $baseQuery)->count();
+
+        // Get unique models moved
+        $uniqueModels = (clone $baseQuery)
+            ->distinct('model_id')
+            ->count('model_id');
+
+        // Get total serial count
         $totalSerials = DB::table('inventory_serials')
-            ->where('current_location_type', 'technician')
-            ->where('current_location_id', $technicianId)
-            ->where('current_status', 'issued_to_tech')
             ->whereNull('deleted_at')
             ->count();
+
+        $totals = (object) [
+            'inbound'            => (float) $inbound,
+            'outbound'           => (float) $outbound,
+            'net_movement'       => (float) ($inbound - $outbound),
+            'total_transactions' => $totalTransactions,
+            'unique_models'      => $uniqueModels,
+            'days'               => $days,
+        ];
 
         $totals->total_serials = $totalSerials;
 
