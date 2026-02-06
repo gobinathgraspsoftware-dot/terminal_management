@@ -56,6 +56,9 @@ class PermissionSeeder extends Seeder
             // Inventory - Stock Transfers
             'stock_transfers' => ['view', 'create', 'edit', 'approve', 'dispatch', 'receive', 'cancel'],
 
+            // Inventory - Stock Returns (NEW)
+            'stock_returns' => ['view', 'create', 'edit', 'post', 'cancel', 'view_technician_inventory'],
+
             // Inventory - Stock Adjustments
             'stock_adjustments' => ['view', 'create', 'approve', 'reject', 'post'],
 

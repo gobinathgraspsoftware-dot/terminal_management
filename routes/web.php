@@ -65,6 +65,9 @@ use App\Http\Controllers\Technician\InventoryDashboardController as TechnicianIn
 use App\Http\Controllers\Admin\StockIssueController as AdminStockIssueController;
 use App\Http\Controllers\Supervisor\StockIssueController as SupervisorStockIssueController;
 use App\Http\Controllers\Technician\StockIssueController as TechnicianStockIssueController;
+use App\Http\Controllers\Admin\StockReturnController as AdminStockReturnController;
+use App\Http\Controllers\Supervisor\StockReturnController as SupervisorStockReturnController;
+use App\Http\Controllers\Technician\StockReturnController as TechnicianStockReturnController;
 
 /*
 |--------------------------------------------------------------------------
@@ -454,6 +457,22 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::delete('/{stockIssue}', [AdminStockIssueController::class, 'destroy'])->name('destroy');
     });
 
+    /* Stock Returns Routes */
+    Route::prefix('stock-returns')->name('stock-returns.')->group(function () {
+        Route::get('/', [AdminStockReturnController::class, 'index'])->name('index');
+        Route::get('/create', [AdminStockReturnController::class, 'create'])->name('create');
+        Route::post('/', [AdminStockReturnController::class, 'store'])->name('store');
+        Route::get('/{stockReturn}', [AdminStockReturnController::class, 'show'])->name('show');
+        Route::get('/{stockReturn}/edit', [AdminStockReturnController::class, 'edit'])->name('edit');
+        Route::put('/{stockReturn}', [AdminStockReturnController::class, 'update'])->name('update');
+        Route::post('/{stockReturn}/post', [AdminStockReturnController::class, 'post'])->name('post');
+        Route::post('/{stockReturn}/cancel', [AdminStockReturnController::class, 'cancel'])->name('cancel');
+        Route::get('/{stockReturn}/print', [AdminStockReturnController::class, 'print'])->name('print');
+        Route::get('/technician/inventory', [AdminStockReturnController::class, 'getTechnicianInventory'])->name('technician-inventory');
+        Route::get('/technician/summary', [AdminStockReturnController::class, 'getTechnicianInventorySummary'])->name('technician-summary');
+        Route::get('/export/excel', [AdminStockReturnController::class, 'export'])->name('export');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -655,6 +674,22 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::delete('/{stockIssue}', [SupervisorStockIssueController::class, 'destroy'])->name('destroy');
     });
 
+    /* Stock Returns Routes */
+    Route::prefix('stock-returns')->name('stock-returns.')->group(function () {
+        Route::get('/', [SupervisorStockReturnController::class, 'index'])->name('index');
+        Route::get('/create', [SupervisorStockReturnController::class, 'create'])->name('create');
+        Route::post('/', [SupervisorStockReturnController::class, 'store'])->name('store');
+        Route::get('/{stockReturn}', [SupervisorStockReturnController::class, 'show'])->name('show');
+        Route::get('/{stockReturn}/edit', [SupervisorStockReturnController::class, 'edit'])->name('edit');
+        Route::put('/{stockReturn}', [SupervisorStockReturnController::class, 'update'])->name('update');
+        Route::post('/{stockReturn}/post', [SupervisorStockReturnController::class, 'post'])->name('post');
+        Route::post('/{stockReturn}/cancel', [SupervisorStockReturnController::class, 'cancel'])->name('cancel');
+        Route::get('/{stockReturn}/print', [SupervisorStockReturnController::class, 'print'])->name('print');
+        Route::get('/technician/inventory', [SupervisorStockReturnController::class, 'getTechnicianInventory'])->name('technician-inventory');
+        Route::get('/technician/summary', [SupervisorStockReturnController::class, 'getTechnicianInventorySummary'])->name('technician-summary');
+        Route::get('/export/excel', [SupervisorStockReturnController::class, 'export'])->name('export');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -807,6 +842,18 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
     Route::prefix('stock-issues')->name('stock-issues')->group(function () {
         Route::get('/', [TechnicianStockIssueController::class, 'index'])->name('index');
         Route::get('/{stockIssue}', [TechnicianStockIssueController::class, 'show'])->name('show');
+    });
+
+    /* Stock Returns */
+    Route::prefix('stock-returns')->name('stock-returns.')->group(function () {
+        Route::get('/', [TechnicianStockReturnController::class, 'index'])->name('index');
+        Route::get('/create', [TechnicianStockReturnController::class, 'create'])->name('create');
+        Route::post('/', [TechnicianStockReturnController::class, 'store'])->name('store');
+        Route::get('/{stockReturn}', [TechnicianStockReturnController::class, 'show'])->name('show');
+        Route::get('/{stockReturn}/edit', [TechnicianStockReturnController::class, 'edit'])->name('edit');
+        Route::put('/{stockReturn}', [TechnicianStockReturnController::class, 'update'])->name('update');
+        Route::get('/{stockReturn}/print', [TechnicianStockReturnController::class, 'print'])->name('print');
+        Route::get('/my-inventory', [TechnicianStockReturnController::class, 'getMyInventory'])->name('my-inventory');
     });
 
     /* Claims */

@@ -54,6 +54,9 @@ class RolePermissionSeeder extends Seeder
             'view_stock_issues', 'create_stock_issues', 'post_stock_issues', 'edit_stock_issues',
             'view_stock_transfers', 'create_stock_transfers', 'approve_stock_transfers',
 
+            /* Stock Returns */
+            'view_stock_returns', 'create_stock_returns', 'edit_stock_returns', 'post_stock_returns', 'cancel_stock_returns', 'view_technician_inventory_stock_returns',
+
             // Procurement - View and create
             'view_quotations', 'create_quotations', 'edit_quotations', 'export_quotations',
             'view_purchase_orders', 'create_purchase_orders', 'edit_purchase_orders',
@@ -173,6 +176,9 @@ class RolePermissionSeeder extends Seeder
             /* Stock report permisions */
             'view_stock_card_stock_reports',
             'print_stock_card_stock_reports',
+
+            /* Stock Returns */
+            'view_stock_returns', 'create_stock_returns', 'edit_stock_returns', 'view_technician_inventory_stock_returns',
         ];
 
         $technicianRole->syncPermissions($technicianPermissions);

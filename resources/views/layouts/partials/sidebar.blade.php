@@ -238,6 +238,7 @@
                 $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'admin.bulk-serials');
                 $isStockValuationRoute = str_contains($currentRoute ?? '', 'admin.stock-valuation');
                 $isStockIssueRoute = str_contains($currentRoute ?? '', 'admin.stock-issues');
+                $isStockReturnRoute = str_contains($currentRoute ?? '', 'admin.stock-returns');
             @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
@@ -297,6 +298,13 @@
                         </a>
                     </li>
                     @endcan
+
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isStockReturnRoute ? 'active' : '' }}"
+                        href="{{ route('admin.stock-returns.index') }}">
+                            <i class="bi bi-arrow-return-left me-2"></i> Stock Returns
+                        </a>
+                    </li>
 
                     {{-- Stock Balance --}}
                     @can('view_stock_balance')
@@ -583,6 +591,7 @@
                 $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'supervisor.bulk-serials');
                 $isStockValuationRoute = str_contains($currentRoute ?? '', 'supervisor.stock-valuation');
                 $isStockIssueRoute = str_contains($currentRoute ?? '', 'supervisor.stock-issues');
+                $isStockReturnRoute = str_contains($currentRoute ?? '', 'supervisor.stock-returns');
             @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
@@ -642,6 +651,13 @@
                         </a>
                     </li>
                     @endcan
+
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isStockReturnRoute ? 'active' : '' }}"
+                        href="{{ route('supervisor.stock-returns.index') }}">
+                            <i class="bi bi-arrow-return-left me-2"></i> Stock Returns
+                        </a>
+                    </li>
 
                     {{-- Stock Balance (Team View) --}}
                     @can('view_stock_balance')
@@ -974,6 +990,7 @@
                 $isStockBalanceRoute = str_contains($currentRoute ?? '', 'technician.stock-balance');
                 $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'technician.bulk-serials');
                 $isStockIssueRoute = str_contains($currentRoute ?? '', 'technician.stock-issues');
+                $isStockReturnRoute = str_contains($currentRoute ?? '', 'technician.stock-returns');
             @endphp
 
             <!-- Inventory Section -->
@@ -1026,6 +1043,12 @@
                     </li>
                     @endcan
 
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isStockReturnRoute ? 'active' : '' }}"
+                        href="{{ route('technician.stock-returns.index') }}">
+                            <i class="bi bi-arrow-return-left me-2"></i> My Returns
+                        </a>
+                    </li>
 
                     {{-- My Stock Balance --}}
                     @can('view_stock_balance')
