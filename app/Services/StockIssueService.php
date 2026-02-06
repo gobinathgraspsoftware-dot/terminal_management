@@ -97,13 +97,17 @@ class StockIssueService
                 $series = NumberSeries::create([
                     'series_type' => 'stock_issue',
                     'prefix' => 'SI',
-                    'next_number' => 1,
-                    'padding' => 5,
+                    'current_number' => 0,
+                    'number_length' => 5,
+                    'is_active' => 1,
                 ]);
             }
 
-            $issueNo = $series->prefix . str_pad($series->next_number, $series->padding, '0', STR_PAD_LEFT);
-            $series->increment('next_number');
+            // Increment first
+            $series->increment('current_number');
+
+            // Generate issue number
+            $issueNo = $series->prefix . str_pad($series->current_number, $series->number_length, '0', STR_PAD_LEFT);
 
             return $issueNo;
         });
@@ -176,7 +180,7 @@ class StockIssueService
             if (isset($data['lines'])) {
                 // Delete existing lines
                 $stockIssue->lines()->delete();
-                
+
                 // Create new lines
                 $this->createLines($stockIssue, $data['lines']);
             }
@@ -236,12 +240,12 @@ class StockIssueService
             // Create ledger entries for each line
             foreach ($stockIssue->lines as $line) {
                 $this->createLedgerEntry($stockIssue, $line);
-                
+
                 // Update serial status if serialized
                 if ($line->serial_id) {
                     $this->updateSerialStatus($stockIssue, $line);
                 }
-                
+
                 // Update stock balances
                 $this->updateStockBalances($stockIssue, $line);
             }
@@ -272,7 +276,7 @@ class StockIssueService
                 if ($line->serial_id) {
                     // Check serial availability
                     $serial = InventorySerial::find($line->serial_id);
-                    if (!$serial || $serial->current_location_type !== 'depot' 
+                    if (!$serial || $serial->current_location_type !== 'depot'
                         || $serial->current_location_id !== $stockIssue->from_depot_id) {
                         throw new Exception("Serial {$line->serial_no} is not available in the selected depot");
                     }
@@ -285,19 +289,19 @@ class StockIssueService
                         ->where('location_type', 'depot')
                         ->where('location_id', $stockIssue->from_depot_id)
                         ->first();
-                    
+
                     $available = $balance ? $balance->quantity_on_hand - $balance->quantity_reserved : 0;
                     if ($available < $line->quantity) {
                         throw new Exception("Insufficient stock for model {$line->model->model_name}. Available: {$available}, Required: {$line->quantity}");
                     }
                 }
             }
-            
+
             // For return from technician - check technician stock
             if ($stockIssue->issue_type === StockIssue::TYPE_RETURN_FROM_TECH) {
                 if ($line->serial_id) {
                     $serial = InventorySerial::find($line->serial_id);
-                    if (!$serial || $serial->current_location_type !== 'technician' 
+                    if (!$serial || $serial->current_location_type !== 'technician'
                         || $serial->current_location_id !== $stockIssue->from_technician_id) {
                         throw new Exception("Serial {$line->serial_no} is not with the selected technician");
                     }
@@ -311,8 +315,8 @@ class StockIssueService
      */
     protected function createLedgerEntry(StockIssue $stockIssue, StockIssueLine $line): void
     {
-        $transactionType = $stockIssue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH 
-            ? 'issue_to_tech' 
+        $transactionType = $stockIssue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH
+            ? 'issue_to_tech'
             : 'return_from_tech';
 
         // Determine from/to locations
@@ -380,37 +384,37 @@ class StockIssueService
         if ($stockIssue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH) {
             // Decrease depot stock
             $this->adjustBalance(
-                $line->model_id, 
-                'depot', 
-                $stockIssue->from_depot_id, 
-                -$line->quantity, 
+                $line->model_id,
+                'depot',
+                $stockIssue->from_depot_id,
+                -$line->quantity,
                 $stockIssue->issue_date
             );
-            
+
             // Increase technician stock
             $this->adjustBalance(
-                $line->model_id, 
-                'technician', 
-                $stockIssue->to_technician_id, 
-                $line->quantity, 
+                $line->model_id,
+                'technician',
+                $stockIssue->to_technician_id,
+                $line->quantity,
                 $stockIssue->issue_date
             );
         } else {
             // Decrease technician stock
             $this->adjustBalance(
-                $line->model_id, 
-                'technician', 
-                $stockIssue->from_technician_id, 
-                -$line->quantity, 
+                $line->model_id,
+                'technician',
+                $stockIssue->from_technician_id,
+                -$line->quantity,
                 $stockIssue->issue_date
             );
-            
+
             // Increase depot stock
             $this->adjustBalance(
-                $line->model_id, 
-                'depot', 
-                $stockIssue->to_depot_id, 
-                $line->quantity, 
+                $line->model_id,
+                'depot',
+                $stockIssue->to_depot_id,
+                $line->quantity,
                 $stockIssue->issue_date
             );
         }
@@ -453,12 +457,12 @@ class StockIssueService
             // Reverse ledger entries
             foreach ($stockIssue->lines as $line) {
                 $this->reverseLedgerEntry($stockIssue, $line);
-                
+
                 // Reverse serial status if serialized
                 if ($line->serial_id) {
                     $this->reverseSerialStatus($stockIssue, $line);
                 }
-                
+
                 // Reverse stock balances
                 $this->reverseStockBalances($stockIssue, $line);
             }
@@ -482,8 +486,8 @@ class StockIssueService
      */
     protected function reverseLedgerEntry(StockIssue $stockIssue, StockIssueLine $line): void
     {
-        $transactionType = $stockIssue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH 
-            ? 'issue_to_tech' 
+        $transactionType = $stockIssue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH
+            ? 'issue_to_tech'
             : 'return_from_tech';
 
         // Get original ledger entry
@@ -548,37 +552,37 @@ class StockIssueService
         if ($stockIssue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH) {
             // Increase depot stock (reverse the decrease)
             $this->adjustBalance(
-                $line->model_id, 
-                'depot', 
-                $stockIssue->from_depot_id, 
-                $line->quantity, 
+                $line->model_id,
+                'depot',
+                $stockIssue->from_depot_id,
+                $line->quantity,
                 now()->toDateString()
             );
-            
+
             // Decrease technician stock (reverse the increase)
             $this->adjustBalance(
-                $line->model_id, 
-                'technician', 
-                $stockIssue->to_technician_id, 
-                -$line->quantity, 
+                $line->model_id,
+                'technician',
+                $stockIssue->to_technician_id,
+                -$line->quantity,
                 now()->toDateString()
             );
         } else {
             // Increase technician stock (reverse the decrease)
             $this->adjustBalance(
-                $line->model_id, 
-                'technician', 
-                $stockIssue->from_technician_id, 
-                $line->quantity, 
+                $line->model_id,
+                'technician',
+                $stockIssue->from_technician_id,
+                $line->quantity,
                 now()->toDateString()
             );
-            
+
             // Decrease depot stock (reverse the increase)
             $this->adjustBalance(
-                $line->model_id, 
-                'depot', 
-                $stockIssue->to_depot_id, 
-                -$line->quantity, 
+                $line->model_id,
+                'depot',
+                $stockIssue->to_depot_id,
+                -$line->quantity,
                 now()->toDateString()
             );
         }

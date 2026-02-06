@@ -127,7 +127,7 @@ class StockIssueController extends Controller
 
         $depots = Depot::orderBy('depot_name')->get();
         $technicians = User::role('technician')->orderBy('name')->get();
-        $models = TerminalModel::where('is_active', true)->orderBy('model_name')->get();
+        $models = TerminalModel::where('status', 'active')->orderBy('model_name')->get();
 
         return view('admin.stock-issues.create', compact('depots', 'technicians', 'models'));
     }
@@ -187,7 +187,7 @@ class StockIssueController extends Controller
         $stockIssue->load('lines.model', 'lines.serial');
         $depots = Depot::orderBy('depot_name')->get();
         $technicians = User::role('technician')->orderBy('name')->get();
-        $models = TerminalModel::where('is_active', true)->orderBy('model_name')->get();
+        $models = TerminalModel::where('status', 'active')->orderBy('model_name')->get();
 
         return view('admin.stock-issues.edit', compact('stockIssue', 'depots', 'technicians', 'models'));
     }
