@@ -59,6 +59,9 @@ use App\Http\Controllers\Supervisor\StockReportController as SupervisorStockRepo
 use App\Http\Controllers\Technician\StockReportController as TechnicianStockReportController;
 use App\Http\Controllers\Admin\StockValuationController as AdminStockValuationController;
 use App\Http\Controllers\Supervisor\StockValuationController as SupervisorStockValuationController;
+use App\Http\Controllers\Admin\InventoryDashboardController as AdminInventoryDashboardController;
+use App\Http\Controllers\Supervisor\InventoryDashboardController as SupervisorInventoryDashboardController;
+use App\Http\Controllers\Technician\InventoryDashboardController as TechnicianInventoryDashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -415,6 +418,21 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/export-movement-value', [AdminStockValuationController::class, 'exportMovementValue'])->name('export-movement-value');
     });
 
+    /* Inventory Dashboard Routes */
+    Route::prefix('inventory-dashboard')->name('inventory-dashboard.')->group(function () {
+        Route::get('/', [AdminInventoryDashboardController::class, 'index'])->name('index');
+        Route::get('/stock-by-category', [AdminInventoryDashboardController::class, 'stockByCategory'])->name('stock-by-category');
+        Route::get('/stock-by-status', [AdminInventoryDashboardController::class, 'stockByStatus'])->name('stock-by-status');
+        Route::get('/stock-by-depot', [AdminInventoryDashboardController::class, 'stockByDepot'])->name('stock-by-depot');
+        Route::get('/low-stock-alerts', [AdminInventoryDashboardController::class, 'lowStockAlerts'])->name('low-stock-alerts');
+        Route::get('/recent-movements', [AdminInventoryDashboardController::class, 'recentMovements'])->name('recent-movements');
+        Route::get('/stock-aging', [AdminInventoryDashboardController::class, 'stockAging'])->name('stock-aging');
+        Route::get('/top-models', [AdminInventoryDashboardController::class, 'topModels'])->name('top-models');
+        Route::get('/movement-trend', [AdminInventoryDashboardController::class, 'movementTrend'])->name('movement-trend');
+        Route::get('/category-distribution', [AdminInventoryDashboardController::class, 'categoryDistribution'])->name('category-distribution');
+        Route::get('/movement-summary', [AdminInventoryDashboardController::class, 'movementSummary'])->name('movement-summary');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -585,6 +603,20 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/export-detailed', [SupervisorStockValuationController::class, 'exportDetailed'])->name('export-detailed');
     });
 
+    /* Inventory Dashboard Routes */
+    Route::prefix('inventory-dashboard')->name('inventory-dashboard.')->group(function () {
+        Route::get('/', [SupervisorInventoryDashboardController::class, 'index'])->name('index');
+        Route::get('/stock-by-category', [SupervisorInventoryDashboardController::class, 'stockByCategory'])->name('stock-by-category');
+        Route::get('/stock-by-technician', [SupervisorInventoryDashboardController::class, 'stockByTechnician'])->name('stock-by-technician');
+        Route::get('/low-stock-alerts', [SupervisorInventoryDashboardController::class, 'lowStockAlerts'])->name('low-stock-alerts');
+        Route::get('/recent-movements', [SupervisorInventoryDashboardController::class, 'recentMovements'])->name('recent-movements');
+        Route::get('/stock-aging', [SupervisorInventoryDashboardController::class, 'stockAging'])->name('stock-aging');
+        Route::get('/top-models', [SupervisorInventoryDashboardController::class, 'topModels'])->name('top-models');
+        Route::get('/movement-trend', [SupervisorInventoryDashboardController::class, 'movementTrend'])->name('movement-trend');
+        Route::get('/category-distribution', [SupervisorInventoryDashboardController::class, 'categoryDistribution'])->name('category-distribution');
+        Route::get('/movement-summary', [SupervisorInventoryDashboardController::class, 'movementSummary'])->name('movement-summary');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -720,9 +752,18 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/search-serials', [TechnicianStockReportController::class, 'searchSerials'])->name('search-serials');
     });
 
-    // Route::get('/inventory', function () {
-    //     return 'My Inventory - Technician Only';
-    // })->name('inventory.index');
+    /* Inventory Dashboard Routes */
+    Route::prefix('inventory-dashboard')->name('inventory-dashboard.')->group(function () {
+        Route::get('/', [TechnicianInventoryDashboardController::class, 'index'])->name('index');
+        Route::get('/stock-by-category', [TechnicianInventoryDashboardController::class, 'stockByCategory'])->name('stock-by-category');
+        Route::get('/low-stock-alerts', [TechnicianInventoryDashboardController::class, 'lowStockAlerts'])->name('low-stock-alerts');
+        Route::get('/recent-movements', [TechnicianInventoryDashboardController::class, 'recentMovements'])->name('recent-movements');
+        Route::get('/stock-aging', [TechnicianInventoryDashboardController::class, 'stockAging'])->name('stock-aging');
+        Route::get('/top-models', [TechnicianInventoryDashboardController::class, 'topModels'])->name('top-models');
+        Route::get('/movement-trend', [TechnicianInventoryDashboardController::class, 'movementTrend'])->name('movement-trend');
+        Route::get('/category-distribution', [TechnicianInventoryDashboardController::class, 'categoryDistribution'])->name('category-distribution');
+        Route::get('/movement-summary', [TechnicianInventoryDashboardController::class, 'movementSummary'])->name('movement-summary');
+    });
 
     /* Claims */
     Route::get('/claims', function () {

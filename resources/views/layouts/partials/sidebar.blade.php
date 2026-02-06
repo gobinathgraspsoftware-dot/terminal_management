@@ -230,6 +230,7 @@
             </div>
 
             @php
+                $isInventoryDashboardRoute = str_contains($currentRoute ?? '', 'admin.inventory-dashboard');
                 $isInventorySerialRoute = str_contains($currentRoute ?? '', 'admin.inventory-serials');
                 $isStockLedgerRoute = str_contains($currentRoute ?? '', 'admin.stock-ledger');
                 $isStockBalanceRoute = str_contains($currentRoute ?? '', 'admin.stock-balance');
@@ -241,6 +242,14 @@
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
+                    @can('view_inventory')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isInventoryDashboardRoute ? 'active' : '' }}"
+                        href="{{ route('admin.inventory-dashboard.index') }}">
+                            <i class="bi bi-speedometer me-2"></i> Inventory Dashboard
+                        </a>
+                    </li>
+                    @endcan
                     @can('view_inventory')
                     <li class="nav-item">
                         <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
@@ -555,6 +564,7 @@
             @endcan
 
             @php
+                $isInventoryDashboardRoute = str_contains($currentRoute ?? '', 'supervisor.inventory-dashboard');
                 $isInventorySerialRoute = str_contains($currentRoute ?? '', 'supervisor.inventory-serials');
                 $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'supervisor.serial-movement-history');
                 $isStockLedgerRoute = str_contains($currentRoute ?? '', 'supervisor.stock-ledger');
@@ -566,6 +576,14 @@
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
+                    @can('view_inventory')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isInventoryDashboardRoute ? 'active' : '' }}"
+                        href="{{ route('supervisor.inventory-dashboard.index') }}">
+                            <i class="bi bi-speedometer me-2"></i> Inventory Dashboard
+                        </a>
+                    </li>
+                    @endcan
                     @can('view_team_inventory')
                     <li class="nav-item">
                         <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
@@ -927,6 +945,7 @@
             @endcan
 
             @php
+                $isInventoryDashboardRoute = str_contains($currentRoute ?? '', 'technician.inventory-dashboard');
                 $isInventorySerialRoute = str_contains($currentRoute ?? '', 'technician.inventory-serials');
                 $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'technician.serial-movement-history');
                 $isStockLedgerRoute = str_contains($currentRoute ?? '', 'technician.stock-ledger');
@@ -938,6 +957,14 @@
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
+                    @can('view_inventory')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isInventoryDashboardRoute ? 'active' : '' }}"
+                        href="{{ route('technician.inventory-dashboard.index') }}">
+                            <i class="bi bi-speedometer me-2"></i> My Inventory Dashboard
+                        </a>
+                    </li>
+                    @endcan
                     <li class="nav-item">
                         <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
                         href="{{ route('technician.inventory-serials.index') }}">
