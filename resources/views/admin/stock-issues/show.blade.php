@@ -110,7 +110,7 @@
                                 <th width="40%">From Depot:</th>
                                 <td>
                                     <i class="bi bi-building text-primary"></i> 
-                                    {{ $stockIssue->fromDepot->name ?? '-' }}
+                                    {{ $stockIssue->fromDepot->depot_name ?? '-' }}
                                 </td>
                             </tr>
                             <tr>
@@ -132,7 +132,7 @@
                                 <th>To Depot:</th>
                                 <td>
                                     <i class="bi bi-building text-success"></i> 
-                                    {{ $stockIssue->toDepot->name ?? '-' }}
+                                    {{ $stockIssue->toDepot->depot_name ?? '-' }}
                                 </td>
                             </tr>
                         @endif

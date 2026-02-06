@@ -120,7 +120,7 @@
         @if($stockIssue->issue_type === 'issue_to_tech')
         <tr>
             <td>From Depot:</td>
-            <td>{{ $stockIssue->fromDepot->name ?? '-' }}</td>
+            <td>{{ $stockIssue->fromDepot->depot_name ?? '-' }}</td>
             <td>To Technician:</td>
             <td>{{ $stockIssue->toTechnician->name ?? '-' }}</td>
         </tr>
@@ -129,7 +129,7 @@
             <td>From Technician:</td>
             <td>{{ $stockIssue->fromTechnician->name ?? '-' }}</td>
             <td>To Depot:</td>
-            <td>{{ $stockIssue->toDepot->name ?? '-' }}</td>
+            <td>{{ $stockIssue->toDepot->depot_name ?? '-' }}</td>
         </tr>
         @endif
         @if($stockIssue->remarks)

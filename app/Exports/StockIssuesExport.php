@@ -31,8 +31,8 @@ class StockIssuesExport implements FromQuery, WithHeadings, WithMapping, WithSty
     public function query()
     {
         return $this->query->with([
-            'fromDepot:id,name',
-            'toDepot:id,name',
+            'fromDepot:id,depot_name',
+            'toDepot:id,depot_name',
             'toTechnician:id,name',
             'fromTechnician:id,name',
             'lines.model:id,model_name',
@@ -116,7 +116,7 @@ class StockIssuesExport implements FromQuery, WithHeadings, WithMapping, WithSty
     protected function getFromLocation($stockIssue): string
     {
         if ($stockIssue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH) {
-            return 'Depot: ' . ($stockIssue->fromDepot->name ?? '-');
+            return 'Depot: ' . ($stockIssue->fromDepot->depot_name ?? '-');
         } else {
             return 'Technician: ' . ($stockIssue->fromTechnician->name ?? '-');
         }
@@ -130,7 +130,7 @@ class StockIssuesExport implements FromQuery, WithHeadings, WithMapping, WithSty
         if ($stockIssue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH) {
             return 'Technician: ' . ($stockIssue->toTechnician->name ?? '-');
         } else {
-            return 'Depot: ' . ($stockIssue->toDepot->name ?? '-');
+            return 'Depot: ' . ($stockIssue->toDepot->depot_name ?? '-');
         }
     }
 

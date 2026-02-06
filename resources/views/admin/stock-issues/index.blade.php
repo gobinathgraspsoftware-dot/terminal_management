@@ -59,7 +59,7 @@
                         <select name="depot_id" id="depot_id" class="form-select">
                             <option value="">All Depots</option>
                             @foreach($depots as $depot)
-                                <option value="{{ $depot->id }}">{{ $depot->name }}</option>
+                                <option value="{{ $depot->id }}">{{ $depot->depot_name }}</option>
                             @endforeach
                         </select>
                     </div>

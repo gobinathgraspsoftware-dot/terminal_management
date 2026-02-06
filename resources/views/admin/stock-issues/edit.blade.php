@@ -54,7 +54,7 @@
                         <select name="from_depot_id" id="from_depot_id" class="form-select" required>
                             <option value="">Select Depot</option>
                             @foreach($depots as $depot)
-                                <option value="{{ $depot->id }}" {{ $stockIssue->from_depot_id == $depot->id ? 'selected' : '' }}>{{ $depot->name }}</option>
+                                <option value="{{ $depot->id }}" {{ $stockIssue->from_depot_id == $depot->id ? 'selected' : '' }}>{{ $depot->depot_name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -85,7 +85,7 @@
                         <select name="to_depot_id" id="to_depot_id" class="form-select" required>
                             <option value="">Select Depot</option>
                             @foreach($depots as $depot)
-                                <option value="{{ $depot->id }}" {{ $stockIssue->to_depot_id == $depot->id ? 'selected' : '' }}>{{ $depot->name }}</option>
+                                <option value="{{ $depot->id }}" {{ $stockIssue->to_depot_id == $depot->id ? 'selected' : '' }}>{{ $depot->depot_name }}</option>
                             @endforeach
                         </select>
                     </div>

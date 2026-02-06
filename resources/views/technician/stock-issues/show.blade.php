@@ -57,7 +57,7 @@
                                 <th>From Depot:</th>
                                 <td>
                                     <i class="bi bi-building text-primary"></i> 
-                                    {{ $stockIssue->fromDepot->name ?? '-' }}
+                                    {{ $stockIssue->fromDepot->depot_name ?? '-' }}
                                 </td>
                             </tr>
                         @else
@@ -65,7 +65,7 @@
                                 <th>Returned to Depot:</th>
                                 <td>
                                     <i class="bi bi-building text-success"></i> 
-                                    {{ $stockIssue->toDepot->name ?? '-' }}
+                                    {{ $stockIssue->toDepot->depot_name ?? '-' }}
                                 </td>
                             </tr>
                         @endif

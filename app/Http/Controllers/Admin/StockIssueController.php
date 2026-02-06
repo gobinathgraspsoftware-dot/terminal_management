@@ -50,7 +50,7 @@ class StockIssueController extends Controller
                 })
                 ->addColumn('from_location', function ($issue) {
                     if ($issue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH) {
-                        return $issue->fromDepot ? '<i class="bi bi-building"></i> ' . $issue->fromDepot->name : '-';
+                        return $issue->fromDepot ? '<i class="bi bi-building"></i> ' . $issue->fromDepot->depot_name : '-';
                     } else {
                         return $issue->fromTechnician ? '<i class="bi bi-person"></i> ' . $issue->fromTechnician->name : '-';
                     }
@@ -59,7 +59,7 @@ class StockIssueController extends Controller
                     if ($issue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH) {
                         return $issue->toTechnician ? '<i class="bi bi-person"></i> ' . $issue->toTechnician->name : '-';
                     } else {
-                        return $issue->toDepot ? '<i class="bi bi-building"></i> ' . $issue->toDepot->name : '-';
+                        return $issue->toDepot ? '<i class="bi bi-building"></i> ' . $issue->toDepot->depot_name : '-';
                     }
                 })
                 ->addColumn('status_badge', function ($issue) {
@@ -112,7 +112,7 @@ class StockIssueController extends Controller
         }
 
         // Get filter options
-        $depots = Depot::orderBy('name')->get();
+        $depots = Depot::orderBy('depot_name')->get();
         $technicians = User::role('technician')->orderBy('name')->get();
 
         return view('admin.stock-issues.index', compact('depots', 'technicians'));
@@ -125,7 +125,7 @@ class StockIssueController extends Controller
     {
         $this->authorize('create', StockIssue::class);
 
-        $depots = Depot::orderBy('name')->get();
+        $depots = Depot::orderBy('depot_name')->get();
         $technicians = User::role('technician')->orderBy('name')->get();
         $models = TerminalModel::where('is_active', true)->orderBy('model_name')->get();
 
@@ -185,7 +185,7 @@ class StockIssueController extends Controller
         }
 
         $stockIssue->load('lines.model', 'lines.serial');
-        $depots = Depot::orderBy('name')->get();
+        $depots = Depot::orderBy('depot_name')->get();
         $technicians = User::role('technician')->orderBy('name')->get();
         $models = TerminalModel::where('is_active', true)->orderBy('model_name')->get();
 
