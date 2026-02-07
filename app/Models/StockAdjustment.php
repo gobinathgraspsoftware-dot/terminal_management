@@ -33,6 +33,40 @@ class StockAdjustment extends Model
         ];
     }
 
-    public function depot() { return $this->belongsTo(Depot::class); }
-    public function lines() { return $this->hasMany(StockAdjustmentLine::class); }
+    /**
+     * Relationships
+     */
+    public function depot()
+    {
+        return $this->belongsTo(Depot::class);
+    }
+
+    public function lines()
+    {
+        return $this->hasMany(StockAdjustmentLine::class);
+    }
+
+    /**
+     * User who created this adjustment
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * User who approved/rejected this adjustment
+     */
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /**
+     * User who last updated this adjustment
+     */
+    public function updater()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
 }

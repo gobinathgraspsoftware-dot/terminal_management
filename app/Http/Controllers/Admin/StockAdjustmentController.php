@@ -15,11 +15,14 @@ use App\Exports\StockAdjustmentsExport;
 use App\Exports\StockVarianceReportExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
 
 class StockAdjustmentController extends Controller
 {
+    use AuthorizesRequests; // THIS IS THE FIX!
+
     protected $adjustmentService;
 
     public function __construct(StockAdjustmentService $adjustmentService)
@@ -27,9 +30,6 @@ class StockAdjustmentController extends Controller
         $this->adjustmentService = $adjustmentService;
     }
 
-    /**
-     * Display a listing of stock adjustments
-     */
     public function index(Request $request)
     {
         if ($request->ajax()) {
@@ -37,7 +37,6 @@ class StockAdjustmentController extends Controller
                 ->orderBy('adjustment_date', 'desc')
                 ->orderBy('created_at', 'desc');
 
-            // Apply filters
             if ($request->filled('depot_id')) {
                 $query->where('depot_id', $request->depot_id);
             }
@@ -92,27 +91,23 @@ class StockAdjustmentController extends Controller
                 })
                 ->addColumn('action', function ($row) {
                     $actions = '<div class="btn-group" role="group">';
-                    
-                    // View button
+
                     $actions .= '<a href="' . route('admin.stock-adjustments.show', $row->id) . '" class="btn btn-sm btn-info" title="View">
                         <i class="bi bi-eye"></i>
                     </a>';
 
-                    // Edit button (only for draft)
                     if ($row->status === StockAdjustment::STATUS_DRAFT && auth()->user()->can('update', $row)) {
                         $actions .= '<a href="' . route('admin.stock-adjustments.edit', $row->id) . '" class="btn btn-sm btn-warning" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </a>';
                     }
 
-                    // Approve button (only for pending)
                     if ($row->status === StockAdjustment::STATUS_PENDING_APPROVAL && auth()->user()->can('approve', $row)) {
                         $actions .= '<a href="' . route('admin.stock-adjustments.approve', $row->id) . '" class="btn btn-sm btn-success" title="Approve">
                             <i class="bi bi-check-circle"></i>
                         </a>';
                     }
 
-                    // Delete button (only for draft)
                     if ($row->status === StockAdjustment::STATUS_DRAFT && auth()->user()->can('delete', $row)) {
                         $actions .= '<button type="button" class="btn btn-sm btn-danger delete-btn" data-id="' . $row->id . '" title="Delete">
                             <i class="bi bi-trash"></i>
@@ -127,24 +122,16 @@ class StockAdjustmentController extends Controller
         }
 
         $depots = Depot::where('status', 'active')->orderBy('depot_name')->get();
-        
         return view('admin.stock-adjustments.index', compact('depots'));
     }
 
-    /**
-     * Show the form for creating a new stock adjustment
-     */
     public function create()
     {
         $depots = Depot::where('status', 'active')->orderBy('depot_name')->get();
         $models = TerminalModel::where('status', 'active')->orderBy('model_name')->get();
-        
         return view('admin.stock-adjustments.create', compact('depots', 'models'));
     }
 
-    /**
-     * Store a newly created stock adjustment
-     */
     public function store(StoreStockAdjustmentRequest $request)
     {
         try {
@@ -173,48 +160,26 @@ class StockAdjustmentController extends Controller
                 ], 500);
             }
 
-            return back()
-                ->withInput()
-                ->with('error', 'Error creating stock adjustment: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Display the specified stock adjustment
-     */
     public function show(StockAdjustment $stockAdjustment)
     {
         $this->authorize('view', $stockAdjustment);
-
-        $stockAdjustment->load([
-            'depot',
-            'lines.model',
-            'lines.serial',
-            'creator',
-            'approver'
-        ]);
-
+        $stockAdjustment->load(['depot', 'lines.model', 'lines.serial', 'creator', 'approver']);
         return view('admin.stock-adjustments.show', compact('stockAdjustment'));
     }
 
-    /**
-     * Show the form for editing the specified stock adjustment
-     */
     public function edit(StockAdjustment $stockAdjustment)
     {
         $this->authorize('update', $stockAdjustment);
-
         $depots = Depot::where('status', 'active')->orderBy('depot_name')->get();
         $models = TerminalModel::where('status', 'active')->orderBy('model_name')->get();
-        
         $stockAdjustment->load('lines.model');
-
         return view('admin.stock-adjustments.edit', compact('stockAdjustment', 'depots', 'models'));
     }
 
-    /**
-     * Update the specified stock adjustment
-     */
     public function update(UpdateStockAdjustmentRequest $request, StockAdjustment $stockAdjustment)
     {
         try {
@@ -240,59 +205,39 @@ class StockAdjustmentController extends Controller
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error updating stock adjustment: ' . $e->getMessage()
+                    'message' => 'Error: ' . $e->getMessage()
                 ], 500);
             }
 
-            return back()
-                ->withInput()
-                ->with('error', 'Error updating stock adjustment: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Remove the specified stock adjustment
-     */
     public function destroy(StockAdjustment $stockAdjustment)
     {
         $this->authorize('delete', $stockAdjustment);
 
         try {
             $this->adjustmentService->cancelAdjustment($stockAdjustment, auth()->id());
-
             return response()->json([
                 'success' => true,
                 'message' => 'Stock adjustment deleted successfully.'
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error deleting stock adjustment: ' . $e->getMessage()
+                'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
     }
 
-    /**
-     * Show approval form
-     */
     public function approve(StockAdjustment $stockAdjustment)
     {
         $this->authorize('approve', $stockAdjustment);
-
-        $stockAdjustment->load([
-            'depot',
-            'lines.model',
-            'lines.serial',
-            'creator'
-        ]);
-
+        $stockAdjustment->load(['depot', 'lines.model', 'lines.serial', 'creator']);
         return view('admin.stock-adjustments.approve', compact('stockAdjustment'));
     }
 
-    /**
-     * Process approval/rejection
-     */
     public function processApproval(ApproveStockAdjustmentRequest $request, StockAdjustment $stockAdjustment)
     {
         try {
@@ -300,11 +245,7 @@ class StockAdjustmentController extends Controller
                 $this->adjustmentService->approveAdjustment($stockAdjustment, auth()->id());
                 $message = 'Stock adjustment approved successfully.';
             } else {
-                $this->adjustmentService->rejectAdjustment(
-                    $stockAdjustment,
-                    auth()->id(),
-                    $request->remarks
-                );
+                $this->adjustmentService->rejectAdjustment($stockAdjustment, auth()->id(), $request->remarks);
                 $message = 'Stock adjustment rejected.';
             }
 
@@ -316,94 +257,53 @@ class StockAdjustmentController extends Controller
                 ]);
             }
 
-            return redirect()
-                ->route('admin.stock-adjustments.index')
-                ->with('success', $message);
+            return redirect()->route('admin.stock-adjustments.index')->with('success', $message);
 
         } catch (\Exception $e) {
             if ($request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error processing approval: ' . $e->getMessage()
-                ], 500);
+                return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
             }
-
-            return back()->with('error', 'Error processing approval: ' . $e->getMessage());
+            return back()->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Post approved adjustment
-     */
     public function post(StockAdjustment $stockAdjustment)
     {
         $this->authorize('post', $stockAdjustment);
 
         try {
             $this->adjustmentService->postAdjustment($stockAdjustment, auth()->id());
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Stock adjustment posted successfully.'
-            ]);
-
+            return response()->json(['success' => true, 'message' => 'Stock adjustment posted successfully.']);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error posting adjustment: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Submit for approval
-     */
     public function submit(StockAdjustment $stockAdjustment)
     {
         $this->authorize('update', $stockAdjustment);
 
         try {
             $this->adjustmentService->submitForApproval($stockAdjustment, auth()->id());
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Stock adjustment submitted for approval.'
-            ]);
-
+            return response()->json(['success' => true, 'message' => 'Stock adjustment submitted for approval.']);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error submitting adjustment: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Get depot stock for AJAX
-     */
     public function getDepotStock(Request $request)
     {
         $depotId = $request->depot_id;
         $modelId = $request->model_id;
 
         if (!$depotId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Depot is required.'
-            ], 400);
+            return response()->json(['success' => false, 'message' => 'Depot is required.'], 400);
         }
 
         $stock = $this->adjustmentService->getDepotStock($depotId, $modelId);
-
-        return response()->json([
-            'success' => true,
-            'data' => $stock
-        ]);
+        return response()->json(['success' => true, 'data' => $stock]);
     }
 
-    /**
-     * Variance report
-     */
     public function varianceReport(Request $request)
     {
         $depots = Depot::where('status', 'active')->orderBy('depot_name')->get();
@@ -411,36 +311,24 @@ class StockAdjustmentController extends Controller
         if ($request->ajax() && $request->has('generate')) {
             $filters = $request->only(['depot_id', 'adjustment_type', 'date_from', 'date_to', 'status']);
             $variances = $this->adjustmentService->getVarianceReport($filters);
-
-            return response()->json([
-                'success' => true,
-                'data' => $variances
-            ]);
+            return response()->json(['success' => true, 'data' => $variances]);
         }
 
         return view('admin.stock-adjustments.variance-report', compact('depots'));
     }
 
-    /**
-     * Export adjustments to Excel
-     */
     public function export(Request $request)
     {
         $filters = $request->only(['depot_id', 'adjustment_type', 'status', 'date_from', 'date_to']);
-        
         return Excel::download(
             new StockAdjustmentsExport($filters),
             'stock-adjustments-' . date('Y-m-d') . '.xlsx'
         );
     }
 
-    /**
-     * Export variance report to Excel
-     */
     public function exportVariance(Request $request)
     {
         $filters = $request->only(['depot_id', 'adjustment_type', 'date_from', 'date_to', 'status']);
-        
         return Excel::download(
             new StockVarianceReportExport($filters),
             'stock-variance-report-' . date('Y-m-d') . '.xlsx'

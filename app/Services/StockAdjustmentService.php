@@ -62,7 +62,7 @@ class StockAdjustmentService
     public function createAdjustment(array $data, $userId): StockAdjustment
     {
         DB::beginTransaction();
-        
+
         try {
             // Generate adjustment number
             $adjustmentNo = $this->generateAdjustmentNumber();
@@ -86,7 +86,7 @@ class StockAdjustmentService
             }
 
             DB::commit();
-            
+
             Log::info('Stock adjustment created', [
                 'adjustment_no' => $adjustmentNo,
                 'user_id' => $userId
@@ -115,7 +115,7 @@ class StockAdjustmentService
         }
 
         DB::beginTransaction();
-        
+
         try {
             // Update adjustment header
             $adjustment->update([
@@ -130,13 +130,13 @@ class StockAdjustmentService
 
             // Delete old lines and create new ones
             $adjustment->lines()->delete();
-            
+
             if (!empty($data['lines'])) {
                 $this->createAdjustmentLines($adjustment, $data['lines']);
             }
 
             DB::commit();
-            
+
             Log::info('Stock adjustment updated', [
                 'adjustment_no' => $adjustment->adjustment_no,
                 'user_id' => $userId
@@ -162,8 +162,8 @@ class StockAdjustmentService
     {
         foreach ($lines as $index => $line) {
             $varianceQty = $line['physical_quantity'] - $line['system_quantity'];
-            $varianceValue = isset($line['unit_cost']) 
-                ? $varianceQty * $line['unit_cost'] 
+            $varianceValue = isset($line['unit_cost'])
+                ? $varianceQty * $line['unit_cost']
                 : null;
 
             StockAdjustmentLine::create([
@@ -264,11 +264,11 @@ class StockAdjustmentService
         }
 
         DB::beginTransaction();
-        
+
         try {
             foreach ($adjustment->lines as $line) {
                 $varianceQty = $line->physical_quantity - $line->system_quantity;
-                
+
                 // Skip if no variance
                 if ($varianceQty == 0) {
                     continue;
@@ -311,7 +311,7 @@ class StockAdjustmentService
             ]);
 
             DB::commit();
-            
+
             Log::info('Stock adjustment posted', [
                 'adjustment_no' => $adjustment->adjustment_no,
                 'user_id' => $userId
@@ -399,43 +399,86 @@ class StockAdjustmentService
     }
 
     /**
-     * Generate adjustment number
+     * Generate adjustment number using actual database schema
      */
     private function generateAdjustmentNumber(): string
     {
         $prefix = 'ADJ';
-        $year = date('Y');
-        $month = date('m');
+        $seriesType = 'stock_adjustment';
 
         // Get or create number series
         $series = NumberSeries::firstOrCreate(
             [
-                'series_type' => 'stock_adjustment',
+                'series_type' => $seriesType,
                 'prefix' => $prefix,
-                'year' => $year,
-                'month' => $month,
             ],
             [
-                'last_number' => 0,
-                'padding' => 5,
+                'current_number' => 0,
+                'number_length' => 6,
+                'reset_frequency' => 'yearly',
+                'last_reset_date' => now(),
+                'is_active' => 1,
             ]
         );
 
-        // Increment and get next number
+        // Check if reset is needed based on reset_frequency
+        $needsReset = false;
+        if ($series->reset_frequency === 'yearly' && $series->last_reset_date) {
+            $lastReset = Carbon::parse($series->last_reset_date);
+            if ($lastReset->year < now()->year) {
+                $needsReset = true;
+            }
+        } elseif ($series->reset_frequency === 'monthly' && $series->last_reset_date) {
+            $lastReset = Carbon::parse($series->last_reset_date);
+            if ($lastReset->month < now()->month || $lastReset->year < now()->year) {
+                $needsReset = true;
+            }
+        }
+
+        // Reset if needed
+        if ($needsReset) {
+            DB::table('number_series')
+                ->where('id', $series->id)
+                ->update([
+                    'current_number' => 0,
+                    'last_reset_date' => now()
+                ]);
+            $series->refresh();
+        }
+
+        // Increment and get next number with lock
         DB::table('number_series')
             ->where('id', $series->id)
             ->lockForUpdate()
-            ->increment('last_number');
+            ->increment('current_number');
 
         $series->refresh();
 
-        return sprintf(
-            '%s%s%s%s',
-            $prefix,
-            $year,
-            $month,
-            str_pad($series->last_number, $series->padding, '0', STR_PAD_LEFT)
-        );
+        // Generate the number based on reset frequency
+        if ($series->reset_frequency === 'yearly') {
+            // Format: ADJ-2026-000001
+            return sprintf(
+                '%s-%s-%s',
+                $prefix,
+                now()->format('Y'),
+                str_pad($series->current_number, $series->number_length, '0', STR_PAD_LEFT)
+            );
+        } elseif ($series->reset_frequency === 'monthly') {
+            // Format: ADJ-202602-000001
+            return sprintf(
+                '%s-%s-%s',
+                $prefix,
+                now()->format('Ym'),
+                str_pad($series->current_number, $series->number_length, '0', STR_PAD_LEFT)
+            );
+        } else {
+            // Format: ADJ-000001 (never reset)
+            return sprintf(
+                '%s-%s',
+                $prefix,
+                str_pad($series->current_number, $series->number_length, '0', STR_PAD_LEFT)
+            );
+        }
     }
 
     /**
@@ -448,18 +491,18 @@ class StockAdjustmentService
         }
 
         DB::beginTransaction();
-        
+
         try {
             $adjustmentNo = $adjustment->adjustment_no;
-            
+
             // Delete lines first
             $adjustment->lines()->delete();
-            
+
             // Delete adjustment
             $adjustment->delete();
 
             DB::commit();
-            
+
             Log::info('Stock adjustment cancelled', [
                 'adjustment_no' => $adjustmentNo,
                 'user_id' => $userId
