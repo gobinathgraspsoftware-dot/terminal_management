@@ -274,7 +274,7 @@ class StockReturnService
                     throw new Exception("Serial number not found");
                 }
 
-                if ($serial->current_location_type !== 'technician' || 
+                if ($serial->current_location_type !== 'technician' ||
                     $serial->current_location_id != $technicianId) {
                     throw new Exception("Serial {$serial->serial_no} is not with this technician");
                 }
@@ -330,6 +330,17 @@ class StockReturnService
      */
     protected function createLedgerEntry(StockIssue $stockReturn, StockIssueLine $line): void
     {
+        // Get the latest unit cost for this model at the depot (if exists)
+        $latestLedger = StockLedger::where('model_id', $line->model_id)
+            ->where('to_location_type', 'depot')
+            ->where('to_location_id', $stockReturn->to_depot_id)
+            ->whereNotNull('unit_cost')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        $unitCost = $latestLedger->unit_cost ?? 0;
+        $totalCost = $unitCost * $line->quantity;
+
         StockLedger::create([
             'transaction_date' => $stockReturn->issue_date,
             'transaction_no' => $stockReturn->issue_no,
@@ -340,12 +351,14 @@ class StockReturnService
             'serial_no' => $line->serial_no,
             'model_id' => $line->model_id,
             'quantity' => $line->quantity,
+            'unit_cost' => $unitCost,
+            'total_cost' => $totalCost,
             'from_location_type' => 'technician',
             'from_location_id' => $stockReturn->from_technician_id,
             'to_location_type' => 'depot',
             'to_location_id' => $stockReturn->to_depot_id,
-            'remarks' => $line->condition !== StockIssueLine::CONDITION_GOOD 
-                ? "Returned in {$line->condition} condition. {$line->remarks}" 
+            'remarks' => $line->condition !== StockIssueLine::CONDITION_GOOD
+                ? "Returned in {$line->condition} condition. {$line->remarks}"
                 : $line->remarks,
             'created_by' => Auth::id(),
         ]);
@@ -415,10 +428,15 @@ class StockReturnService
             ]
         );
 
-        $balance->update([
-            'quantity_on_hand' => DB::raw("quantity_on_hand + ($quantity)"),
-            'last_movement_date' => $movementDate,
-        ]);
+        // Use increment/decrement to avoid casting issues with DB::raw()
+        if ($quantity > 0) {
+            $balance->increment('quantity_on_hand', abs($quantity));
+        } else {
+            $balance->decrement('quantity_on_hand', abs($quantity));
+        }
+
+        // Update last movement date separately
+        $balance->update(['last_movement_date' => $movementDate]);
     }
 
     /**
@@ -483,6 +501,8 @@ class StockReturnService
                 'serial_no' => $originalLedger->serial_no,
                 'model_id' => $originalLedger->model_id,
                 'quantity' => -$originalLedger->quantity,
+                'unit_cost' => $originalLedger->unit_cost ?? 0,
+                'total_cost' => ($originalLedger->unit_cost ?? 0) * -$originalLedger->quantity,
                 'from_location_type' => $originalLedger->to_location_type,
                 'from_location_id' => $originalLedger->to_location_id,
                 'to_location_type' => $originalLedger->from_location_type,

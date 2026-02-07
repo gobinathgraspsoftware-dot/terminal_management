@@ -18,7 +18,7 @@
 
     <form id="returnForm" action="{{ route('admin.stock-returns.store') }}" method="POST">
         @csrf
-        
+
         <div class="row">
             <!-- Main Form -->
             <div class="col-md-8">
@@ -30,10 +30,10 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label required">Return Date</label>
-                                <input type="date" class="form-control" name="issue_date" 
+                                <input type="date" class="form-control" name="issue_date"
                                        value="{{ date('Y-m-d') }}" max="{{ date('Y-m-d') }}" required>
                             </div>
-                            
+
                             <div class="col-md-6">
                                 <label class="form-label required">From Technician</label>
                                 <select class="form-select" name="from_technician_id" id="from_technician_id" required>
@@ -147,8 +147,8 @@ let lineIndex = 0;
 let technicianSerials = [];
 
 $(document).ready(function() {
-    addLine(); // Add first line
-    
+    // addLine();
+
     $('#from_technician_id').on('change', function() {
         const techId = $(this).val();
         if (techId) {
@@ -179,9 +179,9 @@ function loadTechnicianInventory(techId) {
 function displayInventory(summary) {
     let html = '<div class="table-responsive"><table class="table table-sm table-hover">';
     html += '<thead><tr><th>Model</th><th>Status</th><th>Qty</th><th>Serials</th></tr></thead><tbody>';
-    
+
     summary.forEach(item => {
-        const statusBadge = item.status === 'issued' ? 'bg-primary' : 
+        const statusBadge = item.status === 'issued' ? 'bg-primary' :
                           item.status === 'deployed' ? 'bg-success' : 'bg-warning';
         html += `<tr>
             <td>${item.model_name}</td>
@@ -190,7 +190,7 @@ function displayInventory(summary) {
             <td><small class="text-muted">${item.serial_numbers}</small></td>
         </tr>`;
     });
-    
+
     html += '</tbody></table></div>';
     $('#inventoryList').html(html);
 }
@@ -219,7 +219,7 @@ function addLine() {
                 <input type="hidden" name="lines[${lineIndex}][serial_no]" class="serial-no">
             </td>
             <td>
-                <input type="number" class="form-control form-control-sm quantity" 
+                <input type="number" class="form-control form-control-sm quantity"
                        name="lines[${lineIndex}][quantity]" value="1" min="0.01" step="0.01" required>
             </td>
             <td>
@@ -239,28 +239,28 @@ function addLine() {
             </td>
         </tr>
     `;
-    
+
     $('#linesBody').append(html);
-    
+
     // Add event listeners
     $(`tr[data-index="${lineIndex}"] .model-select`).on('change', function() {
         loadSerials($(this).closest('tr'), techId, $(this).val());
     });
-    
+
     $(`tr[data-index="${lineIndex}"] .serial-select`).on('change', function() {
         const serialNo = $(this).find('option:selected').text();
         $(this).closest('tr').find('.serial-no').val(serialNo);
     });
-    
+
     $(`tr[data-index="${lineIndex}"] .quantity, tr[data-index="${lineIndex}"] .condition-select`).on('change', updateSummary);
-    
+
     lineIndex++;
     updateSummary();
 }
 
 function loadSerials(row, techId, modelId) {
     if (!modelId) return;
-    
+
     $.ajax({
         url: "{{ route('admin.stock-returns.technician-inventory') }}",
         data: {technician_id: techId, model_id: modelId},
@@ -283,17 +283,17 @@ function removeLine(btn) {
 
 function updateSummary() {
     let total = 0, good = 0, damaged = 0, defective = 0;
-    
+
     $('#linesBody tr').each(function() {
         const qty = parseFloat($(this).find('.quantity').val()) || 0;
         const condition = $(this).find('.condition-select').val();
-        
+
         total += qty;
         if (condition === 'good') good += qty;
         else if (condition === 'damaged') damaged += qty;
         else if (condition === 'defective') defective += qty;
     });
-    
+
     $('#totalItems').text(total.toFixed(2));
     $('#goodItems').text(good.toFixed(2));
     $('#damagedItems').text(damaged.toFixed(2));
@@ -302,14 +302,14 @@ function updateSummary() {
 
 $('#returnForm').on('submit', function(e) {
     e.preventDefault();
-    
+
     if ($('#linesBody tr').length === 0) {
         Swal.fire('Error', 'Please add at least one item to return', 'error');
         return;
     }
-    
+
     const formData = $(this).serialize();
-    
+
     $.ajax({
         url: $(this).attr('action'),
         method: 'POST',
