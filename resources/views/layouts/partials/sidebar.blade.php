@@ -240,6 +240,7 @@
                 $isStockIssueRoute = str_contains($currentRoute ?? '', 'admin.stock-issues');
                 $isStockReturnRoute = str_contains($currentRoute ?? '', 'admin.stock-returns');
                 $isStockTransferRoute = str_contains($currentRoute ?? '', 'admin.stock-transfers');
+                $isStockAdjustmentRoute = str_contains($currentRoute ?? '', 'admin.stock-adjustments');
             @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
@@ -334,11 +335,14 @@
                     </li>
                     @endcan
 
+                    @can('view_stock_adjustments')
                     <li class="nav-item">
-                        <a class="nav-link" href="#">
+                        <a class="nav-link {{ $isStockAdjustmentRoute ? 'active' : '' }}"
+                        href="{{ route('admin.stock-adjustments.index') }}">
                             <i class="bi bi-tools me-2"></i> Stock Adjustments
                         </a>
                     </li>
+                    @endcan
                 </ul>
             </div>
 
@@ -599,6 +603,7 @@
                 $isStockIssueRoute = str_contains($currentRoute ?? '', 'supervisor.stock-issues');
                 $isStockReturnRoute = str_contains($currentRoute ?? '', 'supervisor.stock-returns');
                 $isStockTransferRoute = str_contains($currentRoute ?? '', 'supervisor.stock-transfers');
+                $isStockAdjustmentRoute = str_contains($currentRoute ?? '', 'supervisor.stock-adjustments');
             @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
@@ -665,6 +670,15 @@
                         <a class="nav-link {{ $isStockTransferRoute ? 'active' : '' }}"
                         href="{{ route('supervisor.stock-transfers.index') }}">
                             <i class="bi bi-arrow-left-right me-2"></i> Stock Transfers
+                        </a>
+                    </li>
+                    @endcan
+
+                    @can('view_stock_adjustments')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isStockAdjustmentRoute ? 'active' : '' }}"
+                        href="{{ route('supervisor.stock-adjustments.index') }}">
+                            <i class="bi bi-tools me-2"></i> Stock Adjustments
                         </a>
                     </li>
                     @endcan

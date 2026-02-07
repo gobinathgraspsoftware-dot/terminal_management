@@ -71,6 +71,8 @@ use App\Http\Controllers\Technician\StockReturnController as TechnicianStockRetu
 use App\Http\Controllers\Admin\StockTransferController as AdminStockTransferController;
 use App\Http\Controllers\Supervisor\StockTransferController as SupervisorStockTransferController;
 use App\Http\Controllers\Technician\StockTransferController as TechnicianStockTransferController;
+use App\Http\Controllers\Admin\StockAdjustmentController as AdminStockAdjustmentController;
+use App\Http\Controllers\Supervisor\StockAdjustmentController as SupervisorStockAdjustmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -484,7 +486,6 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/{stockTransfer}', [AdminStockTransferController::class, 'show'])->name('show');
         Route::get('/{stockTransfer}/edit', [AdminStockTransferController::class, 'edit'])->name('edit');
         Route::put('/{stockTransfer}', [AdminStockTransferController::class, 'update'])->name('update');
-
         Route::post('/{stockTransfer}/submit', [AdminStockTransferController::class, 'submitForApproval'])->name('submit');
         Route::get('/{stockTransfer}/approve', [AdminStockTransferController::class, 'approveForm'])->name('approve-form');
         Route::post('/{stockTransfer}/approve', [AdminStockTransferController::class, 'approve'])->name('approve');
@@ -493,10 +494,28 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/{stockTransfer}/receive', [AdminStockTransferController::class, 'receiveForm'])->name('receive-form');
         Route::post('/{stockTransfer}/receive', [AdminStockTransferController::class, 'receive'])->name('receive');
         Route::post('/{stockTransfer}/cancel', [AdminStockTransferController::class, 'cancel'])->name('cancel');
-
         Route::get('/{stockTransfer}/print', [AdminStockTransferController::class, 'print'])->name('print');
         Route::get('/export', [AdminStockTransferController::class, 'export'])->name('export');
         Route::get('/available-stock', [AdminStockTransferController::class, 'getAvailableStock'])->name('available-stock');
+    });
+
+    /* Stock Adjustments Routes */
+    Route::prefix('stock-adjustments')->name('stock-adjustments.')->group(function () {
+        Route::get('/', [AdminStockAdjustmentController::class, 'index'])->name('index');
+        Route::get('/create', [AdminStockAdjustmentController::class, 'create'])->name('create');
+        Route::post('/', [AdminStockAdjustmentController::class, 'store'])->name('store');
+        Route::get('/{stockAdjustment}', [AdminStockAdjustmentController::class, 'show'])->name('show');
+        Route::get('/{stockAdjustment}/edit', [AdminStockAdjustmentController::class, 'edit'])->name('edit');
+        Route::put('/{stockAdjustment}', [AdminStockAdjustmentController::class, 'update'])->name('update');
+        Route::delete('/{stockAdjustment}', [AdminStockAdjustmentController::class, 'destroy'])->name('destroy');
+        Route::get('/{stockAdjustment}/approve', [AdminStockAdjustmentController::class, 'approve'])->name('approve');
+        Route::post('/{stockAdjustment}/process-approval', [AdminStockAdjustmentController::class, 'processApproval'])->name('process-approval');
+        Route::post('/{stockAdjustment}/submit', [AdminStockAdjustmentController::class, 'submit'])->name('submit');
+        Route::post('/{stockAdjustment}/post', [AdminStockAdjustmentController::class, 'post'])->name('post');
+        Route::get('/ajax/depot-stock', [AdminStockAdjustmentController::class, 'getDepotStock'])->name('get-depot-stock');
+        Route::get('/reports/variance', [AdminStockAdjustmentController::class, 'varianceReport'])->name('variance-report');
+        Route::get('/export/excel', [AdminStockAdjustmentController::class, 'export'])->name('export');
+        Route::get('/export/variance', [AdminStockAdjustmentController::class, 'exportVariance'])->name('export-variance');
     });
 
     /* Settings (requires specific permission) */
@@ -731,6 +750,22 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/available-stock', [SupervisorStockTransferController::class, 'getAvailableStock'])->name('available-stock');
     });
 
+    /* Stock Adjustments Routes */
+    Route::prefix('stock-adjustments')->name('stock-adjustments.')->group(function () {
+        Route::get('/', [SupervisorStockAdjustmentController::class, 'index'])->name('index');
+        Route::get('/create', [SupervisorStockAdjustmentController::class, 'create'])->name('create');
+        Route::post('/', [SupervisorStockAdjustmentController::class, 'store'])->name('store');
+        Route::get('/{stockAdjustment}', [SupervisorStockAdjustmentController::class, 'show'])->name('show');
+        Route::get('/{stockAdjustment}/edit', [SupervisorStockAdjustmentController::class, 'edit'])->name('edit');
+        Route::put('/{stockAdjustment}', [SupervisorStockAdjustmentController::class, 'update'])->name('update');
+        Route::delete('/{stockAdjustment}', [SupervisorStockAdjustmentController::class, 'destroy'])->name('destroy');
+        Route::post('/{stockAdjustment}/submit', [SupervisorStockAdjustmentController::class, 'submit'])->name('submit');
+        Route::get('/ajax/depot-stock', [SupervisorStockAdjustmentController::class, 'getDepotStock'])->name('get-depot-stock');
+        Route::get('/reports/variance', [SupervisorStockAdjustmentController::class, 'varianceReport'])->name('variance-report');
+        Route::get('/export/excel', [SupervisorStockAdjustmentController::class, 'export'])->name('export');
+        Route::get('/export/variance', [SupervisorStockAdjustmentController::class, 'exportVariance'])->name('export-variance');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -895,6 +930,12 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::put('/{stockReturn}', [TechnicianStockReturnController::class, 'update'])->name('update');
         Route::get('/{stockReturn}/print', [TechnicianStockReturnController::class, 'print'])->name('print');
         Route::get('/my-inventory', [TechnicianStockReturnController::class, 'getMyInventory'])->name('my-inventory');
+    });
+
+    /* Stock Transfers */
+    Route::prefix('stock-transfers')->name('stock-transfers.')->group(function () {
+        Route::get('/', [TechnicianStockTransferController::class, 'index'])->name('index');
+        Route::get('/{stockTransfer}', [TechnicianStockTransferController::class, 'show'])->name('show');
     });
 
     /* Claims */
