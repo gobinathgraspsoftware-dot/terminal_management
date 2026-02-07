@@ -68,6 +68,9 @@ use App\Http\Controllers\Technician\StockIssueController as TechnicianStockIssue
 use App\Http\Controllers\Admin\StockReturnController as AdminStockReturnController;
 use App\Http\Controllers\Supervisor\StockReturnController as SupervisorStockReturnController;
 use App\Http\Controllers\Technician\StockReturnController as TechnicianStockReturnController;
+use App\Http\Controllers\Admin\StockTransferController as AdminStockTransferController;
+use App\Http\Controllers\Supervisor\StockTransferController as SupervisorStockTransferController;
+use App\Http\Controllers\Technician\StockTransferController as TechnicianStockTransferController;
 
 /*
 |--------------------------------------------------------------------------
@@ -473,6 +476,29 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/export/excel', [AdminStockReturnController::class, 'export'])->name('export');
     });
 
+    /* Stock Transfers routes */
+    Route::prefix('stock-transfers')->name('stock-transfers.')->group(function () {
+        Route::get('/', [AdminStockTransferController::class, 'index'])->name('index');
+        Route::get('/create', [AdminStockTransferController::class, 'create'])->name('create');
+        Route::post('/', [AdminStockTransferController::class, 'store'])->name('store');
+        Route::get('/{stockTransfer}', [AdminStockTransferController::class, 'show'])->name('show');
+        Route::get('/{stockTransfer}/edit', [AdminStockTransferController::class, 'edit'])->name('edit');
+        Route::put('/{stockTransfer}', [AdminStockTransferController::class, 'update'])->name('update');
+
+        Route::post('/{stockTransfer}/submit', [AdminStockTransferController::class, 'submitForApproval'])->name('submit');
+        Route::get('/{stockTransfer}/approve', [AdminStockTransferController::class, 'approveForm'])->name('approve-form');
+        Route::post('/{stockTransfer}/approve', [AdminStockTransferController::class, 'approve'])->name('approve');
+        Route::post('/{stockTransfer}/reject', [AdminStockTransferController::class, 'reject'])->name('reject');
+        Route::post('/{stockTransfer}/dispatch', [AdminStockTransferController::class, 'dispatch'])->name('dispatch');
+        Route::get('/{stockTransfer}/receive', [AdminStockTransferController::class, 'receiveForm'])->name('receive-form');
+        Route::post('/{stockTransfer}/receive', [AdminStockTransferController::class, 'receive'])->name('receive');
+        Route::post('/{stockTransfer}/cancel', [AdminStockTransferController::class, 'cancel'])->name('cancel');
+
+        Route::get('/{stockTransfer}/print', [AdminStockTransferController::class, 'print'])->name('print');
+        Route::get('/export', [AdminStockTransferController::class, 'export'])->name('export');
+        Route::get('/available-stock', [AdminStockTransferController::class, 'getAvailableStock'])->name('available-stock');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -688,6 +714,21 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/technician/inventory', [SupervisorStockReturnController::class, 'getTechnicianInventory'])->name('technician-inventory');
         Route::get('/technician/summary', [SupervisorStockReturnController::class, 'getTechnicianInventorySummary'])->name('technician-summary');
         Route::get('/export/excel', [SupervisorStockReturnController::class, 'export'])->name('export');
+    });
+
+    /* Stock Transfers Routes */
+    Route::prefix('stock-transfers')->name('stock-transfers.')->group(function () {
+        Route::get('/', [SupervisorStockTransferController::class, 'index'])->name('index');
+        Route::get('/create', [SupervisorStockTransferController::class, 'create'])->name('create');
+        Route::post('/', [SupervisorStockTransferController::class, 'store'])->name('store');
+        Route::get('/{stockTransfer}', [SupervisorStockTransferController::class, 'show'])->name('show');
+        Route::get('/{stockTransfer}/approve', [SupervisorStockTransferController::class, 'approveForm'])->name('approve-form');
+        Route::post('/{stockTransfer}/approve', [SupervisorStockTransferController::class, 'approve'])->name('approve');
+        Route::get('/{stockTransfer}/receive', [SupervisorStockTransferController::class, 'receiveForm'])->name('receive-form');
+        Route::post('/{stockTransfer}/receive', [SupervisorStockTransferController::class, 'receive'])->name('receive');
+        Route::get('/{stockTransfer}/print', [SupervisorStockTransferController::class, 'print'])->name('print');
+        Route::get('/export', [SupervisorStockTransferController::class, 'export'])->name('export');
+        Route::get('/available-stock', [SupervisorStockTransferController::class, 'getAvailableStock'])->name('available-stock');
     });
 
     /* Job Assignment (supervisor or admin) */
