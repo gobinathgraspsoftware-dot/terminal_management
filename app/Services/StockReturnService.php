@@ -133,15 +133,15 @@ class StockReturnService
                 'tm.id as model_id',
                 'tm.model_name',
                 'tc.category_name',
-                'is.status',
+                'is.current_status',
                 DB::raw('COUNT(*) as quantity'),
                 DB::raw('GROUP_CONCAT(is.serial_no ORDER BY is.serial_no SEPARATOR ", ") as serial_numbers'),
                 DB::raw('GROUP_CONCAT(is.id ORDER BY is.serial_no SEPARATOR ",") as serial_ids')
             )
             ->where('is.current_location_type', 'technician')
             ->where('is.current_location_id', $technicianId)
-            ->whereIn('is.status', ['issued', 'deployed', 'faulty'])
-            ->groupBy('tm.id', 'tm.model_name', 'tc.category_name', 'is.status')
+            ->whereIn('is.current_status', ['issued', 'deployed', 'faulty'])
+            ->groupBy('tm.id', 'tm.model_name', 'tc.category_name', 'is.current_status')
             ->orderBy('tc.category_name')
             ->orderBy('tm.model_name')
             ->get();

@@ -102,10 +102,12 @@ class InventoryController extends Controller
     }
 
     /**
-     * Get serial details for return form (AJAX)
+     * AJAX: Get serial details by model
      */
     public function getSerialDetails(Request $request)
     {
+        $this->authorize('view_inventory');
+
         $modelId = $request->input('model_id');
         $technicianId = auth()->id();
 
@@ -113,25 +115,22 @@ class InventoryController extends Controller
             ->where('current_location_type', 'technician')
             ->where('current_location_id', $technicianId)
             ->where('model_id', $modelId)
-            ->whereIn('status', ['issued', 'deployed', 'faulty'])
-            ->orderBy('serial_no')
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'serials' => $serials->map(function ($serial) {
+            ->whereIn('current_status', ['issued', 'deployed', 'faulty'])
+            ->get()
+            ->map(function ($serial) {
                 return [
                     'id' => $serial->id,
                     'serial_no' => $serial->serial_no,
-                    'status' => $serial->status,
-                    'model_name' => $serial->model->model_name ?? 'Unknown'
+                    'status' => $serial->current_status,
+                    'model_name' => $serial->model->model_name ?? 'Unknown',
                 ];
-            })
-        ]);
+            });
+
+        return response()->json(['serials' => $serials]);
     }
 
     /**
-     * Stock summary view
+     * Show summary dashboard
      */
     public function summary()
     {
@@ -139,21 +138,27 @@ class InventoryController extends Controller
 
         $technicianId = auth()->id();
 
-        // Get comprehensive summary
+        // Get summary statistics
         $summary = $this->getInventorySummary($technicianId);
+
+        // Get inventory by model (for table)
         $inventoryByModel = $this->getInventoryByModel($technicianId);
-        $inventoryByStatus = $this->getInventoryByStatus($technicianId);
+
+        // Get inventory by category (for pie chart)
         $inventoryByCategory = $this->getInventoryByCategory($technicianId);
 
+        // Get inventory by status (for doughnut chart)
+        $inventoryByStatus = $this->getInventoryByStatus($technicianId);
+
         // Get issue/return statistics
-        $issueStats = $this->getIssueReturnStats($technicianId);
+        $issueReturnStats = $this->getIssueReturnStats($technicianId);
 
         return view('technician.inventory.summary', compact(
             'summary',
             'inventoryByModel',
-            'inventoryByStatus',
             'inventoryByCategory',
-            'issueStats'
+            'inventoryByStatus',
+            'issueReturnStats'
         ));
     }
 
@@ -162,46 +167,41 @@ class InventoryController extends Controller
      */
     protected function getDataTable(Request $request, $technicianId)
     {
-        $query = InventorySerial::with(['model.category'])
+        $query = InventorySerial::with(['model.category', 'depot'])
             ->where('current_location_type', 'technician')
             ->where('current_location_id', $technicianId)
-            ->whereIn('status', ['issued', 'deployed', 'faulty']);
+            ->whereIn('current_status', ['issued', 'deployed', 'faulty']);
 
         // Search
         if ($search = $request->input('search.value')) {
             $query->where(function ($q) use ($search) {
                 $q->where('serial_no', 'like', "%{$search}%")
-                  ->orWhereHas('model', function ($mq) use ($search) {
-                      $mq->where('model_name', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('model', function ($mq) use ($search) {
+                        $mq->where('model_name', 'like', "%{$search}%");
+                    });
             });
         }
 
         // Filter by status
         if ($status = $request->input('status')) {
-            $query->where('status', $status);
+            $query->where('current_status', $status);
         }
 
-        // Filter by model
-        if ($modelId = $request->input('model_id')) {
-            $query->where('model_id', $modelId);
-        }
+        // Ordering
+        $orderColumn = $request->input('order.0.column', 0);
+        $orderDir = $request->input('order.0.dir', 'desc');
 
-        // Total records
+        // Get total count before pagination
         $totalRecords = InventorySerial::where('current_location_type', 'technician')
             ->where('current_location_id', $technicianId)
-            ->whereIn('status', ['issued', 'deployed', 'faulty'])
+            ->whereIn('current_status', ['issued', 'deployed', 'faulty'])
             ->count();
 
         $filteredRecords = $query->count();
 
-        // Sorting
-        $orderColumn = $request->input('order.0.column', 0);
-        $orderDir = $request->input('order.0.dir', 'asc');
-
-        $columns = ['serial_no', 'model.model_name', 'status', 'created_at'];
+        $columns = ['serial_no', 'model.model_name', 'current_status', 'created_at'];
         if (isset($columns[$orderColumn])) {
-            if ($orderColumn == 1) { // model_name
+            if ($orderColumn == 1) {
                 $query->join('terminal_models', 'inventory_serials.model_id', '=', 'terminal_models.id')
                     ->orderBy('terminal_models.model_name', $orderDir)
                     ->select('inventory_serials.*');
@@ -213,17 +213,16 @@ class InventoryController extends Controller
         // Pagination
         $start = $request->input('start', 0);
         $length = $request->input('length', 10);
-        $serials = $query->skip($start)->take($length)->get();
+        $items = $query->skip($start)->take($length)->get();
 
-        $data = $serials->map(function ($serial) {
+        $data = $items->map(function ($serial) {
             return [
                 'id' => $serial->id,
                 'serial_no' => $serial->serial_no,
                 'model_name' => $serial->model->model_name ?? 'N/A',
                 'category_name' => $serial->model->category->category_name ?? 'N/A',
-                'status' => $serial->status,
-                'received_date' => $serial->created_at ? $serial->created_at->format('Y-m-d') : 'N/A',
-                'action' => view('technician.inventory.partials.action-buttons', compact('serial'))->render()
+                'status' => $serial->current_status,
+                'received_date' => $serial->received_date ? date('d M Y', strtotime($serial->received_date)) : 'N/A',
             ];
         });
 
@@ -240,31 +239,31 @@ class InventoryController extends Controller
      */
     protected function getInventorySummary($technicianId)
     {
-        $totalItems = InventorySerial::where('current_location_type', 'technician')
+        $total = InventorySerial::where('current_location_type', 'technician')
             ->where('current_location_id', $technicianId)
-            ->whereIn('status', ['issued', 'deployed', 'faulty'])
+            ->whereIn('current_status', ['issued', 'deployed', 'faulty'])
             ->count();
 
-        $issuedItems = InventorySerial::where('current_location_type', 'technician')
+        $issued = InventorySerial::where('current_location_type', 'technician')
             ->where('current_location_id', $technicianId)
-            ->where('status', 'issued')
+            ->where('current_status', 'issued')
             ->count();
 
-        $deployedItems = InventorySerial::where('current_location_type', 'technician')
+        $deployed = InventorySerial::where('current_location_type', 'technician')
             ->where('current_location_id', $technicianId)
-            ->where('status', 'deployed')
+            ->where('current_status', 'deployed')
             ->count();
 
-        $faultyItems = InventorySerial::where('current_location_type', 'technician')
+        $faulty = InventorySerial::where('current_location_type', 'technician')
             ->where('current_location_id', $technicianId)
-            ->where('status', 'faulty')
+            ->where('current_status', 'faulty')
             ->count();
 
         return [
-            'total_items' => $totalItems,
-            'issued_items' => $issuedItems,
-            'deployed_items' => $deployedItems,
-            'faulty_items' => $faultyItems
+            'total_items' => $total,
+            'issued_items' => $issued,
+            'deployed_items' => $deployed,
+            'faulty_items' => $faulty,
         ];
     }
 
@@ -275,22 +274,18 @@ class InventoryController extends Controller
     {
         return DB::table('inventory_serials as is')
             ->join('terminal_models as tm', 'is.model_id', '=', 'tm.id')
-            ->join('terminal_categories as tc', 'tm.category_id', '=', 'tc.id')
             ->select(
-                'tm.id as model_id',
                 'tm.model_name',
-                'tc.category_name',
-                DB::raw('COUNT(*) as total_quantity'),
-                DB::raw('SUM(CASE WHEN is.status = "issued" THEN 1 ELSE 0 END) as issued_qty'),
-                DB::raw('SUM(CASE WHEN is.status = "deployed" THEN 1 ELSE 0 END) as deployed_qty'),
-                DB::raw('SUM(CASE WHEN is.status = "faulty" THEN 1 ELSE 0 END) as faulty_qty')
+                DB::raw('COUNT(*) as total_qty'),
+                DB::raw('SUM(CASE WHEN is.current_status = "issued" THEN 1 ELSE 0 END) as issued_qty'),
+                DB::raw('SUM(CASE WHEN is.current_status = "deployed" THEN 1 ELSE 0 END) as deployed_qty'),
+                DB::raw('SUM(CASE WHEN is.current_status = "faulty" THEN 1 ELSE 0 END) as faulty_qty')
             )
             ->where('is.current_location_type', 'technician')
             ->where('is.current_location_id', $technicianId)
-            ->whereIn('is.status', ['issued', 'deployed', 'faulty'])
-            ->groupBy('tm.id', 'tm.model_name', 'tc.category_name')
-            ->orderBy('tc.category_name')
-            ->orderBy('tm.model_name')
+            ->whereIn('is.current_status', ['issued', 'deployed', 'faulty'])
+            ->whereNull('is.deleted_at')
+            ->groupBy('tm.id', 'tm.model_name')
             ->get();
     }
 
@@ -299,12 +294,14 @@ class InventoryController extends Controller
      */
     protected function getInventoryByStatus($technicianId)
     {
-        return InventorySerial::select('status', DB::raw('COUNT(*) as count'))
+        return InventorySerial::select('current_status', DB::raw('COUNT(*) as count'))
             ->where('current_location_type', 'technician')
             ->where('current_location_id', $technicianId)
-            ->whereIn('status', ['issued', 'deployed', 'faulty'])
-            ->groupBy('status')
-            ->get();
+            ->whereIn('current_status', ['issued', 'deployed', 'faulty'])
+            ->groupBy('current_status')
+            ->get()
+            ->pluck('count', 'current_status')
+            ->toArray();
     }
 
     /**
@@ -316,16 +313,17 @@ class InventoryController extends Controller
             ->join('terminal_models as tm', 'is.model_id', '=', 'tm.id')
             ->join('terminal_categories as tc', 'tm.category_id', '=', 'tc.id')
             ->select(
-                'tc.id as category_id',
                 'tc.category_name',
-                DB::raw('COUNT(*) as total_quantity')
+                DB::raw('COUNT(*) as count')
             )
             ->where('is.current_location_type', 'technician')
             ->where('is.current_location_id', $technicianId)
-            ->whereIn('is.status', ['issued', 'deployed', 'faulty'])
+            ->whereIn('is.current_status', ['issued', 'deployed', 'faulty'])
+            ->whereNull('is.deleted_at')
             ->groupBy('tc.id', 'tc.category_name')
-            ->orderBy('tc.category_name')
-            ->get();
+            ->get()
+            ->pluck('count', 'category_name')
+            ->toArray();
     }
 
     /**
@@ -334,27 +332,28 @@ class InventoryController extends Controller
     protected function getRecentMovements($technicianId, $limit = 10)
     {
         return DB::table('stock_ledger as sl')
-            ->join('terminal_models as tm', 'sl.model_id', '=', 'tm.id')
-            ->leftJoin('inventory_serials as is', 'sl.serial_id', '=', 'is.id')
+            ->join('inventory_serials as is', 'sl.serial_id', '=', 'is.id')
+            ->join('terminal_models as tm', 'is.model_id', '=', 'tm.id')
             ->select(
-                'sl.id',
                 'sl.transaction_date',
                 'sl.transaction_no',
                 'sl.transaction_type',
-                'sl.serial_no',
-                'sl.quantity',
-                'sl.remarks',
+                'is.serial_no',
                 'tm.model_name',
-                'is.status as serial_status'
+                'sl.from_location_type',
+                'sl.from_location_id',
+                'sl.to_location_type',
+                'sl.to_location_id',
+                'sl.quantity',
+                'is.current_status as serial_status'
             )
-            ->where(function ($q) use ($technicianId) {
-                $q->where(function ($q2) use ($technicianId) {
-                    $q2->where('sl.to_location_type', 'technician')
-                       ->where('sl.to_location_id', $technicianId);
-                })
-                ->orWhere(function ($q2) use ($technicianId) {
-                    $q2->where('sl.from_location_type', 'technician')
-                       ->where('sl.from_location_id', $technicianId);
+            ->where(function ($query) use ($technicianId) {
+                $query->where(function ($q) use ($technicianId) {
+                    $q->where('sl.to_location_type', 'technician')
+                        ->where('sl.to_location_id', $technicianId);
+                })->orWhere(function ($q) use ($technicianId) {
+                    $q->where('sl.from_location_type', 'technician')
+                        ->where('sl.from_location_id', $technicianId);
                 });
             })
             ->orderBy('sl.transaction_date', 'desc')
@@ -364,31 +363,44 @@ class InventoryController extends Controller
     }
 
     /**
-     * Get issue and return statistics
+     * Get issue/return statistics
+     * FIXED: Using correct column names from stock_issues table
      */
     protected function getIssueReturnStats($technicianId)
     {
-        $last30Days = now()->subDays(30);
+        // Total issued to technician (all time)
+        // Using: to_technician_id (not issued_to_id)
+        $totalIssued = StockIssue::where('to_technician_id', $technicianId)
+            ->where('issue_type', StockIssue::TYPE_ISSUE_TO_TECH)
+            ->where('status', StockIssue::STATUS_POSTED)
+            ->count();
+
+        // Total returned by technician (all time)
+        // Using: from_technician_id (not returned_by_id)
+        $totalReturned = StockIssue::where('from_technician_id', $technicianId)
+            ->where('issue_type', StockIssue::TYPE_RETURN_FROM_TECH)
+            ->where('status', StockIssue::STATUS_POSTED)
+            ->count();
+
+        // Issued in last 30 days
+        $issuedLast30Days = StockIssue::where('to_technician_id', $technicianId)
+            ->where('issue_type', StockIssue::TYPE_ISSUE_TO_TECH)
+            ->where('status', StockIssue::STATUS_POSTED)
+            ->where('issue_date', '>=', now()->subDays(30))
+            ->count();
+
+        // Returned in last 30 days
+        $returnedLast30Days = StockIssue::where('from_technician_id', $technicianId)
+            ->where('issue_type', StockIssue::TYPE_RETURN_FROM_TECH)
+            ->where('status', StockIssue::STATUS_POSTED)
+            ->where('issue_date', '>=', now()->subDays(30))
+            ->count();
 
         return [
-            'total_issued' => StockIssue::where('issue_type', 'issue_to_tech')
-                ->where('to_technician_id', $technicianId)
-                ->where('status', 'posted')
-                ->count(),
-            'total_returned' => StockIssue::where('issue_type', 'return_from_tech')
-                ->where('from_technician_id', $technicianId)
-                ->where('status', 'posted')
-                ->count(),
-            'issued_last_30_days' => StockIssue::where('issue_type', 'issue_to_tech')
-                ->where('to_technician_id', $technicianId)
-                ->where('status', 'posted')
-                ->where('issue_date', '>=', $last30Days)
-                ->count(),
-            'returned_last_30_days' => StockIssue::where('issue_type', 'return_from_tech')
-                ->where('from_technician_id', $technicianId)
-                ->where('status', 'posted')
-                ->where('issue_date', '>=', $last30Days)
-                ->count(),
+            'total_issued' => $totalIssued,
+            'total_returned' => $totalReturned,
+            'issued_last_30_days' => $issuedLast30Days,
+            'returned_last_30_days' => $returnedLast30Days,
         ];
     }
 }

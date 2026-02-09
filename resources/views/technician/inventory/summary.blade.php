@@ -176,7 +176,7 @@
                 </div>
                 <div class="card-body">
                     <canvas id="categoryChart"></canvas>
-                    
+
                     <div class="mt-3">
                         @foreach($inventoryByCategory as $cat)
                         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -200,7 +200,7 @@
                         @foreach($inventoryByStatus as $status)
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="text-capitalize">{{ $status->status }}</span>
-                            <span class="badge 
+                            <span class="badge
                                 @if($status->status == 'issued') bg-success
                                 @elseif($status->status == 'deployed') bg-info
                                 @elseif($status->status == 'faulty') bg-danger
@@ -222,7 +222,7 @@
                     <div class="mb-3">
                         <div class="d-flex justify-content-between mb-1">
                             <span class="text-muted">Total Issued (All time)</span>
-                            <strong>{{ $issueStats['total_issued'] }}</strong>
+                            <strong>{{ $issueReturnStats['total_issued'] }}</strong>
                         </div>
                         <div class="progress" style="height: 8px;">
                             <div class="progress-bar bg-success" style="width: 100%"></div>
@@ -232,7 +232,7 @@
                     <div class="mb-3">
                         <div class="d-flex justify-content-between mb-1">
                             <span class="text-muted">Total Returned (All time)</span>
-                            <strong>{{ $issueStats['total_returned'] }}</strong>
+                            <strong>{{ $issueReturnStats['total_returned'] }}</strong>
                         </div>
                         <div class="progress" style="height: 8px;">
                             <div class="progress-bar bg-warning" style="width: 100%"></div>
@@ -244,14 +244,14 @@
                     <div class="mb-3">
                         <div class="d-flex justify-content-between mb-1">
                             <span class="text-muted">Issued (Last 30 days)</span>
-                            <strong class="text-success">{{ $issueStats['issued_last_30_days'] }}</strong>
+                            <strong class="text-success">{{ $issueReturnStats['issued_last_30_days'] }}</strong>
                         </div>
                     </div>
 
                     <div class="mb-0">
                         <div class="d-flex justify-content-between mb-1">
                             <span class="text-muted">Returned (Last 30 days)</span>
-                            <strong class="text-warning">{{ $issueStats['returned_last_30_days'] }}</strong>
+                            <strong class="text-warning">{{ $issueReturnStats['returned_last_30_days'] }}</strong>
                         </div>
                     </div>
                 </div>
@@ -292,7 +292,7 @@ $(document).ready(function() {
     // Category Chart (Pie)
     const categoryCtx = document.getElementById('categoryChart').getContext('2d');
     const categoryData = @json($inventoryByCategory);
-    
+
     new Chart(categoryCtx, {
         type: 'pie',
         data: {
@@ -300,7 +300,7 @@ $(document).ready(function() {
             datasets: [{
                 data: categoryData.map(item => item.total_quantity),
                 backgroundColor: [
-                    '#667eea', '#764ba2', '#f093fb', '#4facfe', 
+                    '#667eea', '#764ba2', '#f093fb', '#4facfe',
                     '#43e97b', '#fa709a', '#fee140', '#30cfd0'
                 ]
             }]
@@ -319,13 +319,13 @@ $(document).ready(function() {
     // Status Chart (Doughnut)
     const statusCtx = document.getElementById('statusChart').getContext('2d');
     const statusData = @json($inventoryByStatus);
-    
+
     const statusColors = {
         'issued': '#28a745',
         'deployed': '#17a2b8',
         'faulty': '#dc3545'
     };
-    
+
     new Chart(statusCtx, {
         type: 'doughnut',
         data: {
@@ -354,17 +354,17 @@ $(document).ready(function() {
     .card {
         border-radius: 10px;
     }
-    
+
     .progress {
         border-radius: 5px;
     }
-    
+
     @media (max-width: 768px) {
         .btn-group {
             flex-direction: column;
             width: 100%;
         }
-        
+
         .btn-group .btn {
             width: 100%;
             margin-bottom: 0.5rem;
