@@ -8,9 +8,12 @@ use App\Models\TerminalModel;
 use App\Services\Inventory\StockLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class StockLedgerController extends Controller
 {
+    use AuthorizesRequests;
+
     protected $ledgerService;
 
     public function __construct(StockLedgerService $ledgerService)

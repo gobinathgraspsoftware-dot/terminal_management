@@ -92,7 +92,7 @@ class StockBalance extends Model
      */
     public function getIsLowStockAttribute(): bool
     {
-        $minStock = $this->model->min_stock_level ?? 5;
+        $minStock = 5; // Fixed threshold
         return $this->quantity_available <= $minStock && $this->quantity_available > 0;
     }
 

@@ -9,9 +9,12 @@ use App\Models\TerminalCategory;
 use App\Services\Inventory\StockBalanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class StockBalanceController extends Controller
 {
+    use AuthorizesRequests;
+
     protected $balanceService;
 
     public function __construct(StockBalanceService $balanceService)
@@ -33,7 +36,7 @@ class StockBalanceController extends Controller
         }
 
         // Get summary data for technician
-        $summary = $this->balanceService->getStockSummary('technician', $technicianId);
+        $summary = $this->getTechnicianSummary($technicianId);
 
         // Get categories for filter
         $categories = TerminalCategory::select('id', 'category_name')
@@ -45,13 +48,11 @@ class StockBalanceController extends Controller
             ->orderBy('model_name')
             ->get();
 
-        // Count low stock items
+        // Count low stock items (using threshold of 5)
         $lowStockCount = StockBalance::where('location_type', 'technician')
             ->where('location_id', $technicianId)
             ->where('quantity_available', '>', 0)
-            ->whereHas('model', function($q) {
-                $q->whereRaw('stock_balances.quantity_available <= terminal_models.min_stock_level');
-            })
+            ->where('quantity_available', '<=', 5)
             ->count();
 
         // Count out of stock items
@@ -67,6 +68,23 @@ class StockBalanceController extends Controller
             'lowStockCount',
             'outOfStockCount'
         ));
+    }
+
+    /**
+     * Get technician's stock summary
+     */
+    protected function getTechnicianSummary($technicianId)
+    {
+        $balances = StockBalance::where('location_type', 'technician')
+            ->where('location_id', $technicianId)
+            ->get();
+
+        return (object) [
+            'total_items' => $balances->sum('quantity_on_hand'),
+            'total_available' => $balances->sum('quantity_available'),
+            'total_reserved' => $balances->sum('quantity_reserved'),
+            'unique_models' => $balances->pluck('model_id')->unique()->count(),
+        ];
     }
 
     /**
@@ -92,9 +110,7 @@ class StockBalanceController extends Controller
         if ($request->filled('stock_status')) {
             if ($request->stock_status === 'low_stock') {
                 $query->where('quantity_available', '>', 0)
-                    ->whereHas('model', function($q) {
-                        $q->whereRaw('stock_balances.quantity_available <= terminal_models.min_stock_level');
-                    });
+                    ->where('quantity_available', '<=', 5);
             } elseif ($request->stock_status === 'out_of_stock') {
                 $query->where('quantity_available', '<=', 0);
             }
@@ -146,7 +162,7 @@ class StockBalanceController extends Controller
                 'quantity_on_hand' => number_format($balance->quantity_on_hand, 2),
                 'quantity_reserved' => number_format($balance->quantity_reserved, 2),
                 'quantity_available' => number_format($balance->quantity_available, 2),
-                'min_stock_level' => $balance->model->min_stock_level ?? 5,
+                'min_stock_level' => 5, // Fixed threshold
                 'last_movement_date' => $balance->last_movement_date
                     ? $balance->last_movement_date->format('d M Y')
                     : '-',
