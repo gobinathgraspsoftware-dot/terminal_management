@@ -1014,11 +1014,11 @@
             @endcan
 
             @php
-                $isInventoryRoute = str_contains($currentRoute ?? '', 'technician.inventory');
                 $isInventoryDashboardRoute = str_contains($currentRoute ?? '', 'technician.inventory-dashboard');
                 $isInventorySerialRoute = str_contains($currentRoute ?? '', 'technician.inventory-serials');
                 $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'technician.serial-movement-history');
                 $isStockLedgerRoute = str_contains($currentRoute ?? '', 'technician.stock-ledger');
+                $isInventoryRoute = str_contains($currentRoute ?? '', 'technician.inventory.index');
                 $isStockBalanceRoute = str_contains($currentRoute ?? '', 'technician.stock-balance');
                 $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'technician.bulk-serials');
                 $isStockIssueRoute = str_contains($currentRoute ?? '', 'technician.stock-issues');
@@ -1042,7 +1042,7 @@
                     {{-- NEW: My Stock with enhanced view --}}
                     @can('view_inventory')
                     <li class="nav-item">
-                        <a class="nav-link {{ $isInventoryRoute && !str_contains($currentRoute, 'summary') && !str_contains($currentRoute, 'return-request') ? 'active' : '' }}"
+                        <a class="nav-link {{ $isInventoryRoute ? 'active' : '' }}"
                         href="{{ route('technician.inventory.index') }}">
                             <i class="bi bi-box-seam me-2"></i> My Stock
                         </a>

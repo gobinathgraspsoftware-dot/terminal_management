@@ -90,7 +90,7 @@
     {{-- Row 1: Stock by Technician + Category Distribution --}}
     <div class="row g-3 mb-4">
         <div class="col-lg-7">
-            @include('partials.inventory-widget', [
+            @include('components.inventory-widget', [
                 'widgetId'      => 'stockByTechnician',
                 'widgetTitle'   => 'Stock by Technician',
                 'widgetIcon'    => 'bi-people',
@@ -100,7 +100,7 @@
             ])
         </div>
         <div class="col-lg-5">
-            @include('partials.inventory-widget', [
+            @include('components.inventory-widget', [
                 'widgetId'      => 'categoryChart',
                 'widgetTitle'   => 'Category Distribution',
                 'widgetIcon'    => 'bi-pie-chart',
@@ -114,7 +114,7 @@
     {{-- Row 2: Stock by Category + Movement Trend --}}
     <div class="row g-3 mb-4">
         <div class="col-lg-7">
-            @include('partials.inventory-widget', [
+            @include('components.inventory-widget', [
                 'widgetId'      => 'stockByCategory',
                 'widgetTitle'   => 'Team Stock by Category',
                 'widgetIcon'    => 'bi-grid-3x3-gap',
@@ -124,7 +124,7 @@
             ])
         </div>
         <div class="col-lg-5">
-            @include('partials.inventory-widget', [
+            @include('components.inventory-widget', [
                 'widgetId'      => 'movementTrend',
                 'widgetTitle'   => 'Movement Trend (7 Days)',
                 'widgetIcon'    => 'bi-graph-up',
@@ -138,7 +138,7 @@
     {{-- Row 3: Low Stock Alerts --}}
     <div class="row g-3 mb-4">
         <div class="col-12">
-            @include('partials.inventory-widget', [
+            @include('components.inventory-widget', [
                 'widgetId'      => 'lowStockAlerts',
                 'widgetTitle'   => 'Team Low Stock Alerts',
                 'widgetIcon'    => 'bi-exclamation-triangle',
@@ -152,7 +152,7 @@
     {{-- Row 4: Recent Movements + Stock Aging --}}
     <div class="row g-3 mb-4">
         <div class="col-lg-7">
-            @include('partials.inventory-widget', [
+            @include('components.inventory-widget', [
                 'widgetId'      => 'recentMovements',
                 'widgetTitle'   => 'Team Recent Movements',
                 'widgetIcon'    => 'bi-arrow-left-right',
@@ -162,7 +162,7 @@
             ])
         </div>
         <div class="col-lg-5">
-            @include('partials.inventory-widget', [
+            @include('components.inventory-widget', [
                 'widgetId'      => 'stockAging',
                 'widgetTitle'   => 'Stock Aging',
                 'widgetIcon'    => 'bi-hourglass-split',
@@ -176,7 +176,7 @@
     {{-- Row 5: Top Models --}}
     <div class="row g-3 mb-4">
         <div class="col-12">
-            @include('partials.inventory-widget', [
+            @include('components.inventory-widget', [
                 'widgetId'      => 'topModels',
                 'widgetTitle'   => 'Top Models in Team',
                 'widgetIcon'    => 'bi-trophy',

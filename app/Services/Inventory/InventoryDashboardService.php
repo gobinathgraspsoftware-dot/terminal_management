@@ -148,6 +148,30 @@ class InventoryDashboardService
         return $result;
     }
 
+    /**
+     * Get technician's stock summary
+     */
+    public function getTechnicianStockSummary(int $technicianId): object
+    {
+        $balances = StockBalance::where('location_type', 'technician')
+            ->where('location_id', $technicianId)
+            ->get();
+
+        $serials = InventorySerial::where('current_location_type', 'technician')
+            ->where('current_location_id', $technicianId)
+            ->whereNull('deleted_at')
+            ->get();
+
+        return (object) [
+            'total_items' => $balances->sum('quantity_on_hand'),
+            'total_available' => $balances->sum('quantity_available'),
+            'total_reserved' => $balances->sum('quantity_reserved'),
+            'unique_models' => $balances->pluck('model_id')->unique()->count(),
+            'total_serials' => $serials->count(),
+            'serials_by_status' => $serials->groupBy('current_status')->map(fn($g) => $g->count()),
+        ];
+    }
+
     // =========================================================================
     // WIDGET 2: LOW STOCK ALERTS
     // =========================================================================
