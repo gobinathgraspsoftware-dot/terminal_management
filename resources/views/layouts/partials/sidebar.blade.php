@@ -1014,6 +1014,7 @@
             @endcan
 
             @php
+                $isInventoryRoute = str_contains($currentRoute ?? '', 'technician.inventory');
                 $isInventoryDashboardRoute = str_contains($currentRoute ?? '', 'technician.inventory-dashboard');
                 $isInventorySerialRoute = str_contains($currentRoute ?? '', 'technician.inventory-serials');
                 $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'technician.serial-movement-history');
@@ -1037,24 +1038,41 @@
                         </a>
                     </li>
                     @endcan
+
+                    {{-- NEW: My Stock with enhanced view --}}
+                    @can('view_inventory')
                     <li class="nav-item">
-                        <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
-                        href="{{ route('technician.inventory-serials.index') }}">
+                        <a class="nav-link {{ $isInventoryRoute && !str_contains($currentRoute, 'summary') && !str_contains($currentRoute, 'return-request') ? 'active' : '' }}"
+                        href="{{ route('technician.inventory.index') }}">
                             <i class="bi bi-box-seam me-2"></i> My Stock
                         </a>
                     </li>
+                    @endcan
+
+                    {{-- NEW: Inventory Summary --}}
+                    @can('view_inventory')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'inventory.summary') ? 'active' : '' }}"
+                        href="{{ route('technician.inventory.summary') }}">
+                            <i class="bi bi-bar-chart me-2"></i> Inventory Summary
+                        </a>
+                    </li>
+                    @endcan
+
                     <li class="nav-item">
                         <a class="nav-link {{ $isMovementHistoryRoute ? 'active' : '' }}"
                         href="{{ route('technician.serial-movement-history.index') }}">
                             <i class="bi bi-clock-history me-2"></i> Movement History
                         </a>
                     </li>
+
                     <li class="nav-item">
                         <a class="nav-link {{ $isBulkSerialsRoute ? 'active' : '' }}"
                         href="{{ route('technician.bulk-serials.index') }}">
-                            <i class="bi bi-box me-2"></i> My Inventory
+                            <i class="bi bi-boxes me-2"></i> Bulk Operations
                         </a>
                     </li>
+
                     {{-- My Stock Ledger --}}
                     @can('view_stock_ledger')
                     <li class="nav-item">
@@ -1075,10 +1093,20 @@
                     </li>
                     @endcan
 
+                    @can('view_inventory')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'inventory.return-request') ? 'active' : '' }}"
+                        href="{{ route('technician.inventory.return-request') }}">
+                            <i class="bi bi-arrow-return-left me-2"></i> Request Return
+                        </a>
+                    </li>
+                    @endcan
+
+                    {{-- Stock Returns List --}}
                     <li class="nav-item">
                         <a class="nav-link {{ $isStockReturnRoute ? 'active' : '' }}"
                         href="{{ route('technician.stock-returns.index') }}">
-                            <i class="bi bi-arrow-return-left me-2"></i> My Returns
+                            <i class="bi bi-list-check me-2"></i> My Returns
                         </a>
                     </li>
 

@@ -73,6 +73,7 @@ use App\Http\Controllers\Supervisor\StockTransferController as SupervisorStockTr
 use App\Http\Controllers\Technician\StockTransferController as TechnicianStockTransferController;
 use App\Http\Controllers\Admin\StockAdjustmentController as AdminStockAdjustmentController;
 use App\Http\Controllers\Supervisor\StockAdjustmentController as SupervisorStockAdjustmentController;
+use App\Http\Controllers\Technician\InventoryController as TechnicianInventoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -883,13 +884,13 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
 
     /* Stock Ledger Routes */
     Route::prefix('stock-ledger')->name('stock-ledger.')->group(function () {
-        Route::get('/', [TechnicianStockLedgerController::class, 'index'])->name('stock-ledger.index');
-        Route::get('/stock-ledger/{stockLedger}', [TechnicianStockLedgerController::class, 'show'])->name('stock-ledger.show');
+        Route::get('/', [TechnicianStockLedgerController::class, 'index'])->name('index');
+        Route::get('/{stockLedger}', [TechnicianStockLedgerController::class, 'show'])->name('show');
     });
 
     /* Stock Balance Routes */
     Route::prefix('stock-balance')->name('stock-balance.')->group(function () {
-        Route::get('/', [TechnicianStockBalanceController::class, 'index'])->name('stock-balance.index');
+        Route::get('/', [TechnicianStockBalanceController::class, 'index'])->name('index');
     });
 
     /* Stock Reports Routes */
@@ -915,7 +916,7 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
     });
 
     /* Stock Issues */
-    Route::prefix('stock-issues')->name('stock-issues')->group(function () {
+    Route::prefix('stock-issues')->name('stock-issues.')->group(function () {
         Route::get('/', [TechnicianStockIssueController::class, 'index'])->name('index');
         Route::get('/{stockIssue}', [TechnicianStockIssueController::class, 'show'])->name('show');
     });
@@ -936,6 +937,15 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
     Route::prefix('stock-transfers')->name('stock-transfers.')->group(function () {
         Route::get('/', [TechnicianStockTransferController::class, 'index'])->name('index');
         Route::get('/{stockTransfer}', [TechnicianStockTransferController::class, 'show'])->name('show');
+    });
+
+    /* My Inventory Routes */
+    Route::prefix('inventory')->name('inventory.')->group(function () {
+        Route::get('/', [TechnicianInventoryController::class, 'index'])->name('index');
+        Route::get('/summary', [TechnicianInventoryController::class, 'summary'])->name('summary');
+        Route::get('/return-request', [TechnicianInventoryController::class, 'returnRequest'])->name('return-request');
+        Route::get('/get-serial-details', [TechnicianInventoryController::class, 'getSerialDetails'])->name('get-serial-details');
+        Route::get('/{serial}', [TechnicianInventoryController::class, 'show'])->name('show');
     });
 
     /* Claims */
