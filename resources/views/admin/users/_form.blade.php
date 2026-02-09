@@ -174,11 +174,17 @@
                 <label for="coverage_states" class="form-label">Coverage States (Work Areas)</label>
                 <select class="form-select select2-multiple" id="coverage_states" name="coverage_states[]" multiple>
                     @php
-                        $selectedStates = old('coverage_states', $isEdit && $user->coverage_states ? json_decode($user->coverage_states, true) : []);
+                        // FIXED: Handle both string (JSON) and array formats
+                        $coverageData = old('coverage_states', $isEdit && $user->coverage_states ? $user->coverage_states : []);
+                        if (is_string($coverageData)) {
+                            $selectedStates = json_decode($coverageData, true) ?? [];
+                        } else {
+                            $selectedStates = (array) $coverageData;
+                        }
                     @endphp
                     @foreach($states as $state)
                         <option value="{{ $state }}" 
-                            {{ in_array($state, (array)$selectedStates) ? 'selected' : '' }}>
+                            {{ in_array($state, $selectedStates) ? 'selected' : '' }}>
                             {{ $state }}
                         </option>
                     @endforeach
@@ -194,11 +200,17 @@
                 <label for="skill_tags" class="form-label">Skills</label>
                 <select class="form-select select2-multiple" id="skill_tags" name="skill_tags[]" multiple>
                     @php
-                        $selectedSkills = old('skill_tags', $isEdit && $user->skill_tags ? json_decode($user->skill_tags, true) : []);
+                        // FIXED: Handle both string (JSON) and array formats
+                        $skillData = old('skill_tags', $isEdit && $user->skill_tags ? $user->skill_tags : []);
+                        if (is_string($skillData)) {
+                            $selectedSkills = json_decode($skillData, true) ?? [];
+                        } else {
+                            $selectedSkills = (array) $skillData;
+                        }
                     @endphp
                     @foreach($skillTags as $skill)
                         <option value="{{ $skill }}" 
-                            {{ in_array($skill, (array)$selectedSkills) ? 'selected' : '' }}>
+                            {{ in_array($skill, $selectedSkills) ? 'selected' : '' }}>
                             {{ $skill }}
                         </option>
                     @endforeach

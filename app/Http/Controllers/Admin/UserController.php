@@ -21,7 +21,7 @@ use Yajra\DataTables\Facades\DataTables;
 class UserController extends Controller
 {
     use AuthorizesRequests;
-    
+
     protected UserService $userService;
 
     public function __construct(UserService $userService)
@@ -35,15 +35,15 @@ class UserController extends Controller
     public function index(): View
     {
         $currentUser = Auth::user();
-        
+
         // Get roles for filter dropdown
         $roles = Role::all();
-        
+
         // Get supervisors for assignment dropdown
         $supervisors = User::role('supervisor')
             ->where('status', 'active')
             ->get(['id', 'name']);
-        
+
         return view('admin.users.index', compact('roles', 'supervisors'));
     }
 
@@ -53,11 +53,11 @@ class UserController extends Controller
     public function datatable(Request $request): JsonResponse
     {
         $currentUser = Auth::user();
-        
+
         // Base query with team scoping
         $query = User::with(['roles', 'supervisor'])
             ->select('users.*');
-        
+
         // Apply team scoping
         if ($currentUser->hasRole('supervisor')) {
             // Supervisor sees only their team technicians
@@ -70,7 +70,7 @@ class UserController extends Controller
             $query->where('id', $currentUser->id);
         }
         // Admin sees all users (no additional filter)
-        
+
         return DataTables::of($query)
             ->addColumn('role', function ($user) {
                 $roles = $user->roles->pluck('name')->map(function($role) {
@@ -96,40 +96,39 @@ class UserController extends Controller
                 };
                 return "<span class='badge bg-{$badgeClass}'>" . ucfirst($user->status) . "</span>";
             })
-            ->addColumn('last_login', function ($user) {
-                return $user->last_login_at ? $user->last_login_at->format('Y-m-d H:i') : 'Never';
-            })
             ->addColumn('actions', function ($user) use ($currentUser) {
-                $actions = '';
-                
+                $actions = '<div class="btn-group" role="group">';
+
                 // View button
-                if ($currentUser->can('users.view')) {
-                    $actions .= '<button type="button" class="btn btn-sm btn-info view-user" data-id="' . $user->id . '" title="View">
+                if ($currentUser->can('view_users')) {
+                    $actions .= '<button type="button" class="btn btn-sm btn-info view-user" data-id="' . $user->id . '" title="View" data-bs-toggle="tooltip">
                         <i class="fas fa-eye"></i>
-                    </button> ';
+                    </button>';
                 }
-                
+
                 // Edit button
-                if ($currentUser->can('users.edit')) {
-                    $actions .= '<a href="' . route('admin.users.edit', $user->id) . '" class="btn btn-sm btn-primary" title="Edit">
+                if ($currentUser->can('edit_users')) {
+                    $actions .= '<a href="' . route('admin.users.edit', $user->id) . '" class="btn btn-sm btn-primary" title="Edit" data-bs-toggle="tooltip">
                         <i class="fas fa-edit"></i>
-                    </a> ';
+                    </a>';
                 }
-                
-                // Delete/Restore button
-                if ($currentUser->can('users.delete')) {
+
+                // Delete button (don't allow deleting self)
+                if ($currentUser->can('delete_users') && $user->id !== $currentUser->id) {
                     if ($user->trashed()) {
-                        $actions .= '<button type="button" class="btn btn-sm btn-success restore-user" data-id="' . $user->id . '" title="Restore">
+                        $actions .= '<button type="button" class="btn btn-sm btn-success restore-user" data-id="' . $user->id . '" title="Restore" data-bs-toggle="tooltip">
                             <i class="fas fa-undo"></i>
                         </button>';
                     } else {
-                        $actions .= '<button type="button" class="btn btn-sm btn-danger delete-user" data-id="' . $user->id . '" title="Delete">
+                        $actions .= '<button type="button" class="btn btn-sm btn-danger delete-user" data-id="' . $user->id . '" title="Delete" data-bs-toggle="tooltip">
                             <i class="fas fa-trash"></i>
                         </button>';
                     }
                 }
-                
-                return $actions;
+
+                $actions .= '</div>';
+
+                return $actions ?: '<span class="text-muted small">No actions</span>';
             })
             ->filter(function ($query) use ($request) {
                 // Search functionality
@@ -138,26 +137,29 @@ class UserController extends Controller
                     $query->where(function($q) use ($searchValue) {
                         $q->where('name', 'like', "%{$searchValue}%")
                           ->orWhere('email', 'like', "%{$searchValue}%")
-                          ->orWhere('phone', 'like', "%{$searchValue}%")
                           ->orWhere('employee_id', 'like', "%{$searchValue}%");
                     });
                 }
-                
+
                 // Role filter
                 if ($request->has('role') && $request->role) {
                     $query->whereHas('roles', function($q) use ($request) {
                         $q->where('name', $request->role);
                     });
                 }
-                
+
                 // Status filter
                 if ($request->has('status') && $request->status) {
                     $query->where('status', $request->status);
                 }
-                
+
                 // Supervisor filter
                 if ($request->has('supervisor_id') && $request->supervisor_id) {
-                    $query->where('supervisor_id', $request->supervisor_id);
+                    if ($request->supervisor_id === 'null') {
+                        $query->whereNull('supervisor_id');
+                    } else {
+                        $query->where('supervisor_id', $request->supervisor_id);
+                    }
                 }
             })
             ->rawColumns(['role', 'status_badge', 'actions'])
@@ -170,24 +172,24 @@ class UserController extends Controller
     public function create(): View
     {
         $roles = Role::all();
-        
+
         $supervisors = User::role('supervisor')
             ->where('status', 'active')
             ->get(['id', 'name']);
-        
+
         // Coverage states (Malaysian states)
         $states = [
             'Johor', 'Kedah', 'Kelantan', 'Malacca', 'Negeri Sembilan',
             'Pahang', 'Penang', 'Perak', 'Perlis', 'Sabah', 'Sarawak',
             'Selangor', 'Terengganu', 'Kuala Lumpur', 'Labuan', 'Putrajaya'
         ];
-        
+
         // Skill tags
         $skillTags = [
             'Installation', 'Repair', 'Troubleshooting', 'Maintenance',
             'Network Setup', 'POS Configuration', 'Training', 'Collection'
         ];
-        
+
         return view('admin.users.create', compact('roles', 'supervisors', 'states', 'skillTags'));
     }
 
@@ -197,29 +199,37 @@ class UserController extends Controller
     public function store(StoreUserRequest $request): JsonResponse
     {
         try {
+            // Check authorization - user must have create_users permission
+            if (!Auth::user()->can('create_users')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This action is unauthorized.'
+                ], 403);
+            }
+
             DB::beginTransaction();
-            
+
             $user = $this->userService->createUser($request->validated());
-            
+
             DB::commit();
-            
+
             // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
                 ->withProperties($request->except('password'))
                 ->log('User created');
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'User created successfully',
                 'user' => $user,
                 'redirect' => route('admin.users.index')
             ]);
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create user: ' . $e->getMessage()
@@ -230,14 +240,18 @@ class UserController extends Controller
     /**
      * Display the specified user
      */
-    public function show(User $user): View
+    public function show(User $user): JsonResponse
     {
         // Check authorization
         $this->authorize('view', $user);
-        
-        $user->load(['roles', 'supervisor', 'technicians']);
-        
-        return view('admin.users.show', compact('user'));
+
+        // Load relationships
+        $user->load(['roles', 'supervisor']);
+
+        return response()->json([
+            'success' => true,
+            'user' => $user
+        ]);
     }
 
     /**
@@ -247,29 +261,27 @@ class UserController extends Controller
     {
         // Check authorization
         $this->authorize('update', $user);
-        
-        $user->load(['roles', 'supervisor']);
-        
+
         $roles = Role::all();
-        
+
         $supervisors = User::role('supervisor')
             ->where('status', 'active')
             ->where('id', '!=', $user->id) // Exclude current user
             ->get(['id', 'name']);
-        
-        // Coverage states
+
+        // Coverage states (Malaysian states)
         $states = [
             'Johor', 'Kedah', 'Kelantan', 'Malacca', 'Negeri Sembilan',
             'Pahang', 'Penang', 'Perak', 'Perlis', 'Sabah', 'Sarawak',
             'Selangor', 'Terengganu', 'Kuala Lumpur', 'Labuan', 'Putrajaya'
         ];
-        
+
         // Skill tags
         $skillTags = [
             'Installation', 'Repair', 'Troubleshooting', 'Maintenance',
             'Network Setup', 'POS Configuration', 'Training', 'Collection'
         ];
-        
+
         return view('admin.users.edit', compact('user', 'roles', 'supervisors', 'states', 'skillTags'));
     }
 
@@ -281,35 +293,30 @@ class UserController extends Controller
         try {
             // Check authorization
             $this->authorize('update', $user);
-            
+
             DB::beginTransaction();
-            
-            $oldData = $user->toArray();
-            
-            $user = $this->userService->updateUser($user, $request->validated());
-            
+
+            $updatedUser = $this->userService->updateUser($user, $request->validated());
+
             DB::commit();
-            
+
             // Log activity
             activity()
                 ->causedBy(Auth::user())
-                ->performedOn($user)
-                ->withProperties([
-                    'old' => $oldData,
-                    'new' => $request->except('password')
-                ])
+                ->performedOn($updatedUser)
+                ->withProperties($request->except('password'))
                 ->log('User updated');
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'User updated successfully',
-                'user' => $user,
+                'user' => $updatedUser,
                 'redirect' => route('admin.users.index')
             ]);
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update user: ' . $e->getMessage()
@@ -325,7 +332,7 @@ class UserController extends Controller
         try {
             // Check authorization
             $this->authorize('delete', $user);
-            
+
             // Prevent deleting self
             if ($user->id === Auth::id()) {
                 return response()->json([
@@ -333,24 +340,23 @@ class UserController extends Controller
                     'message' => 'You cannot delete your own account'
                 ], 403);
             }
-            
-            // Soft delete
+
             $user->delete();
-            
+
             // Revoke all tokens
             $user->tokens()->delete();
-            
+
             // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
-                ->log('User deleted (soft)');
-            
+                ->log('User deleted');
+
             return response()->json([
                 'success' => true,
                 'message' => 'User deleted successfully'
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -366,23 +372,23 @@ class UserController extends Controller
     {
         try {
             $user = User::withTrashed()->findOrFail($id);
-            
+
             // Check authorization
             $this->authorize('restore', $user);
-            
+
             $user->restore();
-            
+
             // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
                 ->log('User restored');
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'User restored successfully'
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -399,25 +405,27 @@ class UserController extends Controller
         try {
             // Check authorization
             $this->authorize('update', $user);
-            
+
             $user->update([
-                'password' => Hash::make($request->password)
+                'password' => Hash::make($request->new_password)
             ]);
-            
-            // Revoke all tokens (force re-login)
-            $user->tokens()->delete();
-            
+
+            // Revoke all tokens if changing own password
+            if ($user->id === Auth::id()) {
+                $user->tokens()->delete();
+            }
+
             // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
                 ->log('Password changed');
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Password changed successfully'
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -434,26 +442,26 @@ class UserController extends Controller
         try {
             // Check authorization
             $this->authorize('update', $user);
-            
+
             $request->validate([
                 'role' => 'required|exists:roles,name'
             ]);
-            
+
             // Sync role (replace existing)
             $user->syncRoles([$request->role]);
-            
+
             // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
                 ->withProperties(['role' => $request->role])
                 ->log('Role assigned');
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Role assigned successfully'
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -470,11 +478,11 @@ class UserController extends Controller
         try {
             // Check authorization
             $this->authorize('update', $user);
-            
+
             $request->validate([
                 'supervisor_id' => 'nullable|exists:users,id'
             ]);
-            
+
             // Verify supervisor has supervisor role
             if ($request->supervisor_id) {
                 $supervisor = User::findOrFail($request->supervisor_id);
@@ -485,23 +493,23 @@ class UserController extends Controller
                     ], 422);
                 }
             }
-            
+
             $user->update([
                 'supervisor_id' => $request->supervisor_id
             ]);
-            
+
             // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
                 ->withProperties(['supervisor_id' => $request->supervisor_id])
                 ->log('Supervisor assigned');
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Supervisor assigned successfully'
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -518,7 +526,7 @@ class UserController extends Controller
         try {
             // Check authorization
             $this->authorize('update', $user);
-            
+
             // Prevent deactivating self
             if ($user->id === Auth::id()) {
                 return response()->json([
@@ -526,29 +534,29 @@ class UserController extends Controller
                     'message' => 'You cannot deactivate your own account'
                 ], 403);
             }
-            
+
             $newStatus = $user->status === 'active' ? 'inactive' : 'active';
-            
+
             $user->update(['status' => $newStatus]);
-            
+
             // If deactivating, revoke all tokens
             if ($newStatus === 'inactive') {
                 $user->tokens()->delete();
             }
-            
+
             // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
                 ->withProperties(['status' => $newStatus])
                 ->log('User status toggled');
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'User status updated successfully',
                 'status' => $newStatus
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -564,13 +572,13 @@ class UserController extends Controller
     {
         $role = $request->get('role');
         $search = $request->get('search');
-        
+
         $query = User::where('status', 'active');
-        
+
         if ($role) {
             $query->role($role);
         }
-        
+
         if ($search) {
             $query->where(function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -578,11 +586,11 @@ class UserController extends Controller
                   ->orWhere('employee_id', 'like', "%{$search}%");
             });
         }
-        
+
         $users = $query->select('id', 'name', 'email', 'employee_id')
             ->limit(50)
             ->get();
-        
+
         return response()->json([
             'success' => true,
             'users' => $users
@@ -596,7 +604,7 @@ class UserController extends Controller
     {
         // Implementation for export functionality
         // You can use Laravel Excel package or generate CSV
-        
+
         return response()->json([
             'success' => false,
             'message' => 'Export functionality not yet implemented'
@@ -613,7 +621,7 @@ class UserController extends Controller
                 'user_ids' => 'required|array',
                 'user_ids.*' => 'exists:users,id'
             ]);
-            
+
             // Prevent deleting self
             if (in_array(Auth::id(), $request->user_ids)) {
                 return response()->json([
@@ -621,21 +629,21 @@ class UserController extends Controller
                     'message' => 'You cannot delete your own account'
                 ], 403);
             }
-            
+
             $deletedCount = User::whereIn('id', $request->user_ids)
                 ->delete();
-            
+
             // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->withProperties(['user_ids' => $request->user_ids])
                 ->log('Bulk users deleted');
-            
+
             return response()->json([
                 'success' => true,
                 'message' => "{$deletedCount} users deleted successfully"
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

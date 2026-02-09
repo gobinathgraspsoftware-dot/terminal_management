@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends FormRequest
@@ -12,7 +13,8 @@ class StoreUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('users.create');
+        // Check if user is authenticated and has create_users permission
+        return Auth::check() && Auth::user()->can('create_users');
     }
 
     /**
@@ -22,130 +24,176 @@ class StoreUserRequest extends FormRequest
     {
         return [
             // Basic Information
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'phone' => ['nullable', 'string', 'max:20'],
-            'employee_id' => ['nullable', 'string', 'max:50', 'unique:users,employee_id'],
-            
-            // Role and Permissions
-            'role' => ['required', 'string', 'exists:roles,name'],
-            
-            // Supervisor Assignment
-            'supervisor_id' => [
-                'nullable',
-                'exists:users,id',
-                function ($attribute, $value, $fail) {
-                    if ($value) {
-                        $supervisor = \App\Models\User::find($value);
-                        if (!$supervisor || !$supervisor->hasRole('supervisor')) {
-                            $fail('The selected supervisor must have the supervisor role.');
-                        }
-                    }
-                },
+            'name' => [
+                'required',
+                'string',
+                'min:3',
+                'max:255'
             ],
-            
-            // Coverage and Skills
-            'coverage_states' => ['nullable', 'array'],
-            'coverage_states.*' => ['string', 'max:100'],
-            'skill_tags' => ['nullable', 'array'],
-            'skill_tags.*' => ['string', 'max:100'],
-            
-            // Commission Rate (for technicians)
-            'default_rate_card_id' => ['nullable', 'exists:rate_cards,id'],
-            
-            // Bank Details (for payouts)
-            'bank_name' => [
+
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                'unique:users,email'
+            ],
+
+            'phone' => [
                 'nullable',
                 'string',
-                'max:100',
-                Rule::requiredIf(function () {
-                    return $this->input('role') === 'technician';
-                }),
+                'max:20'
             ],
-            'bank_account_no' => [
+
+            'employee_id' => [
                 'nullable',
                 'string',
                 'max:50',
-                Rule::requiredIf(function () {
-                    return $this->input('role') === 'technician';
-                }),
+                'unique:users,employee_id'
             ],
+
+            // Password
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed'
+            ],
+
+            // Role
+            'role' => [
+                'required',
+                'string',
+                'exists:roles,name'
+            ],
+
+            // Status
+            'status' => [
+                'required',
+                'string',
+                Rule::in(['active', 'inactive', 'suspended'])
+            ],
+
+            // Technician-specific fields
+            'has_supervisor' => [
+                'nullable',
+                'boolean'
+            ],
+
+            'supervisor_id' => [
+                'nullable',
+                'exists:users,id',
+                'required_if:role,technician'
+            ],
+
+            'coverage_states' => [
+                'nullable',
+                'array'
+            ],
+
+            'coverage_states.*' => [
+                'string',
+                'max:100'
+            ],
+
+            'skill_tags' => [
+                'nullable',
+                'array'
+            ],
+
+            'skill_tags.*' => [
+                'string',
+                'max:100'
+            ],
+
+            // Bank Details
+            'bank_name' => [
+                'nullable',
+                'string',
+                'max:100'
+            ],
+
+            'bank_account_no' => [
+                'nullable',
+                'string',
+                'max:50'
+            ],
+
             'bank_account_name' => [
                 'nullable',
                 'string',
-                'max:100',
-                Rule::requiredIf(function () {
-                    return $this->input('role') === 'technician';
-                }),
+                'max:255'
             ],
-            
+
             // Address
-            'address' => ['nullable', 'string', 'max:500'],
-            
-            // Status
-            'status' => ['required', 'in:active,inactive,suspended'],
-            
+            'address' => [
+                'nullable',
+                'string',
+                'max:500'
+            ],
+
             // Avatar
-            'avatar' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:2048'], // 2MB max
+            'avatar' => [
+                'nullable',
+                'image',
+                'mimes:jpg,jpeg,png,gif',
+                'max:2048' // 2MB
+            ],
+
+            'remove_avatar' => [
+                'nullable',
+                'boolean'
+            ]
         ];
     }
 
     /**
-     * Get custom attributes for validator errors.
-     */
-    public function attributes(): array
-    {
-        return [
-            'employee_id' => 'employee ID',
-            'supervisor_id' => 'supervisor',
-            'coverage_states' => 'coverage states',
-            'skill_tags' => 'skill tags',
-            'default_rate_card_id' => 'default rate card',
-            'bank_name' => 'bank name',
-            'bank_account_no' => 'bank account number',
-            'bank_account_name' => 'bank account name',
-        ];
-    }
-
-    /**
-     * Get custom messages for validator errors.
+     * Get custom validation messages
      */
     public function messages(): array
     {
         return [
+            'name.required' => 'Please enter the user\'s full name.',
+            'name.min' => 'Name must be at least 3 characters long.',
+            'email.required' => 'Please enter an email address.',
+            'email.email' => 'Please enter a valid email address.',
             'email.unique' => 'This email address is already registered.',
-            'employee_id.unique' => 'This employee ID is already in use.',
+            'password.required' => 'Please enter a password.',
+            'password.min' => 'Password must be at least 8 characters long.',
+            'password.confirmed' => 'Password confirmation does not match.',
+            'role.required' => 'Please select a role for the user.',
             'role.exists' => 'The selected role is invalid.',
-            'supervisor_id.exists' => 'The selected supervisor does not exist.',
-            'bank_name.required' => 'Bank name is required for technicians.',
-            'bank_account_no.required' => 'Bank account number is required for technicians.',
-            'bank_account_name.required' => 'Bank account name is required for technicians.',
+            'status.required' => 'Please select a status.',
+            'supervisor_id.required_if' => 'Please select a supervisor for this technician.',
+            'supervisor_id.exists' => 'The selected supervisor is invalid.',
+            'avatar.image' => 'Avatar must be an image file.',
+            'avatar.mimes' => 'Avatar must be a JPG, JPEG, PNG, or GIF file.',
+            'avatar.max' => 'Avatar file size must not exceed 2MB.',
         ];
     }
 
     /**
-     * Prepare the data for validation.
+     * Prepare data for validation
      */
     protected function prepareForValidation(): void
     {
-        // Auto-assign supervisor_id to null for non-technician roles
-        if ($this->has('role') && $this->role !== 'technician') {
+        // Convert has_supervisor checkbox to boolean
+        if ($this->has('has_supervisor')) {
             $this->merge([
-                'supervisor_id' => null,
+                'has_supervisor' => filter_var($this->has_supervisor, FILTER_VALIDATE_BOOLEAN)
             ]);
         }
-        
-        // Convert JSON strings to arrays if needed
-        if ($this->has('coverage_states') && is_string($this->coverage_states)) {
+
+        // If has_supervisor is false, remove supervisor_id
+        if (!$this->has_supervisor) {
             $this->merge([
-                'coverage_states' => json_decode($this->coverage_states, true) ?: [],
+                'supervisor_id' => null
             ]);
         }
-        
-        if ($this->has('skill_tags') && is_string($this->skill_tags)) {
+
+        // Convert remove_avatar to boolean
+        if ($this->has('remove_avatar')) {
             $this->merge([
-                'skill_tags' => json_decode($this->skill_tags, true) ?: [],
+                'remove_avatar' => filter_var($this->remove_avatar, FILTER_VALIDATE_BOOLEAN)
             ]);
         }
     }

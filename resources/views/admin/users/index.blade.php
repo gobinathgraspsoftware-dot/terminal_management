@@ -17,7 +17,7 @@
                 </ol>
             </nav>
         </div>
-        @can('users.create')
+        @can('create_users')
         <div>
             <a href="{{ route('admin.users.create') }}" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Add New User
@@ -102,13 +102,11 @@
                             <th>Employee ID</th>
                             <th>Name</th>
                             <th>Email</th>
-                            <th>Phone</th>
                             <th>Role</th>
                             @if(auth()->user()->hasRole('admin'))
                             <th>Supervisor</th>
                             @endif
                             <th>Status</th>
-                            <th>Last Login</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -170,14 +168,95 @@
 
 @push('styles')
 <!-- DataTables CSS -->
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+
+<style>
+    /* Table Improvements */
+    #usersTable {
+        font-size: 0.9rem;
+    }
+
+    #usersTable thead th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+        border-bottom: 2px solid #dee2e6;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    #usersTable tbody td {
+        vertical-align: middle;
+        padding: 0.75rem 0.5rem;
+    }
+
+    /* Action buttons styling */
+    .btn-group {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 4px;
+    }
+
+    .btn-group .btn {
+        border-radius: 0;
+    }
+
+    .btn-group .btn:first-child {
+        border-top-left-radius: 4px;
+        border-bottom-left-radius: 4px;
+    }
+
+    .btn-group .btn:last-child {
+        border-top-right-radius: 4px;
+        border-bottom-right-radius: 4px;
+    }
+
+    /* Avatar and name alignment */
+    #usersTable .d-flex {
+        align-items: center;
+    }
+
+    /* Status badges */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.35em 0.65em;
+        font-weight: 500;
+    }
+
+    /* Role badges */
+    .badge.bg-danger,
+    .badge.bg-primary,
+    .badge.bg-success {
+        font-size: 0.75rem;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        #usersTable {
+            font-size: 0.85rem;
+        }
+
+        .btn-group .btn {
+            padding: 0.25rem 0.4rem;
+            font-size: 0.8rem;
+        }
+    }
+
+    /* DataTables processing indicator */
+    .dataTables_processing {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    /* Hover effect for table rows */
+    #usersTable tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+</style>
 @endpush
 
 @push('scripts')
 <!-- DataTables JS -->
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 
@@ -197,26 +276,57 @@ $(document).ready(function() {
             }
         },
         columns: [
-            { data: 'employee_id', name: 'employee_id' },
-            { 
-                data: 'name', 
+            {
+                data: 'employee_id',
+                name: 'employee_id',
+                width: '10%'
+            },
+            {
+                data: 'name',
                 name: 'name',
+                width: '20%',
                 render: function(data, type, row) {
-                    let avatar = row.avatar 
-                        ? '<img src="/storage/' + row.avatar + '" class="rounded-circle me-2" width="30" height="30" alt="Avatar">'
-                        : '<div class="bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center me-2" style="width:30px;height:30px;font-size:12px;">' + data.charAt(0).toUpperCase() + '</div>';
-                    return avatar + data;
+                    let avatar = row.avatar
+                        ? '<img src="/storage/' + row.avatar + '" class="rounded-circle me-2" width="32" height="32" alt="Avatar">'
+                        : '<div class="bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center me-2" style="width:32px;height:32px;font-size:14px;">' + data.charAt(0).toUpperCase() + '</div>';
+                    return '<div class="d-flex align-items-center">' + avatar + '<span>' + data + '</span></div>';
                 }
             },
-            { data: 'email', name: 'email' },
-            { data: 'phone', name: 'phone', defaultContent: '-' },
-            { data: 'role', name: 'role', orderable: false, searchable: false },
+            {
+                data: 'email',
+                name: 'email',
+                width: '20%'
+            },
+            {
+                data: 'role',
+                name: 'role',
+                orderable: false,
+                searchable: false,
+                width: '12%'
+            },
             @if(auth()->user()->hasRole('admin'))
-            { data: 'supervisor_name', name: 'supervisor.name', defaultContent: '-' },
+            {
+                data: 'supervisor_name',
+                name: 'supervisor.name',
+                defaultContent: '-',
+                width: '15%'
+            },
             @endif
-            { data: 'status_badge', name: 'status', orderable: true, searchable: false },
-            { data: 'last_login', name: 'last_login_at' },
-            { data: 'actions', name: 'actions', orderable: false, searchable: false }
+            {
+                data: 'status_badge',
+                name: 'status',
+                orderable: true,
+                searchable: false,
+                width: '10%'
+            },
+            {
+                data: 'actions',
+                name: 'actions',
+                orderable: false,
+                searchable: false,
+                width: '13%',
+                className: 'text-center'
+            }
         ],
         order: [[0, 'desc']],
         pageLength: 25,
@@ -224,6 +334,13 @@ $(document).ready(function() {
             processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
             emptyTable: 'No users found',
             zeroRecords: 'No matching users found'
+        },
+        drawCallback: function() {
+            // Initialize Bootstrap tooltips after table draw
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
         }
     });
 
@@ -242,7 +359,7 @@ $(document).ready(function() {
 
     // View User
     let deleteUserId = null;
-    
+
     $(document).on('click', '.view-user', function() {
         const userId = $(this).data('id');
         $('#userDetailsContent').html(`
@@ -252,9 +369,9 @@ $(document).ready(function() {
                 </div>
             </div>
         `);
-        
+
         $('#viewUserModal').modal('show');
-        
+
         $.ajax({
             url: '/admin/users/' + userId,
             method: 'GET',
@@ -264,7 +381,7 @@ $(document).ready(function() {
                     let html = `
                         <div class="row">
                             <div class="col-md-4 text-center mb-3">
-                                ${user.avatar 
+                                ${user.avatar
                                     ? '<img src="/storage/' + user.avatar + '" class="img-fluid rounded-circle" style="max-width: 150px;" alt="Avatar">'
                                     : '<div class="bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width:150px;height:150px;font-size:48px;">' + user.name.charAt(0).toUpperCase() + '</div>'
                                 }
@@ -304,13 +421,13 @@ $(document).ready(function() {
                                     ${user.coverage_states ? `
                                     <tr>
                                         <th>Coverage States:</th>
-                                        <td>${JSON.parse(user.coverage_states).join(', ')}</td>
+                                        <td>${Array.isArray(user.coverage_states) ? user.coverage_states.join(', ') : (typeof user.coverage_states === 'string' && user.coverage_states.startsWith('[') ? JSON.parse(user.coverage_states).join(', ') : user.coverage_states)}</td>
                                     </tr>
                                     ` : ''}
                                     ${user.skill_tags ? `
                                     <tr>
                                         <th>Skills:</th>
-                                        <td>${JSON.parse(user.skill_tags).map(s => '<span class="badge bg-info text-dark">' + s + '</span>').join(' ')}</td>
+                                        <td>${(Array.isArray(user.skill_tags) ? user.skill_tags : (typeof user.skill_tags === 'string' && user.skill_tags.startsWith('[') ? JSON.parse(user.skill_tags) : [user.skill_tags])).map(s => '<span class="badge bg-info text-dark">' + s + '</span>').join(' ')}</td>
                                     </tr>
                                     ` : ''}
                                 </table>
@@ -351,7 +468,7 @@ $(document).ready(function() {
             success: function(response) {
                 $('#deleteUserModal').modal('hide');
                 table.ajax.reload();
-                
+
                 // Show success message
                 const alert = `
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -360,14 +477,14 @@ $(document).ready(function() {
                     </div>
                 `;
                 $('.container-fluid').prepend(alert);
-                
+
                 setTimeout(() => {
                     $('.alert').fadeOut();
                 }, 3000);
             },
             error: function(xhr) {
                 $('#deleteUserModal').modal('hide');
-                
+
                 const message = xhr.responseJSON?.message || 'Failed to delete user';
                 const alert = `
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
