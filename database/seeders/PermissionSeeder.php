@@ -20,6 +20,11 @@ class PermissionSeeder extends Seeder
             // User Management
             'users' => ['view', 'create', 'edit', 'delete', 'restore', 'assign_roles', 'change_password'],
 
+            /* Roles & Permissions Management */
+            'roles' => ['view', 'create', 'edit', 'delete', 'assign_permissions'],
+
+            'permissions' => ['view', 'create', 'edit', 'delete', 'manage', 'export'],
+
             // Master Data - Partners
             'partners' => ['view', 'create', 'edit', 'delete', 'restore', 'import', 'export'],
 

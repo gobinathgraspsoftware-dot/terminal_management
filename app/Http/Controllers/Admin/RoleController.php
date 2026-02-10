@@ -11,16 +11,19 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class RoleController extends Controller
 {
+    use AuthorizesRequests;
+
     /**
      * System roles that cannot be modified or deleted
      */
     protected array $systemRoles = ['admin', 'supervisor', 'technician'];
 
-    protected RoleService $roleService;
-    protected PermissionService $permissionService;
+    protected $roleService;
+    protected $permissionService;
 
     public function __construct(RoleService $roleService, PermissionService $permissionService)
     {
@@ -33,9 +36,11 @@ class RoleController extends Controller
      */
     public function index(Request $request)
     {
+        $this->authorize('view_roles');
+
         $stats = $this->roleService->getStatistics();
         $roles = Role::withCount(['permissions', 'users'])->orderBy('id')->get();
-        
+
         return view('admin.roles.index', compact('stats', 'roles'));
     }
 
@@ -52,8 +57,18 @@ class RoleController extends Controller
      */
     public function create()
     {
-        $permissions = $this->permissionService->getGroupedPermissions();
-        
+        $this->authorize('create_roles');
+
+        // Format permissions for blade template
+        $groupedPermissions = $this->permissionService->getGroupedPermissions();
+        $permissions = [];
+        foreach ($groupedPermissions as $group => $permissionList) {
+            $permissions[$group] = [
+                'label' => ucwords(str_replace('_', ' ', $group)),
+                'permissions' => $permissionList
+            ];
+        }
+
         return view('admin.roles.create', compact('permissions'));
     }
 
@@ -62,6 +77,8 @@ class RoleController extends Controller
      */
     public function store(StoreRoleRequest $request)
     {
+        $this->authorize('create_roles');
+
         try {
             $role = $this->roleService->createRole($request->validated());
 
@@ -95,12 +112,26 @@ class RoleController extends Controller
      */
     public function show(Role $role)
     {
+        $this->authorize('view_roles');
+
         $role->load('permissions', 'users');
         $isSystemRole = in_array($role->name, $this->systemRoles);
+
+        // Get grouped permissions
         $groupedPermissions = $this->permissionService->getGroupedPermissions();
+
+        // Format permissions for blade template (with 'label' and 'permissions' keys)
+        $permissions = [];
+        foreach ($groupedPermissions as $group => $permissionList) {
+            $permissions[$group] = [
+                'label' => ucwords(str_replace('_', ' ', $group)),
+                'permissions' => $permissionList
+            ];
+        }
+
         $rolePermissions = $role->permissions->pluck('id')->toArray();
 
-        return view('admin.roles.show', compact('role', 'isSystemRole', 'groupedPermissions', 'rolePermissions'));
+        return view('admin.roles.show', compact('role', 'isSystemRole', 'permissions', 'rolePermissions'));
     }
 
     /**
@@ -108,6 +139,8 @@ class RoleController extends Controller
      */
     public function edit(Role $role)
     {
+        $this->authorize('edit_roles');
+
         // Prevent editing system roles
         if (in_array($role->name, $this->systemRoles)) {
             return redirect()
@@ -115,7 +148,16 @@ class RoleController extends Controller
                 ->with('error', 'System roles cannot be modified.');
         }
 
-        $permissions = $this->permissionService->getGroupedPermissions();
+        // Format permissions for blade template
+        $groupedPermissions = $this->permissionService->getGroupedPermissions();
+        $permissions = [];
+        foreach ($groupedPermissions as $group => $permissionList) {
+            $permissions[$group] = [
+                'label' => ucwords(str_replace('_', ' ', $group)),
+                'permissions' => $permissionList
+            ];
+        }
+
         $rolePermissions = $role->permissions->pluck('id')->toArray();
 
         return view('admin.roles.edit', compact('role', 'permissions', 'rolePermissions'));
@@ -126,6 +168,8 @@ class RoleController extends Controller
      */
     public function update(UpdateRoleRequest $request, Role $role)
     {
+        $this->authorize('edit_roles');
+
         // Prevent updating system roles
         if (in_array($role->name, $this->systemRoles)) {
             if ($request->ajax()) {
@@ -173,6 +217,8 @@ class RoleController extends Controller
      */
     public function destroy(Request $request, Role $role)
     {
+        $this->authorize('delete_roles');
+
         // Prevent deleting system roles
         if (in_array($role->name, $this->systemRoles)) {
             if ($request->ajax()) {
@@ -231,6 +277,8 @@ class RoleController extends Controller
      */
     public function updatePermissions(Request $request, Role $role): JsonResponse
     {
+        $this->authorize('edit_roles');
+
         // Prevent updating system roles permissions
         if (in_array($role->name, $this->systemRoles)) {
             return response()->json([
@@ -247,6 +295,9 @@ class RoleController extends Controller
         try {
             $permissions = Permission::whereIn('id', $request->permissions ?? [])->get();
             $role->syncPermissions($permissions);
+
+            // Clear permission cache
+            app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
             return response()->json([
                 'success' => true,
@@ -266,6 +317,8 @@ class RoleController extends Controller
      */
     public function clone(Request $request, Role $role): JsonResponse
     {
+        $this->authorize('create_roles');
+
         $request->validate([
             'name' => 'required|string|max:255|unique:roles,name',
             'description' => 'nullable|string|max:500'
@@ -292,8 +345,10 @@ class RoleController extends Controller
      */
     public function getDetails(Role $role): JsonResponse
     {
+        $this->authorize('view_roles');
+
         $role->load('permissions');
-        
+
         return response()->json([
             'success' => true,
             'role' => [

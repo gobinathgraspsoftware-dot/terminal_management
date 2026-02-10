@@ -1,73 +1,16 @@
 @extends('layouts.app')
 
-@section('title', 'View Role - ' . ucwords(str_replace(['_', '-'], ' ', $role->name)))
-
-@section('styles')
-<style>
-    .permission-group {
-        border: 1px solid #dee2e6;
-        border-radius: 0.375rem;
-        margin-bottom: 1rem;
-    }
-    .permission-group-header {
-        background-color: #f8f9fa;
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid #dee2e6;
-    }
-    .permission-group-body {
-        padding: 1rem;
-    }
-    .permission-badge {
-        font-size: 0.8rem;
-        margin: 3px;
-        padding: 0.4em 0.8em;
-    }
-    .permission-badge.granted {
-        background-color: #198754;
-        color: white;
-    }
-    .permission-badge.not-granted {
-        background-color: #e9ecef;
-        color: #6c757d;
-        text-decoration: line-through;
-    }
-    .user-card {
-        transition: transform 0.2s ease;
-    }
-    .user-card:hover {
-        transform: translateY(-2px);
-    }
-    .info-item {
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #f0f0f0;
-    }
-    .info-item:last-child {
-        border-bottom: none;
-    }
-    .badge-action {
-        font-size: 0.65rem;
-        padding: 0.15em 0.4em;
-        margin-left: 3px;
-    }
-</style>
-@endsection
+@section('title', 'Role Details')
 
 @section('content')
 <div class="container-fluid">
     <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-1">
-                {{ ucwords(str_replace(['_', '-'], ' ', $role->name)) }}
-                @if($isSystemRole)
-                    <span class="badge bg-secondary ms-2"><i class="bi bi-lock me-1"></i>System Role</span>
-                @else
-                    <span class="badge bg-success ms-2"><i class="bi bi-person-gear me-1"></i>Custom Role</span>
-                @endif
-            </h1>
+            <h1 class="h3 mb-1">Role Details: {{ ucfirst($role->name) }}</h1>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
                     <li class="breadcrumb-item"><a href="{{ route('admin.roles.index') }}">Roles</a></li>
                     <li class="breadcrumb-item active">{{ $role->name }}</li>
                 </ol>
@@ -75,253 +18,250 @@
         </div>
         <div>
             @if(!$isSystemRole)
-                <a href="{{ route('admin.roles.edit', $role) }}" class="btn btn-warning">
+                <a href="{{ route('admin.roles.edit', $role) }}" class="btn btn-primary">
                     <i class="bi bi-pencil me-1"></i> Edit Role
                 </a>
             @endif
-            <a href="{{ route('admin.permissions.matrix') }}" class="btn btn-outline-primary">
-                <i class="bi bi-grid-3x3-gap me-1"></i> Permission Matrix
-            </a>
             <a href="{{ route('admin.roles.index') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-1"></i> Back to Roles
+                <i class="bi bi-arrow-left me-1"></i> Back to List
             </a>
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="bi bi-check-circle me-2"></i>{{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
     <div class="row">
-        <!-- Left Column - Role Information -->
-        <div class="col-lg-4">
-            <!-- Role Details Card -->
+        <!-- Role Information Card -->
+        <div class="col-md-4">
             <div class="card mb-4">
                 <div class="card-header bg-white">
                     <h5 class="card-title mb-0">
-                        <i class="bi bi-info-circle me-2"></i>Role Information
+                        <i class="bi bi-shield-lock me-2"></i>Role Information
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="info-item">
-                        <small class="text-muted d-block">Role Name</small>
-                        <strong>{{ $role->name }}</strong>
+                    <div class="mb-3">
+                        <label class="text-muted small">Role Name</label>
+                        <div class="fw-bold">{{ ucfirst($role->name) }}</div>
                     </div>
-                    <div class="info-item">
-                        <small class="text-muted d-block">Display Name</small>
-                        <strong>{{ ucwords(str_replace(['_', '-'], ' ', $role->name)) }}</strong>
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Type</label>
+                        <div>
+                            @if($isSystemRole)
+                                <span class="badge bg-secondary">
+                                    <i class="bi bi-lock me-1"></i>System Role
+                                </span>
+                            @else
+                                <span class="badge bg-success">Custom Role</span>
+                            @endif
+                        </div>
                     </div>
-                    <div class="info-item">
-                        <small class="text-muted d-block">Guard</small>
-                        <code>{{ $role->guard_name }}</code>
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Guard</label>
+                        <div>{{ $role->guard_name }}</div>
                     </div>
-                    <div class="info-item">
-                        <small class="text-muted d-block">Type</small>
-                        @if($isSystemRole)
-                            <span class="badge bg-secondary"><i class="bi bi-lock me-1"></i>System Role</span>
-                        @else
-                            <span class="badge bg-success"><i class="bi bi-person-gear me-1"></i>Custom Role</span>
-                        @endif
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Permissions</label>
+                        <div class="fw-bold text-primary">{{ $role->permissions->count() }}</div>
                     </div>
-                    <div class="info-item">
-                        <small class="text-muted d-block">Created</small>
-                        {{ $role->created_at->format('M d, Y H:i') }}
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Users</label>
+                        <div class="fw-bold text-info">{{ $role->users->count() }}</div>
                     </div>
-                    <div class="info-item">
-                        <small class="text-muted d-block">Last Updated</small>
-                        {{ $role->updated_at->format('M d, Y H:i') }}
+
+                    <div class="mb-3">
+                        <label class="text-muted small">Created</label>
+                        <div>{{ $role->created_at->format('M d, Y') }}</div>
                     </div>
+
+                    @if($role->updated_at)
+                    <div class="mb-3">
+                        <label class="text-muted small">Last Updated</label>
+                        <div>{{ $role->updated_at->format('M d, Y H:i') }}</div>
+                    </div>
+                    @endif
                 </div>
             </div>
 
-            <!-- Statistics Card -->
-            <div class="card mb-4">
+            <!-- Assigned Users Card -->
+            @if($role->users->count() > 0)
+            <div class="card">
                 <div class="card-header bg-white">
                     <h5 class="card-title mb-0">
-                        <i class="bi bi-bar-chart me-2"></i>Statistics
+                        <i class="bi bi-people me-2"></i>Assigned Users ({{ $role->users->count() }})
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-6 mb-3">
-                            <div class="border rounded p-3">
-                                <h3 class="text-primary mb-0">{{ $role->permissions->count() }}</h3>
-                                <small class="text-muted">Permissions</small>
+                    <div class="list-group list-group-flush">
+                        @foreach($role->users->take(10) as $user)
+                        <div class="list-group-item px-0">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm me-2">
+                                    @if($user->avatar)
+                                        <img src="{{ asset('storage/' . $user->avatar) }}" alt="{{ $user->name }}" class="rounded-circle" width="32">
+                                    @else
+                                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                            {{ strtoupper(substr($user->name, 0, 1)) }}
+                                        </div>
+                                    @endif
+                                </div>
+                                <div>
+                                    <div class="fw-semibold">{{ $user->name }}</div>
+                                    <small class="text-muted">{{ $user->email }}</small>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-6 mb-3">
-                            <div class="border rounded p-3">
-                                <h3 class="text-success mb-0">{{ $role->users->count() }}</h3>
-                                <small class="text-muted">Users</small>
-                            </div>
-                        </div>
+                        @endforeach
                     </div>
+                    @if($role->users->count() > 10)
+                        <div class="text-center mt-3">
+                            <small class="text-muted">And {{ $role->users->count() - 10 }} more users...</small>
+                        </div>
+                    @endif
                 </div>
             </div>
+            @endif
+        </div>
 
-            <!-- Users with this Role -->
+        <!-- Permissions Card -->
+        <div class="col-md-8">
             <div class="card">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
-                        <i class="bi bi-people me-2"></i>Users with this Role
+                        <i class="bi bi-key me-2"></i>Assigned Permissions ({{ $role->permissions->count() }})
                     </h5>
-                    <span class="badge bg-primary">{{ $role->users->count() }}</span>
+                    @if($isSystemRole)
+                        <span class="badge bg-warning">
+                            <i class="bi bi-lock me-1"></i>System roles cannot be modified
+                        </span>
+                    @endif
                 </div>
                 <div class="card-body">
-                    @if($role->users->count() > 0)
-                        <div class="list-group list-group-flush">
-                            @foreach($role->users->take(10) as $user)
-                                <div class="list-group-item px-0 user-card">
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar-circle bg-primary text-white me-3" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
-                                            {{ strtoupper(substr($user->name, 0, 2)) }}
-                                        </div>
-                                        <div>
-                                            <strong>{{ $user->name }}</strong>
-                                            <br><small class="text-muted">{{ $user->email }}</small>
+                    @if($role->permissions->count() > 0)
+                        <!-- Search Box -->
+                        <div class="mb-3">
+                            <input type="text"
+                                   class="form-control"
+                                   id="search-permission"
+                                   placeholder="Search permissions...">
+                        </div>
+
+                        <!-- Permissions by Module -->
+                        <div class="accordion" id="permissionsAccordion">
+                            @foreach($permissions as $group => $data)
+                                @php
+                                    // ✅ FIXED: Use $data['permissions'] instead of $groupedPermissions[$group]
+                                    $groupPermissions = collect($data['permissions'])->filter(function($permission) use ($rolePermissions) {
+                                        return in_array($permission->id, $rolePermissions);
+                                    });
+                                @endphp
+
+                                @if($groupPermissions->count() > 0)
+                                <div class="accordion-item permission-group" data-group="{{ $group }}">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed"
+                                                type="button"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#collapse-{{ $group }}">
+                                            <i class="bi bi-folder me-2"></i>
+                                            <strong>{{ $data['label'] }}</strong>
+                                            <span class="badge bg-primary ms-2">{{ $groupPermissions->count() }}</span>
+                                        </button>
+                                    </h2>
+                                    <div id="collapse-{{ $group }}"
+                                         class="accordion-collapse collapse"
+                                         data-bs-parent="#permissionsAccordion">
+                                        <div class="accordion-body">
+                                            <div class="row">
+                                                @foreach($groupPermissions as $permission)
+                                                <div class="col-md-6 mb-2 permission-item" data-permission="{{ $permission->name }}">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                                        <div>
+                                                            <code class="text-primary">{{ $permission->name }}</code>
+                                                            @if($permission->description)
+                                                                <br>
+                                                                <small class="text-muted">{{ $permission->description }}</small>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endforeach
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+                                @endif
                             @endforeach
                         </div>
-                        @if($role->users->count() > 10)
-                            <div class="text-center mt-3">
-                                <a href="{{ route('admin.users.index', ['role' => $role->name]) }}" class="btn btn-outline-primary btn-sm">
-                                    View all {{ $role->users->count() }} users
-                                </a>
-                            </div>
-                        @endif
+
+                        <!-- No Results Message -->
+                        <div id="no-results" class="alert alert-info mt-3" style="display: none;">
+                            <i class="bi bi-info-circle me-2"></i>No permissions found matching your search.
+                        </div>
                     @else
-                        <div class="text-center text-muted py-3">
-                            <i class="bi bi-person-x display-6"></i>
-                            <p class="mt-2 mb-0">No users assigned to this role.</p>
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            This role has no permissions assigned.
                         </div>
                     @endif
                 </div>
             </div>
         </div>
-
-        <!-- Right Column - Permissions -->
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-key me-2"></i>Assigned Permissions
-                    </h5>
-                    <div>
-                        <span class="badge bg-success me-2">{{ $role->permissions->count() }} granted</span>
-                        <div class="btn-group btn-group-sm">
-                            <button type="button" class="btn btn-outline-secondary" id="expand-all">
-                                <i class="bi bi-arrows-expand"></i> Expand
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary" id="collapse-all">
-                                <i class="bi bi-arrows-collapse"></i> Collapse
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body">
-                    @forelse($groupedPermissions as $group => $data)
-                        @php
-                            $groupPermissionIds = collect($data['permissions'])->pluck('id')->toArray();
-                            $grantedInGroup = count(array_intersect($groupPermissionIds, $rolePermissions));
-                            $totalInGroup = count($data['permissions']);
-                        @endphp
-                        <div class="permission-group">
-                            <div class="permission-group-header d-flex justify-content-between align-items-center" 
-                                data-bs-toggle="collapse" 
-                                data-bs-target="#group-{{ $group }}"
-                                style="cursor: pointer;">
-                                <div>
-                                    <i class="bi bi-chevron-down me-2 collapse-icon"></i>
-                                    <strong>{{ $data['label'] }}</strong>
-                                </div>
-                                <div>
-                                    <span class="badge {{ $grantedInGroup > 0 ? 'bg-success' : 'bg-secondary' }}">
-                                        {{ $grantedInGroup }}/{{ $totalInGroup }} granted
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="collapse show permission-group-body" id="group-{{ $group }}">
-                                @foreach($data['permissions'] as $permission)
-                                    @php
-                                        $isGranted = in_array($permission['id'], $rolePermissions);
-                                        $actionColors = [
-                                            'view' => 'info',
-                                            'create' => 'success',
-                                            'edit' => 'warning',
-                                            'update' => 'warning',
-                                            'delete' => 'danger',
-                                            'manage' => 'primary',
-                                            'export' => 'secondary',
-                                            'import' => 'secondary',
-                                            'approve' => 'success',
-                                            'reject' => 'danger',
-                                        ];
-                                        $actionColor = $actionColors[$permission['action']] ?? 'secondary';
-                                    @endphp
-                                    <span class="badge permission-badge {{ $isGranted ? 'granted' : 'not-granted' }}">
-                                        @if($isGranted)
-                                            <i class="bi bi-check-circle me-1"></i>
-                                        @else
-                                            <i class="bi bi-x-circle me-1"></i>
-                                        @endif
-                                        {{ $permission['display_name'] }}
-                                        <span class="badge bg-{{ $actionColor }} badge-action">{{ $permission['action'] }}</span>
-                                    </span>
-                                @endforeach
-                            </div>
-                        </div>
-                    @empty
-                        <div class="text-center py-5">
-                            <i class="bi bi-key display-4 text-muted"></i>
-                            <p class="text-muted mt-2">No permissions defined in the system.</p>
-                        </div>
-                    @endforelse
-                </div>
-            </div>
-
-            @if($isSystemRole)
-                <div class="alert alert-info mt-4">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>System Role:</strong> This is a system-defined role that cannot be modified or deleted. 
-                    System roles are essential for the proper functioning of the application.
-                </div>
-            @endif
-        </div>
     </div>
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 $(document).ready(function() {
-    // Collapse icon rotation
-    $('.permission-group-header').on('click', function() {
-        var icon = $(this).find('.collapse-icon');
-        setTimeout(function() {
-            if ($(this).next('.permission-group-body').hasClass('show')) {
-                icon.removeClass('bi-chevron-right').addClass('bi-chevron-down');
+    // Search permissions
+    $('#search-permission').on('input', function() {
+        var searchTerm = $(this).val().toLowerCase();
+
+        if (searchTerm === '') {
+            $('.permission-group').show();
+            $('.permission-item').show();
+            $('#no-results').hide();
+            return;
+        }
+
+        var foundAny = false;
+
+        $('.permission-group').each(function() {
+            var $group = $(this);
+            var $items = $group.find('.permission-item');
+            var groupHasMatch = false;
+
+            $items.each(function() {
+                var $item = $(this);
+                var permName = $item.data('permission').toLowerCase();
+
+                if (permName.indexOf(searchTerm) > -1) {
+                    $item.show();
+                    groupHasMatch = true;
+                    foundAny = true;
+                } else {
+                    $item.hide();
+                }
+            });
+
+            if (groupHasMatch) {
+                $group.show();
+                $group.find('.accordion-collapse').addClass('show');
             } else {
-                icon.removeClass('bi-chevron-down').addClass('bi-chevron-right');
+                $group.hide();
             }
-        }.bind(this), 350);
-    });
+        });
 
-    // Expand all groups
-    $('#expand-all').on('click', function() {
-        $('.permission-group-body').collapse('show');
-        $('.collapse-icon').removeClass('bi-chevron-right').addClass('bi-chevron-down');
-    });
-
-    // Collapse all groups
-    $('#collapse-all').on('click', function() {
-        $('.permission-group-body').collapse('hide');
-        $('.collapse-icon').removeClass('bi-chevron-down').addClass('bi-chevron-right');
+        if (foundAny) {
+            $('#no-results').hide();
+        } else {
+            $('#no-results').show();
+        }
     });
 });
 </script>
-@endsection
+@endpush
