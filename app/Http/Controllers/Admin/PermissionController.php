@@ -34,7 +34,6 @@ class PermissionController extends Controller
             try {
                 $data = $this->permissionService->getPermissionsData();
 
-                // Log for debugging
                 Log::info('Permission AJAX Request', [
                     'count' => count($data),
                     'sample' => isset($data[0]) ? $data[0] : null
@@ -186,33 +185,74 @@ class PermissionController extends Controller
     {
         $this->authorize('manage_permissions');
 
+        // Get grouped permissions with proper structure for blade
         $groupedPermissions = $this->permissionService->getGroupedPermissions();
+
+        // Format permissions to match blade expectations
+        $permissions = [];
+        foreach ($groupedPermissions as $group => $permissionList) {
+            $permissions[$group] = [
+                'label' => ucwords(str_replace('_', ' ', $group)),
+                'permissions' => $permissionList
+            ];
+        }
+
+        // Get all roles
         $roles = \Spatie\Permission\Models\Role::all();
 
-        return view('admin.permissions.matrix', compact('groupedPermissions', 'roles'));
+        // Define system roles that cannot be modified
+        $systemRoles = ['admin', 'supervisor', 'technician'];
+
+        return view('admin.permissions.matrix', compact('permissions', 'roles', 'systemRoles'));
     }
 
     /**
-     * Update permission matrix.
+     * Update permission matrix (individual checkbox toggle via AJAX).
      */
     public function updateMatrix(Request $request)
     {
         $this->authorize('manage_permissions');
 
         try {
-            DB::beginTransaction();
+            $roleId = $request->input('role_id');
+            $permissionId = $request->input('permission_id');
+            $granted = $request->input('granted');
 
-            foreach ($request->permissions ?? [] as $permissionId => $roleIds) {
-                $permission = Permission::findOrFail($permissionId);
-                $permission->roles()->sync($roleIds ?? []);
+            $role = \Spatie\Permission\Models\Role::findOrFail($roleId);
+            $permission = Permission::findOrFail($permissionId);
+
+            // Check if it's a system role
+            $systemRoles = ['admin', 'supervisor', 'technician'];
+            if (in_array($role->name, $systemRoles)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot modify permissions for system roles.'
+                ], 403);
             }
 
-            DB::commit();
+            if ($granted) {
+                $role->givePermissionTo($permission);
+                $message = "Permission '{$permission->name}' granted to role '{$role->name}'.";
+            } else {
+                $role->revokePermissionTo($permission);
+                $message = "Permission '{$permission->name}' revoked from role '{$role->name}'.";
+            }
 
-            return back()->with('success', 'Permission matrix updated successfully.');
+            // Clear permission cache
+            app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+            return response()->json([
+                'success' => true,
+                'message' => $message
+            ]);
+
         } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Failed to update matrix: ' . $e->getMessage());
+            Log::error('Permission matrix update failed: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update permission: ' . $e->getMessage()
+            ], 500);
         }
     }
 
