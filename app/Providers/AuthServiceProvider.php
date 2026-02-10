@@ -19,8 +19,12 @@ use App\Models\StockLedger;
 use App\Models\TerminalCategory;
 use App\Models\TerminalModel;
 use App\Models\Vendor;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 // Policies
+use App\Policies\PermissionPolicy;
+use App\Policies\RolePolicy;
 use App\Policies\UserPolicy;
 use App\Policies\ChargeCatalogPolicy;
 use App\Policies\DepotPolicy;
@@ -92,6 +96,9 @@ class AuthServiceProvider extends ServiceProvider
         StockBalance::class => StockBalancePolicy::class,
         StockLedger::class => StockLedgerPolicy::class,
         StockIssue::class => StockIssuePolicy::class,
+
+        Permission::class => PermissionPolicy::class,
+        Role::class => RolePolicy::class,
     ];
 
     /**

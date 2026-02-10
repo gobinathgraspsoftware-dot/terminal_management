@@ -197,12 +197,23 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
     /* Permission Management Routes */
     Route::prefix('permissions')->name('permissions.')->group(function () {
         Route::get('/', [PermissionController::class, 'index'])->name('index');
+        Route::get('/create', [PermissionController::class, 'create'])->name('create');
+        Route::post('/', [PermissionController::class, 'store'])->name('store');
+        Route::get('/{permission}/edit', [PermissionController::class, 'edit'])->name('edit');
+        Route::put('/{permission}', [PermissionController::class, 'update'])->name('update');
+        Route::delete('/{permission}', [PermissionController::class, 'destroy'])->name('destroy');
+
+        // Matrix and bulk operations
         Route::get('/matrix', [PermissionController::class, 'matrix'])->name('matrix');
         Route::post('/update-matrix', [PermissionController::class, 'updateMatrix'])->name('update-matrix');
         Route::post('/bulk-update', [PermissionController::class, 'bulkUpdate'])->name('bulk-update');
+
+        // Export and utility routes
         Route::get('/export-matrix', [PermissionController::class, 'exportMatrix'])->name('export-matrix');
         Route::get('/{permission}/details', [PermissionController::class, 'getDetails'])->name('details');
         Route::get('/group/{group}', [PermissionController::class, 'getByGroup'])->name('by-group');
+        Route::get('/search', [PermissionController::class, 'search'])->name('search');
+        Route::get('/statistics', [PermissionController::class, 'statistics'])->name('statistics');
     });
 
     /* Partners Management Routes */

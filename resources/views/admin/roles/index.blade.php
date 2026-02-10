@@ -149,9 +149,9 @@
                                 </td>
                                 <td>
                                     @if($isSystem)
-                                        <span class="badge badge-system"><i class="bi bi-lock me-1"></i>System</span>
+                                        <span class="badge bg-danger"><i class="bi bi-lock me-1"></i>System</span>
                                     @else
-                                        <span class="badge badge-custom"><i class="bi bi-person-gear me-1"></i>Custom</span>
+                                        <span class="badge bg-warning"><i class="bi bi-person-gear me-1"></i>Custom</span>
                                     @endif
                                 </td>
                                 <td>
@@ -178,15 +178,15 @@
                                             <a href="{{ route('admin.roles.edit', $role) }}" class="btn btn-warning" title="Edit">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
-                                            <button type="button" class="btn btn-danger btn-delete" 
-                                                data-id="{{ $role->id }}" 
-                                                data-name="{{ $role->name }}" 
+                                            <button type="button" class="btn btn-danger btn-delete"
+                                                data-id="{{ $role->id }}"
+                                                data-name="{{ $role->name }}"
                                                 data-users="{{ $role->users_count }}"
                                                 title="Delete">
                                                 <i class="bi bi-trash"></i>
                                             </button>
-                                            <button type="button" class="btn btn-success btn-clone" 
-                                                data-id="{{ $role->id }}" 
+                                            <button type="button" class="btn btn-success btn-clone"
+                                                data-id="{{ $role->id }}"
                                                 data-name="{{ $role->name }}"
                                                 title="Clone">
                                                 <i class="bi bi-copy"></i>
@@ -215,7 +215,7 @@
                 <p>Are you sure you want to delete the role <strong id="delete-role-name"></strong>?</p>
                 <div class="alert alert-warning" id="delete-warning" style="display: none;">
                     <i class="bi bi-exclamation-circle me-2"></i>
-                    This role has <strong id="delete-users-count"></strong> user(s) assigned. 
+                    This role has <strong id="delete-users-count"></strong> user(s) assigned.
                     Please reassign them before deleting.
                 </div>
             </div>
@@ -247,7 +247,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="clone-description" class="form-label">Description</label>
-                        <textarea class="form-control" id="clone-description" name="description" rows="2" 
+                        <textarea class="form-control" id="clone-description" name="description" rows="2"
                             placeholder="Optional description for this role"></textarea>
                     </div>
                 </div>
@@ -285,14 +285,14 @@ $(document).ready(function() {
 
     // Delete role
     var deleteRoleId = null;
-    
+
     $(document).on('click', '.btn-delete', function() {
         deleteRoleId = $(this).data('id');
         var roleName = $(this).data('name');
         var usersCount = $(this).data('users');
-        
+
         $('#delete-role-name').text(roleName);
-        
+
         if (usersCount > 0) {
             $('#delete-warning').show();
             $('#delete-users-count').text(usersCount);
@@ -301,16 +301,16 @@ $(document).ready(function() {
             $('#delete-warning').hide();
             $('#confirm-delete').prop('disabled', false);
         }
-        
+
         $('#deleteModal').modal('show');
     });
 
     $('#confirm-delete').on('click', function() {
         if (!deleteRoleId) return;
-        
+
         var btn = $(this);
         btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Deleting...');
-        
+
         $.ajax({
             url: '{{ url("admin/roles") }}/' + deleteRoleId,
             type: 'DELETE',
@@ -334,26 +334,26 @@ $(document).ready(function() {
 
     // Clone role
     var cloneRoleId = null;
-    
+
     $(document).on('click', '.btn-clone', function() {
         cloneRoleId = $(this).data('id');
         var roleName = $(this).data('name');
-        
+
         $('#clone-source-name').text(roleName);
         $('#clone-name').val('');
         $('#clone-description').val('');
-        
+
         $('#cloneModal').modal('show');
     });
 
     $('#clone-form').on('submit', function(e) {
         e.preventDefault();
-        
+
         if (!cloneRoleId) return;
-        
+
         var btn = $(this).find('button[type="submit"]');
         btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Cloning...');
-        
+
         $.ajax({
             url: '{{ url("admin/roles") }}/' + cloneRoleId + '/clone',
             type: 'POST',
