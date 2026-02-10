@@ -16,7 +16,7 @@
             </nav>
         </div>
         <div>
-            @can('create', \Spatie\Permission\Models\Permission::class)
+            @can('create_permissions')
             <a href="{{ route('admin.permissions.create') }}" class="btn btn-success me-2">
                 <i class="bi bi-plus-circle me-1"></i> Create Permission
             </a>

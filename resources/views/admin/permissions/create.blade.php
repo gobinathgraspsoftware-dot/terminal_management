@@ -10,7 +10,7 @@
             <h1 class="h3 mb-1">Create New Permission</h1>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
                     <li class="breadcrumb-item"><a href="{{ route('admin.permissions.index') }}">Permissions</a></li>
                     <li class="breadcrumb-item active">Create</li>
                 </ol>
@@ -18,183 +18,182 @@
         </div>
         <div>
             <a href="{{ route('admin.permissions.index') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-1"></i> Back to Permissions
+                <i class="bi bi-arrow-left me-1"></i> Back to List
             </a>
         </div>
     </div>
 
-    <!-- Alert Messages -->
-    @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle me-2"></i>{{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
-    @if($errors->any())
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            <strong>Please correct the following errors:</strong>
-            <ul class="mb-0 mt-2">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
-    <!-- Create Form -->
     <div class="row">
-        <div class="col-lg-8 mx-auto">
+        <div class="col-md-8">
+            <!-- Create Form Card -->
             <div class="card">
                 <div class="card-header bg-white">
                     <h5 class="card-title mb-0">
-                        <i class="bi bi-key me-2"></i>Permission Information
+                        <i class="bi bi-plus-circle me-2"></i>Permission Details
                     </h5>
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('admin.permissions.store') }}" method="POST" id="create-permission-form">
+                    <form action="{{ route('admin.permissions.store') }}" method="POST" id="createPermissionForm">
                         @csrf
 
-                        <!-- Permission Name (Manual) -->
-                        <div class="mb-4">
-                            <label for="name" class="form-label">
-                                Permission Name <span class="text-danger">*</span>
-                                <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip" 
-                                   title="Use lowercase letters, numbers, and underscores only (e.g., view_users, create_invoices)"></i>
+                        <!-- Action -->
+                        <div class="mb-3">
+                            <label for="action" class="form-label">
+                                Action <span class="text-danger">*</span>
                             </label>
-                            <input type="text" 
-                                   class="form-control @error('name') is-invalid @enderror" 
-                                   id="name" 
-                                   name="name" 
-                                   value="{{ old('name') }}"
-                                   placeholder="e.g., view_users, create_invoices"
-                                   maxlength="255">
-                            @error('name')
+                            <select class="form-select @error('action') is-invalid @enderror"
+                                    id="action"
+                                    name="action"
+                                    required>
+                                <option value="">-- Select Action --</option>
+                                @foreach($knownActions as $knownAction)
+                                    <option value="{{ $knownAction }}" {{ old('action') == $knownAction ? 'selected' : '' }}>
+                                        {{ ucfirst(str_replace('_', ' ', $knownAction)) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('action')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                             <div class="form-text">
-                                Enter the full permission name manually or use the builder below.
+                                Select the action this permission controls (e.g., view, create, edit, delete)
                             </div>
                         </div>
 
-                        <div class="border-top border-bottom py-3 mb-4">
-                            <h6 class="text-muted mb-0">
-                                <i class="bi bi-tools me-2"></i>OR Use Permission Builder
-                            </h6>
-                        </div>
-
-                        <!-- Permission Builder -->
-                        <div class="row mb-4">
-                            <!-- Action Selection -->
-                            <div class="col-md-6">
-                                <label for="action" class="form-label">
-                                    Action Type
-                                    <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip" 
-                                       title="Select what action this permission controls"></i>
-                                </label>
-                                <select class="form-select @error('action') is-invalid @enderror" 
-                                        id="action" 
-                                        name="action">
-                                    <option value="">-- Select Action --</option>
-                                    @foreach($knownActions as $action)
-                                        <option value="{{ $action }}" {{ old('action') == $action ? 'selected' : '' }}>
-                                            {{ ucwords(str_replace('_', ' ', $action)) }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('action')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-
-                            <!-- Group/Module Selection -->
-                            <div class="col-md-6">
-                                <label for="group" class="form-label">
-                                    Module/Group <span class="text-danger">*</span>
-                                    <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip" 
-                                       title="Select which module this permission belongs to"></i>
-                                </label>
-                                <select class="form-select @error('group') is-invalid @enderror" 
-                                        id="group" 
-                                        name="group" 
-                                        required>
-                                    <option value="">-- Select Module --</option>
-                                    @foreach($permissionGroups as $key => $label)
-                                        <option value="{{ $key }}" {{ old('group') == $key ? 'selected' : '' }}>
-                                            {{ $label }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('group')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-
-                        <!-- Generated Permission Name Preview -->
-                        <div class="mb-4">
-                            <label class="form-label">Generated Permission Name Preview:</label>
-                            <div class="alert alert-info mb-0">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <code id="permission-preview" class="text-dark">Select action and module to preview</code>
-                            </div>
-                        </div>
-
-                        <!-- Description (Optional) -->
-                        <div class="mb-4">
-                            <label for="description" class="form-label">
-                                Description (Optional)
-                                <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip" 
-                                   title="Add a human-readable description for this permission"></i>
+                        <!-- Module/Group -->
+                        <div class="mb-3">
+                            <label for="module" class="form-label">
+                                Module <span class="text-danger">*</span>
                             </label>
-                            <textarea class="form-control @error('description') is-invalid @enderror" 
-                                      id="description" 
-                                      name="description" 
-                                      rows="3" 
-                                      placeholder="Brief description of what this permission controls"
-                                      maxlength="500">{{ old('description') }}</textarea>
+                            <input type="text"
+                                   class="form-control @error('module') is-invalid @enderror"
+                                   id="module"
+                                   name="module"
+                                   value="{{ old('module') }}"
+                                   list="existingGroupsList"
+                                   placeholder="e.g., users, sites, inventory"
+                                   required>
+                            <datalist id="existingGroupsList">
+                                @foreach($existingGroups as $existingGroup)
+                                    <option value="{{ $existingGroup }}">
+                                @endforeach
+                            </datalist>
+                            @error('module')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">
+                                Enter an existing module or create a new one. Start typing to see suggestions.
+                            </div>
+                        </div>
+
+                        <!-- Permission Name Preview -->
+                        <div class="mb-3">
+                            <label class="form-label">Permission Name (Auto-generated)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">
+                                    <i class="bi bi-key"></i>
+                                </span>
+                                <input type="text"
+                                       class="form-control bg-light"
+                                       id="permission-name-preview"
+                                       value="[action]_[module]"
+                                       disabled>
+                            </div>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Format: action_module (e.g., view_users, create_sites)
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control @error('description') is-invalid @enderror"
+                                      id="description"
+                                      name="description"
+                                      rows="3"
+                                      placeholder="Brief description of what this permission allows">{{ old('description') }}</textarea>
                             @error('description')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                             <div class="form-text">
-                                <span id="char-count">0</span>/500 characters
+                                Optional: Provide a clear description of what this permission controls
                             </div>
                         </div>
 
-                        <!-- Guard Name (Hidden, default to 'web') -->
-                        <input type="hidden" name="guard_name" value="web">
-
                         <!-- Form Actions -->
-                        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> Create Permission
+                            </button>
                             <a href="{{ route('admin.permissions.index') }}" class="btn btn-outline-secondary">
                                 <i class="bi bi-x-circle me-1"></i> Cancel
                             </a>
-                            <button type="submit" class="btn btn-primary" id="submit-btn">
-                                <i class="bi bi-save me-1"></i> Create Permission
-                            </button>
                         </div>
                     </form>
                 </div>
             </div>
+        </div>
 
-            <!-- Help Card -->
-            <div class="card mt-4">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0"><i class="bi bi-lightbulb me-2"></i>Naming Convention Guide</h6>
+        <!-- Info Sidebar -->
+        <div class="col-md-4">
+            <!-- Naming Convention -->
+            <div class="card mb-3">
+                <div class="card-header bg-white">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-lightbulb me-2"></i>Naming Convention
+                    </h6>
                 </div>
                 <div class="card-body">
-                    <p class="mb-2"><strong>Permission Format:</strong> <code>action_module</code></p>
+                    <p class="mb-2"><strong>Format:</strong> <code>action_module</code></p>
                     <p class="mb-2"><strong>Examples:</strong></p>
-                    <ul class="mb-0">
-                        <li><code>view_users</code> - View user listings</li>
-                        <li><code>create_invoices</code> - Create new invoices</li>
-                        <li><code>edit_sites</code> - Edit site information</li>
-                        <li><code>delete_vendors</code> - Delete vendor records</li>
-                        <li><code>approve_stock_transfers</code> - Approve stock transfers</li>
-                        <li><code>manage_contacts_clients</code> - Manage client contacts</li>
+                    <ul class="list-unstyled mb-0">
+                        <li><code class="text-primary">view_users</code></li>
+                        <li><code class="text-primary">create_sites</code></li>
+                        <li><code class="text-primary">edit_inventory</code></li>
+                        <li><code class="text-primary">delete_partners</code></li>
+                        <li><code class="text-primary">approve_stock_transfers</code></li>
                     </ul>
+                </div>
+            </div>
+
+            <!-- Common Actions -->
+            <div class="card mb-3">
+                <div class="card-header bg-white">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-list-check me-2"></i>Common Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        @foreach($knownActions as $action)
+                            <div class="col-6">
+                                <span class="badge bg-secondary w-100">{{ $action }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <!-- Existing Modules -->
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-folder me-2"></i>Existing Modules
+                    </h6>
+                </div>
+                <div class="card-body">
+                    @if(count($existingGroups) > 0)
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach($existingGroups as $group)
+                                <span class="badge bg-info module-badge" data-module="{{ $group }}">
+                                    {{ $group }}
+                                </span>
+                            @endforeach
+                        </div>
+                    @else
+                        <small class="text-muted">No modules yet. Create your first permission!</small>
+                    @endif
                 </div>
             </div>
         </div>
@@ -202,83 +201,94 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 $(document).ready(function() {
-    // Initialize tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-
-    // Character counter for description
-    $('#description').on('input', function() {
-        var length = $(this).val().length;
-        $('#char-count').text(length);
-    });
-
-    // Trigger on page load if there's old input
-    if ($('#description').val()) {
-        $('#char-count').text($('#description').val().length);
-    }
-
-    // Generate permission name preview
+    // Update permission name preview
     function updatePermissionPreview() {
         var action = $('#action').val();
-        var group = $('#group').val();
-        
-        if (action && group) {
-            var permissionName = action + '_' + group;
-            $('#permission-preview').text(permissionName).removeClass('text-muted').addClass('fw-bold');
-            // Auto-fill the name field if it's empty
-            if ($('#name').val() === '') {
-                $('#name').val(permissionName);
-            }
-        } else if (group) {
-            $('#permission-preview').text('Select action to complete').removeClass('fw-bold').addClass('text-muted');
+        var module = $('#module').val().trim();
+
+        if (action && module) {
+            var permissionName = action + '_' + module;
+            $('#permission-name-preview').val(permissionName);
+        } else if (action) {
+            $('#permission-name-preview').val(action + '_[module]');
+        } else if (module) {
+            $('#permission-name-preview').val('[action]_' + module);
         } else {
-            $('#permission-preview').text('Select action and module to preview').removeClass('fw-bold').addClass('text-muted');
+            $('#permission-name-preview').val('[action]_[module]');
         }
     }
 
     // Listen for changes
-    $('#action, #group').on('change', updatePermissionPreview);
-
-    // If there are old values, update preview
-    if ($('#action').val() || $('#group').val()) {
+    $('#action, #module').on('change input', function() {
         updatePermissionPreview();
-    }
+    });
 
-    // Clear auto-generated name when manual name is entered
-    $('#name').on('input', function() {
-        if ($(this).val().length > 0) {
-            // User is manually typing, don't auto-fill
+    // Auto-fill description
+    $('#action, #module').on('change', function() {
+        var action = $('#action').val();
+        var module = $('#module').val().trim();
+        var description = $('#description').val().trim();
+
+        if (action && module && !description) {
+            var actionLabel = $('#action option:selected').text();
+            var moduleLabel = module.charAt(0).toUpperCase() + module.slice(1).replace(/_/g, ' ');
+            $('#description').val(actionLabel + ' ' + moduleLabel);
         }
+    });
+
+    // Click module badge to auto-fill
+    $('.module-badge').on('click', function() {
+        var module = $(this).data('module');
+        $('#module').val(module).trigger('input');
+        $('#module').focus();
     });
 
     // Form validation
-    $('#create-permission-form').on('submit', function(e) {
-        var name = $('#name').val().trim();
-        var group = $('#group').val();
+    $('#createPermissionForm').on('submit', function(e) {
+        var action = $('#action').val();
+        var module = $('#module').val().trim();
 
-        // Must have either a manual name or both action and group
-        if (!name && !group) {
+        if (!action || !module) {
             e.preventDefault();
-            alert('Please either enter a permission name or select a module.');
+            alert('Please select an action and enter a module name.');
             return false;
         }
 
-        // If name is provided but not in correct format, warn user
-        if (name && !/^[a-z0-9_]+$/.test(name)) {
-            if (!confirm('Permission name should only contain lowercase letters, numbers, and underscores. Continue anyway?')) {
-                e.preventDefault();
-                return false;
-            }
+        // Validate module format (lowercase, alphanumeric and underscores only)
+        var moduleRegex = /^[a-z0-9_]+$/;
+        if (!moduleRegex.test(module)) {
+            e.preventDefault();
+            alert('Module name must be lowercase and contain only letters, numbers, and underscores.');
+            $('#module').focus();
+            return false;
         }
+    });
 
-        // Show loading state
-        $('#submit-btn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Creating...');
+    // Module input validation (convert to lowercase, remove invalid chars)
+    $('#module').on('input', function() {
+        var val = $(this).val();
+        // Convert to lowercase and replace spaces with underscores
+        val = val.toLowerCase().replace(/\s+/g, '_');
+        // Remove any characters that aren't alphanumeric or underscore
+        val = val.replace(/[^a-z0-9_]/g, '');
+        $(this).val(val);
+        updatePermissionPreview();
     });
 });
 </script>
-@endsection
+
+<style>
+.module-badge {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.module-badge:hover {
+    transform: scale(1.05);
+    opacity: 0.8;
+}
+</style>
+@endpush

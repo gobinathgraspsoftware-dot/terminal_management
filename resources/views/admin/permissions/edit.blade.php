@@ -10,7 +10,7 @@
             <h1 class="h3 mb-1">Edit Permission</h1>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
                     <li class="breadcrumb-item"><a href="{{ route('admin.permissions.index') }}">Permissions</a></li>
                     <li class="breadcrumb-item active">Edit</li>
                 </ol>
@@ -18,298 +18,248 @@
         </div>
         <div>
             <a href="{{ route('admin.permissions.index') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-1"></i> Back to Permissions
+                <i class="bi bi-arrow-left me-1"></i> Back to List
             </a>
         </div>
     </div>
 
-    <!-- Alert Messages -->
-    @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle me-2"></i>{{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
+    <!-- Warning if permission is in use -->
+    @if($rolesUsingPermission->count() > 0)
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>Warning:</strong> This permission is currently assigned to {{ $rolesUsingPermission->count() }} role(s):
+        @foreach($rolesUsingPermission as $role)
+            <span class="badge bg-secondary">{{ $role->name }}</span>
+        @endforeach
+        <br>
+        Changing this permission may affect access control for these roles.
+    </div>
     @endif
 
-    @if($errors->any())
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            <strong>Please correct the following errors:</strong>
-            <ul class="mb-0 mt-2">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
-    <!-- Edit Form -->
     <div class="row">
-        <div class="col-lg-8 mx-auto">
+        <div class="col-md-8">
+            <!-- Edit Form Card -->
             <div class="card">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <div class="card-header bg-white">
                     <h5 class="card-title mb-0">
-                        <i class="bi bi-key me-2"></i>Permission Information
+                        <i class="bi bi-pencil me-2"></i>Permission Details
                     </h5>
-                    <span class="badge bg-secondary">ID: {{ $permission->id }}</span>
                 </div>
                 <div class="card-body">
-                    <form action="{{ route('admin.permissions.update', $permission) }}" method="POST" id="edit-permission-form">
+                    <form action="{{ route('admin.permissions.update', $permission) }}" method="POST" id="editPermissionForm">
                         @csrf
                         @method('PUT')
 
-                        <!-- Permission Name -->
-                        <div class="mb-4">
-                            <label for="name" class="form-label">
-                                Permission Name <span class="text-danger">*</span>
-                                <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip" 
-                                   title="Use lowercase letters, numbers, and underscores only"></i>
+                        <!-- Permission Name (Read-only) -->
+                        <div class="mb-3">
+                            <label class="form-label">Current Permission Name</label>
+                            <input type="text"
+                                   class="form-control bg-light"
+                                   value="{{ $permission->name }}"
+                                   disabled>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Permission names cannot be changed to maintain system integrity
+                            </div>
+                        </div>
+
+                        <!-- Module/Group -->
+                        <div class="mb-3">
+                            <label for="module" class="form-label">
+                                Module <span class="text-danger">*</span>
                             </label>
-                            <input type="text" 
-                                   class="form-control @error('name') is-invalid @enderror" 
-                                   id="name" 
-                                   name="name" 
-                                   value="{{ old('name', $permission->name) }}"
-                                   placeholder="e.g., view_users, create_invoices"
-                                   required
-                                   maxlength="255">
-                            @error('name')
+                            <input type="text"
+                                   class="form-control @error('module') is-invalid @enderror"
+                                   id="module"
+                                   name="module"
+                                   value="{{ old('module', $group ?? $permission->module) }}"
+                                   list="existingGroups"
+                                   placeholder="e.g., users, sites, inventory"
+                                   required>
+                            <datalist id="existingGroups">
+                                @foreach($existingGroups as $existingGroup)
+                                    <option value="{{ $existingGroup }}">
+                                @endforeach
+                            </datalist>
+                            @error('module')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                             <div class="form-text">
-                                Current: <code>{{ $permission->name }}</code>
+                                Enter an existing module or create a new one
                             </div>
                         </div>
 
-                        <div class="border-top border-bottom py-3 mb-4">
-                            <h6 class="text-muted mb-0">
-                                <i class="bi bi-tools me-2"></i>Permission Components
-                            </h6>
-                        </div>
-
-                        <!-- Permission Components -->
-                        <div class="row mb-4">
-                            <!-- Action Selection -->
-                            <div class="col-md-6">
-                                <label for="action" class="form-label">
-                                    Action Type
-                                    <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip" 
-                                       title="Select what action this permission controls"></i>
-                                </label>
-                                <select class="form-select @error('action') is-invalid @enderror" 
-                                        id="action" 
-                                        name="action">
-                                    <option value="">-- Select Action --</option>
-                                    @foreach($knownActions as $action)
-                                        <option value="{{ $action }}" 
-                                            {{ old('action', $currentAction) == $action ? 'selected' : '' }}>
-                                            {{ ucwords(str_replace('_', ' ', $action)) }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('action')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                                <div class="form-text">Current: <strong>{{ $currentAction }}</strong></div>
-                            </div>
-
-                            <!-- Group/Module Selection -->
-                            <div class="col-md-6">
-                                <label for="group" class="form-label">
-                                    Module/Group <span class="text-danger">*</span>
-                                    <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip" 
-                                       title="Select which module this permission belongs to"></i>
-                                </label>
-                                <select class="form-select @error('group') is-invalid @enderror" 
-                                        id="group" 
-                                        name="group" 
-                                        required>
-                                    <option value="">-- Select Module --</option>
-                                    @foreach($permissionGroups as $key => $label)
-                                        <option value="{{ $key }}" 
-                                            {{ old('group', $currentGroup) == $key ? 'selected' : '' }}>
-                                            {{ $label }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('group')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                                <div class="form-text">Current: <strong>{{ $currentGroup }}</strong></div>
-                            </div>
-                        </div>
-
-                        <!-- Updated Permission Name Preview -->
-                        <div class="mb-4">
-                            <label class="form-label">Updated Permission Name Preview:</label>
-                            <div class="alert alert-info mb-0">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <code id="permission-preview" class="text-dark">{{ $permission->name }}</code>
-                            </div>
-                        </div>
-
-                        <!-- Description (Optional) -->
-                        <div class="mb-4">
-                            <label for="description" class="form-label">
-                                Description (Optional)
-                                <i class="bi bi-info-circle text-muted" data-bs-toggle="tooltip" 
-                                   title="Add a human-readable description for this permission"></i>
+                        <!-- Action -->
+                        <div class="mb-3">
+                            <label for="action" class="form-label">
+                                Action <span class="text-danger">*</span>
                             </label>
-                            <textarea class="form-control @error('description') is-invalid @enderror" 
-                                      id="description" 
-                                      name="description" 
-                                      rows="3" 
-                                      placeholder="Brief description of what this permission controls"
-                                      maxlength="500">{{ old('description', $permission->description) }}</textarea>
+                            <select class="form-select @error('action') is-invalid @enderror"
+                                    id="action"
+                                    name="action"
+                                    required>
+                                <option value="">-- Select Action --</option>
+                                @foreach($knownActions as $knownAction)
+                                    <option value="{{ $knownAction }}"
+                                            {{ old('action', $action) == $knownAction ? 'selected' : '' }}>
+                                        {{ ucfirst(str_replace('_', ' ', $knownAction)) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('action')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">
+                                Select the action this permission controls
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control @error('description') is-invalid @enderror"
+                                      id="description"
+                                      name="description"
+                                      rows="3"
+                                      placeholder="Brief description of what this permission allows">{{ old('description', $permission->description) }}</textarea>
                             @error('description')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
-                            <div class="form-text">
-                                <span id="char-count">0</span>/500 characters
-                            </div>
                         </div>
 
                         <!-- Guard Name -->
-                        <div class="mb-4">
-                            <label for="guard_name" class="form-label">Guard Name</label>
-                            <input type="text" 
-                                   class="form-control" 
-                                   id="guard_name" 
-                                   name="guard_name" 
-                                   value="{{ old('guard_name', $permission->guard_name) }}"
-                                   readonly>
-                            <div class="form-text">Usually 'web' for web application permissions</div>
+                        <div class="mb-3">
+                            <label for="guard_name" class="form-label">Guard</label>
+                            <input type="text"
+                                   class="form-control bg-light"
+                                   id="guard_name"
+                                   value="{{ $permission->guard_name }}"
+                                   disabled>
+                            <div class="form-text">Guard name cannot be changed</div>
                         </div>
-
-                        <!-- Roles Using This Permission -->
-                        @if($permission->roles->count() > 0)
-                        <div class="mb-4">
-                            <label class="form-label">
-                                <i class="bi bi-shield-lock me-1"></i>Roles Using This Permission:
-                            </label>
-                            <div class="d-flex flex-wrap gap-2">
-                                @foreach($permission->roles as $role)
-                                    <span class="badge bg-primary">{{ ucwords($role->name) }}</span>
-                                @endforeach
-                            </div>
-                            <div class="alert alert-warning mt-2 mb-0">
-                                <i class="bi bi-exclamation-triangle me-2"></i>
-                                <strong>Warning:</strong> Changing the permission name will affect {{ $permission->roles->count() }} role(s).
-                            </div>
-                        </div>
-                        @endif
 
                         <!-- Form Actions -->
-                        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> Update Permission
+                            </button>
                             <a href="{{ route('admin.permissions.index') }}" class="btn btn-outline-secondary">
                                 <i class="bi bi-x-circle me-1"></i> Cancel
                             </a>
-                            <button type="submit" class="btn btn-primary" id="submit-btn">
-                                <i class="bi bi-save me-1"></i> Update Permission
-                            </button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Sidebar -->
+        <div class="col-md-4">
+            <!-- Permission Info -->
+            <div class="card mb-3">
+                <div class="card-header bg-white">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-info-circle me-2"></i>Permission Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <small class="text-muted">Created</small>
+                        <div>{{ $permission->created_at->format('M d, Y H:i') }}</div>
+                    </div>
+                    @if($permission->updated_at && $permission->updated_at != $permission->created_at)
+                    <div class="mb-2">
+                        <small class="text-muted">Last Updated</small>
+                        <div>{{ $permission->updated_at->format('M d, Y H:i') }}</div>
+                    </div>
+                    @endif
+                    <div class="mb-2">
+                        <small class="text-muted">ID</small>
+                        <div><code>{{ $permission->id }}</code></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Danger Zone -->
-            <div class="card mt-4 border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h6 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Danger Zone</h6>
+            <!-- Roles Using This Permission -->
+            @if($rolesUsingPermission->count() > 0)
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-shield-lock me-2"></i>Assigned to Roles
+                    </h6>
                 </div>
                 <div class="card-body">
-                    <p class="mb-3">
-                        <strong>Delete Permission:</strong> This action cannot be undone. The permission will be removed from all roles.
-                    </p>
-                    @if($permission->roles->count() > 0)
-                        <div class="alert alert-warning mb-3">
-                            <i class="bi bi-info-circle me-2"></i>
-                            This permission is currently assigned to {{ $permission->roles->count() }} role(s). 
-                            It will be automatically removed from all roles if deleted.
+                    <div class="list-group list-group-flush">
+                        @foreach($rolesUsingPermission as $role)
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <span>{{ ucfirst($role->name) }}</span>
+                            <span class="badge bg-secondary">{{ $role->users_count ?? 0 }} users</span>
                         </div>
-                    @endif
-                    <form action="{{ route('admin.permissions.destroy', $permission) }}" 
-                          method="POST" 
-                          id="delete-form" 
-                          class="d-inline">
-                        @csrf
-                        @method('DELETE')
-                        <button type="button" class="btn btn-danger" onclick="confirmDelete()">
-                            <i class="bi bi-trash me-1"></i> Delete Permission
-                        </button>
-                    </form>
+                        @endforeach
+                    </div>
                 </div>
             </div>
+            @else
+            <div class="card">
+                <div class="card-body">
+                    <div class="text-muted text-center">
+                        <i class="bi bi-shield-x fs-1 d-block mb-2"></i>
+                        <small>Not assigned to any roles</small>
+                    </div>
+                </div>
+            </div>
+            @endif
         </div>
     </div>
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 $(document).ready(function() {
-    // Initialize tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-
-    // Character counter for description
-    $('#description').on('input', function() {
-        var length = $(this).val().length;
-        $('#char-count').text(length);
-    });
-
-    // Initialize counter on load
-    $('#char-count').text($('#description').val().length);
-
-    // Update permission name preview when action or group changes
-    function updatePermissionPreview() {
-        var action = $('#action').val();
-        var group = $('#group').val();
-        
-        if (action && group) {
-            var permissionName = action + '_' + group;
-            $('#permission-preview').text(permissionName).removeClass('text-muted').addClass('fw-bold');
-            // Update the name field
-            $('#name').val(permissionName);
-        }
-    }
-
-    // Listen for changes
-    $('#action, #group').on('change', updatePermissionPreview);
-
     // Form validation
-    $('#edit-permission-form').on('submit', function(e) {
-        var name = $('#name').val().trim();
+    $('#editPermissionForm').on('submit', function(e) {
+        var module = $('#module').val().trim();
+        var action = $('#action').val();
 
-        if (!name) {
+        if (!module || !action) {
             e.preventDefault();
-            alert('Permission name is required.');
+            alert('Please fill in all required fields.');
             return false;
         }
+    });
 
-        // Validate format
-        if (!/^[a-z0-9_]+$/.test(name)) {
-            if (!confirm('Permission name should only contain lowercase letters, numbers, and underscores. Continue anyway?')) {
-                e.preventDefault();
-                return false;
-            }
+    // Highlight changes
+    var originalModule = '{{ $group ?? $permission->module }}';
+    var originalAction = '{{ $action }}';
+
+    $('#module, #action').on('change', function() {
+        var currentModule = $('#module').val();
+        var currentAction = $('#action').val();
+
+        if (currentModule !== originalModule || currentAction !== originalAction) {
+            $('.btn-primary').addClass('pulse');
+        } else {
+            $('.btn-primary').removeClass('pulse');
         }
-
-        // Show loading state
-        $('#submit-btn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Updating...');
     });
 });
+</script>
 
-// Delete confirmation
-function confirmDelete() {
-    if (confirm('Are you sure you want to delete this permission?\n\nThis action cannot be undone and the permission will be removed from all roles.')) {
-        if (confirm('This is your last chance. Are you absolutely sure?')) {
-            $('#delete-form').submit();
-        }
+<style>
+.pulse {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(13, 110, 253, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
     }
 }
-</script>
-@endsection
+</style>
+@endpush
