@@ -368,14 +368,6 @@
                         </a>
                     </li>
                     @endcan
-                    @can('export_quotations')
-                    <li class="nav-item">
-                        <a class="nav-link"
-                           href="{{ route('admin.quotations.export') }}">
-                            <i class="bi bi-download me-2"></i> Export Quotations
-                        </a>
-                    </li>
-                    @endcan
                 </ul>
             </div>
             @endcan
@@ -870,14 +862,6 @@
                         <a class="nav-link {{ str_contains($currentRoute ?? '', 'supervisor.quotations.create') ? 'active' : '' }}"
                            href="{{ route('supervisor.quotations.create') }}">
                             <i class="bi bi-plus-circle me-2"></i> Create Quotation
-                        </a>
-                    </li>
-                    @endcan
-                    @can('export_quotations')
-                    <li class="nav-item">
-                        <a class="nav-link"
-                           href="{{ route('supervisor.quotations.export') }}">
-                            <i class="bi bi-download me-2"></i> Export Quotations
                         </a>
                     </li>
                     @endcan

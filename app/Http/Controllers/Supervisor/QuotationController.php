@@ -16,11 +16,14 @@ use App\Http\Requests\ApproveQuotationRequest;
 use App\Exports\QuotationsExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
 
 class QuotationController extends Controller
 {
+    use AuthorizesRequests;
+
     protected $quotationService;
 
     public function __construct(QuotationService $quotationService)

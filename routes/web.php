@@ -534,8 +534,15 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
     });
 
     /* Quatation Routes */
-    Route::resource('quotations', AdminQuotationController::class);
     Route::prefix('quotations')->name('quotations.')->group(function () {
+        Route::get('/export', [AdminQuotationController::class, 'export'])->name('export');
+        Route::get('/', [AdminQuotationController::class, 'index'])->name('index');
+        Route::get('/create', [AdminQuotationController::class, 'create'])->name('create');
+        Route::post('/', [AdminQuotationController::class, 'store'])->name('store');
+        Route::get('/{quotation}', [AdminQuotationController::class, 'show'])->name('show');
+        Route::get('/{quotation}/edit', [AdminQuotationController::class, 'edit'])->name('edit');
+        Route::put('/{quotation}', [AdminQuotationController::class, 'update'])->name('update');
+        Route::delete('/{quotation}', [AdminQuotationController::class, 'destroy'])->name('destroy');
         Route::post('/{quotation}/submit-approval', [AdminQuotationController::class, 'submitForApproval'])->name('submit-approval');
         Route::post('/{quotation}/process-approval', [AdminQuotationController::class, 'processApproval'])->name('process-approval');
         Route::post('/{quotation}/send', [AdminQuotationController::class, 'send'])->name('send');
@@ -543,10 +550,9 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/{quotation}/cancel', [AdminQuotationController::class, 'cancel'])->name('cancel');
         Route::post('/{quotation}/convert-to-po', [AdminQuotationController::class, 'convertToPO'])->name('convert-to-po');
         Route::post('/{quotation}/duplicate', [AdminQuotationController::class, 'duplicate'])->name('duplicate');
-        Route::get('/quotations-export', [AdminQuotationController::class, 'export'])->name('export');
         Route::get('/{quotation}/print', [AdminQuotationController::class, 'print'])->name('print');
-        Route::get('/quotations-model-price/{model}', [AdminQuotationController::class, 'getModelPrice'])->name('model-price');
-        Route::get('/quotations-charge-price/{charge}', [AdminQuotationController::class, 'getChargePrice'])->name('charge-price');
+        Route::get('/model-price/{model}', [AdminQuotationController::class, 'getModelPrice'])->name('model-price');
+        Route::get('/charge-price/{charge}', [AdminQuotationController::class, 'getChargePrice'])->name('charge-price');
     });
 
     /* Settings (requires specific permission) */
@@ -798,16 +804,22 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
     });
 
     /* Quatation Routes */
-    Route::resource('quotations', SupervisorQuotationController::class);
     Route::prefix('quotations')->name('quotations.')->group(function () {
+        Route::get('/export', [SupervisorQuotationController::class, 'export'])->name('export');
+        Route::get('/', [SupervisorQuotationController::class, 'index'])->name('index');
+        Route::get('/create', [SupervisorQuotationController::class, 'create'])->name('create');
+        Route::post('/', [SupervisorQuotationController::class, 'store'])->name('store');
+        Route::get('/{quotation}', [SupervisorQuotationController::class, 'show'])->name('show');
+        Route::get('/{quotation}/edit', [SupervisorQuotationController::class, 'edit'])->name('edit');
+        Route::put('/{quotation}', [SupervisorQuotationController::class, 'update'])->name('update');
+        Route::delete('/{quotation}', [SupervisorQuotationController::class, 'destroy'])->name('destroy');
         Route::post('/{quotation}/submit-approval', [SupervisorQuotationController::class, 'submitForApproval'])->name('submit-approval');
         Route::post('/{quotation}/process-approval', [SupervisorQuotationController::class, 'processApproval'])->name('process-approval');
         Route::post('/{quotation}/send', [SupervisorQuotationController::class, 'send'])->name('send');
         Route::post('/{quotation}/convert-to-po', [SupervisorQuotationController::class, 'convertToPO'])->name('convert-to-po');
-        Route::get('/quotations-export', [SupervisorQuotationController::class, 'export'])->name('export');
         Route::get('/{quotation}/print', [SupervisorQuotationController::class, 'print'])->name('print');
-        Route::get('/quotations-model-price/{model}', [SupervisorQuotationController::class, 'getModelPrice'])->name('model-price');
-        Route::get('/quotations-charge-price/{charge}', [SupervisorQuotationController::class, 'getChargePrice'])->name('charge-price');
+        Route::get('/model-price/{model}', [SupervisorQuotationController::class, 'getModelPrice'])->name('model-price');
+        Route::get('/charge-price/{charge}', [SupervisorQuotationController::class, 'getChargePrice'])->name('charge-price');
     });
 
     /* Job Assignment (supervisor or admin) */
