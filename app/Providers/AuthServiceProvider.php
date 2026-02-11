@@ -19,6 +19,7 @@ use App\Models\StockLedger;
 use App\Models\TerminalCategory;
 use App\Models\TerminalModel;
 use App\Models\Vendor;
+use App\Models\Quotation;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -38,6 +39,7 @@ use App\Policies\StockLedgerPolicy;
 use App\Policies\TerminalCategoryPolicy;
 use App\Policies\TerminalModelPolicy;
 use App\Policies\VendorPolicy;
+use App\Policies\QuotationPolicy;
 
 // Observers
 use App\Observers\InventorySerialObserver;
@@ -99,6 +101,7 @@ class AuthServiceProvider extends ServiceProvider
 
         Permission::class => PermissionPolicy::class,
         Role::class => RolePolicy::class,
+        Quotation::class => QuotationPolicy::class,
     ];
 
     /**

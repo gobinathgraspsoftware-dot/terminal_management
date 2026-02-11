@@ -74,6 +74,9 @@ use App\Http\Controllers\Technician\StockTransferController as TechnicianStockTr
 use App\Http\Controllers\Admin\StockAdjustmentController as AdminStockAdjustmentController;
 use App\Http\Controllers\Supervisor\StockAdjustmentController as SupervisorStockAdjustmentController;
 use App\Http\Controllers\Technician\InventoryController as TechnicianInventoryController;
+use App\Http\Controllers\Admin\QuotationController as AdminQuotationController;
+use App\Http\Controllers\Supervisor\QuotationController as SupervisorQuotationController;
+use App\Http\Controllers\Technician\QuotationController as TechnicianQuotationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -530,6 +533,22 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/export/variance', [AdminStockAdjustmentController::class, 'exportVariance'])->name('export-variance');
     });
 
+    /* Quatation Routes */
+    Route::resource('quotations', AdminQuotationController::class);
+    Route::prefix('quotations')->name('quotations.')->group(function () {
+        Route::post('/{quotation}/submit-approval', [AdminQuotationController::class, 'submitForApproval'])->name('submit-approval');
+        Route::post('/{quotation}/process-approval', [AdminQuotationController::class, 'processApproval'])->name('process-approval');
+        Route::post('/{quotation}/send', [AdminQuotationController::class, 'send'])->name('send');
+        Route::post('/{quotation}/accept', [AdminQuotationController::class, 'accept'])->name('accept');
+        Route::post('/{quotation}/cancel', [AdminQuotationController::class, 'cancel'])->name('cancel');
+        Route::post('/{quotation}/convert-to-po', [AdminQuotationController::class, 'convertToPO'])->name('convert-to-po');
+        Route::post('/{quotation}/duplicate', [AdminQuotationController::class, 'duplicate'])->name('duplicate');
+        Route::get('/quotations-export', [AdminQuotationController::class, 'export'])->name('export');
+        Route::get('/{quotation}/print', [AdminQuotationController::class, 'print'])->name('print');
+        Route::get('/quotations-model-price/{model}', [AdminQuotationController::class, 'getModelPrice'])->name('model-price');
+        Route::get('/quotations-charge-price/{charge}', [AdminQuotationController::class, 'getChargePrice'])->name('charge-price');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -778,6 +797,19 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/export/variance', [SupervisorStockAdjustmentController::class, 'exportVariance'])->name('export-variance');
     });
 
+    /* Quatation Routes */
+    Route::resource('quotations', SupervisorQuotationController::class);
+    Route::prefix('quotations')->name('quotations.')->group(function () {
+        Route::post('/{quotation}/submit-approval', [SupervisorQuotationController::class, 'submitForApproval'])->name('submit-approval');
+        Route::post('/{quotation}/process-approval', [SupervisorQuotationController::class, 'processApproval'])->name('process-approval');
+        Route::post('/{quotation}/send', [SupervisorQuotationController::class, 'send'])->name('send');
+        Route::post('/{quotation}/convert-to-po', [SupervisorQuotationController::class, 'convertToPO'])->name('convert-to-po');
+        Route::get('/quotations-export', [SupervisorQuotationController::class, 'export'])->name('export');
+        Route::get('/{quotation}/print', [SupervisorQuotationController::class, 'print'])->name('print');
+        Route::get('/quotations-model-price/{model}', [SupervisorQuotationController::class, 'getModelPrice'])->name('model-price');
+        Route::get('/quotations-charge-price/{charge}', [SupervisorQuotationController::class, 'getChargePrice'])->name('charge-price');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -957,6 +989,12 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/return-request', [TechnicianInventoryController::class, 'returnRequest'])->name('return-request');
         Route::get('/get-serial-details', [TechnicianInventoryController::class, 'getSerialDetails'])->name('get-serial-details');
         Route::get('/{serial}', [TechnicianInventoryController::class, 'show'])->name('show');
+    });
+
+    /* Quatation Routes */
+    Route::prefix('quotations')->name('quotations.')->group(function () {
+        Route::get('/', [TechnicianQuotationController::class, 'index'])->name('index');
+        Route::get('/{quotation}', [TechnicianQuotationController::class, 'show'])->name('show');
     });
 
     /* Claims */
