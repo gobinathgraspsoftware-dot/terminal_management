@@ -130,7 +130,7 @@ $(document).ready(function() {
             { data: 'type_badge', name: 'quotation_type' },
             { data: 'party_name', name: 'party_name' },
             { data: 'valid_until', name: 'valid_until' },
-            { data: 'amount', name: 'total_amount', className: 'text-end' },
+            { data: 'total_amount', name: 'total_amount', className: 'text-end' },
             { data: 'status_badge', name: 'status' },
             { data: 'actions', name: 'actions', orderable: false, searchable: false }
         ],

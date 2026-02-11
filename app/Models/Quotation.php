@@ -44,24 +44,24 @@ class Quotation extends Model
     }
 
     // Relationships
-    public function client() 
-    { 
-        return $this->belongsTo(Client::class); 
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
     }
 
-    public function vendor() 
-    { 
-        return $this->belongsTo(Vendor::class); 
+    public function vendor()
+    {
+        return $this->belongsTo(Vendor::class);
     }
 
-    public function lines() 
-    { 
-        return $this->hasMany(QuotationLine::class)->orderBy('line_no'); 
+    public function lines()
+    {
+        return $this->hasMany(QuotationLine::class)->orderBy('line_no');
     }
 
-    public function purchaseOrder() 
-    { 
-        return $this->hasOne(PurchaseOrder::class); 
+    public function purchaseOrder()
+    {
+        return $this->hasOne(PurchaseOrder::class);
     }
 
     public function approvedBy()
@@ -82,8 +82,8 @@ class Quotation extends Model
     // Helper Methods
     public function getPartyAttribute()
     {
-        return $this->quotation_type === self::TYPE_CUSTOMER 
-            ? $this->client 
+        return $this->quotation_type === self::TYPE_CUSTOMER
+            ? $this->client
             : $this->vendor;
     }
 
@@ -167,8 +167,8 @@ class Quotation extends Model
 
     public function canBeConverted(): bool
     {
-        return $this->isVendorQuotation() 
-            && $this->status === self::STATUS_ACCEPTED 
+        return $this->isVendorQuotation()
+            && $this->status === self::STATUS_ACCEPTED
             && !$this->purchaseOrder;
     }
 
@@ -220,8 +220,8 @@ class Quotation extends Model
     public static function getTypeList(): array
     {
         return [
-            self::TYPE_CUSTOMER => 'Customer Quotation',
-            self::TYPE_VENDOR => 'Vendor Quotation',
+            self::TYPE_CUSTOMER => 'Customer',
+            self::TYPE_VENDOR => 'Vendor',
         ];
     }
 

@@ -9,12 +9,15 @@ use App\Models\Vendor;
 use App\Models\TerminalModel;
 use App\Models\ChargeCatalog;
 use App\Services\QuotationService;
+use App\Services\QuotationPdfService;
+use App\Mail\QuotationEmail;
 use App\Http\Requests\StoreQuotationRequest;
 use App\Http\Requests\UpdateQuotationRequest;
 use App\Http\Requests\ApproveQuotationRequest;
 use App\Exports\QuotationsExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
@@ -24,10 +27,14 @@ class QuotationController extends Controller
     use AuthorizesRequests;
 
     protected $quotationService;
+    protected $pdfService;
 
-    public function __construct(QuotationService $quotationService)
-    {
+    public function __construct(
+        QuotationService $quotationService,
+        QuotationPdfService $pdfService
+    ) {
         $this->quotationService = $quotationService;
+        $this->pdfService = $pdfService;
     }
 
     /**
@@ -48,7 +55,7 @@ class QuotationController extends Controller
     }
 
     /**
-     * DataTables AJAX endpoint
+     * DataTables AJAX endpoint - FIXED
      */
     protected function datatable(Request $request)
     {
@@ -80,7 +87,9 @@ class QuotationController extends Controller
         }
 
         return DataTables::of($query)
-            ->addColumn('party_name', fn($q) => $q->party_name)
+            ->addColumn('party_name', function($q) {
+                return $q->party_name;
+            })
             ->addColumn('type_badge', function ($q) {
                 $color = $q->quotation_type === 'customer' ? 'primary' : 'info';
                 return '<span class="badge bg-' . $color . '">' . $q->getTypeLabel() . '</span>';
@@ -88,11 +97,56 @@ class QuotationController extends Controller
             ->addColumn('status_badge', function ($q) {
                 return '<span class="badge ' . $q->getStatusBadgeClass() . '">' . $q->getStatusLabel() . '</span>';
             })
-            ->addColumn('amount', fn($q) => number_format($q->total_amount, 2))
-            ->addColumn('actions', function ($quotation) {
-                return view('admin.quotations._actions', compact('quotation'))->render();
+            ->addColumn('actions', function ($q) {
+                $actions = '<div class="btn-group btn-group-sm">';
+                $actions .= '<a href="' . route('admin.quotations.show', $q) . '" class="btn btn-info" title="View"><i class="fas fa-eye"></i></a>';
+
+                if (auth()->user()->can('update', $q)) {
+                    $actions .= '<a href="' . route('admin.quotations.edit', $q) . '" class="btn btn-primary" title="Edit"><i class="fas fa-edit"></i></a>';
+                }
+                $actions .= '</div>';
+                $actions .= ' <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-danger dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="PDF Options">
+                        <i class="fas fa-file-pdf"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li>
+                            <a class="dropdown-item" href="' . route('admin.quotations.pdf.download', $q) . '">
+                                <i class="fas fa-download"></i> Download PDF
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="' . route('admin.quotations.pdf.preview', $q) . '" target="_blank">
+                                <i class="fas fa-eye"></i> Preview PDF
+                            </a>
+                        </li>
+                    </ul>
+                </div>';
+
+                if (auth()->user()->can('delete', $q)) {
+                    $actions .= '<button type="button" class="btn btn-danger delete-btn" data-id="' . $q->id . '" title="Delete"><i class="fas fa-trash"></i></button>';
+                }
+
+
+                return $actions;
             })
-            ->rawColumns(['type_badge', 'status_badge', 'actions'])
+            ->editColumn('quotation_date', function($q) {
+                return $q->quotation_date->format('d M Y');
+            })
+            ->editColumn('valid_until', function($q) {
+                if ($q->valid_until) {
+                    // Check if expired
+                    if ($q->valid_until->isPast()) {
+                        return '<span class="text-danger fw-bold">' . $q->valid_until->format('d M Y') . '</span>';
+                    }
+                    return $q->valid_until->format('d M Y');
+                }
+                return '<span class="text-muted">N/A</span>';
+            })
+            ->editColumn('total_amount', function($q) {
+                return $q->currency . ' ' . number_format($q->total_amount, 2);
+            })
+            ->rawColumns(['type_badge', 'status_badge', 'actions', 'valid_until'])
             ->make(true);
     }
 
@@ -112,7 +166,7 @@ class QuotationController extends Controller
     }
 
     /**
-     * Store new quotation
+     * Store quotation
      */
     public function store(StoreQuotationRequest $request)
     {
@@ -217,7 +271,7 @@ class QuotationController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => $e->getMessage()
             ], 422);
         }
     }
@@ -245,9 +299,9 @@ class QuotationController extends Controller
     }
 
     /**
-     * Process approval
+     * Approve quotation
      */
-    public function processApproval(ApproveQuotationRequest $request, Quotation $quotation)
+    public function approve(ApproveQuotationRequest $request, Quotation $quotation)
     {
         try {
             if ($request->action === 'approve') {
@@ -258,15 +312,9 @@ class QuotationController extends Controller
                 $message = 'Quotation rejected successfully.';
             }
 
-            return response()->json([
-                'success' => true,
-                'message' => $message
-            ]);
+            return response()->json(['success' => true, 'message' => $message]);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
     }
 
@@ -279,16 +327,9 @@ class QuotationController extends Controller
 
         try {
             $this->quotationService->sendQuotation($quotation);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Quotation sent successfully.'
-            ]);
+            return response()->json(['success' => true, 'message' => 'Quotation sent successfully.']);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
     }
 
@@ -398,7 +439,7 @@ class QuotationController extends Controller
     }
 
     /**
-     * Print quotation
+     * Print quotation (HTML preview)
      */
     public function print(Quotation $quotation)
     {
@@ -407,6 +448,96 @@ class QuotationController extends Controller
         $quotation->load(['lines.model', 'lines.charge', 'client', 'vendor']);
 
         return view('admin.quotations.print', compact('quotation'));
+    }
+
+    /**
+     * Download quotation as PDF
+     */
+    public function downloadPdf(Quotation $quotation)
+    {
+        $this->authorize('view', $quotation);
+
+        try {
+            // Validate quotation
+            $this->pdfService->validateQuotation($quotation);
+
+            // Add watermark for draft/expired
+            $watermark = $this->pdfService->getWatermark($quotation);
+
+            return $this->pdfService->downloadPdf($quotation, [
+                'watermark' => $watermark
+            ]);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error generating PDF: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Preview quotation PDF in browser
+     */
+    public function previewPdf(Quotation $quotation)
+    {
+        $this->authorize('view', $quotation);
+
+        try {
+            // Validate quotation
+            $this->pdfService->validateQuotation($quotation);
+
+            // Add watermark for draft/expired
+            $watermark = $this->pdfService->getWatermark($quotation);
+
+            return $this->pdfService->streamPdf($quotation, [
+                'watermark' => $watermark
+            ]);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error generating PDF: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Email quotation with PDF
+     */
+    public function emailPdf(Request $request, Quotation $quotation)
+    {
+        $this->authorize('send', $quotation);
+
+        $request->validate([
+            'email' => 'required|email',
+            'subject' => 'nullable|string|max:255',
+            'message' => 'nullable|string|max:1000',
+        ]);
+
+        try {
+            // Validate quotation
+            $this->pdfService->validateQuotation($quotation);
+
+            // Get recipient email
+            $recipientEmail = $request->email;
+
+            // Prepare email options
+            $emailOptions = [
+                'subject' => $request->subject,
+                'message' => $request->message,
+            ];
+
+            // Send email
+            Mail::to($recipientEmail)->send(new QuotationEmail($quotation, $emailOptions));
+
+            // Update quotation status if approved
+            if ($quotation->status === Quotation::STATUS_APPROVED) {
+                $this->quotationService->sendQuotation($quotation);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Quotation emailed successfully to ' . $recipientEmail
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error sending email: ' . $e->getMessage()
+            ], 422);
+        }
     }
 
     /**

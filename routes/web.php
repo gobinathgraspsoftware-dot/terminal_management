@@ -553,6 +553,11 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/{quotation}/print', [AdminQuotationController::class, 'print'])->name('print');
         Route::get('/model-price/{model}', [AdminQuotationController::class, 'getModelPrice'])->name('model-price');
         Route::get('/charge-price/{charge}', [AdminQuotationController::class, 'getChargePrice'])->name('charge-price');
+
+
+        Route::get('{quotation}/pdf/download', [AdminQuotationController::class, 'downloadPdf'])->name('pdf.download');
+        Route::get('{quotation}/pdf/preview', [AdminQuotationController::class, 'previewPdf'])->name('pdf.preview');
+        Route::post('{quotation}/pdf/email', [AdminQuotationController::class, 'emailPdf'])->name('pdf.email');
     });
 
     /* Settings (requires specific permission) */
@@ -820,6 +825,11 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{quotation}/print', [SupervisorQuotationController::class, 'print'])->name('print');
         Route::get('/model-price/{model}', [SupervisorQuotationController::class, 'getModelPrice'])->name('model-price');
         Route::get('/charge-price/{charge}', [SupervisorQuotationController::class, 'getChargePrice'])->name('charge-price');
+
+
+        Route::get('{quotation}/pdf/download', [SupervisorQuotationController::class, 'downloadPdf'])->name('pdf.download');
+        Route::get('{quotation}/pdf/preview', [SupervisorQuotationController::class, 'previewPdf'])->name('pdf.preview');
+        Route::post('{quotation}/pdf/email', [SupervisorQuotationController::class, 'emailPdf'])->name('pdf.email');
     });
 
     /* Job Assignment (supervisor or admin) */
