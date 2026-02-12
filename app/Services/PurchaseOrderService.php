@@ -4,167 +4,136 @@ namespace App\Services;
 
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
-use App\Models\Quotation;
 use App\Models\NumberSeries;
-use App\Models\AuditTrail;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use Exception;
 
 class PurchaseOrderService
 {
     /**
-     * Get all purchase orders with filters
+     * Generate next PO number
      */
-    public function getFilteredPurchaseOrders($filters = [], $user = null)
+    protected function generatePONumber(): string
     {
-        $query = PurchaseOrder::with(['vendor', 'quotation', 'receivingDepot']);
+        $series = NumberSeries::where('series_type', 'PO')
+            ->where('is_active', 1)
+            ->lockForUpdate()
+            ->first();
 
-        // Role-based scoping
-        if ($user && $user->hasRole('supervisor')) {
-            // Supervisors see their team's POs
-            $query->where('created_by', $user->id)
-                  ->orWhereHas('createdBy', function($q) use ($user) {
-                      $q->where('supervisor_id', $user->id);
-                  });
-        } elseif ($user && $user->hasRole('technician')) {
-            // Technicians see only their own POs
-            $query->where('created_by', $user->id);
+        if (!$series) {
+            $series = NumberSeries::create([
+                'series_type' => 'PO',
+                'prefix' => 'PO',
+                'suffix' => null,
+                'current_number' => 0,
+                'number_length' => 6,
+                'reset_frequency' => 'yearly',
+                'is_active' => 1
+            ]);
         }
 
-        // Status filter
-        if (!empty($filters['status'])) {
-            $query->where('status', $filters['status']);
+        if ($series->reset_frequency === 'yearly' && $series->last_reset_date) {
+            $lastResetYear = date('Y', strtotime($series->last_reset_date));
+            $currentYear = date('Y');
+            if ($lastResetYear < $currentYear) {
+                $series->current_number = 0;
+                $series->last_reset_date = now();
+            }
+        } elseif ($series->reset_frequency === 'monthly' && $series->last_reset_date) {
+            $lastResetMonth = date('Y-m', strtotime($series->last_reset_date));
+            $currentMonth = date('Y-m');
+            if ($lastResetMonth < $currentMonth) {
+                $series->current_number = 0;
+                $series->last_reset_date = now();
+            }
         }
 
-        // Vendor filter
-        if (!empty($filters['vendor_id'])) {
-            $query->where('vendor_id', $filters['vendor_id']);
+        $series->current_number++;
+        $series->save();
+
+        $number = str_pad($series->current_number, $series->number_length, '0', STR_PAD_LEFT);
+        $poNumber = $series->prefix . $number;
+        
+        if ($series->suffix) {
+            $poNumber .= $series->suffix;
         }
 
-        // Date range filter
-        if (!empty($filters['date_from'])) {
-            $query->whereDate('po_date', '>=', $filters['date_from']);
-        }
-
-        if (!empty($filters['date_to'])) {
-            $query->whereDate('po_date', '<=', $filters['date_to']);
-        }
-
-        return $query->latest('po_date');
+        return $poNumber;
     }
 
     /**
-     * Create a new purchase order
+     * Create new purchase order
      */
     public function createPurchaseOrder(array $data): PurchaseOrder
     {
-        DB::beginTransaction();
-        try {
-            // Generate PO Number
-            $data['po_no'] = $this->generatePONumber();
-            $data['status'] = PurchaseOrder::STATUS_DRAFT;
-            $data['created_by'] = Auth::id();
-            $data['currency'] = $data['currency'] ?? 'MYR';
+        return DB::transaction(function () use ($data) {
+            $poNumber = $this->generatePONumber();
 
-            // Calculate totals
-            $totals = $this->calculateTotals($data['lines'] ?? []);
-            $data['subtotal'] = $totals['subtotal'];
-            $data['tax_amount'] = $totals['tax_amount'];
-            $data['total_amount'] = $totals['total_amount'];
+            $subtotal = 0;
+            $taxAmount = 0;
 
-            // Create PO
-            $po = PurchaseOrder::create($data);
-
-            // Create PO Lines
-            if (!empty($data['lines'])) {
-                $this->createPOLines($po, $data['lines']);
+            foreach ($data['lines'] as $line) {
+                $lineSubtotal = $line['quantity_ordered'] * $line['unit_price'];
+                $lineTax = $lineSubtotal * (($line['tax_rate'] ?? 0) / 100);
+                $subtotal += $lineSubtotal;
+                $taxAmount += $lineTax;
             }
 
-            // Audit trail
-            $this->logAudit($po, 'created', 'Purchase Order created');
+            $totalAmount = $subtotal + $taxAmount;
 
-            DB::commit();
-            return $po->fresh(['lines', 'vendor']);
-
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-    }
-
-    /**
-     * Create PO from Quotation
-     */
-    public function createFromQuotation(Quotation $quotation, array $additionalData = []): PurchaseOrder
-    {
-        DB::beginTransaction();
-        try {
-            // Prepare PO data from quotation
-            $data = [
-                'po_no' => $this->generatePONumber(),
-                'po_date' => now(),
-                'vendor_id' => $quotation->vendor_id,
-                'quotation_id' => $quotation->id,
-                'reference' => $quotation->quotation_no,
-                'delivery_address' => $additionalData['delivery_address'] ?? '',
-                'delivery_date' => $additionalData['delivery_date'] ?? null,
-                'receiving_depot_id' => $additionalData['receiving_depot_id'] ?? null,
-                'payment_terms' => $additionalData['payment_terms'] ?? $quotation->payment_terms,
-                'terms_conditions' => $additionalData['terms_conditions'] ?? $quotation->terms_conditions,
-                'notes' => $additionalData['notes'] ?? '',
-                'status' => PurchaseOrder::STATUS_DRAFT,
-                'currency' => $quotation->currency,
+            $po = PurchaseOrder::create([
+                'po_no' => $poNumber,
+                'vendor_id' => $data['vendor_id'],
+                'quotation_id' => $data['quotation_id'] ?? null,
+                'po_date' => $data['po_date'],
+                'delivery_date' => $data['delivery_date'],
+                'delivery_address' => $data['delivery_address'],
+                'receiving_depot_id' => $data['receiving_depot_id'],
+                'currency' => $data['currency'],
+                'reference' => $data['reference'] ?? null,
+                'payment_terms' => $data['payment_terms'] ?? 'Net 30 days',
+                'terms_conditions' => $data['terms_conditions'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'subtotal' => $subtotal,
+                'tax_amount' => $taxAmount,
+                'total_amount' => $totalAmount,
+                'status' => 'draft',
                 'created_by' => Auth::id(),
-            ];
+            ]);
 
-            // Get quotation lines
-            $quotationLines = $quotation->lines()->with('model')->get();
-            $lines = [];
+            // FIXED: Add line_no for each line
+            $lineNo = 1;
+            foreach ($data['lines'] as $lineData) {
+                $lineSubtotal = $lineData['quantity_ordered'] * $lineData['unit_price'];
+                $discountAmount = $lineSubtotal * (($lineData['discount_percent'] ?? 0) / 100);
+                $afterDiscount = $lineSubtotal - $discountAmount;
+                $lineTax = $afterDiscount * (($lineData['tax_rate'] ?? 0) / 100);
+                $lineTotal = $afterDiscount + $lineTax;
 
-            foreach ($quotationLines as $index => $qLine) {
-                $lines[] = [
-                    'line_no' => $index + 1,
-                    'model_id' => $qLine->model_id,
-                    'description' => $qLine->description,
-                    'quantity_ordered' => $qLine->quantity,
-                    'unit' => $qLine->unit ?? 'pcs',
-                    'unit_price' => $qLine->unit_price,
-                    'discount_percent' => $qLine->discount_percent ?? 0,
-                    'discount_amount' => $qLine->discount_amount ?? 0,
-                    'tax_rate' => $qLine->tax_rate ?? 0,
-                    'tax_amount' => $qLine->tax_amount ?? 0,
-                    'line_total' => $qLine->line_total,
-                ];
+                PurchaseOrderLine::create([
+                    'purchase_order_id' => $po->id,
+                    'line_no' => $lineNo,  // ADDED THIS!
+                    'model_id' => $lineData['model_id'],
+                    'description' => $lineData['description'] ?? '',
+                    'quantity_ordered' => $lineData['quantity_ordered'],
+                    'quantity_received' => 0,
+                    'quantity_cancelled' => 0,
+                    'unit' => $lineData['unit'],
+                    'unit_price' => $lineData['unit_price'],
+                    'discount_percent' => $lineData['discount_percent'] ?? 0,
+                    'discount_amount' => $discountAmount,
+                    'tax_rate' => $lineData['tax_rate'] ?? 0,
+                    'tax_amount' => $lineTax,
+                    'line_total' => $lineTotal,
+                    'remarks' => $lineData['remarks'] ?? null,
+                ]);
+                
+                $lineNo++;
             }
 
-            $data['lines'] = $lines;
-
-            // Calculate totals
-            $totals = $this->calculateTotals($lines);
-            $data['subtotal'] = $totals['subtotal'];
-            $data['tax_amount'] = $totals['tax_amount'];
-            $data['total_amount'] = $totals['total_amount'];
-
-            // Create PO
-            $po = PurchaseOrder::create($data);
-
-            // Create lines
-            $this->createPOLines($po, $lines);
-
-            // Update quotation status
-            $quotation->update(['status' => Quotation::STATUS_CONVERTED]);
-
-            // Audit trail
-            $this->logAudit($po, 'created', 'PO created from Quotation: ' . $quotation->quotation_no);
-
-            DB::commit();
-            return $po->fresh(['lines', 'vendor', 'quotation']);
-
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+            return $po->fresh(['lines', 'vendor']);
+        });
     }
 
     /**
@@ -172,338 +141,218 @@ class PurchaseOrderService
      */
     public function updatePurchaseOrder(PurchaseOrder $po, array $data): PurchaseOrder
     {
-        DB::beginTransaction();
-        try {
-            // Only draft and rejected POs can be edited
-            if (!in_array($po->status, [PurchaseOrder::STATUS_DRAFT, PurchaseOrder::STATUS_PENDING_APPROVAL])) {
-                throw new Exception('Only draft or pending approval purchase orders can be edited.');
+        if (!in_array($po->status, ['draft', 'pending_approval'])) {
+            throw new \Exception('Only draft or pending approval POs can be updated');
+        }
+
+        return DB::transaction(function () use ($po, $data) {
+            $subtotal = 0;
+            $taxAmount = 0;
+
+            foreach ($data['lines'] as $line) {
+                $lineSubtotal = $line['quantity_ordered'] * $line['unit_price'];
+                $lineTax = $lineSubtotal * (($line['tax_rate'] ?? 0) / 100);
+                $subtotal += $lineSubtotal;
+                $taxAmount += $lineTax;
             }
 
-            $data['updated_by'] = Auth::id();
+            $totalAmount = $subtotal + $taxAmount;
 
-            // Calculate totals
-            if (!empty($data['lines'])) {
-                $totals = $this->calculateTotals($data['lines']);
-                $data['subtotal'] = $totals['subtotal'];
-                $data['tax_amount'] = $totals['tax_amount'];
-                $data['total_amount'] = $totals['total_amount'];
+            $po->update([
+                'vendor_id' => $data['vendor_id'],
+                'po_date' => $data['po_date'],
+                'delivery_date' => $data['delivery_date'],
+                'delivery_address' => $data['delivery_address'],
+                'receiving_depot_id' => $data['receiving_depot_id'],
+                'currency' => $data['currency'],
+                'reference' => $data['reference'] ?? null,
+                'payment_terms' => $data['payment_terms'] ?? 'Net 30 days',
+                'terms_conditions' => $data['terms_conditions'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'subtotal' => $subtotal,
+                'tax_amount' => $taxAmount,
+                'total_amount' => $totalAmount,
+                'updated_by' => Auth::id(),
+            ]);
 
-                // Delete existing lines and recreate
-                $po->lines()->delete();
-                $this->createPOLines($po, $data['lines']);
+            $po->lines()->delete();
+
+            // FIXED: Add line_no
+            $lineNo = 1;
+            foreach ($data['lines'] as $lineData) {
+                $lineSubtotal = $lineData['quantity_ordered'] * $lineData['unit_price'];
+                $discountAmount = $lineSubtotal * (($lineData['discount_percent'] ?? 0) / 100);
+                $afterDiscount = $lineSubtotal - $discountAmount;
+                $lineTax = $afterDiscount * (($lineData['tax_rate'] ?? 0) / 100);
+                $lineTotal = $afterDiscount + $lineTax;
+
+                PurchaseOrderLine::create([
+                    'purchase_order_id' => $po->id,
+                    'line_no' => $lineNo,  // ADDED THIS!
+                    'model_id' => $lineData['model_id'],
+                    'description' => $lineData['description'] ?? '',
+                    'quantity_ordered' => $lineData['quantity_ordered'],
+                    'quantity_received' => 0,
+                    'quantity_cancelled' => 0,
+                    'unit' => $lineData['unit'],
+                    'unit_price' => $lineData['unit_price'],
+                    'discount_percent' => $lineData['discount_percent'] ?? 0,
+                    'discount_amount' => $discountAmount,
+                    'tax_rate' => $lineData['tax_rate'] ?? 0,
+                    'tax_amount' => $lineTax,
+                    'line_total' => $lineTotal,
+                    'remarks' => $lineData['remarks'] ?? null,
+                ]);
+                
+                $lineNo++;
             }
 
-            $po->update($data);
-
-            // Audit trail
-            $this->logAudit($po, 'updated', 'Purchase Order updated');
-
-            DB::commit();
             return $po->fresh(['lines', 'vendor']);
-
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+        });
     }
 
-    /**
-     * Submit for approval
-     */
-    public function submitForApproval(PurchaseOrder $po): PurchaseOrder
+    public function submitForApproval(PurchaseOrder $po): void
     {
-        DB::beginTransaction();
-        try {
-            if ($po->status !== PurchaseOrder::STATUS_DRAFT) {
-                throw new Exception('Only draft purchase orders can be submitted for approval.');
-            }
-
-            $po->update([
-                'status' => PurchaseOrder::STATUS_PENDING_APPROVAL,
-                'updated_by' => Auth::id(),
-            ]);
-
-            $this->logAudit($po, 'submitted', 'PO submitted for approval');
-
-            DB::commit();
-            return $po;
-
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-    }
-
-    /**
-     * Approve purchase order
-     */
-    public function approvePurchaseOrder(PurchaseOrder $po, array $data): PurchaseOrder
-    {
-        DB::beginTransaction();
-        try {
-            if ($po->status !== PurchaseOrder::STATUS_PENDING_APPROVAL) {
-                throw new Exception('Only pending approval purchase orders can be approved.');
-            }
-
-            $po->update([
-                'status' => PurchaseOrder::STATUS_APPROVED,
-                'approved_by' => Auth::id(),
-                'approved_at' => now(),
-                'notes' => ($po->notes ? $po->notes . "\n" : '') . ($data['approval_notes'] ?? ''),
-            ]);
-
-            $this->logAudit($po, 'approved', 'PO approved: ' . ($data['approval_notes'] ?? ''));
-
-            DB::commit();
-            return $po;
-
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-    }
-
-    /**
-     * Reject purchase order
-     */
-    public function rejectPurchaseOrder(PurchaseOrder $po, string $reason): PurchaseOrder
-    {
-        DB::beginTransaction();
-        try {
-            if ($po->status !== PurchaseOrder::STATUS_PENDING_APPROVAL) {
-                throw new Exception('Only pending approval purchase orders can be rejected.');
-            }
-
-            $po->update([
-                'status' => PurchaseOrder::STATUS_DRAFT,
-                'notes' => ($po->notes ? $po->notes . "\n" : '') . 'Rejected: ' . $reason,
-                'updated_by' => Auth::id(),
-            ]);
-
-            $this->logAudit($po, 'rejected', 'PO rejected: ' . $reason);
-
-            DB::commit();
-            return $po;
-
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-    }
-
-    /**
-     * Send to vendor
-     */
-    public function sendToVendor(PurchaseOrder $po): PurchaseOrder
-    {
-        DB::beginTransaction();
-        try {
-            if ($po->status !== PurchaseOrder::STATUS_APPROVED) {
-                throw new Exception('Only approved purchase orders can be sent to vendor.');
-            }
-
-            $po->update([
-                'status' => PurchaseOrder::STATUS_SENT,
-                'sent_at' => now(),
-                'updated_by' => Auth::id(),
-            ]);
-
-            $this->logAudit($po, 'sent', 'PO sent to vendor');
-
-            DB::commit();
-            return $po;
-
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-    }
-
-    /**
-     * Close purchase order
-     */
-    public function closePurchaseOrder(PurchaseOrder $po, string $reason): PurchaseOrder
-    {
-        DB::beginTransaction();
-        try {
-            if (!in_array($po->status, [
-                PurchaseOrder::STATUS_SENT,
-                PurchaseOrder::STATUS_OPEN,
-                PurchaseOrder::STATUS_PARTIALLY_RECEIVED,
-            ])) {
-                throw new Exception('This purchase order cannot be closed.');
-            }
-
-            $po->update([
-                'status' => PurchaseOrder::STATUS_CLOSED,
-                'closed_by' => Auth::id(),
-                'closed_at' => now(),
-                'notes' => ($po->notes ? $po->notes . "\n" : '') . 'Closed: ' . $reason,
-            ]);
-
-            $this->logAudit($po, 'closed', 'PO closed: ' . $reason);
-
-            DB::commit();
-            return $po;
-
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-    }
-
-    /**
-     * Cancel purchase order
-     */
-    public function cancelPurchaseOrder(PurchaseOrder $po, string $reason): PurchaseOrder
-    {
-        DB::beginTransaction();
-        try {
-            if (!in_array($po->status, [
-                PurchaseOrder::STATUS_DRAFT,
-                PurchaseOrder::STATUS_PENDING_APPROVAL,
-                PurchaseOrder::STATUS_APPROVED,
-            ])) {
-                throw new Exception('This purchase order cannot be cancelled.');
-            }
-
-            $po->update([
-                'status' => PurchaseOrder::STATUS_CANCELLED,
-                'notes' => ($po->notes ? $po->notes . "\n" : '') . 'Cancelled: ' . $reason,
-                'updated_by' => Auth::id(),
-            ]);
-
-            // Cancel all line quantities
-            $po->lines()->update(['quantity_cancelled' => DB::raw('quantity_ordered - quantity_received')]);
-
-            $this->logAudit($po, 'cancelled', 'PO cancelled: ' . $reason);
-
-            DB::commit();
-            return $po;
-
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
-    }
-
-    /**
-     * Generate PO Number
-     */
-    protected function generatePONumber(): string
-    {
-        $series = NumberSeries::where('document_type', 'PO')
-            ->where('is_active', true)
-            ->first();
-
-        if (!$series) {
-            // Fallback: generate based on year and sequence
-            $year = date('Y');
-            $count = PurchaseOrder::whereYear('created_at', $year)->count() + 1;
-            return 'PO-' . $year . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+        if ($po->status !== 'draft') {
+            throw new \Exception('Only draft POs can be submitted for approval');
         }
 
-        return $series->getNextNumber();
-    }
-
-    /**
-     * Create PO lines
-     */
-    protected function createPOLines(PurchaseOrder $po, array $lines): void
-    {
-        foreach ($lines as $lineData) {
-            $po->lines()->create([
-                'line_no' => $lineData['line_no'],
-                'model_id' => $lineData['model_id'],
-                'description' => $lineData['description'] ?? '',
-                'quantity_ordered' => $lineData['quantity_ordered'],
-                'quantity_received' => 0,
-                'quantity_cancelled' => 0,
-                'unit' => $lineData['unit'] ?? 'pcs',
-                'unit_price' => $lineData['unit_price'],
-                'discount_percent' => $lineData['discount_percent'] ?? 0,
-                'discount_amount' => $lineData['discount_amount'] ?? 0,
-                'tax_rate' => $lineData['tax_rate'] ?? 0,
-                'tax_amount' => $lineData['tax_amount'] ?? 0,
-                'line_total' => $lineData['line_total'],
-                'remarks' => $lineData['remarks'] ?? '',
-            ]);
-        }
-    }
-
-    /**
-     * Calculate totals from lines
-     */
-    protected function calculateTotals(array $lines): array
-    {
-        $subtotal = 0;
-        $taxAmount = 0;
-
-        foreach ($lines as $line) {
-            $qty = $line['quantity_ordered'] ?? 0;
-            $price = $line['unit_price'] ?? 0;
-            $discountPercent = $line['discount_percent'] ?? 0;
-            $taxRate = $line['tax_rate'] ?? 0;
-
-            $lineSubtotal = $qty * $price;
-            $lineDiscount = $lineSubtotal * ($discountPercent / 100);
-            $lineAfterDiscount = $lineSubtotal - $lineDiscount;
-            $lineTax = $lineAfterDiscount * ($taxRate / 100);
-
-            $subtotal += $lineAfterDiscount;
-            $taxAmount += $lineTax;
-        }
-
-        return [
-            'subtotal' => round($subtotal, 2),
-            'tax_amount' => round($taxAmount, 2),
-            'total_amount' => round($subtotal + $taxAmount, 2),
-        ];
-    }
-
-    /**
-     * Log audit trail
-     */
-    protected function logAudit(PurchaseOrder $po, string $action, string $description): void
-    {
-        AuditTrail::create([
-            'user_id' => Auth::id(),
-            'model_type' => PurchaseOrder::class,
-            'model_id' => $po->id,
-            'action' => $action,
-            'description' => $description,
-            'ip_address' => request()->ip(),
+        $po->update([
+            'status' => 'pending_approval',
+            'submitted_at' => now(),
+            'submitted_by' => Auth::id(),
         ]);
     }
 
-    /**
-     * Get PO statistics
-     */
-    public function getStatistics($user = null): array
+    public function approvePurchaseOrder(PurchaseOrder $po, array $data): void
+    {
+        if ($po->status !== 'pending_approval') {
+            throw new \Exception('Only pending POs can be approved');
+        }
+
+        $po->update([
+            'status' => 'approved',
+            'approved_at' => now(),
+            'approved_by' => Auth::id(),
+            'approval_notes' => $data['approval_notes'] ?? null,
+        ]);
+    }
+
+    public function rejectPurchaseOrder(PurchaseOrder $po, string $reason): void
+    {
+        if ($po->status !== 'pending_approval') {
+            throw new \Exception('Only pending POs can be rejected');
+        }
+
+        $po->update([
+            'status' => 'draft',
+            'rejection_reason' => $reason,
+            'rejected_at' => now(),
+            'rejected_by' => Auth::id(),
+        ]);
+    }
+
+    public function sendToVendor(PurchaseOrder $po): void
+    {
+        if (!in_array($po->status, ['approved', 'sent'])) {
+            throw new \Exception('Only approved POs can be sent to vendor');
+        }
+
+        $po->update([
+            'status' => 'sent',
+            'sent_at' => now(),
+            'sent_by' => Auth::id(),
+        ]);
+    }
+
+    public function closePurchaseOrder(PurchaseOrder $po, string $reason): void
+    {
+        if (!in_array($po->status, ['open', 'partially_received', 'fully_received'])) {
+            throw new \Exception('Only open/received POs can be closed');
+        }
+
+        $po->update([
+            'status' => 'closed',
+            'closure_reason' => $reason,
+            'closed_at' => now(),
+            'closed_by' => Auth::id(),
+        ]);
+    }
+
+    public function cancelPurchaseOrder(PurchaseOrder $po, string $reason): void
+    {
+        if (in_array($po->status, ['closed', 'cancelled'])) {
+            throw new \Exception('Closed or cancelled POs cannot be cancelled again');
+        }
+
+        $po->update([
+            'status' => 'cancelled',
+            'cancellation_reason' => $reason,
+            'cancelled_at' => now(),
+            'cancelled_by' => Auth::id(),
+        ]);
+    }
+
+    public function getFilteredPurchaseOrders(array $filters, ?User $user = null)
+    {
+        $query = PurchaseOrder::with(['vendor', 'lines', 'createdBy']);
+
+        if ($user) {
+            if ($user->hasRole('Technician')) {
+                $query->where('created_by', $user->id);
+            } elseif ($user->hasRole('Supervisor')) {
+                $teamMemberIds = User::where('supervisor_id', $user->id)
+                    ->orWhere('id', $user->id)
+                    ->pluck('id');
+                $query->whereIn('created_by', $teamMemberIds);
+            }
+        }
+
+        if (isset($filters['status']) && $filters['status'] !== '') {
+            $query->where('status', $filters['status']);
+        }
+
+        if (isset($filters['vendor_id']) && $filters['vendor_id']) {
+            $query->where('vendor_id', $filters['vendor_id']);
+        }
+
+        if (isset($filters['date_from']) && $filters['date_from']) {
+            $query->whereDate('po_date', '>=', $filters['date_from']);
+        }
+
+        if (isset($filters['date_to']) && $filters['date_to']) {
+            $query->whereDate('po_date', '<=', $filters['date_to']);
+        }
+
+        return $query;
+    }
+
+    public function getStatistics(?User $user = null): array
     {
         $query = PurchaseOrder::query();
 
-        // Role-based scoping
-        if ($user && $user->hasRole('supervisor')) {
-            $query->where('created_by', $user->id)
-                  ->orWhereHas('createdBy', function($q) use ($user) {
-                      $q->where('supervisor_id', $user->id);
-                  });
-        } elseif ($user && $user->hasRole('technician')) {
-            $query->where('created_by', $user->id);
+        if ($user) {
+            if ($user->hasRole('Technician')) {
+                $query->where('created_by', $user->id);
+            } elseif ($user->hasRole('Supervisor')) {
+                $teamMemberIds = User::where('supervisor_id', $user->id)
+                    ->orWhere('id', $user->id)
+                    ->pluck('id');
+                $query->whereIn('created_by', $teamMemberIds);
+            }
         }
 
         return [
             'total' => $query->count(),
-            'draft' => (clone $query)->where('status', PurchaseOrder::STATUS_DRAFT)->count(),
-            'pending' => (clone $query)->where('status', PurchaseOrder::STATUS_PENDING_APPROVAL)->count(),
-            'approved' => (clone $query)->where('status', PurchaseOrder::STATUS_APPROVED)->count(),
-            'sent' => (clone $query)->where('status', PurchaseOrder::STATUS_SENT)->count(),
-            'open' => (clone $query)->where('status', PurchaseOrder::STATUS_OPEN)->count(),
-            'partially_received' => (clone $query)->where('status', PurchaseOrder::STATUS_PARTIALLY_RECEIVED)->count(),
-            'fully_received' => (clone $query)->where('status', PurchaseOrder::STATUS_FULLY_RECEIVED)->count(),
-            'closed' => (clone $query)->where('status', PurchaseOrder::STATUS_CLOSED)->count(),
-            'cancelled' => (clone $query)->where('status', PurchaseOrder::STATUS_CANCELLED)->count(),
+            'draft' => (clone $query)->where('status', 'draft')->count(),
+            'pending' => (clone $query)->where('status', 'pending_approval')->count(),
+            'approved' => (clone $query)->where('status', 'approved')->count(),
+            'sent' => (clone $query)->where('status', 'sent')->count(),
+            'open' => (clone $query)->where('status', 'open')->count(),
+            'partially_received' => (clone $query)->where('status', 'partially_received')->count(),
+            'fully_received' => (clone $query)->where('status', 'fully_received')->count(),
+            'closed' => (clone $query)->where('status', 'closed')->count(),
+            'cancelled' => (clone $query)->where('status', 'cancelled')->count(),
         ];
     }
 }

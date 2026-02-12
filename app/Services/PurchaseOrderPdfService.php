@@ -17,7 +17,7 @@ class PurchaseOrderPdfService
 
         $companyInfo = $this->getCompanyInfo();
 
-        $pdf = Pdf::loadView('pdf.purchase-order', [
+        $pdf = Pdf::loadView('components.pdfs.purchase-order', [
             'po' => $po,
             'company' => $companyInfo,
         ]);
