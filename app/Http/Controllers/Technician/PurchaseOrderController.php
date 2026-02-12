@@ -28,7 +28,8 @@ class PurchaseOrderController extends Controller
             return $this->datatable($request);
         }
 
-        $vendors = Vendor::where('is_active', true)->orderBy('vendor_name')->get();
+        // FIXED: Changed is_active to status = 'active'
+        $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
         $statistics = $this->poService->getStatistics(Auth::user());
 
         return view('technician.purchase-orders.index', compact('vendors', 'statistics'));

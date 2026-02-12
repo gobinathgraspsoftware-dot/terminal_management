@@ -563,22 +563,14 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
 
     /* Purchase Orders */
     Route::prefix('purchase-orders')->name('purchase-orders.')->group(function () {
-
-        // Export
         Route::get('/export', [AdminPOController::class, 'export'])->name('export');
-
-        // Resource routes
         Route::resource('/', AdminPOController::class)->parameters(['' => 'purchaseOrder']);
-
-        // Custom actions
         Route::post('/{purchaseOrder}/submit', [AdminPOController::class, 'submitForApproval'])->name('submit');
         Route::post('/{purchaseOrder}/approve', [AdminPOController::class, 'approve'])->name('approve');
         Route::post('/{purchaseOrder}/reject', [AdminPOController::class, 'reject'])->name('reject');
         Route::post('/{purchaseOrder}/send', [AdminPOController::class, 'sendToVendor'])->name('send');
         Route::post('/{purchaseOrder}/close', [AdminPOController::class, 'close'])->name('close');
         Route::post('/{purchaseOrder}/cancel', [AdminPOController::class, 'cancel'])->name('cancel');
-
-        // PDF
         Route::get('/{purchaseOrder}/pdf', [AdminPOController::class, 'pdf'])->name('pdf');
         Route::get('/{purchaseOrder}/download', [AdminPOController::class, 'downloadPdf'])->name('download');
     });

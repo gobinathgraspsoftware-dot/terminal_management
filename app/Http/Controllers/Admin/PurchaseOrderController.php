@@ -42,7 +42,8 @@ class PurchaseOrderController extends Controller
             return $this->datatable($request);
         }
 
-        $vendors = Vendor::where('is_active', true)->orderBy('vendor_name')->get();
+        // FIXED: Changed is_active to status = 'active'
+        $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
         $statistics = $this->poService->getStatistics();
 
         return view('admin.purchase-orders.index', compact('vendors', 'statistics'));
@@ -103,9 +104,10 @@ class PurchaseOrderController extends Controller
      */
     public function create(Request $request)
     {
-        $vendors = Vendor::where('is_active', true)->orderBy('vendor_name')->get();
-        $depots = Depot::where('is_active', true)->orderBy('depot_name')->get();
-        $models = TerminalModel::where('is_active', true)->orderBy('model_name')->get();
+        // FIXED: Changed is_active to status = 'active'
+        $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
+        $depots = Depot::orderBy('depot_name')->get();
+        $models = TerminalModel::orderBy('model_name')->get();
 
         $quotation = null;
         if ($request->filled('quotation_id')) {
@@ -166,9 +168,10 @@ class PurchaseOrderController extends Controller
                 ->with('error', 'Only draft or pending approval purchase orders can be edited');
         }
 
-        $vendors = Vendor::where('is_active', true)->orderBy('vendor_name')->get();
-        $depots = Depot::where('is_active', true)->orderBy('depot_name')->get();
-        $models = TerminalModel::where('is_active', true)->orderBy('model_name')->get();
+        // FIXED: Changed is_active to status = 'active'
+        $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
+        $depots = Depot::orderBy('depot_name')->get();
+        $models = TerminalModel::orderBy('model_name')->get();
 
         $purchaseOrder->load('lines.model');
 

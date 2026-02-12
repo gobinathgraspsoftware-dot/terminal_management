@@ -4,112 +4,126 @@
 
 @section('content')
 <div class="container-fluid">
-    <!-- Page Header -->
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="bi bi-cart-check"></i> Purchase Orders</h2>
         <div>
-            <a href="{{ route('supervisor.purchase-orders.export') }}?{{ http_build_query(request()->all()) }}" 
-               class="btn btn-success">
-                <i class="bi bi-file-excel"></i> Export to Excel
-            </a>
             <a href="{{ route('supervisor.purchase-orders.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Create New PO
             </a>
         </div>
     </div>
 
-    <!-- Status Tabs -->
-    <ul class="nav nav-tabs mb-3" id="statusTabs" role="tablist">
-        <li class="nav-item">
-            <a class="nav-link active" data-status="" href="#">
-                All <span class="badge bg-secondary ms-1">{{ $statistics['total'] }}</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-status="draft" href="#">
-                Draft <span class="badge bg-secondary ms-1">{{ $statistics['draft'] }}</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-status="pending_approval" href="#">
-                Pending <span class="badge bg-warning ms-1">{{ $statistics['pending'] }}</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-status="approved" href="#">
-                Approved <span class="badge bg-info ms-1">{{ $statistics['approved'] }}</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-status="sent" href="#">
-                Sent <span class="badge bg-primary ms-1">{{ $statistics['sent'] }}</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-status="open" href="#">
-                Open <span class="badge bg-success ms-1">{{ $statistics['open'] }}</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-status="partially_received" href="#">
-                Partial <span class="badge bg-info ms-1">{{ $statistics['partially_received'] }}</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-status="fully_received" href="#">
-                Received <span class="badge bg-success ms-1">{{ $statistics['fully_received'] }}</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-status="closed" href="#">
-                Closed <span class="badge bg-dark ms-1">{{ $statistics['closed'] }}</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-status="cancelled" href="#">
-                Cancelled <span class="badge bg-danger ms-1">{{ $statistics['cancelled'] }}</span>
-            </a>
-        </li>
-    </ul>
-
-    <!-- Filters -->
-    <div class="card mb-3">
-        <div class="card-body">
-            <form id="filter-form">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label for="vendor-filter" class="form-label">Vendor</label>
-                        <select id="vendor-filter" name="vendor_id" class="form-select">
-                            <option value="">All Vendors</option>
-                            @foreach($vendors as $vendor)
-                                <option value="{{ $vendor->id }}">{{ $vendor->vendor_name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="date-from" class="form-label">Date From</label>
-                        <input type="date" id="date-from" name="date_from" class="form-control">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="date-to" class="form-label">Date To</label>
-                        <input type="date" id="date-to" name="date_to" class="form-control">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="search" class="form-label">Search</label>
-                        <input type="text" id="search" name="search" class="form-control" 
-                               placeholder="PO No, Reference...">
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="button" id="filter-btn" class="btn btn-primary w-100">
-                            <i class="bi bi-funnel"></i> Filter
-                        </button>
-                    </div>
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center py-2">
+                    <small class="d-block mb-1">Total</small>
+                    <h4 class="mb-0">{{ $statistics['total'] }}</h4>
                 </div>
-            </form>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center py-2">
+                    <small class="d-block mb-1">Pending</small>
+                    <h4 class="mb-0">{{ $statistics['pending'] }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center py-2">
+                    <small class="d-block mb-1">Approved</small>
+                    <h4 class="mb-0">{{ $statistics['approved'] }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center py-2">
+                    <small class="d-block mb-1">Sent</small>
+                    <h4 class="mb-0">{{ $statistics['sent'] }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center py-2">
+                    <small class="d-block mb-1">Open</small>
+                    <h4 class="mb-0">{{ $statistics['open'] }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-dark text-white">
+                <div class="card-body text-center py-2">
+                    <small class="d-block mb-1">Closed</small>
+                    <h4 class="mb-0">{{ $statistics['closed'] }}</h4>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- DataTable -->
+    <!-- Filters Card -->
+    <div class="card mb-3">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="bi bi-funnel"></i> Filters</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <!-- Status Filter -->
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select id="status-filter" class="form-select select2">
+                        <option value="">All Status ({{ $statistics['total'] }})</option>
+                        <option value="draft">Draft ({{ $statistics['draft'] }})</option>
+                        <option value="pending_approval">Pending Approval ({{ $statistics['pending'] }})</option>
+                        <option value="approved">Approved ({{ $statistics['approved'] }})</option>
+                        <option value="sent">Sent ({{ $statistics['sent'] }})</option>
+                        <option value="open">Open ({{ $statistics['open'] }})</option>
+                        <option value="partially_received">Partially Received ({{ $statistics['partially_received'] }})</option>
+                        <option value="fully_received">Fully Received ({{ $statistics['fully_received'] }})</option>
+                        <option value="closed">Closed ({{ $statistics['closed'] }})</option>
+                        <option value="cancelled">Cancelled ({{ $statistics['cancelled'] }})</option>
+                    </select>
+                </div>
+
+                <!-- Vendor Filter -->
+                <div class="col-md-3">
+                    <label class="form-label">Vendor</label>
+                    <select id="vendor-filter" class="form-select select2">
+                        <option value="">All Vendors</option>
+                        @foreach($vendors as $vendor)
+                            <option value="{{ $vendor->id }}">{{ $vendor->vendor_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Date From -->
+                <div class="col-md-2">
+                    <label class="form-label">Date From</label>
+                    <input type="date" id="date-from" class="form-control">
+                </div>
+
+                <!-- Date To -->
+                <div class="col-md-2">
+                    <label class="form-label">Date To</label>
+                    <input type="date" id="date-to" class="form-control">
+                </div>
+
+                <!-- Filter Button -->
+                <div class="col-md-2 d-flex align-items-end">
+                    <button id="filter-btn" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel-fill"></i> Apply Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DataTable Card -->
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
@@ -119,12 +133,11 @@
                             <th>PO No</th>
                             <th>PO Date</th>
                             <th>Vendor</th>
-                            <th>Reference</th>
                             <th>Delivery Date</th>
-                            <th class="text-end">Total Amount</th>
-                            <th class="text-center">Outstanding</th>
+                            <th>Total Amount</th>
+                            <th>Outstanding</th>
                             <th>Status</th>
-                            <th class="text-center">Actions</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                 </table>
@@ -137,8 +150,12 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    let currentStatus = '';
-    
+    // Initialize Select2
+    $('.select2').select2({
+        theme: 'bootstrap-5',
+        width: '100%'
+    });
+
     // Initialize DataTable
     const table = $('#po-table').DataTable({
         processing: true,
@@ -146,22 +163,20 @@ $(document).ready(function() {
         ajax: {
             url: '{{ route('supervisor.purchase-orders.index') }}',
             data: function(d) {
-                d.status = currentStatus;
+                d.status = $('#status-filter').val();
                 d.vendor_id = $('#vendor-filter').val();
                 d.date_from = $('#date-from').val();
                 d.date_to = $('#date-to').val();
-                d.search = $('#search').val();
             }
         },
         columns: [
             { data: 'po_no', name: 'po_no' },
             { data: 'po_date', name: 'po_date' },
             { data: 'vendor_name', name: 'vendor.vendor_name' },
-            { data: 'reference', name: 'reference' },
             { data: 'delivery_date', name: 'delivery_date' },
             { data: 'total', name: 'total_amount', className: 'text-end', orderable: false },
-            { data: 'outstanding', name: 'outstanding', className: 'text-center', orderable: false, searchable: false },
-            { data: 'status_badge', name: 'status', orderable: false, searchable: false },
+            { data: 'outstanding', name: 'outstanding', className: 'text-center', orderable: false },
+            { data: 'status_badge', name: 'status', orderable: false },
             { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
         ],
         order: [[1, 'desc']],
@@ -169,36 +184,15 @@ $(document).ready(function() {
         responsive: true
     });
 
-    // Status tab click handler
-    $('#statusTabs .nav-link').on('click', function(e) {
-        e.preventDefault();
-        $('#statusTabs .nav-link').removeClass('active');
-        $(this).addClass('active');
-        currentStatus = $(this).data('status') || '';
-        table.ajax.reload();
-    });
-
     // Filter button click
-    $('#filter-btn').on('click', function() {
+    $('#filter-btn').click(function() {
         table.ajax.reload();
     });
 
-    // Enter key in search
-    $('#search').on('keypress', function(e) {
-        if (e.which === 13) {
-            e.preventDefault();
-            table.ajax.reload();
-        }
-    });
-
-    // Reset filters
-    window.resetFilters = function() {
-        $('#filter-form')[0].reset();
-        currentStatus = '';
-        $('#statusTabs .nav-link').removeClass('active');
-        $('#statusTabs .nav-link:first').addClass('active');
+    // Auto-reload when status changes
+    $('#status-filter').on('change', function() {
         table.ajax.reload();
-    };
+    });
 });
 </script>
 @endpush
