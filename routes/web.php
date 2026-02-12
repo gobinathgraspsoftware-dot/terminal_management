@@ -77,6 +77,9 @@ use App\Http\Controllers\Technician\InventoryController as TechnicianInventoryCo
 use App\Http\Controllers\Admin\QuotationController as AdminQuotationController;
 use App\Http\Controllers\Supervisor\QuotationController as SupervisorQuotationController;
 use App\Http\Controllers\Technician\QuotationController as TechnicianQuotationController;
+use App\Http\Controllers\Admin\PurchaseOrderController as AdminPOController;
+use App\Http\Controllers\Supervisor\PurchaseOrderController as SupervisorPOController;
+use App\Http\Controllers\Technician\PurchaseOrderController as TechnicianPOController;
 
 /*
 |--------------------------------------------------------------------------
@@ -553,11 +556,31 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/{quotation}/print', [AdminQuotationController::class, 'print'])->name('print');
         Route::get('/model-price/{model}', [AdminQuotationController::class, 'getModelPrice'])->name('model-price');
         Route::get('/charge-price/{charge}', [AdminQuotationController::class, 'getChargePrice'])->name('charge-price');
-
-
         Route::get('{quotation}/pdf/download', [AdminQuotationController::class, 'downloadPdf'])->name('pdf.download');
         Route::get('{quotation}/pdf/preview', [AdminQuotationController::class, 'previewPdf'])->name('pdf.preview');
         Route::post('{quotation}/pdf/email', [AdminQuotationController::class, 'emailPdf'])->name('pdf.email');
+    });
+
+    /* Purchase Orders */
+    Route::prefix('purchase-orders')->name('purchase-orders.')->group(function () {
+
+        // Export
+        Route::get('/export', [AdminPOController::class, 'export'])->name('export');
+
+        // Resource routes
+        Route::resource('/', AdminPOController::class)->parameters(['' => 'purchaseOrder']);
+
+        // Custom actions
+        Route::post('/{purchaseOrder}/submit', [AdminPOController::class, 'submitForApproval'])->name('submit');
+        Route::post('/{purchaseOrder}/approve', [AdminPOController::class, 'approve'])->name('approve');
+        Route::post('/{purchaseOrder}/reject', [AdminPOController::class, 'reject'])->name('reject');
+        Route::post('/{purchaseOrder}/send', [AdminPOController::class, 'sendToVendor'])->name('send');
+        Route::post('/{purchaseOrder}/close', [AdminPOController::class, 'close'])->name('close');
+        Route::post('/{purchaseOrder}/cancel', [AdminPOController::class, 'cancel'])->name('cancel');
+
+        // PDF
+        Route::get('/{purchaseOrder}/pdf', [AdminPOController::class, 'pdf'])->name('pdf');
+        Route::get('/{purchaseOrder}/download', [AdminPOController::class, 'downloadPdf'])->name('download');
     });
 
     /* Settings (requires specific permission) */
@@ -825,11 +848,20 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{quotation}/print', [SupervisorQuotationController::class, 'print'])->name('print');
         Route::get('/model-price/{model}', [SupervisorQuotationController::class, 'getModelPrice'])->name('model-price');
         Route::get('/charge-price/{charge}', [SupervisorQuotationController::class, 'getChargePrice'])->name('charge-price');
-
-
         Route::get('{quotation}/pdf/download', [SupervisorQuotationController::class, 'downloadPdf'])->name('pdf.download');
         Route::get('{quotation}/pdf/preview', [SupervisorQuotationController::class, 'previewPdf'])->name('pdf.preview');
         Route::post('{quotation}/pdf/email', [SupervisorQuotationController::class, 'emailPdf'])->name('pdf.email');
+    });
+
+    /* Purchase Orders */
+    Route::prefix('purchase-orders')->name('purchase-orders.')->group(function () {
+        Route::get('/', [SupervisorPOController::class, 'index'])->name('index');
+        Route::get('/create', [SupervisorPOController::class, 'create'])->name('create');
+        Route::post('/', [SupervisorPOController::class, 'store'])->name('store');
+        Route::get('/{purchaseOrder}', [SupervisorPOController::class, 'show'])->name('show');
+        Route::get('/{purchaseOrder}/edit', [SupervisorPOController::class, 'edit'])->name('edit');
+        Route::put('/{purchaseOrder}', [SupervisorPOController::class, 'update'])->name('update');
+        Route::get('/{purchaseOrder}/pdf', [SupervisorPOController::class, 'pdf'])->name('pdf');
     });
 
     /* Job Assignment (supervisor or admin) */
@@ -1017,6 +1049,13 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
     Route::prefix('quotations')->name('quotations.')->group(function () {
         Route::get('/', [TechnicianQuotationController::class, 'index'])->name('index');
         Route::get('/{quotation}', [TechnicianQuotationController::class, 'show'])->name('show');
+    });
+
+    /* Purchase Orders */
+    Route::prefix('purchase-orders')->name('purchase-orders.')->group(function () {
+        Route::get('/', [TechnicianPOController::class, 'index'])->name('index');
+        Route::get('/{purchaseOrder}', [TechnicianPOController::class, 'show'])->name('show');
+        Route::get('/{purchaseOrder}/pdf', [TechnicianPOController::class, 'pdf'])->name('pdf');
     });
 
     /* Claims */
