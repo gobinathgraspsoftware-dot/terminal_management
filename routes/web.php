@@ -80,6 +80,9 @@ use App\Http\Controllers\Technician\QuotationController as TechnicianQuotationCo
 use App\Http\Controllers\Admin\PurchaseOrderController as AdminPOController;
 use App\Http\Controllers\Supervisor\PurchaseOrderController as SupervisorPOController;
 use App\Http\Controllers\Technician\PurchaseOrderController as TechnicianPOController;
+use App\Http\Controllers\Admin\GrnController as AdminGrnController;
+use App\Http\Controllers\Supervisor\GrnController as SupervisorGrnController;
+use App\Http\Controllers\Technician\GrnController as TechnicianGrnController;
 
 /*
 |--------------------------------------------------------------------------
@@ -575,6 +578,25 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/{purchaseOrder}/download', [AdminPOController::class, 'downloadPdf'])->name('download');
     });
 
+    /* GRNS Routes */
+    Route::prefix('grns')->name('grns.')->group(function () {
+        Route::get('/', [AdminGrnController::class, 'index'])->name('index');
+        Route::get('/create', [AdminGrnController::class, 'create'])->name('create');
+        Route::post('/', [AdminGrnController::class, 'store'])->name('store');
+        Route::get('/{grn}', [AdminGrnController::class, 'show'])->name('show');
+        Route::get('/{grn}/edit', [AdminGrnController::class, 'edit'])->name('edit');
+        Route::put('/{grn}', [AdminGrnController::class, 'update'])->name('update');
+        Route::delete('/{grn}', [AdminGrnController::class, 'destroy'])->name('destroy');
+
+        // Special routes
+        Route::get('/purchase-orders/{po}/details', [AdminGrnController::class, 'getPurchaseOrderDetails'])
+            ->name('po-details');
+        Route::post('/{grn}/post', [AdminGrnController::class, 'post'])->name('post');
+        Route::post('/{grn}/cancel', [AdminGrnController::class, 'cancel'])->name('cancel');
+        Route::post('/validate-serial', [AdminGrnController::class, 'validateSerial'])
+            ->name('validate-serial');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -856,6 +878,17 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{purchaseOrder}/pdf', [SupervisorPOController::class, 'pdf'])->name('pdf');
     });
 
+    /* GNRS Routes */
+    Route::prefix('grns')->name('grns.')->group(function () {
+        Route::get('/', [SupervisorGrnController::class, 'index'])->name('index');
+        Route::get('/create', [SupervisorGrnController::class, 'create'])->name('create');
+        Route::post('/', [SupervisorGrnController::class, 'store'])->name('store');
+        Route::get('/{grn}', [SupervisorGrnController::class, 'show'])->name('show');
+        Route::get('/purchase-orders/{po}/details', [SupervisorGrnController::class, 'getPurchaseOrderDetails'])->name('po-details');
+        Route::post('/{grn}/post', [SupervisorGrnController::class, 'post'])->name('post');
+        Route::post('/validate-serial', [SupervisorGrnController::class, 'validateSerial'])->name('validate-serial');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -1048,6 +1081,12 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/', [TechnicianPOController::class, 'index'])->name('index');
         Route::get('/{purchaseOrder}', [TechnicianPOController::class, 'show'])->name('show');
         Route::get('/{purchaseOrder}/pdf', [TechnicianPOController::class, 'pdf'])->name('pdf');
+    });
+
+    /* GNRS Routes */
+    Route::prefix('grns')->name('grns.')->group(function () {
+        Route::get('/', [TechnicianGrnController::class, 'index'])->name('index');
+        Route::get('/{grn}', [TechnicianGrnController::class, 'show'])->name('show');
     });
 
     /* Claims */
