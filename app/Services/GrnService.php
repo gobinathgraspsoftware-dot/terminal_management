@@ -354,7 +354,7 @@ class GrnService
     private function generateGrnNumber()
     {
         return DB::transaction(function () {
-            $series = NumberSeries::where('document_type', 'grn')
+            $series = NumberSeries::where('series_type', 'grn')
                 ->where('is_active', true)
                 ->lockForUpdate()
                 ->first();
@@ -363,10 +363,13 @@ class GrnService
                 throw new Exception('No active number series found for GRN');
             }
 
-            $number = $series->next_number;
-            $grnNo = $series->prefix . str_pad($number, $series->padding, '0', STR_PAD_LEFT) . $series->suffix;
+            $number = $series->current_number + 1;
+            $grnNo = $series->prefix . str_pad($number, $series->number_length, '0', STR_PAD_LEFT);
+            if ($series->suffix) {
+                $grnNo .= $series->suffix;
+            }
 
-            $series->increment('next_number');
+            $series->update(['current_number' => $number]);
 
             return $grnNo;
         });

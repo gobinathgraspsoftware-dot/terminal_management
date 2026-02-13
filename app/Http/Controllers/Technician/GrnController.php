@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Technician;
 use App\Http\Controllers\Controller;
 use App\Models\Grn;
 use Illuminate\Http\Request;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Yajra\DataTables\Facades\DataTables;
 
 class GrnController extends Controller
 {
+    use AuthorizesRequests;
+    
     /**
      * Display a listing of own GRNs (view-only)
      */
@@ -45,7 +48,7 @@ class GrnController extends Controller
                     return $grn->vendor->name ?? '-';
                 })
                 ->addColumn('depot_name', function ($grn) {
-                    return $grn->receivingDepot->name ?? '-';
+                    return $grn->receivingDepot->depot_name ?? '-';
                 })
                 ->addColumn('po_no', function ($grn) {
                     return $grn->purchaseOrder->po_no ?? '-';

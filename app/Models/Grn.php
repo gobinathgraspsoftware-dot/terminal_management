@@ -28,9 +28,77 @@ class Grn extends Model
         ];
     }
 
-    public function purchaseOrder() { return $this->belongsTo(PurchaseOrder::class); }
-    public function vendor() { return $this->belongsTo(Vendor::class); }
-    public function receivingDepot() { return $this->belongsTo(Depot::class, 'receiving_depot_id'); }
-    public function lines() { return $this->hasMany(GrnLine::class); }
-    public function inventorySerials() { return $this->hasMany(InventorySerial::class); }
+    // Main relationships
+    public function purchaseOrder() 
+    { 
+        return $this->belongsTo(PurchaseOrder::class); 
+    }
+
+    public function vendor() 
+    { 
+        return $this->belongsTo(Vendor::class); 
+    }
+
+    public function receivingDepot() 
+    { 
+        return $this->belongsTo(Depot::class, 'receiving_depot_id'); 
+    }
+
+    public function lines() 
+    { 
+        return $this->hasMany(GrnLine::class); 
+    }
+
+    public function inventorySerials() 
+    { 
+        return $this->hasMany(InventorySerial::class); 
+    }
+
+    // User relationships - ADDED THESE!
+    public function createdBy() 
+    { 
+        return $this->belongsTo(User::class, 'created_by'); 
+    }
+
+    public function updatedBy() 
+    { 
+        return $this->belongsTo(User::class, 'updated_by'); 
+    }
+
+    public function postedBy() 
+    { 
+        return $this->belongsTo(User::class, 'posted_by'); 
+    }
+
+    // Helper methods
+    public function isDraft()
+    {
+        return $this->status === self::STATUS_DRAFT;
+    }
+
+    public function isPosted()
+    {
+        return $this->status === self::STATUS_POSTED;
+    }
+
+    public function isCancelled()
+    {
+        return $this->status === self::STATUS_CANCELLED;
+    }
+
+    // Scopes
+    public function scopeDraft($query)
+    {
+        return $query->where('status', self::STATUS_DRAFT);
+    }
+
+    public function scopePosted($query)
+    {
+        return $query->where('status', self::STATUS_POSTED);
+    }
+
+    public function scopeCancelled($query)
+    {
+        return $query->where('status', self::STATUS_CANCELLED);
+    }
 }

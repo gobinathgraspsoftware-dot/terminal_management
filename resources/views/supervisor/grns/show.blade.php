@@ -60,7 +60,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="fw-bold">Receiving Depot:</label>
-                            <div>{{ $grn->receivingDepot->name ?? '-' }}</div>
+                            <div>{{ $grn->receivingDepot->depot_name ?? '-' }}</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="fw-bold">Status:</label>

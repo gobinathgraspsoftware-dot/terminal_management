@@ -88,8 +88,8 @@
                                             <td class="text-end">{{ $previouslyReceived }}</td>
                                             <td class="text-end"><strong>{{ $outstanding }}</strong></td>
                                             <td>
-                                                <input type="number" class="form-control form-control-sm receive-qty" 
-                                                       name="lines[{{ $index }}][quantity_received]" 
+                                                <input type="number" class="form-control form-control-sm receive-qty"
+                                                       name="lines[{{ $index }}][quantity_received]"
                                                        data-line-index="{{ $index }}"
                                                        data-is-serialized="{{ $poLine->model->is_serialized ?? false }}"
                                                        data-model-name="{{ $poLine->model->name ?? '' }}"
@@ -99,7 +99,7 @@
                                             <td>{{ $poLine->unit }}</td>
                                             <td>
                                                 @if($poLine->model->is_serialized ?? false)
-                                                    <button type="button" class="btn btn-sm btn-primary enter-serials-btn" 
+                                                    <button type="button" class="btn btn-sm btn-primary enter-serials-btn"
                                                             data-line-index="{{ $index }}">
                                                         <i class="bi bi-upc-scan"></i> Serials
                                                         <span class="badge bg-light text-dark serial-count-{{ $index }}">
@@ -128,8 +128,8 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <label for="grn_date" class="form-label required">GRN Date</label>
-                            <input type="date" class="form-control" id="grn_date" name="grn_date" 
-                                   value="{{ $grn->grn_date->format('Y-m-d') }}" 
+                            <input type="date" class="form-control" id="grn_date" name="grn_date"
+                                   value="{{ $grn->grn_date->format('Y-m-d') }}"
                                    max="{{ date('Y-m-d') }}" required>
                             <div class="invalid-feedback"></div>
                         </div>
@@ -139,7 +139,7 @@
                             <select class="form-select" id="receiving_depot_id" name="receiving_depot_id" required>
                                 @foreach($depots as $depot)
                                     <option value="{{ $depot->id }}" {{ $grn->receiving_depot_id == $depot->id ? 'selected' : '' }}>
-                                        {{ $depot->name }}
+                                        {{ $depot->depot_name }}
                                     </option>
                                 @endforeach
                             </select>
@@ -148,7 +148,7 @@
 
                         <div class="mb-3">
                             <label for="delivery_note_no" class="form-label">Delivery Note #</label>
-                            <input type="text" class="form-control" id="delivery_note_no" name="delivery_note_no" 
+                            <input type="text" class="form-control" id="delivery_note_no" name="delivery_note_no"
                                    value="{{ $grn->delivery_note_no }}">
                         </div>
 
@@ -199,19 +199,19 @@
                 <!-- Serial Entry Methods -->
                 <ul class="nav nav-tabs mb-3" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="manual-tab" data-bs-toggle="tab" 
+                        <button class="nav-link active" id="manual-tab" data-bs-toggle="tab"
                                 data-bs-target="#manual-panel" type="button">
                             <i class="bi bi-keyboard me-1"></i>Manual Entry
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="scan-tab" data-bs-toggle="tab" 
+                        <button class="nav-link" id="scan-tab" data-bs-toggle="tab"
                                 data-bs-target="#scan-panel" type="button">
                             <i class="bi bi-upc-scan me-1"></i>Scan Entry
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="bulk-tab" data-bs-toggle="tab" 
+                        <button class="nav-link" id="bulk-tab" data-bs-toggle="tab"
                                 data-bs-target="#bulk-panel" type="button">
                             <i class="bi bi-list-ul me-1"></i>Bulk Paste
                         </button>
@@ -221,7 +221,7 @@
                 <div class="tab-content">
                     <div class="tab-pane fade show active" id="manual-panel">
                         <div class="input-group mb-3">
-                            <input type="text" class="form-control" id="manualSerialInput" 
+                            <input type="text" class="form-control" id="manualSerialInput"
                                    placeholder="Enter serial number and press Enter">
                             <button class="btn btn-primary" type="button" id="addManualSerial">
                                 <i class="bi bi-plus-lg"></i> Add
@@ -236,7 +236,7 @@
                         </div>
                         <div class="input-group mb-3">
                             <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
-                            <input type="text" class="form-control form-control-lg" id="scanSerialInput" 
+                            <input type="text" class="form-control form-control-lg" id="scanSerialInput"
                                    placeholder="Scan barcode here..." autocomplete="off">
                         </div>
                     </div>
@@ -246,7 +246,7 @@
                             <i class="bi bi-info-circle me-2"></i>
                             Paste multiple serial numbers separated by commas or line breaks
                         </div>
-                        <textarea class="form-control mb-2" id="bulkSerialInput" rows="5" 
+                        <textarea class="form-control mb-2" id="bulkSerialInput" rows="5"
                                   placeholder="Paste serials here (comma or line separated)"></textarea>
                         <button class="btn btn-primary btn-sm" type="button" id="addBulkSerials">
                             <i class="bi bi-plus-lg me-1"></i> Add All Serials
@@ -295,11 +295,11 @@ $(document).ready(function() {
         const lineIndex = $(this).data('line-index');
         const isSerialized = $(this).data('is-serialized');
         const qty = parseFloat($(this).val()) || 0;
-        
+
         if (isSerialized) {
             const serialBtn = $(`.enter-serials-btn[data-line-index="${lineIndex}"]`);
             serialBtn.prop('disabled', qty <= 0);
-            
+
             const currentSerialCount = serialsData[lineIndex] ? serialsData[lineIndex].length : 0;
             if (qty > 0 && currentSerialCount !== qty) {
                 $(this).addClass('is-invalid');
@@ -326,7 +326,7 @@ $(document).ready(function() {
 
         $('#modalItemName').text(modelName);
         $('#modalRequiredQty').text(requiredQty);
-        
+
         const existingSerials = serialsData[currentLineIndex] || [];
         renderSerialsList(existingSerials);
         updateSerialCount();
@@ -378,7 +378,7 @@ $(document).ready(function() {
         }
 
         const requiredQty = parseInt($('#modalRequiredQty').text());
-        
+
         if (serialsData[currentLineIndex].some(s => s.serial_no === serialNo)) {
             Swal.fire({
                 icon: 'warning',
@@ -453,9 +453,9 @@ $(document).ready(function() {
     function updateSerialCount() {
         const count = serialsData[currentLineIndex] ? serialsData[currentLineIndex].length : 0;
         const required = parseInt($('#modalRequiredQty').text());
-        
+
         $('#modalCurrentCount').text(count);
-        
+
         if (count === required) {
             $('#modalCurrentCount').removeClass('bg-warning').addClass('bg-success');
         } else {
@@ -571,4 +571,3 @@ $(document).ready(function() {
 });
 </script>
 @endpush
-@endsection

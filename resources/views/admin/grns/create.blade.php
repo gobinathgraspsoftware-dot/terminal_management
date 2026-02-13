@@ -115,7 +115,7 @@
                             <select class="form-select" id="receiving_depot_id" name="receiving_depot_id" required>
                                 <option value="">-- Select Depot --</option>
                                 @foreach($depots as $depot)
-                                    <option value="{{ $depot->id }}">{{ $depot->name }}</option>
+                                    <option value="{{ $depot->id }}">{{ $depot->depot_name }}</option>
                                 @endforeach
                             </select>
                             <div class="invalid-feedback"></div>

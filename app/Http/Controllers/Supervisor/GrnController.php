@@ -10,10 +10,13 @@ use App\Http\Requests\StoreGrnRequest;
 use App\Http\Requests\UpdateGrnRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Yajra\DataTables\Facades\DataTables;
 
 class GrnController extends Controller
 {
+    use AuthorizesRequests;
+    
     protected $grnService;
 
     public function __construct(GrnService $grnService)
@@ -75,7 +78,7 @@ class GrnController extends Controller
                     return $grn->vendor->name ?? '-';
                 })
                 ->addColumn('depot_name', function ($grn) {
-                    return $grn->receivingDepot->name ?? '-';
+                    return $grn->receivingDepot->depot_name ?? '-';
                 })
                 ->addColumn('po_no', function ($grn) {
                     return $grn->purchaseOrder->po_no ?? '-';
@@ -98,7 +101,7 @@ class GrnController extends Controller
         $this->authorize('create', Grn::class);
 
         $purchaseOrders = $this->grnService->getOutstandingPurchaseOrders();
-        $depots = Depot::where('is_active', true)->orderBy('name')->get();
+        $depots = Depot::where('status', 'active')->orderBy('depot_name')->get();
 
         return view('supervisor.grns.create', compact('purchaseOrders', 'depots'));
     }
@@ -178,7 +181,7 @@ class GrnController extends Controller
                     'vendor_id' => $po->vendor_id,
                     'vendor_name' => $po->vendor->name ?? '',
                     'receiving_depot_id' => $po->receiving_depot_id,
-                    'depot_name' => $po->receivingDepot->name ?? '',
+                    'depot_name' => $po->receivingDepot->depot_name ?? '',
                 ],
                 'lines' => $lines
             ]);
