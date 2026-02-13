@@ -86,24 +86,6 @@ class GrnPolicy
     }
 
     /**
-     * Determine if user can delete the GRN
-     */
-    public function delete(User $user, Grn $grn)
-    {
-        if (!$user->hasPermissionTo('delete_grns')) {
-            return false;
-        }
-
-        // Can only delete draft GRNs
-        if ($grn->status !== Grn::STATUS_DRAFT) {
-            return false;
-        }
-
-        // Only admin can delete
-        return $user->hasRole('admin');
-    }
-
-    /**
      * Determine if user can post the GRN
      */
     public function post(User $user, Grn $grn)

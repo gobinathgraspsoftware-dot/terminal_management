@@ -305,28 +305,22 @@ class GrnService
         $balance = StockBalance::firstOrCreate(
             [
                 'model_id' => $modelId,
-                'depot_id' => $depotId,
+                'location_type' => 'depot',
+                'location_id' => $depotId,
             ],
             [
-                'quantity' => 0,
-                'average_cost' => 0,
-                'total_value' => 0,
+                'quantity_on_hand' => 0,
+                'quantity_reserved' => 0,
+                'last_movement_date' => now(),
             ]
         );
 
-        $oldQuantity = $balance->quantity;
-        $oldValue = $balance->total_value;
-
+        $oldQuantity = $balance->quantity_on_hand;
         $newQuantity = $oldQuantity + $quantity;
-        $newValue = $oldValue + ($quantity * $unitCost);
-        $newAvgCost = $newQuantity > 0 ? $newValue / $newQuantity : 0;
 
         $balance->update([
-            'quantity' => $newQuantity,
-            'average_cost' => $newAvgCost,
-            'total_value' => $newValue,
-            'last_purchase_cost' => $unitCost,
-            'last_received_at' => now(),
+            'quantity_on_hand' => $newQuantity,
+            'last_movement_date' => now(),
         ]);
     }
 
@@ -335,15 +329,20 @@ class GrnService
      */
     private function createStockLedgerEntry($modelId, $depotId, $transactionType, $transactionId, $qtyIn, $qtyOut, $reference)
     {
+        $quantity = $qtyIn > 0 ? $qtyIn : -$qtyOut;
+        
         StockLedger::create([
+            'transaction_date' => now()->toDateString(),
+            'transaction_no' => $reference,
+            'transaction_type' => 'grn_in',  // ✅ Correct ENUM value
+            'reference_type' => 'grn',
+            'reference_id' => $transactionId,
             'model_id' => $modelId,
-            'depot_id' => $depotId,
-            'transaction_type' => $transactionType,
-            'transaction_id' => $transactionId,
-            'transaction_date' => now(),
-            'quantity_in' => $qtyIn,
-            'quantity_out' => $qtyOut,
-            'reference' => $reference,
+            'quantity' => $quantity,
+            'from_location_type' => 'vendor',
+            'from_location_id' => null,
+            'to_location_type' => 'depot',
+            'to_location_id' => $depotId,
             'created_by' => Auth::id(),
         ]);
     }

@@ -60,12 +60,13 @@ class GrnController extends Controller
                         </button>';
                     }
                     
-                    if (auth()->user()->can('delete', $grn)) {
-                        $actions .= '<button type="button" class="btn btn-danger delete-grn-btn" 
+                    // Cancel button (your system uses 'cancel' not 'delete')
+                    if (auth()->user()->can('cancel', $grn) && $grn->status !== 'cancelled') {
+                        $actions .= '<button type="button" class="btn btn-danger cancel-grn-btn" 
                             data-id="' . $grn->id . '" 
                             data-grn-no="' . $grn->grn_no . '" 
-                            title="Delete">
-                            <i class="bi bi-trash"></i>
+                            title="Cancel">
+                            <i class="bi bi-x-circle"></i>
                         </button>';
                     }
                     
