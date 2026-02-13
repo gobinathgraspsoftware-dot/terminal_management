@@ -18,6 +18,9 @@ class PurchaseOrderEmail extends Mailable
     public $pdfContent;
     public $customMessage;
 
+    /**
+     * Create a new message instance.
+     */
     public function __construct(PurchaseOrder $purchaseOrder, $pdfContent, $customMessage = null)
     {
         $this->purchaseOrder = $purchaseOrder;
@@ -25,6 +28,9 @@ class PurchaseOrderEmail extends Mailable
         $this->customMessage = $customMessage;
     }
 
+    /**
+     * Get the message envelope.
+     */
     public function envelope(): Envelope
     {
         return new Envelope(
@@ -32,17 +38,25 @@ class PurchaseOrderEmail extends Mailable
         );
     }
 
+    /**
+     * Get the message content definition.
+     *
+     * IMPORTANT: Using 'customMessage' NOT 'message' because 'message' is reserved by Laravel!
+     */
     public function content(): Content
     {
         return new Content(
-            view: 'emails.purchase-order',
+            view: 'components.emails.purchase-order',
             with: [
                 'po' => $this->purchaseOrder,
-                'message' => $this->customMessage,
+                'customMessage' => $this->customMessage,  // CHANGED from 'message' to 'customMessage'
             ],
         );
     }
 
+    /**
+     * Get the attachments for the message.
+     */
     public function attachments(): array
     {
         return [
