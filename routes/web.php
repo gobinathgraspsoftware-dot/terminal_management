@@ -595,6 +595,9 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/{grn}/cancel', [AdminGrnController::class, 'cancel'])->name('cancel');
         Route::post('/validate-serial', [AdminGrnController::class, 'validateSerial'])
             ->name('validate-serial');
+
+        Route::get('/{grn}/pdf', [AdminGrnController::class, 'pdf'])->name('pdf');
+        Route::get('/{grn}/download', [AdminGrnController::class, 'downloadPdf'])->name('download');
     });
 
     /* Settings (requires specific permission) */
@@ -887,6 +890,8 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/purchase-orders/{po}/details', [SupervisorGrnController::class, 'getPurchaseOrderDetails'])->name('po-details');
         Route::post('/{grn}/post', [SupervisorGrnController::class, 'post'])->name('post');
         Route::post('/validate-serial', [SupervisorGrnController::class, 'validateSerial'])->name('validate-serial');
+        Route::get('/{grn}/pdf', [SupervisorGrnController::class, 'pdf'])->name('pdf');
+        Route::get('/{grn}/download', [SupervisorGrnController::class, 'downloadPdf'])->name('download');
     });
 
     /* Job Assignment (supervisor or admin) */
