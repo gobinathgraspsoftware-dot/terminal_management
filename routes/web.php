@@ -83,6 +83,8 @@ use App\Http\Controllers\Technician\PurchaseOrderController as TechnicianPOContr
 use App\Http\Controllers\Admin\GrnController as AdminGrnController;
 use App\Http\Controllers\Supervisor\GrnController as SupervisorGrnController;
 use App\Http\Controllers\Technician\GrnController as TechnicianGrnController;
+use App\Http\Controllers\Admin\GrnReportController as AdminGrnReportController;
+use App\Http\Controllers\Supervisor\GrnReportController as SupervisorGrnReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -598,6 +600,22 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
 
         Route::get('/{grn}/pdf', [AdminGrnController::class, 'pdf'])->name('pdf');
         Route::get('/{grn}/download', [AdminGrnController::class, 'downloadPdf'])->name('download');
+        // Export
+        Route::get('/export/excel', [AdminGrnController::class, 'export'])->name('export');
+    });
+
+    /* GRN Reports Routes (Admin) */
+    Route::prefix('grn-reports')->name('grn-reports.')->middleware('permission:view_reports_grns')->group(function () {
+        Route::get('/', [AdminGrnReportController::class, 'index'])->name('index');
+        Route::get('/register', [AdminGrnReportController::class, 'register'])->name('register');
+        Route::get('/receiving-by-vendor', [AdminGrnReportController::class, 'receivingByVendor'])->name('receiving-by-vendor');
+        Route::get('/receiving-by-model', [AdminGrnReportController::class, 'receivingByModel'])->name('receiving-by-model');
+
+        // Exports
+        Route::get('/export-list', [AdminGrnReportController::class, 'exportList'])->name('export-list');
+        Route::get('/export-register', [AdminGrnReportController::class, 'exportRegister'])->name('export-register');
+        Route::get('/export-receiving-by-vendor', [AdminGrnReportController::class, 'exportReceivingByVendor'])->name('export-receiving-by-vendor');
+        Route::get('/export-receiving-by-model', [AdminGrnReportController::class, 'exportReceivingByModel'])->name('export-receiving-by-model');
     });
 
     /* Settings (requires specific permission) */

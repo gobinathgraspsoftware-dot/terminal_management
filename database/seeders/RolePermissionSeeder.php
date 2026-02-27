@@ -60,7 +60,7 @@ class RolePermissionSeeder extends Seeder
             // Procurement - View and create
             'view_quotations', 'create_quotations', 'edit_quotations', 'export_quotations',
             'view_purchase_orders', 'create_purchase_orders', 'edit_purchase_orders',
-            'view_grns', 'create_grns', 'post_grns', 'print_grns',
+            'view_grns', 'create_grns', 'post_grns', 'print_grns', 'export_grns', 'view_reports_grns', 'export_reports_grns',
 
             // Job Orders - Full team access
             'view_jobs', 'create_jobs', 'edit_jobs', 'assign_jobs', 'reassign_jobs',

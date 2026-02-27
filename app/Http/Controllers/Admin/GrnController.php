@@ -5,14 +5,18 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Grn;
 use App\Models\Depot;
+use App\Models\Vendor;
+use App\Models\PurchaseOrder;
 use App\Services\GrnService;
 use App\Services\GrnPdfService;
+use App\Exports\GrnsExport;
 use App\Http\Requests\StoreGrnRequest;
 use App\Http\Requests\UpdateGrnRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Yajra\DataTables\Facades\DataTables;
+use Maatwebsite\Excel\Facades\Excel;
 
 class GrnController extends Controller
 {
@@ -28,7 +32,7 @@ class GrnController extends Controller
     }
 
     /**
-     * Display a listing of GRNs
+     * Display a listing of GRNs with server-side filters
      */
     public function index(Request $request)
     {
@@ -37,6 +41,39 @@ class GrnController extends Controller
         if ($request->ajax()) {
             $query = Grn::with(['vendor', 'receivingDepot', 'purchaseOrder', 'createdBy'])
                 ->select('grns.*');
+
+            // ── Server-side filters ──
+            if ($request->filled('filter_status')) {
+                $query->where('grns.status', $request->filter_status);
+            }
+
+            if ($request->filled('filter_vendor_id')) {
+                $query->where('grns.vendor_id', $request->filter_vendor_id);
+            }
+
+            if ($request->filled('filter_purchase_order_id')) {
+                $query->where('grns.purchase_order_id', $request->filter_purchase_order_id);
+            }
+
+            if ($request->filled('filter_receiving_depot_id')) {
+                $query->where('grns.receiving_depot_id', $request->filter_receiving_depot_id);
+            }
+
+            if ($request->filled('filter_date_from')) {
+                $query->whereDate('grns.grn_date', '>=', $request->filter_date_from);
+            }
+
+            if ($request->filled('filter_date_to')) {
+                $query->whereDate('grns.grn_date', '<=', $request->filter_date_to);
+            }
+
+            if ($request->filled('filter_search')) {
+                $search = $request->filter_search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('grns.grn_no', 'like', "%{$search}%")
+                      ->orWhere('grns.delivery_note_no', 'like', "%{$search}%");
+                });
+            }
 
             return DataTables::of($query)
                 ->addColumn('action', function ($grn) {
@@ -111,7 +148,30 @@ class GrnController extends Controller
                 ->make(true);
         }
 
-        return view('admin.grns.index');
+        // Get filter options for the view
+        $vendors = Vendor::orderBy('vendor_name')->get(['id', 'vendor_name', 'company_name']);
+        $depots = Depot::where('status', 'active')->orderBy('depot_name')->get(['id', 'depot_name']);
+        $purchaseOrders = PurchaseOrder::orderBy('po_no', 'desc')->get(['id', 'po_no']);
+
+        return view('admin.grns.index', compact('vendors', 'depots', 'purchaseOrders'));
+    }
+
+    /**
+     * Export GRN list to Excel
+     */
+    public function export(Request $request)
+    {
+        $filters = $request->only([
+            'date_from', 'date_to', 'vendor_id', 'purchase_order_id',
+            'receiving_depot_id', 'status', 'search',
+        ]);
+
+        $filters['role'] = 'admin';
+        $filters['user'] = auth()->user();
+
+        $filename = 'grn-list-' . now()->format('Y-m-d-His') . '.xlsx';
+
+        return Excel::download(new GrnsExport($filters), $filename);
     }
 
     /**

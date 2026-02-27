@@ -86,7 +86,7 @@ class PermissionSeeder extends Seeder
             'purchase_orders' => ['view', 'create', 'edit', 'delete', 'approve', 'reject', 'send', 'close', 'cancel'],
 
             // Procurement - GRN
-            'grns' => ['view', 'create', 'edit', 'post', 'cancel', 'print'],
+            'grns' => ['view', 'create', 'edit', 'post', 'cancel', 'print', 'export', 'view_reports', 'export_reports'],
 
             // Job Orders
             'jobs' => ['view', 'create', 'edit', 'delete', 'assign', 'reassign', 'start', 'complete', 'fail', 'cancel', 'view_all', 'view_team', 'view_own'],
