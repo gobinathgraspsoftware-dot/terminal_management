@@ -8,126 +8,39 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         @media print {
-            .no-print {
-                display: none !important;
-            }
-            body {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            @page {
-                margin: 1cm;
-            }
+            .no-print { display: none !important; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { margin: 1cm; }
         }
-
-        body {
-            font-size: 12px;
-            font-family: Arial, sans-serif;
-        }
-
-        .header-section {
-            border-bottom: 3px solid #0d6efd;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-        }
-
-        .company-logo {
-            max-height: 60px;
-            margin-bottom: 10px;
-        }
-
-        .info-box {
-            background-color: #f8f9fa;
-            padding: 12px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            border: 1px solid #dee2e6;
-        }
-
-        .info-label {
-            font-weight: bold;
-            color: #6c757d;
-            font-size: 10px;
-            text-transform: uppercase;
-            margin-bottom: 3px;
-        }
-
-        .info-value {
-            font-size: 14px;
-            color: #212529;
-        }
-
-        table {
-            font-size: 11px;
-        }
-
-        table thead {
-            background-color: #0d6efd;
-            color: white;
-        }
-
-        table tbody tr:nth-child(even) {
-            background-color: #f8f9fa;
-        }
-
-        .summary-box {
-            background: linear-gradient(135deg, #e7f3ff 0%, #f0f7ff 100%);
-            border: 2px solid #0d6efd;
-            padding: 20px;
-            margin-top: 20px;
-            border-radius: 8px;
-        }
-
-        .summary-stat {
-            text-align: center;
-            padding: 15px;
-        }
-
-        .summary-stat .stat-label {
-            font-weight: 600;
-            color: #6c757d;
-            font-size: 11px;
-            text-transform: uppercase;
-        }
-
-        .summary-stat .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            margin-top: 5px;
-        }
-
-        .badge {
-            font-size: 11px;
-            padding: 4px 8px;
-        }
-
-        .footer-section {
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 2px solid #dee2e6;
-        }
+        body { font-size: 12px; font-family: Arial, sans-serif; }
+        .header-section { border-bottom: 3px solid #0d6efd; padding-bottom: 15px; margin-bottom: 20px; }
+        .info-box { background-color: #f8f9fa; padding: 12px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #dee2e6; }
+        .info-label { font-weight: bold; color: #6c757d; font-size: 10px; text-transform: uppercase; margin-bottom: 3px; }
+        .info-value { font-size: 14px; color: #212529; }
+        table { font-size: 11px; }
+        table thead { background-color: #0d6efd; color: white; }
+        table tbody tr:nth-child(even) { background-color: #f8f9fa; }
+        .summary-box { background: linear-gradient(135deg, #e7f3ff 0%, #f0f7ff 100%); border: 2px solid #0d6efd; padding: 20px; margin-top: 20px; border-radius: 8px; }
+        .summary-stat { text-align: center; padding: 15px; }
+        .summary-stat .stat-label { font-weight: 600; color: #6c757d; font-size: 11px; text-transform: uppercase; }
+        .summary-stat .stat-value { font-size: 24px; font-weight: bold; margin-top: 5px; }
+        .footer-section { margin-top: 30px; padding-top: 15px; border-top: 2px solid #dee2e6; }
     </style>
 </head>
 <body>
     <div class="container-fluid py-3">
-        <!-- Print Button -->
+        <!-- Print Buttons -->
         <div class="text-end mb-3 no-print">
-            <button onclick="window.print()" class="btn btn-primary btn-sm">
-                <i class="bi bi-printer"></i> Print
-            </button>
-            <button onclick="window.close()" class="btn btn-secondary btn-sm">
-                <i class="bi bi-x-circle"></i> Close
-            </button>
+            <button onclick="window.print()" class="btn btn-primary btn-sm"><i class="bi bi-printer"></i> Print</button>
+            <button onclick="window.close()" class="btn btn-secondary btn-sm"><i class="bi bi-x-circle"></i> Close</button>
         </div>
 
         <!-- Header -->
         <div class="header-section">
             <div class="row align-items-center">
                 <div class="col-8">
-                    {{-- Company Logo (if available) --}}
-                    {{-- <img src="{{ asset('images/logo.png') }}" alt="Company Logo" class="company-logo"> --}}
                     <h2 class="mb-0 text-primary">STOCK CARD REPORT</h2>
-                    <p class="text-muted mb-0">Terminal Management System - Admin View</p>
+                    <p class="text-muted mb-0">Terminal Management System</p>
                 </div>
                 <div class="col-4 text-end">
                     <p class="mb-1"><strong>Print Date:</strong> {{ now()->format('M d, Y') }}</p>
@@ -138,19 +51,24 @@
         </div>
 
         <!-- Serial Information -->
+        @php
+            $serial = $stockCardData['serial'];
+            $statusColors = ['in_stock'=>'success','issued'=>'info','issued_to_tech'=>'info','installed'=>'primary','faulty'=>'danger','returned'=>'warning','under_service'=>'warning','wasted'=>'dark'];
+            $color = $statusColors[$serial->current_status] ?? 'secondary';
+        @endphp
         <div class="row mb-4">
             <div class="col-md-6 col-lg-3 mb-3">
                 <div class="info-box">
                     <div class="info-label">Serial Number</div>
-                    <div class="info-value h4 mb-0 text-primary">{{ $stockCardData['serial']->serial_no }}</div>
+                    <div class="info-value h4 mb-0 text-primary">{{ $serial->serial_no }}</div>
                 </div>
             </div>
             <div class="col-md-6 col-lg-3 mb-3">
                 <div class="info-box">
                     <div class="info-label">Terminal Model</div>
-                    <div class="info-value">{{ $stockCardData['serial']->model ? $stockCardData['serial']->model->model_name : 'N/A' }}</div>
-                    @if($stockCardData['serial']->model && $stockCardData['serial']->model->category)
-                        <small class="text-muted d-block">{{ $stockCardData['serial']->model->category->category_name }}</small>
+                    <div class="info-value">{{ $serial->model?->model_name ?? 'N/A' }}</div>
+                    @if($serial->model?->category)
+                        <small class="text-muted d-block">{{ $serial->model->category->category_name }}</small>
                     @endif
                 </div>
             </div>
@@ -158,27 +76,16 @@
                 <div class="info-box">
                     <div class="info-label">Current Status</div>
                     <div class="info-value">
-                        @php
-                            $statusColors = [
-                                'in_stock' => 'success',
-                                'issued' => 'info',
-                                'installed' => 'primary',
-                                'faulty' => 'danger',
-                                'returned' => 'warning',
-                            ];
-                            $status = $stockCardData['serial']->current_status;
-                            $color = $statusColors[$status] ?? 'secondary';
-                        @endphp
-                        <span class="badge bg-{{ $color }}">{{ ucfirst(str_replace('_', ' ', $status)) }}</span>
+                        <span class="badge bg-{{ $color }}">{{ ucfirst(str_replace('_', ' ', $serial->current_status)) }}</span>
                     </div>
                 </div>
             </div>
             <div class="col-md-6 col-lg-3 mb-3">
                 <div class="info-box">
                     <div class="info-label">Current Location</div>
-                    <div class="info-value">{{ $stockCardData['serial']->current_location_name ?? 'N/A' }}</div>
-                    @if($stockCardData['serial']->current_location_type)
-                        <small class="text-muted d-block">{{ ucfirst($stockCardData['serial']->current_location_type) }}</small>
+                    <div class="info-value">{{ $serial->location_name ?? 'N/A' }}</div>
+                    @if($serial->current_location_type)
+                        <small class="text-muted d-block">{{ ucfirst($serial->current_location_type) }}</small>
                     @endif
                 </div>
             </div>
@@ -189,19 +96,19 @@
             <div class="col-md-4 mb-3">
                 <div class="info-box">
                     <div class="info-label">GRN Date</div>
-                    <div class="info-value">{{ $stockCardData['serial']->grn_date ? \Carbon\Carbon::parse($stockCardData['serial']->grn_date)->format('M d, Y') : 'N/A' }}</div>
+                    <div class="info-value">{{ $serial->grn_date ? $serial->grn_date->format('M d, Y') : 'N/A' }}</div>
                 </div>
             </div>
             <div class="col-md-4 mb-3">
                 <div class="info-box">
                     <div class="info-label">Warranty Expiry</div>
-                    <div class="info-value">{{ $stockCardData['serial']->warranty_end ? \Carbon\Carbon::parse($stockCardData['serial']->warranty_end)->format('M d, Y') : 'N/A' }}</div>
+                    <div class="info-value">{{ $serial->warranty_end ? $serial->warranty_end->format('M d, Y') : 'N/A' }}</div>
                 </div>
             </div>
             <div class="col-md-4 mb-3">
                 <div class="info-box">
                     <div class="info-label">Purchase Price</div>
-                    <div class="info-value">RM {{ number_format($stockCardData['serial']->purchase_price ?? 0, 2) }}</div>
+                    <div class="info-value">RM {{ number_format($serial->purchase_price ?? 0, 2) }}</div>
                 </div>
             </div>
         </div>
@@ -229,15 +136,9 @@
                         <tr>
                             <td>{{ $movement->transaction_date->format('M d, Y') }}</td>
                             <td class="font-monospace">{{ $movement->transaction_no }}</td>
-                            <td>
-                                <span class="badge bg-secondary">{{ $movement->type_label }}</span>
-                            </td>
-                            <td class="text-end text-success fw-bold">
-                                {{ $movement->quantity > 0 ? $movement->quantity : '-' }}
-                            </td>
-                            <td class="text-end text-danger fw-bold">
-                                {{ $movement->quantity < 0 ? abs($movement->quantity) : '-' }}
-                            </td>
+                            <td><span class="badge bg-secondary">{{ $movement->type_label }}</span></td>
+                            <td class="text-end text-success fw-bold">{{ $movement->quantity > 0 ? $movement->quantity : '-' }}</td>
+                            <td class="text-end text-danger fw-bold">{{ $movement->quantity < 0 ? abs($movement->quantity) : '-' }}</td>
                             <td class="text-end fw-bold text-primary">{{ $movement->running_balance }}</td>
                             <td><small>{{ $movement->from_location_name }}</small></td>
                             <td><small>{{ $movement->to_location_name }}</small></td>
@@ -245,11 +146,7 @@
                             <td><small>{{ $movement->remarks ?? '-' }}</small></td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="10" class="text-center text-muted py-3">
-                                <i class="bi bi-inbox"></i> No movement history available
-                            </td>
-                        </tr>
+                        <tr><td colspan="10" class="text-center text-muted py-3"><i class="bi bi-inbox"></i> No movement history available</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -289,7 +186,7 @@
         <!-- Footer -->
         <div class="footer-section text-center">
             <p class="mb-1"><strong>GRASP SOFTWARE SOLUTIONS - Terminal Management System</strong></p>
-            <p class="text-muted mb-0"><small>Stock Card Report - Admin View | Generated on {{ now()->format('F d, Y \a\t H:i:s') }}</small></p>
+            <p class="text-muted mb-0"><small>Stock Card Report | Generated on {{ now()->format('F d, Y \a\t H:i:s') }}</small></p>
             <p class="text-muted mb-0"><small>This is a system-generated report</small></p>
         </div>
     </div>

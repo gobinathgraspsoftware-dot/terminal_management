@@ -128,6 +128,15 @@ class StockLedger extends Model
     }
 
     /**
+     * Alias for createdBy() - used by views and controllers.
+     * FIX: Resolves "Call to undefined relationship [user]" error.
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
      * The ledger entry that reversed this movement.
      */
     public function reversedByEntry()
@@ -211,6 +220,38 @@ class StockLedger extends Model
     public function scopeActiveMovements($query)
     {
         return $query->where('is_reversed', false)->whereNull('reversal_of_id');
+    }
+
+    /**
+     * Scope to movements involving a specific technician.
+     */
+    public function scopeForTechnician($query, int $technicianId)
+    {
+        return $query->where(function ($q) use ($technicianId) {
+            $q->where(function ($sub) use ($technicianId) {
+                $sub->where('from_location_type', 'technician')
+                    ->where('from_location_id', $technicianId);
+            })->orWhere(function ($sub) use ($technicianId) {
+                $sub->where('to_location_type', 'technician')
+                    ->where('to_location_id', $technicianId);
+            });
+        });
+    }
+
+    /**
+     * Scope to movements involving a team of technicians.
+     */
+    public function scopeForTeam($query, array $technicianIds)
+    {
+        return $query->where(function ($q) use ($technicianIds) {
+            $q->where(function ($sub) use ($technicianIds) {
+                $sub->where('from_location_type', 'technician')
+                    ->whereIn('from_location_id', $technicianIds);
+            })->orWhere(function ($sub) use ($technicianIds) {
+                $sub->where('to_location_type', 'technician')
+                    ->whereIn('to_location_id', $technicianIds);
+            });
+        });
     }
 
     // =========================================================================

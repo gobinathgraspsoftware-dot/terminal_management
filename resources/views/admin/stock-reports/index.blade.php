@@ -1,5 +1,7 @@
 @extends('layouts.app')
 
+@section('title', 'Stock Reports Dashboard')
+
 @section('content')
 <div class="container-fluid">
     <div class="row mb-3">
@@ -24,9 +26,7 @@
                             <h6 class="mb-0">Total Serials</h6>
                             <h2 class="mb-0">{{ number_format($stats['total_serials']) }}</h2>
                         </div>
-                        <div>
-                            <i class="bi bi-upc-scan" style="font-size: 3rem; opacity: 0.5;"></i>
-                        </div>
+                        <i class="bi bi-upc-scan" style="font-size: 3rem; opacity: 0.5;"></i>
                     </div>
                 </div>
             </div>
@@ -39,9 +39,7 @@
                             <h6 class="mb-0">In Stock</h6>
                             <h2 class="mb-0">{{ number_format($stats['in_stock']) }}</h2>
                         </div>
-                        <div>
-                            <i class="bi bi-box-seam" style="font-size: 3rem; opacity: 0.5;"></i>
-                        </div>
+                        <i class="bi bi-box-seam" style="font-size: 3rem; opacity: 0.5;"></i>
                     </div>
                 </div>
             </div>
@@ -54,9 +52,7 @@
                             <h6 class="mb-0">Issued</h6>
                             <h2 class="mb-0">{{ number_format($stats['issued']) }}</h2>
                         </div>
-                        <div>
-                            <i class="bi bi-arrow-right-circle" style="font-size: 3rem; opacity: 0.5;"></i>
-                        </div>
+                        <i class="bi bi-arrow-right-circle" style="font-size: 3rem; opacity: 0.5;"></i>
                     </div>
                 </div>
             </div>
@@ -69,9 +65,7 @@
                             <h6 class="mb-0">Faulty</h6>
                             <h2 class="mb-0">{{ number_format($stats['faulty']) }}</h2>
                         </div>
-                        <div>
-                            <i class="bi bi-exclamation-triangle" style="font-size: 3rem; opacity: 0.5;"></i>
-                        </div>
+                        <i class="bi bi-exclamation-triangle" style="font-size: 3rem; opacity: 0.5;"></i>
                     </div>
                 </div>
             </div>
@@ -143,7 +137,7 @@
         </div>
     </div>
 
-    <!-- Stock by Status Chart -->
+    <!-- Charts -->
     <div class="row mb-4">
         <div class="col-md-6">
             <div class="card">
@@ -192,7 +186,7 @@
                             <tbody>
                                 @forelse($recentMovements as $movement)
                                     <tr>
-                                        <td>{{ $movement->transaction_date->format('M d, Y H:i') }}</td>
+                                        <td>{{ $movement->transaction_date->format('M d, Y') }}</td>
                                         <td>
                                             @if($movement->serial)
                                                 <a href="{{ route('admin.stock-reports.stock-card', $movement->serial->id) }}">
@@ -202,16 +196,8 @@
                                                 <span class="text-muted">N/A</span>
                                             @endif
                                         </td>
-                                        <td>
-                                            @if($movement->serial && $movement->serial->model)
-                                                {{ $movement->serial->model->model_name }}
-                                            @else
-                                                <span class="text-muted">N/A</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-secondary">{{ $movement->transaction_type }}</span>
-                                        </td>
+                                        <td>{{ $movement->serial?->model?->model_name ?? '-' }}</td>
+                                        <td><span class="badge bg-secondary">{{ $movement->type_label }}</span></td>
                                         <td class="text-end">
                                             @if($movement->quantity > 0)
                                                 <span class="text-success">+{{ $movement->quantity }}</span>
@@ -219,15 +205,9 @@
                                                 <span class="text-danger">{{ $movement->quantity }}</span>
                                             @endif
                                         </td>
-                                        <td><small>{{ $movement->from_location_name ?? '-' }}</small></td>
-                                        <td><small>{{ $movement->to_location_name ?? '-' }}</small></td>
-                                        <td>
-                                            @if($movement->user)
-                                                {{ $movement->user->name }}
-                                            @else
-                                                <span class="text-muted">System</span>
-                                            @endif
-                                        </td>
+                                        <td><small>{{ $movement->from_location_name }}</small></td>
+                                        <td><small>{{ $movement->to_location_name }}</small></td>
+                                        <td>{{ $movement->createdBy?->name ?? 'System' }}</td>
                                     </tr>
                                 @empty
                                     <tr>
@@ -252,39 +232,27 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-    // Stock by Status Chart
+    // Stock by Status Pie Chart
     const statusCtx = document.getElementById('statusChart').getContext('2d');
-    const statusChart = new Chart(statusCtx, {
+    new Chart(statusCtx, {
         type: 'pie',
         data: {
             labels: {!! json_encode($stockByStatus->keys()) !!},
             datasets: [{
                 data: {!! json_encode($stockByStatus->values()) !!},
-                backgroundColor: [
-                    '#28a745', // in_stock - green
-                    '#17a2b8', // issued - cyan
-                    '#007bff', // installed - blue
-                    '#dc3545', // faulty - red
-                    '#ffc107', // returned - yellow
-                    '#6c757d', // wasted - gray
-                ]
+                backgroundColor: ['#28a745','#17a2b8','#007bff','#dc3545','#ffc107','#6c757d']
             }]
         },
         options: {
             responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                }
-            }
+            plugins: { legend: { position: 'bottom' } }
         }
     });
 
-    // Stock by Location Type Chart
+    // Stock by Location Type Bar Chart
     const locationCtx = document.getElementById('locationChart').getContext('2d');
-    const locationChart = new Chart(locationCtx, {
+    new Chart(locationCtx, {
         type: 'bar',
         data: {
             labels: {!! json_encode($stockByLocationType->keys()->map(fn($k) => ucfirst($k))) !!},
@@ -296,16 +264,8 @@
         },
         options: {
             responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                }
-            }
+            scales: { y: { beginAtZero: true } },
+            plugins: { legend: { display: false } }
         }
     });
 </script>

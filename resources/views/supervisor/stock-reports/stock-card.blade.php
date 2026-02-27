@@ -7,18 +7,14 @@
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-1">Stock Card</h1>
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-0">
-                            <li class="breadcrumb-item"><a href="{{ route('supervisor.dashboard') }}">Dashboard</a></li>
-                            <li class="breadcrumb-item"><a href="{{ route('supervisor.stock-reports.index') }}">Stock Reports</a></li>
-                            <li class="breadcrumb-item active">Stock Card</li>
-                        </ol>
-                    </nav>
-                </div>
-            </div>
+            <h1 class="h3 mb-1">Stock Card</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ route('supervisor.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('supervisor.stock-reports.index') }}">Stock Reports</a></li>
+                    <li class="breadcrumb-item active">Stock Card</li>
+                </ol>
+            </nav>
         </div>
     </div>
 
@@ -33,11 +29,11 @@
                     <label class="form-label">Search Serial Number</label>
                     <select id="serialSelect" class="form-select" style="width: 100%;">
                         <option value="">Type to search serial number...</option>
-                        @foreach($serials as $serial)
-                            <option value="{{ $serial->id }}" {{ isset($stockCardData) && $stockCardData['serial']->id == $serial->id ? 'selected' : '' }}>
-                                {{ $serial->serial_no }} - {{ $serial->model ? $serial->model->model_name : 'Unknown' }}
+                        @if(isset($stockCardData))
+                            <option value="{{ $stockCardData['serial']->id }}" selected>
+                                {{ $stockCardData['serial']->serial_no }} - {{ $stockCardData['serial']->model?->model_name ?? 'Unknown' }}
                             </option>
-                        @endforeach
+                        @endif
                     </select>
                 </div>
                 <div class="col-md-6 d-flex align-items-end">
@@ -63,15 +59,15 @@
                 </div>
                 <div class="col-md-3">
                     <p class="mb-1 text-muted">Model</p>
-                    <h5>{{ $stockCardData['serial']->model ? $stockCardData['serial']->model->model_name : 'N/A' }}</h5>
+                    <h5>{{ $stockCardData['serial']->model?->model_name ?? 'N/A' }}</h5>
                 </div>
                 <div class="col-md-3">
                     <p class="mb-1 text-muted">Current Status</p>
-                    <h5><span class="badge bg-info">{{ ucfirst(str_replace('_', ' ', $stockCardData['serial']->current_status)) }}</span></h5>
+                    <h5>{!! $stockCardData['serial']->status_badge !!}</h5>
                 </div>
                 <div class="col-md-3">
                     <p class="mb-1 text-muted">Current Location</p>
-                    <h5>{{ $stockCardData['serial']->current_location_name ?? 'N/A' }}</h5>
+                    <h5>{{ $stockCardData['serial']->location_name ?? 'N/A' }}</h5>
                 </div>
             </div>
         </div>
@@ -116,10 +112,10 @@
     <!-- Action Buttons -->
     <div class="row mb-3">
         <div class="col-12 text-end">
-            <a href="{{ route('supervisor.stock-reports.export-stock-card', $stockCardData['serial']->id) }}" class="btn btn-success">
+            <a href="{{ route('supervisor.stock-reports.stock-card-export', $stockCardData['serial']->id) }}" class="btn btn-success">
                 <i class="bi bi-file-earmark-excel me-2"></i>Export to Excel
             </a>
-            <a href="{{ route('supervisor.stock-reports.print-stock-card', $stockCardData['serial']->id) }}" target="_blank" class="btn btn-secondary">
+            <a href="{{ route('supervisor.stock-reports.stock-card-print', $stockCardData['serial']->id) }}" target="_blank" class="btn btn-secondary">
                 <i class="bi bi-printer me-2"></i>Print
             </a>
         </div>
@@ -172,9 +168,7 @@
                                 <td>{{ $movement->to_location_name }}</td>
                                 <td>
                                     @if($movement->reference_url)
-                                        <a href="{{ $movement->reference_url }}" class="text-decoration-none">
-                                            {{ $movement->reference_label }}
-                                        </a>
+                                        <a href="{{ $movement->reference_url }}" class="text-decoration-none">{{ $movement->reference_label }}</a>
                                     @else
                                         {{ $movement->reference_label }}
                                     @endif
@@ -188,7 +182,6 @@
         </div>
     </div>
     @else
-    <!-- No Serial Selected -->
     <div class="card shadow-sm">
         <div class="card-body text-center py-5">
             <i class="bi bi-search fs-1 text-muted mb-3 d-block"></i>
@@ -197,14 +190,9 @@
     </div>
     @endif
 </div>
-
-@push('styles')
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-@endpush
+@endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
     $('#serialSelect').select2({
@@ -215,16 +203,8 @@ $(document).ready(function() {
             url: '{{ route("supervisor.stock-reports.search-serials") }}',
             dataType: 'json',
             delay: 250,
-            data: function (params) {
-                return {
-                    term: params.term
-                };
-            },
-            processResults: function (data) {
-                return {
-                    results: data
-                };
-            },
+            data: function (params) { return { term: params.term }; },
+            processResults: function (data) { return { results: data }; },
             cache: true
         }
     });
@@ -233,11 +213,10 @@ $(document).ready(function() {
 function viewStockCard() {
     const serialId = $('#serialSelect').val();
     if (serialId) {
-        window.location.href = '{{ route("supervisor.stock-reports.stock-card", "") }}/' + serialId;
+        window.location.href = '{{ route("supervisor.stock-reports.stock-card") }}/' + serialId;
     } else {
-        alert('Please select a serial number');
+        Swal.fire('Warning', 'Please select a serial number', 'warning');
     }
 }
 </script>
 @endpush
-@endsection

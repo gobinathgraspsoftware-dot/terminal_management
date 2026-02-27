@@ -1,206 +1,228 @@
 @extends('layouts.app')
 
-@section('title', 'Stock Reports')
+@section('title', 'Stock Reports Dashboard')
 
 @section('content')
 <div class="container-fluid">
-    <div class="row mb-4">
+    <div class="row mb-3">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-0">Stock Reports</h1>
-                    <p class="text-muted">Comprehensive stock movement and inventory reports</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Report Cards -->
-    <div class="row g-4">
-        <!-- Movement Report Card -->
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm border-start border-primary border-4">
-                <div class="card-body">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="flex-shrink-0">
-                            <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-3">
-                                <i class="bi bi-arrow-left-right fs-2"></i>
-                            </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h5 class="card-title mb-0">Movement Report</h5>
-                            <p class="text-muted small mb-0">Detailed stock movements</p>
-                        </div>
-                    </div>
-                    <p class="card-text">
-                        View all stock movements with comprehensive filtering by date, location, model, and transaction type.
-                    </p>
-                    <a href="{{ route('supervisor.stock-reports.movement') }}" class="btn btn-primary w-100">
-                        <i class="bi bi-bar-chart me-2"></i>View Report
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Stock Card Report -->
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm border-start border-success border-4">
-                <div class="card-body">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="flex-shrink-0">
-                            <div class="bg-success bg-opacity-10 text-success rounded-3 p-3">
-                                <i class="bi bi-card-list fs-2"></i>
-                            </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h5 class="card-title mb-0">Stock Card</h5>
-                            <p class="text-muted small mb-0">Serial-level tracking</p>
-                        </div>
-                    </div>
-                    <p class="card-text">
-                        Track complete movement history for individual serial numbers with running balance and detailed timeline.
-                    </p>
-                    <a href="{{ route('supervisor.stock-reports.stock-card') }}" class="btn btn-success w-100">
-                        <i class="bi bi-card-text me-2"></i>View Stock Cards
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Summary Report -->
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm border-start border-info border-4">
-                <div class="card-body">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="flex-shrink-0">
-                            <div class="bg-info bg-opacity-10 text-info rounded-3 p-3">
-                                <i class="bi bi-pie-chart fs-2"></i>
-                            </div>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h5 class="card-title mb-0">Summary Report</h5>
-                            <p class="text-muted small mb-0">Aggregated insights</p>
-                        </div>
-                    </div>
-                    <p class="card-text">
-                        Comprehensive summary with movements by location, model, top movers, and statistical insights.
-                    </p>
-                    <a href="{{ route('supervisor.stock-reports.summary') }}" class="btn btn-info w-100">
-                        <i class="bi bi-graph-up me-2"></i>View Summary
-                    </a>
-                </div>
-            </div>
+            <h1 class="h3 mb-0">Stock Reports Dashboard</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ route('supervisor.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Stock Reports</li>
+                </ol>
+            </nav>
         </div>
     </div>
 
     <!-- Quick Stats -->
-    <div class="row mt-4">
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Total Serials</h6>
+                            <h2 class="mb-0">{{ number_format($stats['total_serials']) }}</h2>
+                        </div>
+                        <i class="bi bi-upc-scan" style="font-size: 3rem; opacity: 0.5;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">In Stock</h6>
+                            <h2 class="mb-0">{{ number_format($stats['in_stock']) }}</h2>
+                        </div>
+                        <i class="bi bi-box-seam" style="font-size: 3rem; opacity: 0.5;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Issued</h6>
+                            <h2 class="mb-0">{{ number_format($stats['issued']) }}</h2>
+                        </div>
+                        <i class="bi bi-arrow-right-circle" style="font-size: 3rem; opacity: 0.5;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">Faulty</h6>
+                            <h2 class="mb-0">{{ number_format($stats['faulty']) }}</h2>
+                        </div>
+                        <i class="bi bi-exclamation-triangle" style="font-size: 3rem; opacity: 0.5;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Movement Stats -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">Movements Today</h6>
+                    <h3 class="mb-0">{{ number_format($stats['total_movements_today']) }}</h3>
+                    <small class="text-muted">Stock movements recorded today</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">Movements This Month</h6>
+                    <h3 class="mb-0">{{ number_format($stats['total_movements_this_month']) }}</h3>
+                    <small class="text-muted">Stock movements this month</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm">
+            <div class="card">
                 <div class="card-header bg-light">
-                    <h5 class="mb-0">
-                        <i class="bi bi-speedometer2 me-2"></i>Quick Statistics
-                    </h5>
+                    <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-md-3">
-                            <div class="p-3">
-                                <i class="bi bi-box-seam text-primary fs-1"></i>
-                                <h4 class="mt-2 mb-0">{{ \App\Models\InventorySerial::count() }}</h4>
-                                <p class="text-muted mb-0">Total Serials</p>
-                            </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ route('supervisor.stock-reports.movement') }}" class="btn btn-outline-primary w-100 py-3">
+                                <i class="bi bi-arrow-left-right d-block mb-2" style="font-size: 2rem;"></i>
+                                <strong>Movement Report</strong><br>
+                                <small>View all movements</small>
+                            </a>
                         </div>
-                        <div class="col-md-3">
-                            <div class="p-3">
-                                <i class="bi bi-arrow-repeat text-success fs-1"></i>
-                                <h4 class="mt-2 mb-0">{{ \App\Models\StockLedger::whereMonth('transaction_date', now()->month)->count() }}</h4>
-                                <p class="text-muted mb-0">Movements This Month</p>
-                            </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ route('supervisor.stock-reports.stock-card') }}" class="btn btn-outline-info w-100 py-3">
+                                <i class="bi bi-credit-card d-block mb-2" style="font-size: 2rem;"></i>
+                                <strong>Stock Card</strong><br>
+                                <small>Serial history</small>
+                            </a>
                         </div>
-                        <div class="col-md-3">
-                            <div class="p-3">
-                                <i class="bi bi-building text-warning fs-1"></i>
-                                <h4 class="mt-2 mb-0">{{ \App\Models\Depot::count() }}</h4>
-                                <p class="text-muted mb-0">Depot Locations</p>
-                            </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ route('supervisor.stock-reports.summary') }}" class="btn btn-outline-success w-100 py-3">
+                                <i class="bi bi-file-earmark-bar-graph d-block mb-2" style="font-size: 2rem;"></i>
+                                <strong>Summary Report</strong><br>
+                                <small>Overview by model</small>
+                            </a>
                         </div>
-                        <div class="col-md-3">
-                            <div class="p-3">
-                                <i class="bi bi-people text-info fs-1"></i>
-                                <h4 class="mt-2 mb-0">{{ \App\Models\User::role('technician')->count() }}</h4>
-                                <p class="text-muted mb-0">Active Technicians</p>
-                            </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ route('supervisor.stock-balance.index') }}" class="btn btn-outline-warning w-100 py-3">
+                                <i class="bi bi-boxes d-block mb-2" style="font-size: 2rem;"></i>
+                                <strong>Stock Balance</strong><br>
+                                <small>Current balances</small>
+                            </a>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Stock by Status</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="statusChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Stock by Location Type</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="locationChart" height="200"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Recent Movements -->
-    <div class="row mt-4">
+    <div class="row">
         <div class="col-12">
-            <div class="card shadow-sm">
-                <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="bi bi-clock-history me-2"></i>Recent Movements
-                    </h5>
-                    <a href="{{ route('supervisor.stock-reports.movement') }}" class="btn btn-sm btn-outline-primary">
-                        View All <i class="bi bi-arrow-right ms-1"></i>
-                    </a>
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Movements</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle">
+                        <table class="table table-sm table-hover">
                             <thead class="table-light">
                                 <tr>
                                     <th>Date</th>
-                                    <th>Transaction No</th>
-                                    <th>Type</th>
                                     <th>Serial No</th>
                                     <th>Model</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Qty</th>
                                     <th>From</th>
                                     <th>To</th>
+                                    <th>User</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @php
-                                    $recentMovements = \App\Models\StockLedger::with(['model', 'serial'])
-                                        ->notReversed()
-                                        ->orderBy('transaction_date', 'desc')
-                                        ->orderBy('id', 'desc')
-                                        ->limit(10)
-                                        ->get();
-                                @endphp
                                 @forelse($recentMovements as $movement)
                                     <tr>
                                         <td>{{ $movement->transaction_date->format('M d, Y') }}</td>
-                                        <td><span class="badge bg-secondary">{{ $movement->transaction_no }}</span></td>
-                                        <td>{!! $movement->type_badge !!}</td>
                                         <td>
-                                            @if($movement->serial_id)
-                                                <a href="{{ route('supervisor.stock-reports.stock-card', $movement->serial_id) }}" class="text-decoration-none">
-                                                    {{ $movement->serial_no }}
+                                            @if($movement->serial)
+                                                <a href="{{ route('supervisor.stock-reports.stock-card', $movement->serial->id) }}">
+                                                    {{ $movement->serial->serial_no }}
                                                 </a>
                                             @else
-                                                {{ $movement->serial_no ?? '-' }}
+                                                <span class="text-muted">N/A</span>
                                             @endif
                                         </td>
-                                        <td>{{ $movement->model ? $movement->model->model_name : '-' }}</td>
-                                        <td>{{ $movement->from_location_name }}</td>
-                                        <td>{{ $movement->to_location_name }}</td>
+                                        <td>{{ $movement->serial?->model?->model_name ?? '-' }}</td>
+                                        <td><span class="badge bg-secondary">{{ $movement->type_label }}</span></td>
+                                        <td class="text-end">
+                                            @if($movement->quantity > 0)
+                                                <span class="text-success">+{{ $movement->quantity }}</span>
+                                            @else
+                                                <span class="text-danger">{{ $movement->quantity }}</span>
+                                            @endif
+                                        </td>
+                                        <td><small>{{ $movement->from_location_name }}</small></td>
+                                        <td><small>{{ $movement->to_location_name }}</small></td>
+                                        <td>{{ $movement->createdBy?->name ?? 'System' }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="text-center text-muted py-4">
-                                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                                            No recent movements found
+                                        <td colspan="8" class="text-center text-muted py-3">
+                                            <i class="bi bi-inbox"></i> No recent movements
                                         </td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{{ route('supervisor.stock-reports.movement') }}" class="btn btn-sm btn-outline-primary">
+                            View All Movements <i class="bi bi-arrow-right"></i>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -208,3 +230,43 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    // Stock by Status Pie Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'pie',
+        data: {
+            labels: {!! json_encode($stockByStatus->keys()) !!},
+            datasets: [{
+                data: {!! json_encode($stockByStatus->values()) !!},
+                backgroundColor: ['#28a745','#17a2b8','#007bff','#dc3545','#ffc107','#6c757d']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+
+    // Stock by Location Type Bar Chart
+    const locationCtx = document.getElementById('locationChart').getContext('2d');
+    new Chart(locationCtx, {
+        type: 'bar',
+        data: {
+            labels: {!! json_encode($stockByLocationType->keys()->map(fn($k) => ucfirst($k))) !!},
+            datasets: [{
+                label: 'Stock Count',
+                data: {!! json_encode($stockByLocationType->values()) !!},
+                backgroundColor: '#007bff'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: { y: { beginAtZero: true } },
+            plugins: { legend: { display: false } }
+        }
+    });
+</script>
+@endpush

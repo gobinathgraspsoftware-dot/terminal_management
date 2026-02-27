@@ -40,12 +40,28 @@ class StockBalance extends Model
     }
 
     /**
-     * Polymorphic relationship to location
-     * This allows querying the actual depot or user record
+     * Polymorphic relationship to location.
      */
     public function location()
     {
         return $this->morphTo(__FUNCTION__, 'location_type', 'location_id');
+    }
+
+    /**
+     * Direct relationship to Depot (for depot-type balances).
+     * FIX: Required by summary views that reference $item->depot.
+     */
+    public function depot()
+    {
+        return $this->belongsTo(Depot::class, 'location_id');
+    }
+
+    /**
+     * Direct relationship to User/Technician (for technician-type balances).
+     */
+    public function technician()
+    {
+        return $this->belongsTo(User::class, 'location_id');
     }
 
     // =========================================================================
@@ -53,8 +69,7 @@ class StockBalance extends Model
     // =========================================================================
 
     /**
-     * Get available quantity (on hand - reserved)
-     * Note: This is also a generated column in MySQL, but we define it here for clarity
+     * Get available quantity (on hand - reserved).
      */
     public function getQuantityAvailableAttribute()
     {
@@ -62,7 +77,7 @@ class StockBalance extends Model
     }
 
     /**
-     * Get location name for display
+     * Get location name for display.
      */
     public function getLocationNameAttribute(): string
     {
@@ -88,16 +103,16 @@ class StockBalance extends Model
     }
 
     /**
-     * Check if stock is low
+     * Check if stock is low.
      */
     public function getIsLowStockAttribute(): bool
     {
-        $minStock = 5; // Fixed threshold
+        $minStock = 5;
         return $this->quantity_available <= $minStock && $this->quantity_available > 0;
     }
 
     /**
-     * Check if out of stock
+     * Check if out of stock.
      */
     public function getIsOutOfStockAttribute(): bool
     {
@@ -105,7 +120,7 @@ class StockBalance extends Model
     }
 
     /**
-     * Get stock status badge
+     * Get stock status badge.
      */
     public function getStockStatusBadgeAttribute(): string
     {
@@ -124,72 +139,47 @@ class StockBalance extends Model
     // SCOPES
     // =========================================================================
 
-    /**
-     * Scope to depot locations only
-     */
     public function scopeDepots($query)
     {
         return $query->where('location_type', self::LOCATION_TYPE_DEPOT);
     }
 
-    /**
-     * Scope to technician locations only
-     */
     public function scopeTechnicians($query)
     {
         return $query->where('location_type', self::LOCATION_TYPE_TECHNICIAN);
     }
 
-    /**
-     * Scope to specific location
-     */
     public function scopeForLocation($query, string $locationType, int $locationId)
     {
         return $query->where('location_type', $locationType)
                     ->where('location_id', $locationId);
     }
 
-    /**
-     * Scope to specific model
-     */
     public function scopeForModel($query, int $modelId)
     {
         return $query->where('model_id', $modelId);
     }
 
-    /**
-     * Scope to items with stock
-     */
     public function scopeWithStock($query)
     {
         return $query->where('quantity_on_hand', '>', 0);
     }
 
-    /**
-     * Scope to low stock items
-     */
     public function scopeLowStock($query)
     {
-        // This is a simplified version - actual implementation would need to join with models table
-        return $query->where('quantity_available', '<=', 5)
-                    ->where('quantity_available', '>', 0);
+        return $query->whereRaw('(quantity_on_hand - quantity_reserved) <= 5')
+                    ->whereRaw('(quantity_on_hand - quantity_reserved) > 0');
     }
 
-    /**
-     * Scope to out of stock items
-     */
     public function scopeOutOfStock($query)
     {
-        return $query->where('quantity_available', '<=', 0);
+        return $query->whereRaw('(quantity_on_hand - quantity_reserved) <= 0');
     }
 
     // =========================================================================
     // HELPER METHODS
     // =========================================================================
 
-    /**
-     * Get all location type options
-     */
     public static function getLocationTypeOptions(): array
     {
         return [

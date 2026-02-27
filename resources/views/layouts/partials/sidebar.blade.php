@@ -409,7 +409,7 @@
             </div>
 
             <!-- Financial Section -->
-            <div class="nav-section mb-3">
+            {{-- <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Financial</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
@@ -433,10 +433,10 @@
                         </a>
                     </li>
                 </ul>
-            </div>
+            </div> --}}
 
             <!-- Reports Section -->
-            <div class="nav-section mb-3">
+            {{-- <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Reports</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
@@ -450,7 +450,7 @@
                         </a>
                     </li>
                 </ul>
-            </div>
+            </div> --}}
 
             <!-- Stock Reports Section -->
             @php

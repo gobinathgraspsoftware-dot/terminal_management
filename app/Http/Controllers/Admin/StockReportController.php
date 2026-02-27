@@ -36,15 +36,16 @@ class StockReportController extends Controller
         $stats = [
             'total_serials' => InventorySerial::count(),
             'in_stock' => InventorySerial::where('current_status', 'in_stock')->count(),
-            'issued' => InventorySerial::where('current_status', 'issued')->count(),
+            'issued' => InventorySerial::whereIn('current_status', ['issued', 'issued_to_tech'])->count(),
             'installed' => InventorySerial::where('current_status', 'installed')->count(),
             'faulty' => InventorySerial::where('current_status', 'faulty')->count(),
             'total_movements_today' => StockLedger::whereDate('transaction_date', today())->count(),
-            'total_movements_this_month' => StockLedger::whereMonth('transaction_date', now()->month)->count(),
+            'total_movements_this_month' => StockLedger::whereMonth('transaction_date', now()->month)
+                ->whereYear('transaction_date', now()->year)->count(),
         ];
 
-        // Recent movements (last 10)
-        $recentMovements = StockLedger::with(['serial.model', 'user'])
+        // Recent movements (last 10) — FIX: use 'createdBy' instead of 'user'
+        $recentMovements = StockLedger::with(['serial.model', 'createdBy'])
             ->orderBy('transaction_date', 'desc')
             ->orderBy('id', 'desc')
             ->limit(10)
@@ -77,51 +78,38 @@ class StockReportController extends Controller
     public function movement(Request $request)
     {
         $filters = $request->only([
-            'from_date',
-            'to_date',
-            'serial_no',
-            'model_id',
-            'category_id',
-            'transaction_type',
-            'location_type',
-            'location_id'
+            'from_date', 'to_date', 'serial_no', 'model_id',
+            'category_id', 'transaction_type', 'location_type', 'location_id'
         ]);
 
-        $query = StockLedger::with(['serial.model', 'user'])
+        $query = StockLedger::with(['serial.model', 'createdBy'])
             ->orderBy('transaction_date', 'desc')
             ->orderBy('id', 'desc');
 
-        // Apply filters
         if (!empty($filters['from_date'])) {
             $query->whereDate('transaction_date', '>=', $filters['from_date']);
         }
-
         if (!empty($filters['to_date'])) {
             $query->whereDate('transaction_date', '<=', $filters['to_date']);
         }
-
         if (!empty($filters['serial_no'])) {
             $query->whereHas('serial', function ($q) use ($filters) {
                 $q->where('serial_no', 'like', '%' . $filters['serial_no'] . '%');
             });
         }
-
         if (!empty($filters['model_id'])) {
             $query->whereHas('serial', function ($q) use ($filters) {
                 $q->where('model_id', $filters['model_id']);
             });
         }
-
         if (!empty($filters['category_id'])) {
             $query->whereHas('serial.model', function ($q) use ($filters) {
                 $q->where('category_id', $filters['category_id']);
             });
         }
-
         if (!empty($filters['transaction_type'])) {
             $query->where('transaction_type', $filters['transaction_type']);
         }
-
         if (!empty($filters['location_type']) && !empty($filters['location_id'])) {
             $query->where(function ($q) use ($filters) {
                 $q->where(function ($sub) use ($filters) {
@@ -134,7 +122,6 @@ class StockReportController extends Controller
             });
         }
 
-        // Calculate summary
         $summary = [
             'total_movements' => (clone $query)->count(),
             'total_in' => (clone $query)->where('quantity', '>', 0)->sum('quantity'),
@@ -143,18 +130,12 @@ class StockReportController extends Controller
 
         $movements = $query->paginate(50)->appends($filters);
 
-        // Get data for filters
         $categories = TerminalCategory::orderBy('category_name')->get();
         $models = TerminalModel::orderBy('model_name')->get();
         $depots = Depot::orderBy('depot_name')->get();
 
         return view('admin.stock-reports.movement', compact(
-            'movements',
-            'summary',
-            'filters',
-            'categories',
-            'models',
-            'depots'
+            'movements', 'summary', 'filters', 'categories', 'models', 'depots'
         ));
     }
 
@@ -169,7 +150,6 @@ class StockReportController extends Controller
             $stockCardData = $this->stockReportService->getStockCard($serialId);
         }
 
-        // Get all serials for dropdown
         $serials = InventorySerial::with('model')
             ->orderBy('serial_no')
             ->get();
@@ -179,9 +159,6 @@ class StockReportController extends Controller
 
     /**
      * Summary Report
-     *
-     * FIXED: Corrected column names from available_quantity/reserved_quantity
-     * to quantity_on_hand/quantity_reserved to match actual database schema
      */
     public function summary(Request $request)
     {
@@ -190,7 +167,7 @@ class StockReportController extends Controller
             'model_id',
             DB::raw('count(*) as total'),
             DB::raw('sum(case when current_status = "in_stock" then 1 else 0 end) as in_stock'),
-            DB::raw('sum(case when current_status = "issued" then 1 else 0 end) as issued'),
+            DB::raw('sum(case when current_status in ("issued","issued_to_tech") then 1 else 0 end) as issued'),
             DB::raw('sum(case when current_status = "installed" then 1 else 0 end) as installed'),
             DB::raw('sum(case when current_status = "faulty" then 1 else 0 end) as faulty')
         )
@@ -200,15 +177,15 @@ class StockReportController extends Controller
             ->orderByDesc('total')
             ->get();
 
-        // Stock by Depot - FIXED column names
+        // Stock by Depot — FIX: correct column names
         $byDepot = StockBalance::select(
             'location_id',
             'location_type',
             'model_id',
-            DB::raw('sum(quantity_on_hand) as on_hand'),  // FIXED: was available_quantity
-            DB::raw('sum(quantity_reserved) as reserved'), // FIXED: was reserved_quantity
-            DB::raw('sum(quantity_available) as available'), // This is computed column
-            DB::raw('sum(quantity_on_hand + quantity_reserved) as total')
+            DB::raw('sum(quantity_on_hand) as on_hand'),
+            DB::raw('sum(quantity_reserved) as reserved'),
+            DB::raw('sum(quantity_on_hand - quantity_reserved) as available'),
+            DB::raw('sum(quantity_on_hand) as total')
         )
             ->where('location_type', 'depot')
             ->with(['model', 'depot'])
@@ -221,14 +198,13 @@ class StockReportController extends Controller
         $byStatus = InventorySerial::select(
             'current_status',
             DB::raw('count(*) as count'),
-            DB::raw('ROUND((count(*) * 100.0 / (select count(*) from inventory_serials)), 2) as percentage')
+            DB::raw('ROUND((count(*) * 100.0 / (SELECT count(*) FROM inventory_serials)), 2) as percentage')
         )
             ->groupBy('current_status')
             ->orderByDesc('count')
             ->get();
 
-        // Stock Aging (by GRN date - when item was received)
-        // FIXED: Changed from purchase_date to grn_date (actual column in database)
+        // Stock Aging
         $aging = InventorySerial::select(
             DB::raw('CASE
                 WHEN grn_date IS NULL THEN "Unknown"
@@ -243,28 +219,24 @@ class StockReportController extends Controller
             ->orderByRaw('FIELD(age_group, "0-3 months", "3-6 months", "6-12 months", "Over 1 year", "Unknown")')
             ->get();
 
-        // Low stock alerts - FIXED column names
+        // Low stock alerts
         $lowStock = StockBalance::select(
             'model_id',
             'location_type',
             'location_id',
-            DB::raw('sum(quantity_on_hand) as on_hand'),     // FIXED: was available_quantity
-            DB::raw('sum(quantity_reserved) as reserved'),   // FIXED: was reserved_quantity
-            DB::raw('sum(quantity_available) as available')  // This is computed column
+            DB::raw('sum(quantity_on_hand) as on_hand'),
+            DB::raw('sum(quantity_reserved) as reserved'),
+            DB::raw('sum(quantity_on_hand - quantity_reserved) as available')
         )
             ->with(['model', 'depot'])
             ->where('location_type', 'depot')
             ->groupBy('model_id', 'location_type', 'location_id')
-            ->havingRaw('available <= 5')
-            ->orderBy('available')
+            ->havingRaw('sum(quantity_on_hand - quantity_reserved) <= 5')
+            ->orderByRaw('sum(quantity_on_hand - quantity_reserved) asc')
             ->get();
 
         return view('admin.stock-reports.summary', compact(
-            'byModel',
-            'byDepot',
-            'byStatus',
-            'aging',
-            'lowStock'
+            'byModel', 'byDepot', 'byStatus', 'aging', 'lowStock'
         ));
     }
 
@@ -274,14 +246,8 @@ class StockReportController extends Controller
     public function exportMovement(Request $request)
     {
         $filters = $request->only([
-            'from_date',
-            'to_date',
-            'serial_no',
-            'model_id',
-            'category_id',
-            'transaction_type',
-            'location_type',
-            'location_id'
+            'from_date', 'to_date', 'serial_no', 'model_id',
+            'category_id', 'transaction_type', 'location_type', 'location_id'
         ]);
 
         $filename = 'stock-movement-report-' . now()->format('Y-m-d-His') . '.xlsx';
