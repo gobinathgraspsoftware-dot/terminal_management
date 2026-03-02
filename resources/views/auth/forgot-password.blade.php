@@ -30,7 +30,7 @@
     <strong>No worries!</strong> Enter your email address and we'll send you a link to reset your password.
 </div>
 
-<!-- Forgot Password Form -->
+<!-- Forgot Password Form (Standard POST — NOT AJAX due to global ajax.auth middleware) -->
 <form method="POST" action="{{ route('password.email') }}" id="forgotPasswordForm">
     @csrf
 
@@ -43,14 +43,14 @@
             <span class="input-group-text">
                 <i class="fas fa-user"></i>
             </span>
-            <input 
-                type="email" 
-                class="form-control @error('email') is-invalid @enderror" 
-                id="email" 
-                name="email" 
-                value="{{ old('email') }}" 
+            <input
+                type="email"
+                class="form-control @error('email') is-invalid @enderror"
+                id="email"
+                name="email"
+                value="{{ old('email') }}"
                 placeholder="Enter your registered email"
-                required 
+                required
                 autofocus
             >
         </div>
@@ -64,7 +64,7 @@
 
     <!-- Submit Button -->
     <div class="d-grid mb-3">
-        <button type="submit" class="btn btn-primary btn-lg">
+        <button type="submit" class="btn btn-primary btn-lg" id="btnSubmit">
             <i class="fas fa-paper-plane me-2"></i>
             Send Reset Link
         </button>
@@ -83,54 +83,49 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Form validation
+    // Client-side validation + loading state (standard form submit)
     $('#forgotPasswordForm').on('submit', function(e) {
-        const email = $('#email').val();
-        
+        var email = $('#email').val();
+
         // Validate email
         if (!email || !isValidEmail(email)) {
             e.preventDefault();
             showFieldError('email', 'Please enter a valid email address');
             return false;
         }
-        
+
         clearFieldError('email');
-        
-        // Show loading state
-        const btn = $(this).find('button[type="submit"]');
-        btn.prop('disabled', true);
-        btn.html('<i class="fas fa-spinner fa-spin me-2"></i> Sending...');
+
+        // Show loading state (form will submit normally via POST)
+        var $btn = $('#btnSubmit');
+        $btn.prop('disabled', true);
+        $btn.html('<i class="fas fa-spinner fa-spin me-2"></i> Sending...');
     });
-    
+
     // Email validation helper
     function isValidEmail(email) {
-        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return re.test(email);
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }
-    
+
     // Show field error
     function showFieldError(fieldId, message) {
-        const field = $('#' + fieldId);
+        var field = $('#' + fieldId);
         field.addClass('is-invalid');
-        
-        // Remove existing error message
         field.closest('.mb-4').find('.invalid-feedback').remove();
-        
-        // Add new error message
         field.closest('.input-group').after(
             '<div class="invalid-feedback d-block">' +
             '<i class="fas fa-exclamation-triangle me-1"></i>' + message +
             '</div>'
         );
     }
-    
+
     // Clear field error
     function clearFieldError(fieldId) {
-        const field = $('#' + fieldId);
+        var field = $('#' + fieldId);
         field.removeClass('is-invalid');
         field.closest('.mb-4').find('.invalid-feedback').remove();
     }
-    
+
     // Clear errors on input
     $('#email').on('input', function() {
         clearFieldError('email');
