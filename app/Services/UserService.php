@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 
@@ -11,41 +10,36 @@ class UserService
 {
     /**
      * Create a new user
+     *
+     * IMPORTANT - Model casts handle these automatically:
+     *   'password' => 'hashed'        → do NOT Hash::make()
+     *   'coverage_states' => 'array'   → do NOT json_encode()
+     *   'skill_tags' => 'array'        → do NOT json_encode()
      */
     public function createUser(array $data): User
     {
         // Handle avatar upload
         if (isset($data['avatar']) && $data['avatar'] instanceof UploadedFile) {
             $data['avatar'] = $this->handleAvatarUpload($data['avatar']);
+        } else {
+            unset($data['avatar']);
         }
 
-        // Hash password
-        if (isset($data['password'])) {
-            $data['password'] = Hash::make($data['password']);
+        // Ensure arrays are proper arrays (Select2 may send strings)
+        if (isset($data['coverage_states']) && is_string($data['coverage_states'])) {
+            $data['coverage_states'] = json_decode($data['coverage_states'], true) ?? [];
+        }
+        if (isset($data['skill_tags']) && is_string($data['skill_tags'])) {
+            $data['skill_tags'] = json_decode($data['skill_tags'], true) ?? [];
         }
 
-        // Convert arrays to JSON
-        if (isset($data['coverage_states']) && is_array($data['coverage_states'])) {
-            $data['coverage_states'] = json_encode($data['coverage_states']);
-        }
-
-        if (isset($data['skill_tags']) && is_array($data['skill_tags'])) {
-            $data['skill_tags'] = json_encode($data['skill_tags']);
-        }
-
-        // Extract role before creating user
+        // Extract non-fillable fields
         $role = $data['role'] ?? null;
-        unset($data['role']);
+        unset($data['role'], $data['has_supervisor'], $data['password_confirmation'], $data['remove_avatar']);
 
-        // Remove non-fillable fields
-        unset($data['has_supervisor']);
-        unset($data['password_confirmation']);
-        unset($data['remove_avatar']);
-
-        // Create user
+        // Create user (password auto-hashed by model cast, arrays auto-encoded)
         $user = User::create($data);
 
-        // Assign role
         if ($role) {
             $user->assignRole($role);
         }
@@ -59,54 +53,43 @@ class UserService
     public function updateUser(User $user, array $data): User
     {
         // Handle remove avatar
-        if (isset($data['remove_avatar']) && $data['remove_avatar']) {
+        if (!empty($data['remove_avatar'])) {
             if ($user->avatar) {
                 $this->deleteAvatar($user->avatar);
             }
             $data['avatar'] = null;
         }
-        // Handle avatar upload
+        // Handle new avatar upload
         elseif (isset($data['avatar']) && $data['avatar'] instanceof UploadedFile) {
-            // Delete old avatar if exists
             if ($user->avatar) {
                 $this->deleteAvatar($user->avatar);
             }
             $data['avatar'] = $this->handleAvatarUpload($data['avatar']);
         } else {
-            // Remove avatar from data if not uploading new one
             unset($data['avatar']);
         }
 
-        // Hash password if provided
-        if (isset($data['password']) && !empty($data['password'])) {
-            $data['password'] = Hash::make($data['password']);
-        } else {
+        // Remove password if empty (user didn't change it)
+        if (empty($data['password'])) {
             unset($data['password']);
-            unset($data['password_confirmation']);
+        }
+        // If password is provided, model cast 'hashed' will auto-hash it
+
+        // Ensure arrays are proper arrays
+        if (isset($data['coverage_states']) && is_string($data['coverage_states'])) {
+            $data['coverage_states'] = json_decode($data['coverage_states'], true) ?? [];
+        }
+        if (isset($data['skill_tags']) && is_string($data['skill_tags'])) {
+            $data['skill_tags'] = json_decode($data['skill_tags'], true) ?? [];
         }
 
-        // Convert arrays to JSON
-        if (isset($data['coverage_states']) && is_array($data['coverage_states'])) {
-            $data['coverage_states'] = json_encode($data['coverage_states']);
-        }
-
-        if (isset($data['skill_tags']) && is_array($data['skill_tags'])) {
-            $data['skill_tags'] = json_encode($data['skill_tags']);
-        }
-
-        // Extract role before updating user
+        // Extract non-fillable fields
         $role = $data['role'] ?? null;
-        unset($data['role']);
-
-        // Remove non-fillable fields
-        unset($data['has_supervisor']);
-        unset($data['password_confirmation']);
-        unset($data['remove_avatar']);
+        unset($data['role'], $data['has_supervisor'], $data['password_confirmation'], $data['remove_avatar']);
 
         // Update user
         $user->update($data);
 
-        // Update role if provided
         if ($role) {
             $user->syncRoles([$role]);
         }
@@ -116,32 +99,31 @@ class UserService
 
     /**
      * Handle avatar file upload
-     * FIX: Use move instead of storeAs for better production compatibility
-     * This stores directly to public/storage/avatars/ bypassing symlink issues
      */
     protected function handleAvatarUpload(UploadedFile $file): string
     {
         $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-
-        // Ensure avatars directory exists
         $directory = 'avatars';
+
         if (!Storage::disk('public')->exists($directory)) {
             Storage::disk('public')->makeDirectory($directory);
         }
 
-        // Store file to public disk
-        $path = $file->storeAs($directory, $filename, 'public');
-
-        return $path;
+        return $file->storeAs($directory, $filename, 'public');
     }
 
     /**
-     * Delete avatar file
+     * Delete avatar file and thumbnail
      */
     protected function deleteAvatar(string $path): void
     {
         if (Storage::disk('public')->exists($path)) {
             Storage::disk('public')->delete($path);
+        }
+
+        $thumbnailPath = str_replace('avatars/', 'avatars/thumbnails/', $path);
+        if (Storage::disk('public')->exists($thumbnailPath)) {
+            Storage::disk('public')->delete($thumbnailPath);
         }
     }
 

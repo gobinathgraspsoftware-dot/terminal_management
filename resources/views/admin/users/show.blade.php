@@ -37,18 +37,18 @@
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body text-center">
                     @if($user->avatar)
-                        <img src="{{ asset('storage/' . $user->avatar) }}" alt="{{ $user->name }}" 
+                        <img src="{{ asset('storage/' . $user->avatar_url) }}" alt="{{ $user->name }}"
                              class="rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover;">
                     @else
-                        <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                        <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
                              style="width: 120px; height: 120px; font-size: 48px;">
                             {{ strtoupper(substr($user->name, 0, 1)) }}
                         </div>
                     @endif
-                    
+
                     <h4 class="mb-1">{{ $user->name }}</h4>
                     <p class="text-muted mb-3">{{ $user->email }}</p>
-                    
+
                     @if($user->roles->isNotEmpty())
                         @foreach($user->roles as $role)
                             <span class="badge bg-{{ $role->name === 'admin' ? 'danger' : ($role->name === 'supervisor' ? 'primary' : 'success') }} me-1">
@@ -56,9 +56,9 @@
                             </span>
                         @endforeach
                     @endif
-                    
+
                     <hr>
-                    
+
                     <div class="d-flex justify-content-around text-center">
                         <div>
                             <h6 class="text-muted mb-0">Status</h6>

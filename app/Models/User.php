@@ -51,6 +51,15 @@ class User extends Authenticatable
     ];
 
     /**
+     * The accessors to append to the model's array/JSON form.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = [
+        'avatar_url',
+    ];
+
+    /**
      * The attributes that should be hidden for serialization.
      *
      * @var array<int, string>
@@ -308,12 +317,12 @@ class User extends Authenticatable
     public function getAvatarUrlAttribute(): string
     {
         if ($this->avatar) {
-            // Use Storage::url() which works regardless of symlink
-            return \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar);
+            // Use asset('storage/...') - consistent with sidebar_blade.php
+            return asset('storage/' . $this->avatar);
         }
 
         // Default avatar based on first letter
-        $initial = strtoupper(substr($this->name, 0, 1));
+        $initial = strtoupper(substr($this->name ?? 'U', 0, 1));
         return "https://ui-avatars.com/api/?name={$initial}&size=200&background=random";
     }
 

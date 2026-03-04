@@ -50,7 +50,10 @@
                     <div class="avatar-preview mx-auto mb-2" id="avatarPreview"
                          style="width:100px;height:100px;border-radius:50%;background:#e9ecef;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:#6c757d;overflow:hidden;">
                         @if($user->avatar)
-                            <img src="{{ $user->avatar_url }}" style="width:100%;height:100%;object-fit:cover;" alt="Avatar">
+                            <img src="{{ asset('storage/' . $user->avatar) }}"
+                                 style="width:100%;height:100%;object-fit:cover;"
+                                 alt="{{ $user->name }}"
+                                 onerror="this.onerror=null;this.parentElement.innerHTML='{{ strtoupper(substr($user->name, 0, 1)) }}';">
                         @else
                             {{ strtoupper(substr($user->name, 0, 1)) }}
                         @endif
@@ -426,7 +429,7 @@ $(document).ready(function() {
 
         $.ajax({
             url: '{{ route("admin.users.change-password", $user->id) }}',
-            type: 'POST',
+            type: 'POST',  // FIX: Must be POST to match Route::post() definition
             data: {
                 _token: $('meta[name="csrf-token"]').attr('content'),
                 new_password: newPassword,

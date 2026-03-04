@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\User;
 use App\Models\LoginHistory;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -33,11 +32,15 @@ class ProfileService
 
     /**
      * Update user password.
+     *
+     * IMPORTANT: User model has 'password' => 'hashed' cast.
+     * Eloquent auto-hashes on set. Do NOT call Hash::make() here.
      */
     public function updatePassword(User $user, string $newPassword): void
     {
+        // Model cast 'hashed' will auto-hash this - do NOT Hash::make()
         $user->update([
-            'password' => Hash::make($newPassword),
+            'password' => $newPassword,
         ]);
     }
 
@@ -94,7 +97,6 @@ class ProfileService
             ]);
 
             // Step 4: Store the file
-            Log::info('Attempting to store file...');
             $stored = $file->storeAs($directory, $filename, 'public');
 
             if (!$stored) {
@@ -115,7 +117,7 @@ class ProfileService
             Log::info('File verified on disk', [
                 'path' => $storedPath,
                 'size' => $fileSize,
-                'exists' => file_exists($storedPath)
+                'exists' => true
             ]);
 
             // Step 6: Create thumbnail
@@ -124,18 +126,11 @@ class ProfileService
                 Log::info('Thumbnail created successfully');
             } catch (\Exception $e) {
                 Log::warning('Failed to create thumbnail', ['error' => $e->getMessage()]);
-                // Continue even if thumbnail fails
             }
 
-            // Step 7: Update database using DB facade for better debugging
-            Log::info('Updating database...', [
-                'user_id' => $user->id,
-                'new_avatar_path' => $path
-            ]);
-
+            // Step 7: Update database
             DB::beginTransaction();
             try {
-                // Update using query builder for explicit control
                 DB::table('users')
                     ->where('id', $user->id)
                     ->update([
@@ -144,13 +139,10 @@ class ProfileService
                     ]);
 
                 DB::commit();
-                Log::info('Database updated successfully via DB facade');
+                Log::info('Database updated successfully');
             } catch (\Exception $e) {
                 DB::rollBack();
-                Log::error('Database update failed', [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
+                Log::error('Database update failed', ['error' => $e->getMessage()]);
                 throw new \Exception('Failed to update avatar in database: ' . $e->getMessage());
             }
 
@@ -159,7 +151,6 @@ class ProfileService
             Log::info('Database verification', [
                 'user_id' => $user->id,
                 'avatar_in_db' => $updatedUser->avatar,
-                'updated_at' => $updatedUser->updated_at
             ]);
 
             if ($updatedUser->avatar !== $path) {
@@ -172,13 +163,10 @@ class ProfileService
 
             // Step 9: Refresh the user model
             $user->refresh();
-            Log::info('User model refreshed', ['user_avatar' => $user->avatar]);
 
             Log::info('=== AVATAR UPLOAD SUCCESS ===', [
                 'user_id' => $user->id,
                 'avatar_path' => $path,
-                'file_size' => $fileSize,
-                'db_updated' => true
             ]);
 
             return $path;
@@ -187,7 +175,6 @@ class ProfileService
             Log::error('=== AVATAR UPLOAD FAILED ===', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine()
             ]);
@@ -205,16 +192,11 @@ class ProfileService
 
         if (!Storage::disk('public')->exists($thumbnailDir)) {
             Storage::disk('public')->makeDirectory($thumbnailDir);
-            Log::info('Created thumbnails directory');
         }
 
         $thumbnailPath = storage_path('app/public/' . $thumbnailDir . '/' . $filename);
 
-        // Simple resize without intervention/image package
-        // Just copy the file for now - can be enhanced with image processing library
-        if (copy($file->getRealPath(), $thumbnailPath)) {
-            Log::info('Thumbnail file copied', ['path' => $thumbnailPath]);
-        } else {
+        if (!copy($file->getRealPath(), $thumbnailPath)) {
             throw new \Exception('Failed to create thumbnail');
         }
     }
@@ -251,8 +233,8 @@ class ProfileService
             'bank_name' => $data['bank_name'],
             'bank_account_no' => $data['bank_account_no'],
             'bank_account_name' => $data['bank_account_name'],
-            'ifsc_code' => $data['ifsc_code'],
-            'branch_name' => $data['branch_name'],
+            'ifsc_code' => $data['ifsc_code'] ?? null,
+            'branch_name' => $data['branch_name'] ?? null,
         ]);
 
         return $user->fresh();
@@ -301,16 +283,15 @@ class ProfileService
     }
 
     /**
-     * Get avatar URL.
+     * Get avatar URL - uses Storage::disk('public')->url() for production compatibility
      */
     public function getAvatarUrl(?string $avatar): string
     {
         if ($avatar && Storage::disk('public')->exists($avatar)) {
-            return Storage::url($avatar);
+            return Storage::disk('public')->url($avatar);
         }
 
-        // Return default avatar
-        return asset('images/default-avatar.png');
+        return 'https://ui-avatars.com/api/?name=U&size=200&background=random';
     }
 
     /**
@@ -321,12 +302,11 @@ class ProfileService
         if ($avatar) {
             $thumbnailPath = str_replace('avatars/', 'avatars/thumbnails/', $avatar);
             if (Storage::disk('public')->exists($thumbnailPath)) {
-                return Storage::url($thumbnailPath);
+                return Storage::disk('public')->url($thumbnailPath);
             }
         }
 
-        // Return default avatar
-        return asset('images/default-avatar.png');
+        return 'https://ui-avatars.com/api/?name=U&size=200&background=random';
     }
 
     /**
@@ -356,9 +336,9 @@ class ProfileService
         ];
 
         // Add bank details for technicians
-        if ($user->hasRole('Technician')) {
+        if ($user->hasRole('technician')) {
             $fields = array_merge($fields, [
-                'bank_name', 'bank_account_no', 'bank_account_name', 'ifsc_code'
+                'bank_name', 'bank_account_no', 'bank_account_name'
             ]);
         }
 

@@ -12,7 +12,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Spatie\Permission\Models\Role;
@@ -34,12 +33,8 @@ class UserController extends Controller
      */
     public function index(): View
     {
-        $currentUser = Auth::user();
-
-        // Get roles for filter dropdown
         $roles = Role::all();
 
-        // Get supervisors for assignment dropdown
         $supervisors = User::role('supervisor')
             ->where('status', 'active')
             ->get(['id', 'name']);
@@ -54,22 +49,18 @@ class UserController extends Controller
     {
         $currentUser = Auth::user();
 
-        // Base query with team scoping
         $query = User::with(['roles', 'supervisor'])
             ->select('users.*');
 
         // Apply team scoping
         if ($currentUser->hasRole('supervisor')) {
-            // Supervisor sees only their team technicians
             $query->where(function($q) use ($currentUser) {
                 $q->where('supervisor_id', $currentUser->id)
-                  ->orWhere('id', $currentUser->id); // Include self
+                  ->orWhere('id', $currentUser->id);
             });
         } elseif ($currentUser->hasRole('technician')) {
-            // Technician sees only self
             $query->where('id', $currentUser->id);
         }
-        // Admin sees all users (no additional filter)
 
         return DataTables::of($query)
             ->addColumn('role', function ($user) {
@@ -80,7 +71,7 @@ class UserController extends Controller
                         'technician' => 'success',
                         default => 'secondary'
                     };
-                    return "<span class='badge bg-{$badgeClass}'>{$role}</span>";
+                    return "<span class='badge bg-{$badgeClass}'>" . ucfirst($role) . "</span>";
                 })->join(' ');
                 return $roles ?: '<span class="badge bg-secondary">No Role</span>';
             })
@@ -99,39 +90,34 @@ class UserController extends Controller
             ->addColumn('actions', function ($user) use ($currentUser) {
                 $actions = '<div class="btn-group" role="group">';
 
-                // View button
                 if ($currentUser->can('view_users')) {
                     $actions .= '<button type="button" class="btn btn-sm btn-info view-user" data-id="' . $user->id . '" title="View" data-bs-toggle="tooltip">
-                        <i class="fas fa-eye"></i>
+                        <i class="bi bi-eye"></i>
                     </button>';
                 }
 
-                // Edit button
                 if ($currentUser->can('edit_users')) {
                     $actions .= '<a href="' . route('admin.users.edit', $user->id) . '" class="btn btn-sm btn-primary" title="Edit" data-bs-toggle="tooltip">
-                        <i class="fas fa-edit"></i>
+                        <i class="bi bi-pencil-square"></i>
                     </a>';
                 }
 
-                // Delete button (don't allow deleting self)
                 if ($currentUser->can('delete_users') && $user->id !== $currentUser->id) {
                     if ($user->trashed()) {
                         $actions .= '<button type="button" class="btn btn-sm btn-success restore-user" data-id="' . $user->id . '" title="Restore" data-bs-toggle="tooltip">
-                            <i class="fas fa-undo"></i>
+                            <i class="bi bi-arrow-counterclockwise"></i>
                         </button>';
                     } else {
                         $actions .= '<button type="button" class="btn btn-sm btn-danger delete-user" data-id="' . $user->id . '" title="Delete" data-bs-toggle="tooltip">
-                            <i class="fas fa-trash"></i>
+                            <i class="bi bi-trash"></i>
                         </button>';
                     }
                 }
 
                 $actions .= '</div>';
-
                 return $actions ?: '<span class="text-muted small">No actions</span>';
             })
             ->filter(function ($query) use ($request) {
-                // Search functionality
                 if ($request->has('search') && $request->search['value']) {
                     $searchValue = $request->search['value'];
                     $query->where(function($q) use ($searchValue) {
@@ -141,19 +127,16 @@ class UserController extends Controller
                     });
                 }
 
-                // Role filter
                 if ($request->has('role') && $request->role) {
                     $query->whereHas('roles', function($q) use ($request) {
                         $q->where('name', $request->role);
                     });
                 }
 
-                // Status filter
                 if ($request->has('status') && $request->status) {
                     $query->where('status', $request->status);
                 }
 
-                // Supervisor filter
                 if ($request->has('supervisor_id') && $request->supervisor_id) {
                     if ($request->supervisor_id === 'null') {
                         $query->whereNull('supervisor_id');
@@ -177,14 +160,12 @@ class UserController extends Controller
             ->where('status', 'active')
             ->get(['id', 'name']);
 
-        // Coverage states (Malaysian states)
         $states = [
             'Johor', 'Kedah', 'Kelantan', 'Malacca', 'Negeri Sembilan',
             'Pahang', 'Penang', 'Perak', 'Perlis', 'Sabah', 'Sarawak',
             'Selangor', 'Terengganu', 'Kuala Lumpur', 'Labuan', 'Putrajaya'
         ];
 
-        // Skill tags
         $skillTags = [
             'Installation', 'Repair', 'Troubleshooting', 'Maintenance',
             'Network Setup', 'POS Configuration', 'Training', 'Collection'
@@ -199,7 +180,6 @@ class UserController extends Controller
     public function store(StoreUserRequest $request): JsonResponse
     {
         try {
-            // Check authorization - user must have create_users permission
             if (!Auth::user()->can('create_users')) {
                 return response()->json([
                     'success' => false,
@@ -213,11 +193,10 @@ class UserController extends Controller
 
             DB::commit();
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
-                ->withProperties($request->except('password'))
+                ->withProperties($request->except('password', 'password_confirmation'))
                 ->log('User created');
 
             return response()->json([
@@ -242,15 +221,17 @@ class UserController extends Controller
      */
     public function show(User $user): JsonResponse
     {
-        // Check authorization
         $this->authorize('view', $user);
 
-        // Load relationships
         $user->load(['roles', 'supervisor']);
+
+        // Append avatar_url for JSON response
+        $userData = $user->toArray();
+        $userData['avatar_url'] = $user->avatar_url;
 
         return response()->json([
             'success' => true,
-            'user' => $user
+            'user' => $userData
         ]);
     }
 
@@ -259,24 +240,21 @@ class UserController extends Controller
      */
     public function edit(User $user): View
     {
-        // Check authorization
         $this->authorize('update', $user);
 
         $roles = Role::all();
 
         $supervisors = User::role('supervisor')
             ->where('status', 'active')
-            ->where('id', '!=', $user->id) // Exclude current user
+            ->where('id', '!=', $user->id)
             ->get(['id', 'name']);
 
-        // Coverage states (Malaysian states)
         $states = [
             'Johor', 'Kedah', 'Kelantan', 'Malacca', 'Negeri Sembilan',
             'Pahang', 'Penang', 'Perak', 'Perlis', 'Sabah', 'Sarawak',
             'Selangor', 'Terengganu', 'Kuala Lumpur', 'Labuan', 'Putrajaya'
         ];
 
-        // Skill tags
         $skillTags = [
             'Installation', 'Repair', 'Troubleshooting', 'Maintenance',
             'Network Setup', 'POS Configuration', 'Training', 'Collection'
@@ -291,7 +269,6 @@ class UserController extends Controller
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
         try {
-            // Check authorization
             $this->authorize('update', $user);
 
             DB::beginTransaction();
@@ -300,11 +277,10 @@ class UserController extends Controller
 
             DB::commit();
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($updatedUser)
-                ->withProperties($request->except('password'))
+                ->withProperties($request->except('password', 'password_confirmation'))
                 ->log('User updated');
 
             return response()->json([
@@ -330,10 +306,8 @@ class UserController extends Controller
     public function destroy(User $user): JsonResponse
     {
         try {
-            // Check authorization
             $this->authorize('delete', $user);
 
-            // Prevent deleting self
             if ($user->id === Auth::id()) {
                 return response()->json([
                     'success' => false,
@@ -342,11 +316,8 @@ class UserController extends Controller
             }
 
             $user->delete();
-
-            // Revoke all tokens
             $user->tokens()->delete();
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
@@ -372,13 +343,10 @@ class UserController extends Controller
     {
         try {
             $user = User::withTrashed()->findOrFail($id);
-
-            // Check authorization
             $this->authorize('restore', $user);
 
             $user->restore();
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
@@ -399,15 +367,18 @@ class UserController extends Controller
 
     /**
      * Change user password
+     *
+     * IMPORTANT: Model cast 'password' => 'hashed' auto-hashes.
+     * Do NOT call Hash::make() - just pass the plain password.
      */
     public function changePassword(ChangePasswordRequest $request, User $user): JsonResponse
     {
         try {
-            // Check authorization
             $this->authorize('update', $user);
 
+            // Model cast 'hashed' will auto-hash this
             $user->update([
-                'password' => Hash::make($request->new_password)
+                'password' => $request->new_password
             ]);
 
             // Revoke all tokens if changing own password
@@ -415,7 +386,6 @@ class UserController extends Controller
                 $user->tokens()->delete();
             }
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
@@ -440,17 +410,14 @@ class UserController extends Controller
     public function assignRole(Request $request, User $user): JsonResponse
     {
         try {
-            // Check authorization
             $this->authorize('update', $user);
 
             $request->validate([
                 'role' => 'required|exists:roles,name'
             ]);
 
-            // Sync role (replace existing)
             $user->syncRoles([$request->role]);
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
@@ -476,14 +443,12 @@ class UserController extends Controller
     public function assignSupervisor(Request $request, User $user): JsonResponse
     {
         try {
-            // Check authorization
             $this->authorize('update', $user);
 
             $request->validate([
                 'supervisor_id' => 'nullable|exists:users,id'
             ]);
 
-            // Verify supervisor has supervisor role
             if ($request->supervisor_id) {
                 $supervisor = User::findOrFail($request->supervisor_id);
                 if (!$supervisor->hasRole('supervisor')) {
@@ -498,7 +463,6 @@ class UserController extends Controller
                 'supervisor_id' => $request->supervisor_id
             ]);
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
@@ -524,10 +488,8 @@ class UserController extends Controller
     public function toggleStatus(User $user): JsonResponse
     {
         try {
-            // Check authorization
             $this->authorize('update', $user);
 
-            // Prevent deactivating self
             if ($user->id === Auth::id()) {
                 return response()->json([
                     'success' => false,
@@ -536,15 +498,12 @@ class UserController extends Controller
             }
 
             $newStatus = $user->status === 'active' ? 'inactive' : 'active';
-
             $user->update(['status' => $newStatus]);
 
-            // If deactivating, revoke all tokens
             if ($newStatus === 'inactive') {
                 $user->tokens()->delete();
             }
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
@@ -598,20 +557,6 @@ class UserController extends Controller
     }
 
     /**
-     * Export users to Excel
-     */
-    public function export(Request $request)
-    {
-        // Implementation for export functionality
-        // You can use Laravel Excel package or generate CSV
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Export functionality not yet implemented'
-        ]);
-    }
-
-    /**
      * Bulk delete users
      */
     public function bulkDelete(Request $request): JsonResponse
@@ -622,7 +567,6 @@ class UserController extends Controller
                 'user_ids.*' => 'exists:users,id'
             ]);
 
-            // Prevent deleting self
             if (in_array(Auth::id(), $request->user_ids)) {
                 return response()->json([
                     'success' => false,
@@ -630,10 +574,8 @@ class UserController extends Controller
                 ], 403);
             }
 
-            $deletedCount = User::whereIn('id', $request->user_ids)
-                ->delete();
+            $deletedCount = User::whereIn('id', $request->user_ids)->delete();
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->withProperties(['user_ids' => $request->user_ids])

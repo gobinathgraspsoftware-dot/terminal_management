@@ -160,13 +160,7 @@ $(document).ready(function() {
             }
         },
         columns: [
-            {
-                data: 'id',
-                name: 'id',
-                render: function (data, type, row, meta) {
-                    return meta.row + meta.settings._iDisplayStart + 1;
-                }
-            },
+            { data: 'id', name: 'id' },
             { data: 'name', name: 'name' },
             { data: 'email', name: 'email' },
             { data: 'employee_id', name: 'employee_id', defaultContent: '-' },
@@ -214,9 +208,12 @@ $(document).ready(function() {
 
                     var statusClass = user.status === 'active' ? 'success' : (user.status === 'inactive' ? 'warning' : 'danger');
 
+                    var avatarUrl = user.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=200&background=random';
+                    var initial = user.name ? user.name.charAt(0).toUpperCase() : 'U';
+
                     var html = '<div class="row">';
                     html += '<div class="col-md-4 text-center mb-3">';
-                    html += '<img src="' + (user.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=200&background=random') + '" class="rounded-circle img-fluid" style="width:120px;height:120px;object-fit:cover;" alt="Avatar">';
+                    html += '<img src="' + avatarUrl + '" class="rounded-circle img-fluid" style="width:120px;height:120px;object-fit:cover;" alt="' + user.name + '" onerror="this.onerror=null;this.src=\'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=200&background=random\';">';
                     html += '<h5 class="mt-2 mb-0">' + user.name + '</h5>';
                     html += '<p class="text-muted">' + roleBadge + '</p>';
                     html += '</div>';
