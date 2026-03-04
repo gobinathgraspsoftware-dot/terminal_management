@@ -2,15 +2,11 @@
 
 namespace App\Http\Requests\Admin\Team;
 
-use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * BulkAssignRequest
- * 
- * Validates bulk technician assignment. Admin only.
- * 
- * @package App\Http\Requests\Admin\Team
+ * Validates bulk technician assignment.
+ * Used by: Admin\TeamController::bulkAssign()
  */
 class BulkAssignRequest extends FormRequest
 {
@@ -22,35 +18,10 @@ class BulkAssignRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'technician_ids' => ['required', 'array', 'min:1', 'max:100'],
-            'technician_ids.*' => ['required', 'integer', 'exists:users,id'],
-            'supervisor_id' => ['nullable', 'integer', 'exists:users,id'],
+            'technician_ids' => 'required|array|min:1',
+            'technician_ids.*' => 'exists:users,id',
+            'supervisor_id' => 'nullable|exists:users,id',
         ];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'technician_ids.required' => 'Select at least one technician.',
-            'technician_ids.min' => 'Select at least one technician.',
-            'technician_ids.max' => 'Maximum 100 technicians per batch.',
-            'supervisor_id.exists' => 'Supervisor not found.',
-        ];
-    }
-
-    public function withValidator($validator): void
-    {
-        $validator->after(function ($validator) {
-            if ($this->supervisor_id) {
-                $sup = User::find($this->supervisor_id);
-                if ($sup && !$sup->hasRole('supervisor')) {
-                    $validator->errors()->add('supervisor_id', 'User is not a supervisor.');
-                }
-                if (in_array($this->supervisor_id, $this->technician_ids ?? [])) {
-                    $validator->errors()->add('technician_ids', 'Supervisor cannot be in own team.');
-                }
-            }
-        });
     }
 
     protected function prepareForValidation(): void
@@ -61,5 +32,14 @@ class BulkAssignRequest extends FormRequest
         if ($this->technician_ids && !is_array($this->technician_ids)) {
             $this->merge(['technician_ids' => [$this->technician_ids]]);
         }
+    }
+
+    public function messages(): array
+    {
+        return [
+            'technician_ids.required' => 'Please select at least one technician.',
+            'technician_ids.min' => 'Please select at least one technician.',
+            'supervisor_id.exists' => 'Selected supervisor does not exist.',
+        ];
     }
 }

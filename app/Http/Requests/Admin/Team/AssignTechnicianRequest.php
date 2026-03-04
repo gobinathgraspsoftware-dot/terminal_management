@@ -2,15 +2,11 @@
 
 namespace App\Http\Requests\Admin\Team;
 
-use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * AssignTechnicianRequest
- * 
- * Validates single technician assignment. Admin only.
- * 
- * @package App\Http\Requests\Admin\Team
+ * Validates single technician assignment.
+ * Used by: Admin\TeamController::assign()
  */
 class AssignTechnicianRequest extends FormRequest
 {
@@ -22,37 +18,9 @@ class AssignTechnicianRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'technician_id' => ['required', 'integer', 'exists:users,id'],
-            'supervisor_id' => ['nullable', 'integer', 'exists:users,id', 'different:technician_id'],
+            'technician_id' => 'required|exists:users,id',
+            'supervisor_id' => 'nullable|exists:users,id',
         ];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'technician_id.required' => 'Please select a technician.',
-            'technician_id.exists' => 'Technician not found.',
-            'supervisor_id.exists' => 'Supervisor not found.',
-            'supervisor_id.different' => 'Cannot assign to self.',
-        ];
-    }
-
-    public function withValidator($validator): void
-    {
-        $validator->after(function ($validator) {
-            if ($this->technician_id) {
-                $tech = User::find($this->technician_id);
-                if ($tech && !$tech->hasRole('technician')) {
-                    $validator->errors()->add('technician_id', 'User is not a technician.');
-                }
-            }
-            if ($this->supervisor_id) {
-                $sup = User::find($this->supervisor_id);
-                if ($sup && !$sup->hasRole('supervisor')) {
-                    $validator->errors()->add('supervisor_id', 'User is not a supervisor.');
-                }
-            }
-        });
     }
 
     protected function prepareForValidation(): void
@@ -60,5 +28,14 @@ class AssignTechnicianRequest extends FormRequest
         if ($this->supervisor_id === '' || $this->supervisor_id === '0') {
             $this->merge(['supervisor_id' => null]);
         }
+    }
+
+    public function messages(): array
+    {
+        return [
+            'technician_id.required' => 'Please select a technician.',
+            'technician_id.exists' => 'Selected technician does not exist.',
+            'supervisor_id.exists' => 'Selected supervisor does not exist.',
+        ];
     }
 }

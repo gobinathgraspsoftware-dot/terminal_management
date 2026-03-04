@@ -280,6 +280,9 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
+    // Suppress DataTable alert popups - log to console instead
+    $.fn.dataTable.ext.errMode = 'none';
+
     var currentView = '{{ $currentView }}';
 
     @if($currentView === 'supervisors')
@@ -292,15 +295,18 @@ $(document).ready(function() {
             data: function(d) {
                 d.view = 'supervisors';
                 d.status = $('#filterStatus').val();
+            },
+            error: function(xhr, error, thrown) {
+                console.error('Supervisors DataTable Error:', xhr.status, xhr.responseText);
             }
         },
         columns: [
-            { data: 'employee_id' },
-            { data: 'name' },
-            { data: 'team_count' },
-            { data: 'coverage' },
-            { data: 'status_badge' },
-            { data: 'actions', orderable: false }
+            { data: 'employee_id', name: 'employee_id' },
+            { data: 'name', name: 'name' },
+            { data: 'team_count', name: 'team_count', searchable: false, orderable: false },
+            { data: 'coverage', name: 'coverage', searchable: false, orderable: false },
+            { data: 'status_badge', name: 'status_badge', searchable: false, orderable: false },
+            { data: 'actions', name: 'actions', searchable: false, orderable: false }
         ],
         order: [[1, 'asc']],
         language: {
@@ -318,22 +324,27 @@ $(document).ready(function() {
                 d.view = currentView;
                 d.supervisor_id = $('#filterSupervisor').val();
                 d.status = $('#filterStatus').val();
+            },
+            error: function(xhr, error, thrown) {
+                console.error('Technicians DataTable Error:', xhr.status, xhr.responseText);
             }
         },
         columns: [
             {
                 data: null,
+                name: 'checkbox',
+                searchable: false,
                 orderable: false,
                 render: function(data) {
                     return '<input type="checkbox" class="form-check-input row-select" value="' + data.id + '">';
                 }
             },
-            { data: 'employee_id' },
-            { data: 'name' },
-            { data: 'supervisor_name' },
-            { data: 'coverage' },
-            { data: 'status_badge' },
-            { data: 'actions', orderable: false }
+            { data: 'employee_id', name: 'employee_id' },
+            { data: 'name', name: 'name' },
+            { data: 'supervisor_name', name: 'supervisor_name', searchable: false, orderable: false },
+            { data: 'coverage', name: 'coverage', searchable: false, orderable: false },
+            { data: 'status_badge', name: 'status_badge', searchable: false, orderable: false },
+            { data: 'actions', name: 'actions', searchable: false, orderable: false }
         ],
         order: [[2, 'asc']],
         language: {
