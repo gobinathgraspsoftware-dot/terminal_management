@@ -18,33 +18,38 @@ class UserService
         if (isset($data['avatar']) && $data['avatar'] instanceof UploadedFile) {
             $data['avatar'] = $this->handleAvatarUpload($data['avatar']);
         }
-        
+
         // Hash password
         if (isset($data['password'])) {
             $data['password'] = Hash::make($data['password']);
         }
-        
+
         // Convert arrays to JSON
         if (isset($data['coverage_states']) && is_array($data['coverage_states'])) {
             $data['coverage_states'] = json_encode($data['coverage_states']);
         }
-        
+
         if (isset($data['skill_tags']) && is_array($data['skill_tags'])) {
             $data['skill_tags'] = json_encode($data['skill_tags']);
         }
-        
+
         // Extract role before creating user
         $role = $data['role'] ?? null;
         unset($data['role']);
-        
+
+        // Remove non-fillable fields
+        unset($data['has_supervisor']);
+        unset($data['password_confirmation']);
+        unset($data['remove_avatar']);
+
         // Create user
         $user = User::create($data);
-        
+
         // Assign role
         if ($role) {
             $user->assignRole($role);
         }
-        
+
         return $user->fresh(['roles', 'supervisor']);
     }
 
@@ -53,60 +58,80 @@ class UserService
      */
     public function updateUser(User $user, array $data): User
     {
+        // Handle remove avatar
+        if (isset($data['remove_avatar']) && $data['remove_avatar']) {
+            if ($user->avatar) {
+                $this->deleteAvatar($user->avatar);
+            }
+            $data['avatar'] = null;
+        }
         // Handle avatar upload
-        if (isset($data['avatar']) && $data['avatar'] instanceof UploadedFile) {
+        elseif (isset($data['avatar']) && $data['avatar'] instanceof UploadedFile) {
             // Delete old avatar if exists
             if ($user->avatar) {
                 $this->deleteAvatar($user->avatar);
             }
-            
             $data['avatar'] = $this->handleAvatarUpload($data['avatar']);
         } else {
             // Remove avatar from data if not uploading new one
             unset($data['avatar']);
         }
-        
+
         // Hash password if provided
         if (isset($data['password']) && !empty($data['password'])) {
             $data['password'] = Hash::make($data['password']);
         } else {
-            // Remove password from data if not updating
             unset($data['password']);
             unset($data['password_confirmation']);
         }
-        
+
         // Convert arrays to JSON
         if (isset($data['coverage_states']) && is_array($data['coverage_states'])) {
             $data['coverage_states'] = json_encode($data['coverage_states']);
         }
-        
+
         if (isset($data['skill_tags']) && is_array($data['skill_tags'])) {
             $data['skill_tags'] = json_encode($data['skill_tags']);
         }
-        
+
         // Extract role before updating user
         $role = $data['role'] ?? null;
         unset($data['role']);
-        
+
+        // Remove non-fillable fields
+        unset($data['has_supervisor']);
+        unset($data['password_confirmation']);
+        unset($data['remove_avatar']);
+
         // Update user
         $user->update($data);
-        
+
         // Update role if provided
         if ($role) {
             $user->syncRoles([$role]);
         }
-        
+
         return $user->fresh(['roles', 'supervisor']);
     }
 
     /**
      * Handle avatar file upload
+     * FIX: Use move instead of storeAs for better production compatibility
+     * This stores directly to public/storage/avatars/ bypassing symlink issues
      */
     protected function handleAvatarUpload(UploadedFile $file): string
     {
         $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-        $path = $file->storeAs('avatars', $filename, 'public');
-        
+
+        // Ensure avatars directory exists
+        $directory = 'avatars';
+        if (!Storage::disk('public')->exists($directory)) {
+            Storage::disk('public')->makeDirectory($directory);
+        }
+
+        // Store file to public disk
+        $path = $file->storeAs($directory, $filename, 'public');
+
         return $path;
     }
 
@@ -127,18 +152,18 @@ class UserService
     {
         $year = date('Y');
         $prefix = "EMP{$year}";
-        
+
         $lastUser = User::where('employee_id', 'like', "{$prefix}%")
                         ->orderBy('employee_id', 'desc')
                         ->first();
-        
+
         if ($lastUser) {
             $lastNumber = (int) substr($lastUser->employee_id, -4);
             $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
         } else {
             $newNumber = '0001';
         }
-        
+
         return $prefix . $newNumber;
     }
 
@@ -148,15 +173,14 @@ class UserService
     public function getUsersByRole(string $role, ?User $currentUser = null): \Illuminate\Database\Eloquent\Collection
     {
         $query = User::role($role)->where('status', 'active');
-        
-        // Apply team scoping if current user is supervisor
+
         if ($currentUser && $currentUser->hasRole('supervisor')) {
             $query->where(function($q) use ($currentUser) {
                 $q->where('supervisor_id', $currentUser->id)
                   ->orWhere('id', $currentUser->id);
             });
         }
-        
+
         return $query->get();
     }
 
@@ -184,22 +208,19 @@ class UserService
      */
     public function canAccessUser(User $currentUser, User $targetUser): bool
     {
-        // Admin can access all
         if ($currentUser->hasRole('admin')) {
             return true;
         }
-        
-        // Supervisor can access their team
+
         if ($currentUser->hasRole('supervisor')) {
-            return $targetUser->id === $currentUser->id 
+            return $targetUser->id === $currentUser->id
                 || $targetUser->supervisor_id === $currentUser->id;
         }
-        
-        // Technician can only access self
+
         if ($currentUser->hasRole('technician')) {
             return $targetUser->id === $currentUser->id;
         }
-        
+
         return false;
     }
 
@@ -229,7 +250,7 @@ class UserService
     public function getSupervisorStatistics(User $supervisor): array
     {
         $teamMembers = $this->getSupervisorTeam($supervisor);
-        
+
         return [
             'total_team_members' => $teamMembers->count(),
             'active_team_members' => $teamMembers->where('status', 'active')->count(),

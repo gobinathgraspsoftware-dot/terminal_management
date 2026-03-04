@@ -205,7 +205,7 @@
             </div>
 
             <!-- Job Management Section -->
-            @php
+            {{-- @php
                 $isJobRoute = str_contains($currentRoute ?? '', 'admin.jobs');
             @endphp
             <div class="nav-section mb-3">
@@ -227,7 +227,7 @@
                         </a>
                     </li>
                 </ul>
-            </div>
+            </div> --}}
 
             @php
                 $isInventoryDashboardRoute = str_contains($currentRoute ?? '', 'admin.inventory-dashboard');
@@ -783,7 +783,7 @@
             </div>
 
             <!-- Job Management Section -->
-            <div class="nav-section mb-3">
+            {{-- <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Job Management</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
@@ -797,7 +797,7 @@
                         </a>
                     </li>
                 </ul>
-            </div>
+            </div> --}}
 
             <!-- Approvals Section -->
             <div class="nav-section mb-3">
@@ -1069,7 +1069,7 @@
             </div>
 
             <!-- My Work Section -->
-            <div class="nav-section mb-3">
+            {{-- <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">My Work</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
@@ -1084,7 +1084,7 @@
                         </a>
                     </li>
                 </ul>
-            </div>
+            </div> --}}
 
             <!-- My Stock Reports Section -->
             @php

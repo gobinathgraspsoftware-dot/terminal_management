@@ -308,7 +308,8 @@ class User extends Authenticatable
     public function getAvatarUrlAttribute(): string
     {
         if ($this->avatar) {
-            return asset('storage/' . $this->avatar);
+            // Use Storage::url() which works regardless of symlink
+            return \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar);
         }
 
         // Default avatar based on first letter

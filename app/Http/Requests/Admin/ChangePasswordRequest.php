@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Auth;
 
 class ChangePasswordRequest extends FormRequest
 {
@@ -12,7 +12,7 @@ class ChangePasswordRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()->can('users.edit');
+        return Auth::check() && Auth::user()->can('edit_users');
     }
 
     /**
@@ -21,41 +21,19 @@ class ChangePasswordRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'password' => [
-                'required',
-                'string',
-                'confirmed',
-                Password::min(8)
-                    ->mixedCase()
-                    ->numbers()
-                    ->symbols()
-                    ->uncompromised(),
-            ],
-            'password_confirmation' => ['required', 'string'],
+            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
         ];
     }
 
     /**
-     * Get custom messages for validator errors.
+     * Get custom validation messages
      */
     public function messages(): array
     {
         return [
-            'password.required' => 'Password is required.',
-            'password.confirmed' => 'Password confirmation does not match.',
-            'password.min' => 'Password must be at least 8 characters.',
-            'password_confirmation.required' => 'Please confirm the password.',
-        ];
-    }
-
-    /**
-     * Get custom attributes for validator errors.
-     */
-    public function attributes(): array
-    {
-        return [
-            'password' => 'password',
-            'password_confirmation' => 'password confirmation',
+            'new_password.required' => 'Please enter the new password.',
+            'new_password.min' => 'Password must be at least 8 characters long.',
+            'new_password.confirmed' => 'Password confirmation does not match.',
         ];
     }
 }

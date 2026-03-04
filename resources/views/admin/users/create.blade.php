@@ -1,15 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Create User')
+@section('title', 'Create User - TMS')
 
 @section('content')
 <div class="container-fluid">
-    <!-- Page Header -->
+    {{-- Page Header --}}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-0 text-gray-800">
-                <i class="fas fa-user-plus"></i> Create New User
-            </h1>
+            <h4 class="mb-1"><i class="bi bi-person-plus me-2"></i>Create New User</h4>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
@@ -18,258 +16,343 @@
                 </ol>
             </nav>
         </div>
-        <div>
-            <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back to List
-            </a>
-        </div>
+        <a href="{{ route('admin.users.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to List
+        </a>
     </div>
 
-    <!-- Alert Container -->
-    <div id="alertContainer"></div>
+    {{-- Validation Errors --}}
+    <div id="validationErrors" class="alert alert-danger d-none">
+        <ul class="mb-0" id="errorList"></ul>
+    </div>
 
-    <!-- Create User Form -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">
-                <i class="fas fa-user"></i> User Information
-            </h5>
+    {{-- Form --}}
+    <form id="createUserForm" enctype="multipart/form-data">
+        @csrf
+
+        {{-- User Information Section --}}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="bi bi-person me-2"></i>User Information</h6>
+            </div>
+            <div class="card-body">
+                {{-- Avatar --}}
+                <div class="text-center mb-4">
+                    <div class="avatar-preview mx-auto mb-2" id="avatarPreview"
+                         style="width:100px;height:100px;border-radius:50%;background:#e9ecef;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:#6c757d;overflow:hidden;">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <label class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-camera me-1"></i> Upload Avatar
+                        <input type="file" name="avatar" id="avatarInput" accept="image/jpg,image/jpeg,image/png,image/gif" hidden>
+                    </label>
+                    <div class="form-text">Max file size: 2MB. Allowed: JPG, JPEG, PNG, GIF</div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required minlength="3" maxlength="255" placeholder="Enter full name">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Email Address <span class="text-danger">*</span></label>
+                        <input type="email" name="email" class="form-control" required maxlength="255" placeholder="Enter email">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Phone Number</label>
+                        <input type="text" name="phone" class="form-control" maxlength="20" placeholder="e.g. +60123456789">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Employee ID</label>
+                        <input type="text" name="employee_id" class="form-control" maxlength="50" placeholder="Auto-generated if not provided">
+                        <div class="form-text">Auto-generated if not provided</div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <form id="createUserForm" method="POST" action="{{ route('admin.users.store') }}" enctype="multipart/form-data">
-                @csrf
-                
-                @include('admin.users._form', [
-                    'user' => null,
-                    'roles' => $roles,
-                    'supervisors' => $supervisors,
-                    'states' => $states,
-                    'skillTags' => $skillTags,
-                    'isEdit' => false
-                ])
 
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <hr>
-                        <div class="d-flex justify-content-end gap-2">
-                            <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">
-                                <i class="fas fa-times"></i> Cancel
-                            </a>
-                            <button type="submit" class="btn btn-primary" id="submitBtn">
-                                <i class="fas fa-save"></i> Create User
+        {{-- Role & Status Section --}}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="bi bi-shield-lock me-2"></i>Role & Status</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
+                        <select name="role" id="roleSelect" class="form-select select2" required>
+                            <option value="">Select a role</option>
+                            @foreach($roles as $role)
+                                <option value="{{ $role->name }}">{{ ucfirst($role->name) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Status <span class="text-danger">*</span></label>
+                        <select name="status" class="form-select" required>
+                            <option value="active" selected>Active</option>
+                            <option value="inactive">Inactive</option>
+                            <option value="suspended">Suspended</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Technician Information Section (shown only when role = technician) --}}
+        <div class="card border-0 shadow-sm mb-4 d-none" id="technicianSection">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="bi bi-tools me-2"></i>Technician Information</h6>
+            </div>
+            <div class="card-body">
+                {{-- Supervisor Toggle --}}
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="hasSupervisorToggle" name="has_supervisor" value="1" checked>
+                        <label class="form-check-label fw-semibold" for="hasSupervisorToggle">
+                            Assign to Supervisor (uncheck for independent technician)
+                        </label>
+                    </div>
+                </div>
+
+                {{-- Supervisor Dropdown --}}
+                <div class="mb-3" id="supervisorField">
+                    <label class="form-label fw-semibold">Supervisor <span class="text-danger" id="supervisorRequired">*</span></label>
+                    <select name="supervisor_id" id="supervisorSelect" class="form-select select2">
+                        <option value="">Select an option</option>
+                        @foreach($supervisors as $supervisor)
+                            <option value="{{ $supervisor->id }}">{{ $supervisor->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                {{-- Coverage States --}}
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Coverage States (Work Areas)</label>
+                    <select name="coverage_states[]" id="coverageStates" class="form-select select2" multiple>
+                        @foreach($states as $state)
+                            <option value="{{ $state }}">{{ $state }}</option>
+                        @endforeach
+                    </select>
+                    <div class="form-text">Select states where this technician can work</div>
+                </div>
+
+                {{-- Skills --}}
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Skills</label>
+                    <select name="skill_tags[]" id="skillTags" class="form-select select2" multiple>
+                        @foreach($skillTags as $skill)
+                            <option value="{{ $skill }}">{{ $skill }}</option>
+                        @endforeach
+                    </select>
+                    <div class="form-text">Select technician's skills and expertise</div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Password Section --}}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="bi bi-key me-2"></i>Password</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="password" name="password" id="password" class="form-control" required minlength="8" placeholder="Min 8 characters">
+                            <button type="button" class="btn btn-outline-secondary toggle-password" data-target="password">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Confirm Password <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="password" name="password_confirmation" id="password_confirmation" class="form-control" required minlength="8" placeholder="Re-enter password">
+                            <button type="button" class="btn btn-outline-secondary toggle-password" data-target="password_confirmation">
+                                <i class="bi bi-eye"></i>
                             </button>
                         </div>
                     </div>
                 </div>
-            </form>
+            </div>
         </div>
-    </div>
+
+        {{-- Bank Details Section --}}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="bi bi-bank me-2"></i>Bank Details</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Bank Name</label>
+                        <input type="text" name="bank_name" class="form-control" maxlength="100" placeholder="e.g. Maybank">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Account Number</label>
+                        <input type="text" name="bank_account_no" class="form-control" maxlength="50" placeholder="Enter account number">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Account Name</label>
+                        <input type="text" name="bank_account_name" class="form-control" maxlength="255" placeholder="Enter account holder name">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Address Section --}}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Address</h6>
+            </div>
+            <div class="card-body">
+                <textarea name="address" class="form-control" rows="3" maxlength="500" placeholder="Enter full address"></textarea>
+            </div>
+        </div>
+
+        {{-- Submit Buttons --}}
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">
+                <i class="bi bi-x-circle me-1"></i> Cancel
+            </a>
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+                <i class="bi bi-check-circle me-1"></i> Create User
+            </button>
+        </div>
+    </form>
 </div>
 @endsection
 
-{{-- No @push('styles') needed - CDNs are in app.blade.php --}}
-
 @push('scripts')
-{{-- CDN links removed - now in app.blade.php --}}
-{{-- Select2 and jQuery Validation are loaded globally --}}
-
 <script>
 $(document).ready(function() {
-    // Initialize Select2 for multi-selects
-    $('.select2-multiple').select2({
+    // Initialize Select2
+    $('.select2').select2({
         theme: 'bootstrap-5',
-        placeholder: 'Select options',
-        allowClear: true,
         width: '100%'
     });
 
-    $('.select2-single').select2({
-        theme: 'bootstrap-5',
-        placeholder: 'Select an option',
-        allowClear: true,
-        width: '100%'
-    });
-
-    // Form validation
-    $('#createUserForm').validate({
-        rules: {
-            name: {
-                required: true,
-                minlength: 3,
-                maxlength: 255
-            },
-            email: {
-                required: true,
-                email: true,
-                maxlength: 255
-            },
-            phone: {
-                maxlength: 20
-            },
-            password: {
-                required: true,
-                minlength: 8
-            },
-            password_confirmation: {
-                required: true,
-                equalTo: '#password'
-            },
-            role: {
-                required: true
-            },
-            supervisor_id: {
-                required: function() {
-                    return $('#role').val() === 'technician' && $('#hasSupervisor').is(':checked');
-                }
-            },
-            status: {
-                required: true
-            },
-            avatar: {
-                extension: "jpg|jpeg|png|gif",
-                filesize: 2097152 // 2MB in bytes
+    // Avatar preview
+    $('#avatarInput').on('change', function() {
+        var file = this.files[0];
+        if (file) {
+            if (file.size > 2 * 1024 * 1024) {
+                showToast('File size must not exceed 2MB', 'error');
+                this.value = '';
+                return;
             }
-        },
-        messages: {
-            name: {
-                required: 'Please enter user name',
-                minlength: 'Name must be at least 3 characters long',
-                maxlength: 'Name cannot exceed 255 characters'
-            },
-            email: {
-                required: 'Please enter email address',
-                email: 'Please enter a valid email address',
-                maxlength: 'Email cannot exceed 255 characters'
-            },
-            password: {
-                required: 'Please enter password',
-                minlength: 'Password must be at least 8 characters long'
-            },
-            password_confirmation: {
-                required: 'Please confirm password',
-                equalTo: 'Passwords do not match'
-            },
-            role: {
-                required: 'Please select a role'
-            },
-            supervisor_id: {
-                required: 'Please select a supervisor'
-            },
-            status: {
-                required: 'Please select status'
-            },
-            avatar: {
-                extension: 'Please upload a valid image file (jpg, jpeg, png, gif)',
-                filesize: 'File size must be less than 2MB'
-            }
-        },
-        errorElement: 'div',
-        errorClass: 'invalid-feedback',
-        highlight: function(element) {
-            $(element).addClass('is-invalid').removeClass('is-valid');
-        },
-        unhighlight: function(element) {
-            $(element).removeClass('is-invalid').addClass('is-valid');
-        },
-        errorPlacement: function(error, element) {
-            if (element.hasClass('select2-hidden-accessible')) {
-                error.insertAfter(element.next('.select2-container'));
-            } else {
-                error.insertAfter(element);
-            }
-        },
-        submitHandler: function(form) {
-            submitForm();
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                $('#avatarPreview').html('<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;">');
+            };
+            reader.readAsDataURL(file);
         }
     });
 
-    // Custom validation method for file size
-    $.validator.addMethod('filesize', function(value, element, param) {
-        if (element.files.length === 0) {
-            return true;
+    // Role change handler - show/hide technician section
+    $('#roleSelect').on('change', function() {
+        var role = $(this).val();
+        if (role === 'technician') {
+            $('#technicianSection').removeClass('d-none');
+        } else {
+            $('#technicianSection').addClass('d-none');
+            // Clear technician fields when not technician
+            $('#hasSupervisorToggle').prop('checked', true);
+            $('#supervisorSelect').val('').trigger('change');
+            $('#coverageStates').val([]).trigger('change');
+            $('#skillTags').val([]).trigger('change');
         }
-        return element.files[0].size <= param;
-    }, 'File size is too large');
+    });
 
-    // Form submission via AJAX
-    function submitForm() {
-        const form = $('#createUserForm')[0];
-        const formData = new FormData(form);
-        const submitBtn = $('#submitBtn');
+    // Supervisor toggle handler
+    $('#hasSupervisorToggle').on('change', function() {
+        var isChecked = $(this).is(':checked');
+        if (isChecked) {
+            $('#supervisorField').slideDown();
+            $('#supervisorRequired').show();
+        } else {
+            $('#supervisorField').slideUp();
+            $('#supervisorRequired').hide();
+            $('#supervisorSelect').val('').trigger('change');
+        }
+    });
 
-        // Disable submit button
-        submitBtn.prop('disabled', true)
-            .html('<span class="spinner-border spinner-border-sm me-2"></span> Creating...');
+    // Password toggle
+    $(document).on('click', '.toggle-password', function() {
+        var target = $(this).data('target');
+        var input = $('#' + target);
+        var icon = $(this).find('i');
+        if (input.attr('type') === 'password') {
+            input.attr('type', 'text');
+            icon.removeClass('bi-eye').addClass('bi-eye-slash');
+        } else {
+            input.attr('type', 'password');
+            icon.removeClass('bi-eye-slash').addClass('bi-eye');
+        }
+    });
+
+    // Form submission
+    $('#createUserForm').on('submit', function(e) {
+        e.preventDefault();
+
+        var formData = new FormData(this);
+
+        // If has_supervisor is unchecked, ensure it's sent as 0
+        if (!$('#hasSupervisorToggle').is(':checked')) {
+            formData.set('has_supervisor', '0');
+        }
+
+        // If role is not technician, remove technician fields
+        if ($('#roleSelect').val() !== 'technician') {
+            formData.delete('has_supervisor');
+            formData.delete('supervisor_id');
+            formData.delete('coverage_states[]');
+            formData.delete('skill_tags[]');
+        }
+
+        $('#submitBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Creating...');
+        $('#validationErrors').addClass('d-none');
 
         $.ajax({
-            url: $(form).attr('action'),
-            method: 'POST',
+            url: '{{ route("admin.users.store") }}',
+            type: 'POST',
             data: formData,
             processData: false,
             contentType: false,
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
             success: function(response) {
                 if (response.success) {
-                    // Show success message
-                    showAlert('success', response.message);
-                    
-                    // Redirect after 1.5 seconds
-                    setTimeout(function() {
+                    showToast(response.message);
+                    if (response.redirect) {
                         window.location.href = response.redirect;
-                    }, 1500);
+                    }
                 } else {
-                    showAlert('danger', response.message || 'Failed to create user');
-                    submitBtn.prop('disabled', false)
-                        .html('<i class="fas fa-save"></i> Create User');
+                    showToast(response.message || 'Failed to create user', 'error');
                 }
             },
             error: function(xhr) {
-                let errorMessage = 'An error occurred while creating the user';
-                
                 if (xhr.status === 422) {
-                    // Validation errors
-                    const errors = xhr.responseJSON.errors;
-                    let errorList = '<ul class="mb-0">';
-                    $.each(errors, function(key, value) {
-                        errorList += '<li>' + value[0] + '</li>';
+                    var errors = xhr.responseJSON.errors;
+                    var errorHtml = '';
+                    $.each(errors, function(key, messages) {
+                        $.each(messages, function(i, msg) {
+                            errorHtml += '<li>' + msg + '</li>';
+                        });
                     });
-                    errorList += '</ul>';
-                    errorMessage = errorList;
-                } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                    errorMessage = xhr.responseJSON.message;
+                    $('#errorList').html(errorHtml);
+                    $('#validationErrors').removeClass('d-none');
+                    $('html, body').animate({ scrollTop: 0 }, 300);
+                } else {
+                    showToast(xhr.responseJSON?.message || 'An error occurred', 'error');
                 }
-                
-                showAlert('danger', errorMessage);
-                submitBtn.prop('disabled', false)
-                    .html('<i class="fas fa-save"></i> Create User');
+            },
+            complete: function() {
+                $('#submitBtn').prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i> Create User');
             }
         });
-    }
-
-    // Show alert function
-    function showAlert(type, message) {
-        const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> 
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        `;
-        
-        $('#alertContainer').html(alertHtml);
-        
-        // Auto-dismiss after 5 seconds
-        if (type !== 'success') {
-            setTimeout(function() {
-                $('.alert').fadeOut();
-            }, 5000);
-        }
-        
-        // Scroll to top
-        $('html, body').animate({ scrollTop: 0 }, 'fast');
-    }
-
-    // Role-based field visibility (from _form.blade.php)
-    // This will be triggered by the included partial
+    });
 });
 </script>
 @endpush

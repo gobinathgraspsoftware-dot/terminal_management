@@ -13,7 +13,6 @@ class UpdateUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // Check if user is authenticated and has edit_users permission
         return Auth::check() && Auth::user()->can('edit_users');
     }
 
@@ -26,125 +25,48 @@ class UpdateUserRequest extends FormRequest
 
         return [
             // Basic Information
-            'name' => [
-                'required',
-                'string',
-                'min:3',
-                'max:255'
-            ],
-
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('users', 'email')->ignore($userId)
-            ],
-
-            'phone' => [
-                'nullable',
-                'string',
-                'max:20'
-            ],
-
-            'employee_id' => [
-                'nullable',
-                'string',
-                'max:50',
-                Rule::unique('users', 'employee_id')->ignore($userId)
-            ],
+            'name' => ['required', 'string', 'min:3', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'employee_id' => ['nullable', 'string', 'max:50', Rule::unique('users', 'employee_id')->ignore($userId)],
 
             // Password (optional for update)
-            'password' => [
-                'nullable',
-                'string',
-                'min:8',
-                'confirmed'
-            ],
+            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
 
             // Role
-            'role' => [
-                'required',
-                'string',
-                'exists:roles,name'
-            ],
+            'role' => ['required', 'string', 'exists:roles,name'],
 
             // Status
-            'status' => [
-                'required',
-                'string',
-                Rule::in(['active', 'inactive', 'suspended'])
-            ],
+            'status' => ['required', 'string', Rule::in(['active', 'inactive', 'suspended'])],
 
             // Technician-specific fields
-            'has_supervisor' => [
-                'nullable',
-                'boolean'
-            ],
+            'has_supervisor' => ['nullable', 'boolean'],
 
+            // FIX: Only require supervisor_id when has_supervisor is checked
             'supervisor_id' => [
                 'nullable',
                 'exists:users,id',
-                'different:id' // Cannot be own supervisor
+                'different:id',
+                'required_if:has_supervisor,1',
+                'required_if:has_supervisor,true',
             ],
 
-            'coverage_states' => [
-                'nullable',
-                'array'
-            ],
-
-            'coverage_states.*' => [
-                'string',
-                'max:100'
-            ],
-
-            'skill_tags' => [
-                'nullable',
-                'array'
-            ],
-
-            'skill_tags.*' => [
-                'string',
-                'max:100'
-            ],
+            'coverage_states' => ['nullable', 'array'],
+            'coverage_states.*' => ['string', 'max:100'],
+            'skill_tags' => ['nullable', 'array'],
+            'skill_tags.*' => ['string', 'max:100'],
 
             // Bank Details
-            'bank_name' => [
-                'nullable',
-                'string',
-                'max:100'
-            ],
-
-            'bank_account_no' => [
-                'nullable',
-                'string',
-                'max:50'
-            ],
-
-            'bank_account_name' => [
-                'nullable',
-                'string',
-                'max:255'
-            ],
+            'bank_name' => ['nullable', 'string', 'max:100'],
+            'bank_account_no' => ['nullable', 'string', 'max:50'],
+            'bank_account_name' => ['nullable', 'string', 'max:255'],
 
             // Address
-            'address' => [
-                'nullable',
-                'string',
-                'max:500'
-            ],
+            'address' => ['nullable', 'string', 'max:500'],
 
             // Avatar
-            'avatar' => [
-                'nullable',
-                'image',
-                'mimes:jpg,jpeg,png,gif',
-                'max:2048' // 2MB
-            ],
-
-            'remove_avatar' => [
-                'nullable',
-                'boolean'
-            ]
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,gif', 'max:2048'],
+            'remove_avatar' => ['nullable', 'boolean'],
         ];
     }
 
@@ -164,6 +86,7 @@ class UpdateUserRequest extends FormRequest
             'role.required' => 'Please select a role for the user.',
             'role.exists' => 'The selected role is invalid.',
             'status.required' => 'Please select a status.',
+            'supervisor_id.required_if' => 'Please select a supervisor when "Assign to Supervisor" is enabled.',
             'supervisor_id.exists' => 'The selected supervisor is invalid.',
             'supervisor_id.different' => 'A user cannot be their own supervisor.',
             'avatar.image' => 'Avatar must be an image file.',
@@ -182,13 +105,13 @@ class UpdateUserRequest extends FormRequest
             $this->merge([
                 'has_supervisor' => filter_var($this->has_supervisor, FILTER_VALIDATE_BOOLEAN)
             ]);
+        } else {
+            $this->merge(['has_supervisor' => false]);
         }
 
-        // If has_supervisor is false, remove supervisor_id
-        if (!$this->has_supervisor) {
-            $this->merge([
-                'supervisor_id' => null
-            ]);
+        // If has_supervisor is false OR role is not technician, clear supervisor_id
+        if (!$this->has_supervisor || $this->role !== 'technician') {
+            $this->merge(['supervisor_id' => null]);
         }
 
         // Convert remove_avatar to boolean
