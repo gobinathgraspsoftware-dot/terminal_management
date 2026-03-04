@@ -46,9 +46,9 @@
                                     name="action"
                                     required>
                                 <option value="">-- Select Action --</option>
-                                @foreach($knownActions as $knownAction)
-                                    <option value="{{ $knownAction }}" {{ old('action') == $knownAction ? 'selected' : '' }}>
-                                        {{ ucfirst(str_replace('_', ' ', $knownAction)) }}
+                                @foreach($knownActions as $actionKey => $actionLabel)
+                                    <option value="{{ $actionKey }}" {{ old('action') == $actionKey ? 'selected' : '' }}>
+                                        {{ $actionLabel }}
                                     </option>
                                 @endforeach
                             </select>
@@ -166,9 +166,9 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-2">
-                        @foreach($knownActions as $action)
+                        @foreach($knownActions as $actionKey => $actionLabel)
                             <div class="col-6">
-                                <span class="badge bg-secondary w-100">{{ $action }}</span>
+                                <span class="badge bg-secondary w-100">{{ $actionKey }}</span>
                             </div>
                         @endforeach
                     </div>
@@ -201,6 +201,19 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+.module-badge {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.module-badge:hover {
+    transform: scale(1.05);
+    opacity: 0.8;
+}
+</style>
+@endpush
+
 @push('scripts')
 <script>
 $(document).ready(function() {
@@ -210,8 +223,7 @@ $(document).ready(function() {
         var module = $('#module').val().trim();
 
         if (action && module) {
-            var permissionName = action + '_' + module;
-            $('#permission-name-preview').val(permissionName);
+            $('#permission-name-preview').val(action + '_' + module);
         } else if (action) {
             $('#permission-name-preview').val(action + '_[module]');
         } else if (module) {
@@ -233,7 +245,7 @@ $(document).ready(function() {
         var description = $('#description').val().trim();
 
         if (action && module && !description) {
-            var actionLabel = $('#action option:selected').text();
+            var actionLabel = $('#action option:selected').text().trim();
             var moduleLabel = module.charAt(0).toUpperCase() + module.slice(1).replace(/_/g, ' ');
             $('#description').val(actionLabel + ' ' + moduleLabel);
         }
@@ -257,7 +269,6 @@ $(document).ready(function() {
             return false;
         }
 
-        // Validate module format (lowercase, alphanumeric and underscores only)
         var moduleRegex = /^[a-z0-9_]+$/;
         if (!moduleRegex.test(module)) {
             e.preventDefault();
@@ -267,28 +278,13 @@ $(document).ready(function() {
         }
     });
 
-    // Module input validation (convert to lowercase, remove invalid chars)
+    // Module input validation
     $('#module').on('input', function() {
         var val = $(this).val();
-        // Convert to lowercase and replace spaces with underscores
-        val = val.toLowerCase().replace(/\s+/g, '_');
-        // Remove any characters that aren't alphanumeric or underscore
-        val = val.replace(/[^a-z0-9_]/g, '');
+        val = val.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
         $(this).val(val);
         updatePermissionPreview();
     });
 });
 </script>
-
-<style>
-.module-badge {
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.module-badge:hover {
-    transform: scale(1.05);
-    opacity: 0.8;
-}
-</style>
 @endpush

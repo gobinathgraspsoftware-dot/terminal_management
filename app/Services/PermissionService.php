@@ -15,7 +15,7 @@ class PermissionService
     {
         try {
             $permissions = Permission::with('roles')
-                ->select(['id', 'name', 'guard_name', 'created_at', 'updated_at'])
+                ->select(['id', 'name', 'guard_name', 'description', 'module', 'created_at', 'updated_at'])
                 ->get()
                 ->map(function ($permission) {
                     return [
@@ -26,6 +26,8 @@ class PermissionService
                         'group_label' => $this->getGroupLabel($permission->name),
                         'action' => $this->getPermissionAction($permission->name),
                         'guard_name' => $permission->guard_name,
+                        'description' => $permission->description,
+                        'module' => $permission->module,
                         'roles_count' => $permission->roles->count(),
                         'roles' => $permission->roles->pluck('name')->toArray(),
                         'created_at' => $permission->created_at->format('Y-m-d H:i:s'),
@@ -69,10 +71,20 @@ class PermissionService
     {
         DB::beginTransaction();
         try {
-            $permission = Permission::create([
+            $permissionData = [
                 'name' => strtolower($data['name']),
                 'guard_name' => $data['guard_name'] ?? 'web',
-            ]);
+            ];
+
+            if (isset($data['description'])) {
+                $permissionData['description'] = $data['description'];
+            }
+
+            if (isset($data['module'])) {
+                $permissionData['module'] = strtolower($data['module']);
+            }
+
+            $permission = Permission::create($permissionData);
 
             app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
@@ -91,10 +103,20 @@ class PermissionService
     {
         DB::beginTransaction();
         try {
-            $permission->update([
+            $updateData = [
                 'name' => strtolower($data['name']),
                 'guard_name' => $data['guard_name'] ?? 'web',
-            ]);
+            ];
+
+            if (array_key_exists('description', $data)) {
+                $updateData['description'] = $data['description'];
+            }
+
+            if (isset($data['module'])) {
+                $updateData['module'] = strtolower($data['module']);
+            }
+
+            $permission->update($updateData);
 
             app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
@@ -144,36 +166,79 @@ class PermissionService
     }
 
     /**
+     * Parse a permission name into action and module parts.
+     *
+     * Strategy: Try to match known actions from LONGEST to SHORTEST against
+     * the start of the permission name. The remainder after the matched
+     * action prefix (minus the separating underscore) is the module.
+     *
+     * Examples:
+     *   "view_users"           → action="view",         module="users"
+     *   "view_example_module"  → action="view",         module="example_module"
+     *   "bulk_import_serials"  → action="bulk_import",  module="serials"
+     *   "manage_contacts_sites"→ action="manage_contacts", module="sites"
+     *   "approve_stock_transfers" → action="approve",   module="stock_transfers"
+     */
+    protected function parsePermissionName(string $permissionName): array
+    {
+        $knownActions = array_keys($this->getKnownActions());
+
+        // Sort by length descending so longer actions match first
+        // e.g., "bulk_import" matches before "bulk"
+        usort($knownActions, function ($a, $b) {
+            return strlen($b) - strlen($a);
+        });
+
+        foreach ($knownActions as $knownAction) {
+            $prefix = $knownAction . '_';
+            if (strpos($permissionName, $prefix) === 0) {
+                $module = substr($permissionName, strlen($prefix));
+                if ($module !== '' && $module !== false) {
+                    return [
+                        'action' => $knownAction,
+                        'module' => $module,
+                    ];
+                }
+            }
+        }
+
+        // Fallback: first segment is action, rest is module
+        $parts = explode('_', $permissionName);
+        if (count($parts) >= 2) {
+            $action = $parts[0];
+            $module = implode('_', array_slice($parts, 1));
+            return [
+                'action' => $action,
+                'module' => $module,
+            ];
+        }
+
+        return [
+            'action' => $permissionName,
+            'module' => 'general',
+        ];
+    }
+
+    /**
      * Extract permission group/module from permission name.
-     * Example: "view_users" -> "users"
+     *
+     * Example: "view_example_module" -> "example_module"
+     *          "bulk_import_serials" -> "serials"
      */
     public function getPermissionGroup(string $permissionName): string
     {
-        $parts = explode('_', $permissionName);
-
-        if (count($parts) >= 2) {
-            // Return the last part as module
-            return end($parts);
-        }
-
-        return 'general';
+        return $this->parsePermissionName($permissionName)['module'];
     }
 
     /**
      * Extract permission action from permission name.
-     * Example: "view_users" -> "view"
+     *
+     * Example: "view_example_module" -> "view"
+     *          "bulk_import_serials" -> "bulk_import"
      */
     public function getPermissionAction(string $permissionName): string
     {
-        $parts = explode('_', $permissionName);
-
-        if (count($parts) >= 2) {
-            // Remove the last part (module) and join the rest as action
-            array_pop($parts);
-            return implode('_', $parts);
-        }
-
-        return $permissionName;
+        return $this->parsePermissionName($permissionName)['action'];
     }
 
     /**
@@ -197,6 +262,7 @@ class PermissionService
 
     /**
      * Get known actions for permission builder.
+     * Returns associative array: key => label
      */
     public function getKnownActions(): array
     {

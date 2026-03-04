@@ -59,7 +59,42 @@
                                    disabled>
                             <div class="form-text">
                                 <i class="bi bi-info-circle me-1"></i>
-                                Permission names cannot be changed to maintain system integrity
+                                The permission name will be auto-generated from Action + Module below.
+                            </div>
+                        </div>
+
+                        <!-- Action -->
+                        <div class="mb-3">
+                            <label for="action" class="form-label">
+                                Action <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select @error('action') is-invalid @enderror"
+                                    id="action"
+                                    name="action"
+                                    required>
+                                <option value="">-- Select Action --</option>
+                                @php
+                                    $currentAction = old('action', $action);
+                                    $actionInList = array_key_exists($currentAction, $knownActions);
+                                @endphp
+                                {{-- If current action is not in the known list, show it as first option --}}
+                                @if($currentAction && !$actionInList)
+                                    <option value="{{ $currentAction }}" selected>
+                                        {{ ucwords(str_replace('_', ' ', $currentAction)) }} (Custom)
+                                    </option>
+                                @endif
+                                @foreach($knownActions as $actionKey => $actionLabel)
+                                    <option value="{{ $actionKey }}"
+                                            {{ $currentAction == $actionKey ? 'selected' : '' }}>
+                                        {{ $actionLabel }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('action')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">
+                                Select the action this permission controls
                             </div>
                         </div>
 
@@ -72,7 +107,7 @@
                                    class="form-control @error('module') is-invalid @enderror"
                                    id="module"
                                    name="module"
-                                   value="{{ old('module', $group ?? $permission->module) }}"
+                                   value="{{ old('module', $group) }}"
                                    list="existingGroups"
                                    placeholder="e.g., users, sites, inventory"
                                    required>
@@ -89,28 +124,18 @@
                             </div>
                         </div>
 
-                        <!-- Action -->
+                        <!-- New Permission Name Preview -->
                         <div class="mb-3">
-                            <label for="action" class="form-label">
-                                Action <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select @error('action') is-invalid @enderror"
-                                    id="action"
-                                    name="action"
-                                    required>
-                                <option value="">-- Select Action --</option>
-                                @foreach($knownActions as $knownAction)
-                                    <option value="{{ $knownAction }}"
-                                            {{ old('action', $action) == $knownAction ? 'selected' : '' }}>
-                                        {{ ucfirst(str_replace('_', ' ', $knownAction)) }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('action')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                            <div class="form-text">
-                                Select the action this permission controls
+                            <label class="form-label">New Permission Name (Auto-generated)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">
+                                    <i class="bi bi-key"></i>
+                                </span>
+                                <input type="text"
+                                       class="form-control bg-light"
+                                       id="permission-name-preview"
+                                       value="{{ $permission->name }}"
+                                       disabled>
                             </div>
                         </div>
 
@@ -216,50 +241,34 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Form validation
-    $('#editPermissionForm').on('submit', function(e) {
-        var module = $('#module').val().trim();
+    function updatePermissionPreview() {
         var action = $('#action').val();
+        var module = $('#module').val().trim();
 
-        if (!module || !action) {
+        if (action && module) {
+            $('#permission-name-preview').val(action + '_' + module);
+        } else {
+            $('#permission-name-preview').val('{{ $permission->name }}');
+        }
+    }
+
+    $('#action, #module').on('change input', function() {
+        updatePermissionPreview();
+    });
+
+    $('#module').on('input', function() {
+        var val = $(this).val().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+        $(this).val(val);
+        updatePermissionPreview();
+    });
+
+    $('#editPermissionForm').on('submit', function(e) {
+        if (!$('#module').val().trim() || !$('#action').val()) {
             e.preventDefault();
             alert('Please fill in all required fields.');
             return false;
         }
     });
-
-    // Highlight changes
-    var originalModule = '{{ $group ?? $permission->module }}';
-    var originalAction = '{{ $action }}';
-
-    $('#module, #action').on('change', function() {
-        var currentModule = $('#module').val();
-        var currentAction = $('#action').val();
-
-        if (currentModule !== originalModule || currentAction !== originalAction) {
-            $('.btn-primary').addClass('pulse');
-        } else {
-            $('.btn-primary').removeClass('pulse');
-        }
-    });
 });
 </script>
-
-<style>
-.pulse {
-    animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.4);
-    }
-    70% {
-        box-shadow: 0 0 0 10px rgba(13, 110, 253, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
-    }
-}
-</style>
 @endpush
