@@ -152,9 +152,8 @@
                         <div class="accordion" id="permissionsAccordion">
                             @foreach($permissions as $group => $data)
                                 @php
-                                    // ✅ FIXED: Use $data['permissions'] instead of $groupedPermissions[$group]
                                     $groupPermissions = collect($data['permissions'])->filter(function($permission) use ($rolePermissions) {
-                                        return in_array($permission->id, $rolePermissions);
+                                        return in_array($permission['id'], $rolePermissions);
                                     });
                                 @endphp
 
@@ -176,15 +175,11 @@
                                         <div class="accordion-body">
                                             <div class="row">
                                                 @foreach($groupPermissions as $permission)
-                                                <div class="col-md-6 mb-2 permission-item" data-permission="{{ $permission->name }}">
+                                                <div class="col-md-6 mb-2 permission-item" data-permission="{{ $permission['name'] }}">
                                                     <div class="d-flex align-items-center">
                                                         <i class="bi bi-check-circle-fill text-success me-2"></i>
                                                         <div>
-                                                            <code class="text-primary">{{ $permission->name }}</code>
-                                                            @if($permission->description)
-                                                                <br>
-                                                                <small class="text-muted">{{ $permission->description }}</small>
-                                                            @endif
+                                                            <code class="text-primary">{{ $permission['name'] }}</code>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -237,7 +232,7 @@ $(document).ready(function() {
 
             $items.each(function() {
                 var $item = $(this);
-                var permName = $item.data('permission').toLowerCase();
+                var permName = ($item.data('permission') || '').toString().toLowerCase();
 
                 if (permName.indexOf(searchTerm) > -1) {
                     $item.show();
@@ -256,11 +251,7 @@ $(document).ready(function() {
             }
         });
 
-        if (foundAny) {
-            $('#no-results').hide();
-        } else {
-            $('#no-results').show();
-        }
+        $('#no-results').toggle(!foundAny);
     });
 });
 </script>

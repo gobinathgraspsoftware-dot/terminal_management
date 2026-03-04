@@ -2,7 +2,7 @@
 
 @section('title', 'Edit Role - ' . ucwords(str_replace(['_', '-'], ' ', $role->name)))
 
-@section('styles')
+@push('styles')
 <style>
     .permission-group {
         border: 1px solid #dee2e6;
@@ -52,7 +52,7 @@
         color: #ffc107;
     }
 </style>
-@endsection
+@endpush
 
 @section('content')
 <div class="container-fluid">
@@ -102,7 +102,7 @@
     <form action="{{ route('admin.roles.update', $role) }}" method="POST" id="role-form">
         @csrf
         @method('PUT')
-        
+
         <div class="row">
             <!-- Left Column - Role Details -->
             <div class="col-lg-4">
@@ -117,10 +117,10 @@
                             <label for="name" class="form-label">
                                 Role Name <span class="text-danger">*</span>
                             </label>
-                            <input type="text" 
-                                class="form-control @error('name') is-invalid @enderror" 
-                                id="name" 
-                                name="name" 
+                            <input type="text"
+                                class="form-control @error('name') is-invalid @enderror"
+                                id="name"
+                                name="name"
                                 value="{{ old('name', $role->name) }}"
                                 pattern="[a-z][a-z0-9_-]*"
                                 placeholder="e.g., senior_technician"
@@ -135,10 +135,10 @@
 
                         <div class="mb-3">
                             <label for="display_name" class="form-label">Display Name</label>
-                            <input type="text" 
-                                class="form-control @error('display_name') is-invalid @enderror" 
-                                id="display_name" 
-                                name="display_name" 
+                            <input type="text"
+                                class="form-control @error('display_name') is-invalid @enderror"
+                                id="display_name"
+                                name="display_name"
                                 value="{{ old('display_name', ucwords(str_replace(['_', '-'], ' ', $role->name))) }}"
                                 placeholder="e.g., Senior Technician">
                             <div class="form-text">Human-readable name for the role.</div>
@@ -149,9 +149,9 @@
 
                         <div class="mb-3">
                             <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control @error('description') is-invalid @enderror" 
-                                id="description" 
-                                name="description" 
+                            <textarea class="form-control @error('description') is-invalid @enderror"
+                                id="description"
+                                name="description"
                                 rows="3"
                                 placeholder="Describe the purpose of this role...">{{ old('description') }}</textarea>
                             @error('description')
@@ -177,7 +177,7 @@
                 <div class="card quick-actions">
                     <div class="card-header bg-white">
                         <h5 class="card-title mb-0">
-                            <i class="bi bi-lightning me-2"></i>Quick Actions
+                            <i class="bi bi-lightning-charge me-2"></i>Quick Actions
                         </h5>
                     </div>
                     <div class="card-body">
@@ -233,8 +233,8 @@
                     <div class="card-body">
                         @forelse($permissions as $group => $data)
                             <div class="permission-group" data-group="{{ $group }}">
-                                <div class="permission-group-header d-flex justify-content-between align-items-center" 
-                                    data-bs-toggle="collapse" 
+                                <div class="permission-group-header d-flex justify-content-between align-items-center"
+                                    data-bs-toggle="collapse"
                                     data-bs-target="#group-{{ $group }}">
                                     <div>
                                         <i class="bi bi-chevron-down me-2 collapse-icon"></i>
@@ -243,8 +243,8 @@
                                         <span class="badge bg-success ms-1 group-selected-count" id="group-count-{{ $group }}">0</span>
                                     </div>
                                     <div class="form-check select-all-group" onclick="event.stopPropagation();">
-                                        <input class="form-check-input group-select-all" 
-                                            type="checkbox" 
+                                        <input class="form-check-input group-select-all"
+                                            type="checkbox"
                                             id="select-all-{{ $group }}"
                                             data-group="{{ $group }}">
                                         <label class="form-check-label" for="select-all-{{ $group }}">
@@ -261,10 +261,10 @@
                                             @endphp
                                             <div class="col-md-6 col-lg-4 permission-item" data-permission-name="{{ strtolower($permission['name']) }}">
                                                 <div class="form-check">
-                                                    <input class="form-check-input permission-checkbox" 
-                                                        type="checkbox" 
-                                                        name="permissions[]" 
-                                                        value="{{ $permission['id'] }}" 
+                                                    <input class="form-check-input permission-checkbox"
+                                                        type="checkbox"
+                                                        name="permissions[]"
+                                                        value="{{ $permission['id'] }}"
                                                         id="permission-{{ $permission['id'] }}"
                                                         data-group="{{ $group }}"
                                                         data-action="{{ $permission['action'] }}"
@@ -312,7 +312,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 $(document).ready(function() {
     // Store original permission states
@@ -325,8 +325,7 @@ $(document).ready(function() {
 
     // Update selected count
     function updateSelectedCount() {
-        var count = $('.permission-checkbox:checked').length;
-        $('#selected-count').text(count);
+        $('#selected-count').text($('.permission-checkbox:checked').length);
     }
 
     // Update changed count
@@ -335,7 +334,7 @@ $(document).ready(function() {
         $('.permission-checkbox').each(function() {
             var isChecked = $(this).is(':checked');
             var wasOriginal = $(this).data('original') === 1;
-            
+
             if (isChecked !== wasOriginal) {
                 $(this).addClass('changed');
                 changedCount++;
@@ -350,8 +349,7 @@ $(document).ready(function() {
     function updateGroupCounts() {
         $('.permission-group').each(function() {
             var group = $(this).data('group');
-            var checkedCount = $(this).find('.permission-checkbox:checked').length;
-            $('#group-count-' + group).text(checkedCount);
+            $('#group-count-' + group).text($(this).find('.permission-checkbox:checked').length);
         });
     }
 
@@ -360,137 +358,106 @@ $(document).ready(function() {
         var groupCheckboxes = $('.permission-checkbox[data-group="' + group + '"]');
         var checkedCount = groupCheckboxes.filter(':checked').length;
         var totalCount = groupCheckboxes.length;
-        
+
         var selectAllCheckbox = $('#select-all-' + group);
-        selectAllCheckbox.prop('checked', checkedCount === totalCount);
+        selectAllCheckbox.prop('checked', checkedCount === totalCount && totalCount > 0);
         selectAllCheckbox.prop('indeterminate', checkedCount > 0 && checkedCount < totalCount);
+    }
+
+    function refreshAll() {
+        updateSelectedCount();
+        updateChangedCount();
+        updateGroupCounts();
     }
 
     // Permission checkbox change
     $('.permission-checkbox').on('change', function() {
-        var group = $(this).data('group');
-        updateGroupSelectAll(group);
-        updateSelectedCount();
-        updateChangedCount();
-        updateGroupCounts();
+        updateGroupSelectAll($(this).data('group'));
+        refreshAll();
     });
 
     // Group select all change
     $('.group-select-all').on('change', function() {
         var group = $(this).data('group');
-        var isChecked = $(this).is(':checked');
-        $('.permission-checkbox[data-group="' + group + '"]').prop('checked', isChecked);
-        updateSelectedCount();
-        updateChangedCount();
-        updateGroupCounts();
+        $('.permission-checkbox[data-group="' + group + '"]').prop('checked', $(this).is(':checked'));
+        refreshAll();
     });
 
     // Select all permissions
     $('#select-all').on('click', function() {
         $('.permission-checkbox').prop('checked', true);
         $('.group-select-all').prop('checked', true).prop('indeterminate', false);
-        updateSelectedCount();
-        updateChangedCount();
-        updateGroupCounts();
+        refreshAll();
     });
 
     // Deselect all permissions
     $('#deselect-all').on('click', function() {
         $('.permission-checkbox').prop('checked', false);
         $('.group-select-all').prop('checked', false).prop('indeterminate', false);
-        updateSelectedCount();
-        updateChangedCount();
-        updateGroupCounts();
+        refreshAll();
     });
 
     // Select view only permissions
     $('#select-view-only').on('click', function() {
         $('.permission-checkbox').prop('checked', false);
         $('.permission-checkbox[data-action="view"]').prop('checked', true);
-        
-        // Update all group select all checkboxes
+
         $('.group-select-all').each(function() {
-            var group = $(this).data('group');
-            updateGroupSelectAll(group);
+            updateGroupSelectAll($(this).data('group'));
         });
-        
-        updateSelectedCount();
-        updateChangedCount();
-        updateGroupCounts();
+        refreshAll();
     });
 
     // Reset to original permissions
     $('#reset-permissions').on('click', function() {
         $('.permission-checkbox').each(function() {
-            var wasOriginal = $(this).data('original') === 1;
-            $(this).prop('checked', wasOriginal);
+            $(this).prop('checked', $(this).data('original') === 1);
         });
-        
-        // Update all group select all checkboxes
+
         $('.group-select-all').each(function() {
-            var group = $(this).data('group');
-            updateGroupSelectAll(group);
+            updateGroupSelectAll($(this).data('group'));
         });
-        
-        updateSelectedCount();
-        updateChangedCount();
-        updateGroupCounts();
+        refreshAll();
     });
 
     // Search permissions
     $('#search-permissions').on('input', function() {
         var searchTerm = $(this).val().toLowerCase();
-        
+
         if (searchTerm === '') {
             $('.permission-item').show();
             $('.permission-group').show();
         } else {
             $('.permission-item').each(function() {
-                var permissionName = $(this).data('permission-name');
-                var matches = permissionName.includes(searchTerm);
-                $(this).toggle(matches);
+                $(this).toggle($(this).data('permission-name').indexOf(searchTerm) > -1);
             });
-            
-            // Hide empty groups
+
             $('.permission-group').each(function() {
-                var visibleItems = $(this).find('.permission-item:visible').length;
-                $(this).toggle(visibleItems > 0);
+                $(this).toggle($(this).find('.permission-item:visible').length > 0);
             });
         }
     });
 
     // Collapse icon rotation
     $('.permission-group-header').on('click', function() {
-        var icon = $(this).find('.collapse-icon');
-        icon.toggleClass('bi-chevron-down bi-chevron-right');
+        $(this).find('.collapse-icon').toggleClass('bi-chevron-down bi-chevron-right');
     });
 
-    // Initialize counts
-    updateSelectedCount();
-    updateChangedCount();
-    updateGroupCounts();
-
-    // Initialize group select all states
+    // Initialize
+    refreshAll();
     $('.group-select-all').each(function() {
-        var group = $(this).data('group');
-        updateGroupSelectAll(group);
+        updateGroupSelectAll($(this).data('group'));
     });
 
     // Warn before leaving with unsaved changes
     var formChanged = false;
-    $('#role-form').on('change', function() {
-        formChanged = true;
-    });
-
+    $('#role-form').on('change', function() { formChanged = true; });
     $(window).on('beforeunload', function() {
         if (formChanged && parseInt($('#changed-count').text()) > 0) {
             return 'You have unsaved changes. Are you sure you want to leave?';
         }
     });
-
-    $('#role-form').on('submit', function() {
-        formChanged = false;
-    });
+    $('#role-form').on('submit', function() { formChanged = false; });
 });
 </script>
-@endsection
+@endpush

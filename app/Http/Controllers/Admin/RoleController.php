@@ -32,6 +32,36 @@ class RoleController extends Controller
     }
 
     /**
+     * Format grouped permissions for blade templates.
+     * Converts raw Permission models into arrays with id, name, action, display_name keys.
+     */
+    protected function formatPermissionsForBlade(): array
+    {
+        $groupedPermissions = $this->permissionService->getGroupedPermissions();
+        $permissions = [];
+
+        foreach ($groupedPermissions as $group => $permissionList) {
+            $formatted = [];
+            foreach ($permissionList as $permission) {
+                $formatted[] = [
+                    'id'           => $permission->id,
+                    'name'         => $permission->name,
+                    'display_name' => $this->permissionService->getDisplayName($permission->name),
+                    'action'       => $this->permissionService->getPermissionAction($permission->name),
+                    'guard_name'   => $permission->guard_name,
+                ];
+            }
+
+            $permissions[$group] = [
+                'label'       => ucwords(str_replace('_', ' ', $group)),
+                'permissions' => $formatted,
+            ];
+        }
+
+        return $permissions;
+    }
+
+    /**
      * Display a listing of roles.
      */
     public function index(Request $request)
@@ -59,15 +89,7 @@ class RoleController extends Controller
     {
         $this->authorize('create_roles');
 
-        // Format permissions for blade template
-        $groupedPermissions = $this->permissionService->getGroupedPermissions();
-        $permissions = [];
-        foreach ($groupedPermissions as $group => $permissionList) {
-            $permissions[$group] = [
-                'label' => ucwords(str_replace('_', ' ', $group)),
-                'permissions' => $permissionList
-            ];
-        }
+        $permissions = $this->formatPermissionsForBlade();
 
         return view('admin.roles.create', compact('permissions'));
     }
@@ -117,18 +139,7 @@ class RoleController extends Controller
         $role->load('permissions', 'users');
         $isSystemRole = in_array($role->name, $this->systemRoles);
 
-        // Get grouped permissions
-        $groupedPermissions = $this->permissionService->getGroupedPermissions();
-
-        // Format permissions for blade template (with 'label' and 'permissions' keys)
-        $permissions = [];
-        foreach ($groupedPermissions as $group => $permissionList) {
-            $permissions[$group] = [
-                'label' => ucwords(str_replace('_', ' ', $group)),
-                'permissions' => $permissionList
-            ];
-        }
-
+        $permissions = $this->formatPermissionsForBlade();
         $rolePermissions = $role->permissions->pluck('id')->toArray();
 
         return view('admin.roles.show', compact('role', 'isSystemRole', 'permissions', 'rolePermissions'));
@@ -148,16 +159,7 @@ class RoleController extends Controller
                 ->with('error', 'System roles cannot be modified.');
         }
 
-        // Format permissions for blade template
-        $groupedPermissions = $this->permissionService->getGroupedPermissions();
-        $permissions = [];
-        foreach ($groupedPermissions as $group => $permissionList) {
-            $permissions[$group] = [
-                'label' => ucwords(str_replace('_', ' ', $group)),
-                'permissions' => $permissionList
-            ];
-        }
-
+        $permissions = $this->formatPermissionsForBlade();
         $rolePermissions = $role->permissions->pluck('id')->toArray();
 
         return view('admin.roles.edit', compact('role', 'permissions', 'rolePermissions'));

@@ -2,8 +2,7 @@
 
 @section('title', 'Role Management')
 
-@section('styles')
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+@push('styles')
 <style>
     .stat-card {
         transition: transform 0.2s ease-in-out;
@@ -11,19 +10,11 @@
     .stat-card:hover {
         transform: translateY(-2px);
     }
-    .badge-system {
-        background-color: #6c757d;
-        color: white;
-    }
-    .badge-custom {
-        background-color: #198754;
-        color: white;
-    }
     .table-actions .btn-group {
         white-space: nowrap;
     }
 </style>
-@endsection
+@endpush
 
 @section('content')
 <div class="container-fluid">
@@ -243,7 +234,10 @@
                     <div class="mb-3">
                         <label for="clone-name" class="form-label">New Role Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="clone-name" name="name" required
-                            placeholder="Enter new role name">
+                            pattern="[a-z][a-z0-9_-]*"
+                            placeholder="e.g., senior_technician">
+                        <div class="form-text">Lowercase letters, numbers, underscores, and hyphens only.</div>
+                        <div class="invalid-feedback" id="clone-name-error"></div>
                     </div>
                     <div class="mb-3">
                         <label for="clone-description" class="form-label">Description</label>
@@ -263,12 +257,10 @@
 </div>
 @endsection
 
-@section('scripts')
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+@push('scripts')
 <script>
 $(document).ready(function() {
-    // Initialize DataTable (client-side)
+    // Initialize DataTable (client-side) - CDN already loaded in app.blade.php
     var table = $('#roles-table').DataTable({
         responsive: true,
         order: [[0, 'asc']],
@@ -283,13 +275,13 @@ $(document).ready(function() {
         ]
     });
 
-    // Delete role
+    // ========== DELETE ROLE ==========
     var deleteRoleId = null;
 
     $(document).on('click', '.btn-delete', function() {
         deleteRoleId = $(this).data('id');
         var roleName = $(this).data('name');
-        var usersCount = $(this).data('users');
+        var usersCount = parseInt($(this).data('users')) || 0;
 
         $('#delete-role-name').text(roleName);
 
@@ -312,10 +304,11 @@ $(document).ready(function() {
         btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Deleting...');
 
         $.ajax({
-            url: '{{ url("admin/roles") }}/' + deleteRoleId,
-            type: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            url: '{{ route("admin.roles.destroy", ":id") }}'.replace(':id', deleteRoleId),
+            type: 'POST',
+            data: {
+                _method: 'DELETE',
+                _token: $('meta[name="csrf-token"]').attr('content')
             },
             success: function(response) {
                 $('#deleteModal').modal('hide');
@@ -332,7 +325,7 @@ $(document).ready(function() {
         });
     });
 
-    // Clone role
+    // ========== CLONE ROLE ==========
     var cloneRoleId = null;
 
     $(document).on('click', '.btn-clone', function() {
@@ -340,8 +333,9 @@ $(document).ready(function() {
         var roleName = $(this).data('name');
 
         $('#clone-source-name').text(roleName);
-        $('#clone-name').val('');
+        $('#clone-name').val('').removeClass('is-invalid');
         $('#clone-description').val('');
+        $('#clone-name-error').text('');
 
         $('#cloneModal').modal('show');
     });
@@ -355,12 +349,10 @@ $(document).ready(function() {
         btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Cloning...');
 
         $.ajax({
-            url: '{{ url("admin/roles") }}/' + cloneRoleId + '/clone',
+            url: '{{ route("admin.roles.clone", ":id") }}'.replace(':id', cloneRoleId),
             type: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
             data: {
+                _token: $('meta[name="csrf-token"]').attr('content'),
                 name: $('#clone-name').val(),
                 description: $('#clone-description').val()
             },
@@ -371,9 +363,15 @@ $(document).ready(function() {
             error: function(xhr) {
                 var message = xhr.responseJSON?.message || 'Failed to clone role.';
                 if (xhr.responseJSON?.errors) {
+                    if (xhr.responseJSON.errors.name) {
+                        $('#clone-name').addClass('is-invalid');
+                        $('#clone-name-error').text(xhr.responseJSON.errors.name[0]);
+                    }
                     message = Object.values(xhr.responseJSON.errors).flat().join('\n');
                 }
-                alert(message);
+                if (!xhr.responseJSON?.errors) {
+                    alert(message);
+                }
             },
             complete: function() {
                 btn.prop('disabled', false).html('<i class="bi bi-copy me-1"></i>Clone Role');
@@ -382,4 +380,4 @@ $(document).ready(function() {
     });
 });
 </script>
-@endsection
+@endpush
