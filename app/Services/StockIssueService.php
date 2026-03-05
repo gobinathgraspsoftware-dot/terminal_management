@@ -437,7 +437,6 @@ class StockIssueService
             ]
         );
 
-        ]);
         // Use increment/decrement to avoid Brick\Math\BigNumber casting conflict with DB::raw()
         if ($quantity > 0) {
             $balance->increment('quantity_on_hand', abs($quantity));
