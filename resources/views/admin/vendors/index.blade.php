@@ -301,26 +301,33 @@ $(document).ready(function() {
     $(document).on('click', '.delete-vendor', function() {
         const id = $(this).data('id');
 
-        if (!confirm('Are you sure you want to delete this vendor?')) {
-            return;
-        }
-
-        $.ajax({
-            url: `/admin/vendors/${id}`,
-            type: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    toastr.success(response.message);
-                    table.draw();
-                } else {
-                    toastr.error(response.message);
-                }
-            },
-            error: function(xhr) {
-                toastr.error(xhr.responseJSON?.message || 'Failed to delete vendor');
+        Swal.fire({
+            title: 'Are you sure?',
+            text: 'This vendor will be soft deleted.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `/admin/vendors/${id}`,
+                    type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            showToast(response.message, 'success');
+                            table.draw();
+                        } else {
+                            showToast(response.message, 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        showToast(xhr.responseJSON?.message || 'Failed to delete vendor', 'error');
+                    }
+                });
             }
         });
     });
@@ -329,47 +336,50 @@ $(document).ready(function() {
     $(document).on('click', '.restore-vendor', function() {
         const id = $(this).data('id');
 
-        if (!confirm('Are you sure you want to restore this vendor?')) {
-            return;
-        }
-
-        $.ajax({
-            url: `/admin/vendors/${id}/restore`,
-            type: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                if (response.success) {
-                    toastr.success(response.message);
-                    table.draw();
-                } else {
-                    toastr.error(response.message);
-                }
-            },
-            error: function(xhr) {
-                toastr.error(xhr.responseJSON?.message || 'Failed to restore vendor');
+        Swal.fire({
+            title: 'Restore Vendor?',
+            text: 'This vendor will be restored.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, restore it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `/admin/vendors/${id}/restore`,
+                    type: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            showToast(response.message, 'success');
+                            table.draw();
+                        } else {
+                            showToast(response.message, 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        showToast(xhr.responseJSON?.message || 'Failed to restore vendor', 'error');
+                    }
+                });
             }
         });
     });
 
-    // Toggle status - Click on status badge (like Partner module)
+    // Toggle status - Click on status badge
     $(document).on('click', '.status-toggle-badge', function(e) {
         e.preventDefault();
 
         const badge = $(this);
         const vendorId = badge.data('vendor-id');
 
-        // Prevent double-clicks
         if (badge.hasClass('updating')) {
             return;
         }
 
-        // Store original badge content
         const originalClass = badge.attr('class');
         const originalText = badge.text();
 
-        // Show updating state
         badge.addClass('updating')
              .removeClass('bg-success bg-secondary')
              .addClass('bg-warning')
@@ -383,28 +393,15 @@ $(document).ready(function() {
             },
             success: function(response) {
                 if (response.success) {
-                    // Show success message
-                    if (typeof toastr !== 'undefined') {
-                        toastr.success(response.message);
-                    }
-
-                    // Reload table to reflect all changes including toggle button
+                    showToast(response.message, 'success');
                     table.draw(false);
                 } else {
-                    if (typeof toastr !== 'undefined') {
-                        toastr.error(response.message);
-                    }
-                    // Restore original badge on error
+                    showToast(response.message, 'error');
                     badge.attr('class', originalClass).text(originalText);
                 }
             },
             error: function(xhr) {
-                if (typeof toastr !== 'undefined') {
-                    toastr.error(xhr.responseJSON?.message || 'Failed to update status');
-                } else {
-                    alert(xhr.responseJSON?.message || 'Failed to update status');
-                }
-                // Restore original badge on error
+                showToast(xhr.responseJSON?.message || 'Failed to update status', 'error');
                 badge.attr('class', originalClass).text(originalText);
             }
         });
@@ -417,15 +414,12 @@ $(document).ready(function() {
         const button = $(this);
         const vendorId = button.data('id');
 
-        // Prevent double-clicks
         if (button.prop('disabled')) {
             return;
         }
 
-        // Store original button content
         const originalHtml = button.html();
 
-        // Show loading state
         button.prop('disabled', true)
               .html('<i class="spinner-border spinner-border-sm"></i>');
 
@@ -437,28 +431,15 @@ $(document).ready(function() {
             },
             success: function(response) {
                 if (response.success) {
-                    // Show success message
-                    if (typeof toastr !== 'undefined') {
-                        toastr.success(response.message);
-                    }
-
-                    // Reload table to reflect changes
+                    showToast(response.message, 'success');
                     table.draw(false);
                 } else {
-                    if (typeof toastr !== 'undefined') {
-                        toastr.error(response.message);
-                    }
-                    // Restore original button
+                    showToast(response.message, 'error');
                     button.prop('disabled', false).html(originalHtml);
                 }
             },
             error: function(xhr) {
-                if (typeof toastr !== 'undefined') {
-                    toastr.error(xhr.responseJSON?.message || 'Failed to update status');
-                } else {
-                    alert(xhr.responseJSON?.message || 'Failed to update status');
-                }
-                // Restore original button
+                showToast(xhr.responseJSON?.message || 'Failed to update status', 'error');
                 button.prop('disabled', false).html(originalHtml);
             }
         });
@@ -490,21 +471,20 @@ $(document).ready(function() {
             contentType: false,
             success: function(response) {
                 if (response.success) {
-                    toastr.success(response.message);
+                    showToast(response.message, 'success');
                     $('#importModal').modal('hide');
                     $('#importForm')[0].reset();
                     table.draw();
 
-                    // Show detailed results if there are errors
                     if (response.results.failed > 0) {
                         console.log('Import errors:', response.results.errors);
                     }
                 } else {
-                    toastr.error(response.message);
+                    showToast(response.message, 'error');
                 }
             },
             error: function(xhr) {
-                toastr.error(xhr.responseJSON?.message || 'Import failed');
+                showToast(xhr.responseJSON?.message || 'Import failed', 'error');
             }
         });
     });

@@ -47,7 +47,7 @@ class VendorController extends Controller
             ->withCount('purchaseOrders')
             ->withCount('grns')
             ->withCount(['invoices' => function ($q) {
-                $q->where('invoice_type', 'vendor');
+                $q->where('invoice_type', 'ap');
             }])
             ->select('vendors.*');
 
@@ -61,16 +61,16 @@ class VendorController extends Controller
                 if ($vendor->trashed()) {
                     return '<span class="badge bg-danger">Deleted</span>';
                 }
-                
+
                 // Add data-id and clickable class to badge
                 $badgeClass = $vendor->status === Vendor::STATUS_ACTIVE ? 'bg-success' : 'bg-secondary';
                 $statusText = ucfirst($vendor->status);
-                
-                return '<span class="badge ' . $badgeClass . ' status-toggle-badge" 
-                              data-vendor-id="' . $vendor->id . '" 
-                              style="cursor: pointer;" 
-                              title="Click to toggle status">' 
-                              . $statusText . 
+
+                return '<span class="badge ' . $badgeClass . ' status-toggle-badge"
+                              data-vendor-id="' . $vendor->id . '"
+                              style="cursor: pointer;"
+                              title="Click to toggle status">'
+                              . $statusText .
                         '</span>';
             })
             ->addColumn('vendor_type_badge', function ($vendor) {
@@ -273,7 +273,7 @@ class VendorController extends Controller
                 $query->latest()->limit(10);
             },
             'invoices' => function ($query) {
-                $query->where('invoice_type', 'vendor')
+                $query->where('invoice_type', 'ap')
                       ->latest()
                       ->limit(10);
             },
@@ -349,7 +349,7 @@ class VendorController extends Controller
             }
 
             // Check if vendor has pending invoices
-            if ($vendor->invoices()->where('status', '!=', 'paid')->exists()) {
+            if ($vendor->invoices()->where('payment_status', '!=', 'paid')->exists()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Cannot delete vendor with pending invoices.'
