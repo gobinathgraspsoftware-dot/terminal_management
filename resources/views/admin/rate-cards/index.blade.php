@@ -88,7 +88,7 @@
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover" id="rateCardsTable">
+                <table class="table table-hover" id="rateCardsTable" style="width:100%">
                     <thead>
                         <tr>
                             <th>Code</th>
@@ -100,34 +100,12 @@
                             <th>Rate Amount</th>
                             <th>Effective From</th>
                             <th>Effective To</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <th width="130">Status</th>
+                            <th width="120">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <!-- DataTables will populate this -->
-                    </tbody>
+                    <tbody></tbody>
                 </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirm Deletion</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Are you sure you want to delete this rate card?</p>
-                <p class="text-danger"><strong>This action cannot be undone.</strong></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmDelete">Delete</button>
             </div>
         </div>
     </div>
@@ -165,10 +143,10 @@ $(document).ready(function() {
                 { data: 'model', name: 'model' },
                 { data: 'state', name: 'state' },
                 { data: 'calculation_type', name: 'calculation_type' },
-                { data: 'rate_amount', name: 'rate_amount', className: 'text-end' },
+                { data: 'rate_amount', name: 'rate_amount', className: 'text-nowrap' },
                 { data: 'effective_from', name: 'effective_from' },
-                { 
-                    data: 'effective_to', 
+                {
+                    data: 'effective_to',
                     name: 'effective_to',
                     render: function(data, type, row) {
                         if (row.is_expired) {
@@ -177,9 +155,10 @@ $(document).ready(function() {
                         return data;
                     }
                 },
-                { 
-                    data: 'status_badge', 
+                {
+                    data: 'status_badge',
                     name: 'status',
+                    className: 'text-center text-nowrap',
                     render: function(data, type, row) {
                         let badge = data;
                         if (row.is_effective && row.status === 'active') {
@@ -188,27 +167,29 @@ $(document).ready(function() {
                         return badge;
                     }
                 },
-                { 
+                {
                     data: 'id',
                     name: 'actions',
                     orderable: false,
                     searchable: false,
+                    className: 'text-center text-nowrap',
                     render: function(data, type, row) {
-                        let actions = '';
-                        
-                        actions += '<a href="/admin/rate-cards/' + data + '" class="btn btn-sm btn-info me-1" title="View">' +
+                        let actions = '<div class="btn-group btn-group-sm" role="group">';
+
+                        actions += '<a href="/admin/rate-cards/' + data + '" class="btn btn-info" title="View">' +
                                   '<i class="bi bi-eye"></i></a>';
-                        
+
                         @can('edit_rate_cards')
-                        actions += '<a href="/admin/rate-cards/' + data + '/edit" class="btn btn-sm btn-warning me-1" title="Edit">' +
+                        actions += '<a href="/admin/rate-cards/' + data + '/edit" class="btn btn-warning" title="Edit">' +
                                   '<i class="bi bi-pencil"></i></a>';
                         @endcan
-                        
+
                         @can('delete_rate_cards')
-                        actions += '<button type="button" class="btn btn-sm btn-danger delete-btn" data-id="' + data + '" title="Delete">' +
+                        actions += '<button type="button" class="btn btn-danger delete-btn" data-id="' + data + '" title="Delete">' +
                                   '<i class="bi bi-trash"></i></button>';
                         @endcan
-                        
+
+                        actions += '</div>';
                         return actions;
                     }
                 }
@@ -240,41 +221,43 @@ $(document).ready(function() {
             state: $('#filterState').val(),
             status: $('#filterStatus').val(),
         });
-        
+
         window.location.href = '{{ route('admin.rate-cards.export') }}?' + params.toString();
     });
 
     // Delete Rate Card
     $(document).on('click', '.delete-btn', function() {
         deleteId = $(this).data('id');
-        $('#deleteModal').modal('show');
-    });
 
-    $('#confirmDelete').on('click', function() {
-        if (!deleteId) return;
-
-        $.ajax({
-            url: '/admin/rate-cards/' + deleteId,
-            type: 'DELETE',
-            data: {
-                _token: '{{ csrf_token() }}'
-            },
-            success: function(response) {
-                $('#deleteModal').modal('hide');
-                toastr.success(response.message);
-                table.ajax.reload();
+        Swal.fire({
+            title: 'Are you sure?',
+            text: 'This action cannot be undone.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/admin/rate-cards/' + deleteId,
+                    type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        showToast(response.message, 'success');
+                        table.ajax.reload();
+                        deleteId = null;
+                    },
+                    error: function(xhr) {
+                        showToast(xhr.responseJSON?.message || 'Failed to delete rate card.', 'error');
+                        deleteId = null;
+                    }
+                });
+            } else {
                 deleteId = null;
-            },
-            error: function(xhr) {
-                let message = xhr.responseJSON?.message || 'Failed to delete rate card.';
-                toastr.error(message);
             }
         });
-    });
-
-    // Clear deleteId when modal is hidden
-    $('#deleteModal').on('hidden.bs.modal', function() {
-        deleteId = null;
     });
 });
 </script>
