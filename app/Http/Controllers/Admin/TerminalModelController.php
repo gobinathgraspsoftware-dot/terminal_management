@@ -13,7 +13,6 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
@@ -32,10 +31,8 @@ class TerminalModelController extends Controller
     public function index(): View
     {
         $this->authorize('viewAny', TerminalModel::class);
-
         $statistics = $this->terminalModelService->getStatistics();
         $categories = $this->terminalModelService->getActiveCategories();
-
         return view('admin.terminal_models.index', compact('statistics', 'categories'));
     }
 
@@ -50,15 +47,12 @@ class TerminalModelController extends Controller
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
         }
-
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-
         if ($request->filled('is_serial_tracked')) {
             $query->where('is_serial_tracked', $request->is_serial_tracked);
         }
-
         if ($request->get('show_trashed') === 'true') {
             $query->withTrashed();
         }
@@ -66,9 +60,7 @@ class TerminalModelController extends Controller
         return DataTables::of($query)
             ->addColumn('category_name', fn($model) => $model->category ? $model->category->category_name : '-')
             ->addColumn('status_badge', function ($model) {
-                if ($model->trashed()) {
-                    return '<span class="badge bg-danger">Deleted</span>';
-                }
+                if ($model->trashed()) return '<span class="badge bg-danger">Deleted</span>';
                 return $model->status === 'active'
                     ? '<span class="badge bg-success">Active</span>'
                     : '<span class="badge bg-secondary">Inactive</span>';
@@ -84,10 +76,11 @@ class TerminalModelController extends Controller
                 return '<span class="badge bg-success">' . number_format($total, 0) . ' units</span>';
             })
             ->addColumn('image_preview', function ($model) {
-                // Use Storage::url() - same pattern as profile avatar
-                if ($model->image_path && Storage::disk('public')->exists($model->image_path)) {
-                    $url = Storage::url($model->image_path);
-                    return '<img src="' . $url . '" alt="' . e($model->model_name) . '" class="img-thumbnail" style="max-width: 50px; max-height: 50px; object-fit: cover;">';
+                // cPanel fix: no file_exists/Storage::exists check
+                // public_path() != DOCUMENT_ROOT on cPanel, so checks always fail
+                if ($model->image_path) {
+                    $url = asset('storage/' . $model->image_path);
+                    return '<img src="' . $url . '" alt="' . e($model->model_name) . '" class="img-thumbnail" style="max-width:50px;max-height:50px;object-fit:cover;" onerror="this.style.display=\'none\'">';
                 }
                 return '<i class="bi bi-image text-muted" style="font-size: 1.5rem;"></i>';
             })
@@ -110,11 +103,9 @@ class TerminalModelController extends Controller
     public function create(): View
     {
         $this->authorize('create', TerminalModel::class);
-
         $categories = $this->terminalModelService->getActiveCategories();
         $accessoryModels = $this->terminalModelService->getAccessoryModels();
         $modelCode = $this->terminalModelService->generateModelCode();
-
         return view('admin.terminal_models.create', compact('categories', 'accessoryModels', 'modelCode'));
     }
 
@@ -122,39 +113,25 @@ class TerminalModelController extends Controller
     {
         try {
             $terminalModel = $this->terminalModelService->create($request->validated());
-
             if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Terminal model created successfully.',
-                    'data' => $terminalModel,
-                ]);
+                return response()->json(['success' => true, 'message' => 'Terminal model created successfully.', 'data' => $terminalModel]);
             }
-
-            return redirect()
-                ->route('admin.terminal-models.show', $terminalModel)
-                ->with('success', 'Terminal model created successfully.');
-
+            return redirect()->route('admin.terminal-models.show', $terminalModel)->with('success', 'Terminal model created successfully.');
         } catch (\Exception $e) {
             Log::error('Failed to create terminal model', ['error' => $e->getMessage()]);
-
             if ($request->expectsJson()) {
-                return response()->json(['success' => false, 'message' => 'Failed to create terminal model: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Failed: ' . $e->getMessage()], 500);
             }
-
-            return redirect()->back()->withInput()->with('error', 'Failed to create terminal model: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Failed: ' . $e->getMessage());
         }
     }
 
     public function show(TerminalModel $terminalModel): View
     {
         $this->authorize('view', $terminalModel);
-
         $terminalModel->load(['category']);
-
         $stockSummary = $this->terminalModelService->getStockSummary($terminalModel);
         $recentMovements = $this->terminalModelService->getRecentMovements($terminalModel);
-
         $accessories = collect();
         if ($terminalModel->default_accessories && is_array($terminalModel->default_accessories)) {
             $accessoryIds = array_filter($terminalModel->default_accessories);
@@ -162,19 +139,15 @@ class TerminalModelController extends Controller
                 $accessories = TerminalModel::whereIn('id', $accessoryIds)->get();
             }
         }
-
         return view('admin.terminal_models.show', compact('terminalModel', 'stockSummary', 'recentMovements', 'accessories'));
     }
 
     public function edit(TerminalModel $terminalModel): View
     {
         $this->authorize('update', $terminalModel);
-
         $terminalModel->load(['category']);
-
         $categories = $this->terminalModelService->getActiveCategories();
         $accessoryModels = $this->terminalModelService->getAccessoryModels();
-
         return view('admin.terminal_models.edit', compact('terminalModel', 'categories', 'accessoryModels'));
     }
 
@@ -182,95 +155,70 @@ class TerminalModelController extends Controller
     {
         try {
             $terminalModel = $this->terminalModelService->update($terminalModel, $request->validated());
-
             if ($request->expectsJson()) {
                 return response()->json(['success' => true, 'message' => 'Terminal model updated successfully.', 'data' => $terminalModel]);
             }
-
             return redirect()->route('admin.terminal-models.show', $terminalModel)->with('success', 'Terminal model updated successfully.');
-
         } catch (\Exception $e) {
             Log::error('Failed to update terminal model', ['id' => $terminalModel->id, 'error' => $e->getMessage()]);
-
             if ($request->expectsJson()) {
-                return response()->json(['success' => false, 'message' => 'Failed to update terminal model: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Failed: ' . $e->getMessage()], 500);
             }
-
-            return redirect()->back()->withInput()->with('error', 'Failed to update terminal model: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Failed: ' . $e->getMessage());
         }
     }
 
     public function destroy(TerminalModel $terminalModel): JsonResponse
     {
         $this->authorize('delete', $terminalModel);
-
         try {
             $this->terminalModelService->delete($terminalModel);
             return response()->json(['success' => true, 'message' => 'Terminal model deleted successfully.']);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Failed to delete terminal model: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Failed: ' . $e->getMessage()], 500);
         }
     }
 
     public function toggleStatus(TerminalModel $terminalModel): JsonResponse
     {
         $this->authorize('update', $terminalModel);
-
         try {
             $terminalModel = $this->terminalModelService->toggleStatus($terminalModel);
             return response()->json(['success' => true, 'message' => 'Status updated successfully.', 'status' => $terminalModel->status]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Failed to update status: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Failed: ' . $e->getMessage()], 500);
         }
     }
 
     public function deleteImage(TerminalModel $terminalModel): JsonResponse
     {
         $this->authorize('update', $terminalModel);
-
         try {
             $this->terminalModelService->deleteModelImage($terminalModel);
             return response()->json(['success' => true, 'message' => 'Image deleted successfully.']);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Failed to delete image: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Failed: ' . $e->getMessage()], 500);
         }
     }
 
     public function export(Request $request)
     {
         $this->authorize('viewAny', TerminalModel::class);
-
-        $filters = [
-            'category_id' => $request->category_id,
-            'status' => $request->status,
-            'search' => $request->search,
-        ];
-
+        $filters = ['category_id' => $request->category_id, 'status' => $request->status, 'search' => $request->search];
         return Excel::download(new TerminalModelsExport($filters), 'terminal_models_' . date('Y-m-d_His') . '.xlsx');
     }
 
     public function import(Request $request): JsonResponse
     {
         $this->authorize('create', TerminalModel::class);
-
         $request->validate(['file' => 'required|mimes:xlsx,xls,csv|max:5120']);
-
         try {
             $import = new TerminalModelsImport();
             Excel::import($import, $request->file('file'));
-
             $message = "Import completed. Imported: {$import->getImportedCount()}, Updated: {$import->getUpdatedCount()}";
             $errors = $import->getErrors();
-            if (count($errors) > 0) {
-                $message .= ". Errors: " . implode('; ', $errors);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => $message,
-                'data' => ['imported' => $import->getImportedCount(), 'updated' => $import->getUpdatedCount(), 'errors' => $errors],
-            ]);
-
+            if (count($errors) > 0) $message .= ". Errors: " . implode('; ', $errors);
+            return response()->json(['success' => true, 'message' => $message]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Import failed: ' . $e->getMessage()], 500);
         }

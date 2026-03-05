@@ -8,7 +8,6 @@ use App\Services\TerminalModelService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -26,9 +25,7 @@ class TerminalModelController extends Controller
     public function index(): View
     {
         $this->authorize('viewAny', TerminalModel::class);
-
         $categories = $this->terminalModelService->getActiveCategories();
-
         return view('technician.terminal_models.index', compact('categories'));
     }
 
@@ -50,9 +47,9 @@ class TerminalModelController extends Controller
                 ? '<span class="badge bg-primary"><i class="bi bi-check-circle"></i> Yes</span>'
                 : '<span class="badge bg-secondary">No</span>')
             ->addColumn('image_preview', function ($model) {
-                if ($model->image_path && Storage::disk('public')->exists($model->image_path)) {
-                    $url = Storage::url($model->image_path);
-                    return '<img src="' . $url . '" alt="' . e($model->model_name) . '" class="img-thumbnail" style="max-width: 50px; max-height: 50px; object-fit: cover;">';
+                if ($model->image_path) {
+                    $url = asset('storage/' . $model->image_path);
+                    return '<img src="' . $url . '" alt="' . e($model->model_name) . '" class="img-thumbnail" style="max-width:50px;max-height:50px;object-fit:cover;" onerror="this.style.display=\'none\'">';
                 }
                 return '<i class="bi bi-image text-muted" style="font-size: 1.5rem;"></i>';
             })
@@ -74,9 +71,7 @@ class TerminalModelController extends Controller
     public function show(TerminalModel $terminalModel): View
     {
         $this->authorize('view', $terminalModel);
-
         $terminalModel->load(['category']);
-
         $accessories = collect();
         if ($terminalModel->default_accessories && is_array($terminalModel->default_accessories)) {
             $accessoryIds = array_filter($terminalModel->default_accessories);
@@ -84,7 +79,6 @@ class TerminalModelController extends Controller
                 $accessories = TerminalModel::whereIn('id', $accessoryIds)->get();
             }
         }
-
         return view('technician.terminal_models.show', compact('terminalModel', 'accessories'));
     }
 }
