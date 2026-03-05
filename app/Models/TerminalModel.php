@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
 
 class TerminalModel extends Model
 {
@@ -54,8 +53,14 @@ class TerminalModel extends Model
 
     /**
      * Get the full URL for the model image.
-     * Checks public_path first (cPanel direct uploads via move()),
-     * then falls back to Storage disk (symlink-based uploads via storeAs()).
+     *
+     * Simply uses asset() — no file_exists check.
+     * On cPanel, file_exists(public_path()) fails because public_path()
+     * returns the Laravel /public dir, NOT the cPanel /public_html dir.
+     * But asset() generates the correct web URL regardless.
+     *
+     * The file IS stored at DOCUMENT_ROOT/storage/terminal_models/...
+     * and asset('storage/...') generates the matching web URL.
      */
     public function getImageUrlAttribute(): ?string
     {
@@ -63,36 +68,15 @@ class TerminalModel extends Model
             return null;
         }
 
-        // Check public_path first (cPanel compatible — files moved directly)
-        $publicFile = public_path('storage/' . $this->image_path);
-        if (file_exists($publicFile)) {
-            return asset('storage/' . $this->image_path);
-        }
-
-        // Fallback: check storage disk (symlink-based)
-        if (Storage::disk('public')->exists($this->image_path)) {
-            return Storage::url($this->image_path);
-        }
-
-        return null;
+        return asset('storage/' . $this->image_path);
     }
 
     /**
-     * Check if model has an image
+     * Check if model has an image path set
      */
     public function getHasImageAttribute(): bool
     {
-        if (!$this->image_path) {
-            return false;
-        }
-
-        // Check both locations
-        $publicFile = public_path('storage/' . $this->image_path);
-        if (file_exists($publicFile)) {
-            return true;
-        }
-
-        return Storage::disk('public')->exists($this->image_path);
+        return !empty($this->image_path);
     }
 
     // =========================================================================

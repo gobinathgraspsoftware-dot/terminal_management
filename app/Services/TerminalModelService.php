@@ -58,7 +58,7 @@ class TerminalModelService
                 $data['model_code'] = $this->generateModelCode();
             }
 
-            // Handle image upload BEFORE create
+            // Handle image upload
             if (isset($data['image']) && $data['image'] instanceof UploadedFile) {
                 $data['image_path'] = $this->handleImageUpload($data['image']);
                 unset($data['image']);
@@ -106,7 +106,6 @@ class TerminalModelService
         try {
             // Handle image upload
             if (isset($data['image']) && $data['image'] instanceof UploadedFile) {
-                // Delete old image if exists
                 if ($terminalModel->image_path) {
                     $this->deleteImage($terminalModel->image_path);
                 }
@@ -157,7 +156,6 @@ class TerminalModelService
                 throw new \Exception('Cannot delete terminal model with existing inventory serials.');
             }
 
-            // Delete image file if exists
             if ($terminalModel->image_path) {
                 $this->deleteImage($terminalModel->image_path);
             }
@@ -258,58 +256,99 @@ class TerminalModelService
     }
 
     /**
-     * Handle image upload — cPanel compatible
-     * Uses move() to public_path('storage/') directly instead of storeAs()
-     * storeAs() writes to storage/app/public/ which needs a symlink that cPanel breaks
+     * Get the REAL public directory path.
+     *
+     * On cPanel: public_path() returns /home/user/laravel-app/public/
+     * but the actual web root is /home/user/public_html/
+     * DOCUMENT_ROOT always returns the real web-accessible directory.
+     */
+    protected function getRealPublicPath(): string
+    {
+        // DOCUMENT_ROOT is set by the web server and always points to
+        // the actual directory serving web requests
+        if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+            return rtrim($_SERVER['DOCUMENT_ROOT'], '/');
+        }
+
+        // Fallback for CLI (artisan commands, queue workers)
+        return rtrim(public_path(), '/');
+    }
+
+    /**
+     * Handle image upload — cPanel compatible.
+     *
+     * Uses DOCUMENT_ROOT to find the real public directory,
+     * then moves the file to {DOCUMENT_ROOT}/storage/terminal_models/
+     * This works on both local (XAMPP) and cPanel without symlinks.
      */
     protected function handleImageUpload(UploadedFile $image): string
     {
         $directory = 'terminal_models';
-        $targetDir = public_path('storage/' . $directory);
+        $realPublicPath = $this->getRealPublicPath();
+        $targetDir = $realPublicPath . '/storage/' . $directory;
 
         // Create directory if not exists
         if (!File::isDirectory($targetDir)) {
             File::makeDirectory($targetDir, 0755, true);
-            Log::info('Created directory', ['path' => $targetDir]);
+            Log::info('Created terminal_models directory', ['path' => $targetDir]);
         }
 
         $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
         $relativePath = $directory . '/' . $filename;
 
-        // Move file directly to public/storage/terminal_models/
+        // Move file directly to the real public storage directory
         $image->move($targetDir, $filename);
 
         // Verify file exists
         $fullPath = $targetDir . '/' . $filename;
         if (!file_exists($fullPath)) {
-            Log::error('Image file not found after move', ['path' => $fullPath]);
+            Log::error('Image file not found after move', [
+                'target_dir' => $targetDir,
+                'filename' => $filename,
+                'full_path' => $fullPath,
+                'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'not set',
+                'public_path' => public_path(),
+            ]);
             throw new \Exception('Failed to save image file');
         }
 
-        Log::info('Terminal model image uploaded (cPanel move)', [
+        Log::info('Terminal model image uploaded successfully', [
             'relative_path' => $relativePath,
             'full_path' => $fullPath,
             'file_size' => filesize($fullPath),
+            'document_root' => $realPublicPath,
+            'url' => asset('storage/' . $relativePath),
         ]);
 
         return $relativePath;
     }
 
     /**
-     * Delete image file — checks both public_path and storage disk
+     * Delete image file — checks real public path, public_path, and storage disk
      */
     protected function deleteImage(string $path): void
     {
-        // Check public_path first (cPanel direct uploads)
-        $publicFile = public_path('storage/' . $path);
-        if (file_exists($publicFile)) {
-            unlink($publicFile);
-            Log::info('Image deleted from public_path', ['path' => $publicFile]);
-            return;
+        $deleted = false;
+
+        // 1. Check real public path (DOCUMENT_ROOT)
+        $realPublicPath = $this->getRealPublicPath();
+        $realFile = $realPublicPath . '/storage/' . $path;
+        if (file_exists($realFile)) {
+            unlink($realFile);
+            Log::info('Image deleted from DOCUMENT_ROOT', ['path' => $realFile]);
+            $deleted = true;
         }
 
-        // Fallback: check storage disk (for older uploads via storeAs)
-        if (Storage::disk('public')->exists($path)) {
+        // 2. Check public_path (local/XAMPP)
+        $publicFile = public_path('storage/' . $path);
+        if (!$deleted && file_exists($publicFile)) {
+            unlink($publicFile);
+            Log::info('Image deleted from public_path', ['path' => $publicFile]);
+            $deleted = true;
+        }
+
+        // 3. Fallback: storage disk (older uploads via storeAs)
+        if (!$deleted && Storage::disk('public')->exists($path)) {
             Storage::disk('public')->delete($path);
             Log::info('Image deleted from storage disk', ['path' => $path]);
         }
