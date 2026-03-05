@@ -1437,3 +1437,30 @@
         background: #a1a1a1;
     }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var sidebar = document.querySelector('.sidebar-content');
+    if (!sidebar) return;
+
+    // Restore saved scroll position
+    var saved = sessionStorage.getItem('sidebar_scroll');
+    if (saved !== null) {
+        sidebar.scrollTop = parseInt(saved, 10);
+    }
+
+    // Save scroll position on scroll (debounced)
+    var timer = null;
+    sidebar.addEventListener('scroll', function() {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(function() {
+            sessionStorage.setItem('sidebar_scroll', sidebar.scrollTop);
+        }, 100);
+    });
+
+    // Also save before navigating away
+    window.addEventListener('beforeunload', function() {
+        sessionStorage.setItem('sidebar_scroll', sidebar.scrollTop);
+    });
+});
+</script>

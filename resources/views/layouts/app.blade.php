@@ -296,8 +296,11 @@
                             </div>
                         </li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i> Profile</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i> Settings</a></li>
+                        @php
+                            $rolePrefix = auth()->user()->roles->first()?->name ?? 'admin';
+                        @endphp
+                        <li><a class="dropdown-item" href="{{ route($rolePrefix . '.profile.index') }}"><i class="bi bi-person me-2"></i> Profile</a></li>
+                        <li><a class="dropdown-item" href="{{ route($rolePrefix . '.profile.edit') }}"><i class="bi bi-gear me-2"></i> Settings</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form action="{{ route('logout') }}" method="POST">
