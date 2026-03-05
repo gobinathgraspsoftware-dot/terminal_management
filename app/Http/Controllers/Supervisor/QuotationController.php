@@ -44,7 +44,7 @@ class QuotationController extends Controller
     protected function getTeamMemberIds()
     {
         $teamMemberIds = User::where('supervisor_id', Auth::id())->pluck('id')->toArray();
-        $teamMemberIds[] = Auth::id(); // Include supervisor
+        $teamMemberIds[] = Auth::id();
         return $teamMemberIds;
     }
 
@@ -74,7 +74,6 @@ class QuotationController extends Controller
             ->whereIn('created_by', $this->getTeamMemberIds())
             ->select('quotations.*');
 
-        // Filters
         if ($request->filled('type')) {
             $query->where('quotation_type', $request->type);
         }
@@ -110,23 +109,33 @@ class QuotationController extends Controller
             })
             ->addColumn('actions', function ($q) {
                 $actions = '<div class="btn-group btn-group-sm">';
-                $actions .= '<a href="' . route('supervisor.quotations.show', $q) . '" class="btn btn-info" title="View"><i class="fas fa-eye"></i></a>';
+                $actions .= '<a href="' . route('supervisor.quotations.show', $q) . '" class="btn btn-info" title="View"><i class="bi bi-eye"></i></a>';
 
                 if (auth()->user()->can('update', $q)) {
-                    $actions .= '<a href="' . route('supervisor.quotations.edit', $q) . '" class="btn btn-primary" title="Edit"><i class="fas fa-edit"></i></a>';
+                    $actions .= '<a href="' . route('supervisor.quotations.edit', $q) . '" class="btn btn-primary" title="Edit"><i class="bi bi-pencil"></i></a>';
                 }
 
-                // PDF Actions
-                $actions .= '<a href="' . route('supervisor.quotations.pdf.download', $q) . '" class="btn btn-danger" title="Download PDF"><i class="fas fa-file-pdf"></i></a>';
+                $actions .= '<a href="' . route('supervisor.quotations.pdf.download', $q) . '" class="btn btn-danger" title="Download PDF"><i class="bi bi-file-pdf"></i></a>';
 
                 if (auth()->user()->can('delete', $q)) {
-                    $actions .= '<button type="button" class="btn btn-danger delete-btn" data-id="' . $q->id . '" title="Delete"><i class="fas fa-trash"></i></button>';
+                    $actions .= '<button type="button" class="btn btn-danger delete-btn" data-id="' . $q->id . '" title="Delete"><i class="bi bi-trash"></i></button>';
                 }
 
                 $actions .= '</div>';
                 return $actions;
             })
-            ->rawColumns(['type_badge', 'status_badge', 'actions'])
+            ->editColumn('quotation_date', fn($q) => $q->quotation_date->format('d M Y'))
+            ->editColumn('valid_until', function($q) {
+                if ($q->valid_until) {
+                    if ($q->valid_until->isPast()) {
+                        return '<span class="text-danger fw-bold">' . $q->valid_until->format('d M Y') . '</span>';
+                    }
+                    return $q->valid_until->format('d M Y');
+                }
+                return '<span class="text-muted">N/A</span>';
+            })
+            ->editColumn('total_amount', fn($q) => $q->currency . ' ' . number_format($q->total_amount, 2))
+            ->rawColumns(['type_badge', 'status_badge', 'actions', 'valid_until'])
             ->make(true);
     }
 
@@ -279,9 +288,10 @@ class QuotationController extends Controller
     }
 
     /**
-     * Approve quotation
+     * Process approval (approve or reject) - called from show page buttons
+     * Route: POST /{quotation}/process-approval
      */
-    public function approve(ApproveQuotationRequest $request, Quotation $quotation)
+    public function processApproval(ApproveQuotationRequest $request, Quotation $quotation)
     {
         try {
             if ($request->action === 'approve') {
@@ -299,6 +309,14 @@ class QuotationController extends Controller
     }
 
     /**
+     * Approve quotation (legacy/alternate route)
+     */
+    public function approve(ApproveQuotationRequest $request, Quotation $quotation)
+    {
+        return $this->processApproval($request, $quotation);
+    }
+
+    /**
      * Send quotation
      */
     public function send(Quotation $quotation)
@@ -310,6 +328,50 @@ class QuotationController extends Controller
             return response()->json(['success' => true, 'message' => 'Quotation sent successfully.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Accept quotation
+     */
+    public function accept(Quotation $quotation)
+    {
+        $this->authorize('update', $quotation);
+
+        try {
+            $this->quotationService->acceptQuotation($quotation);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Quotation accepted successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+
+    /**
+     * Cancel quotation
+     */
+    public function cancel(Quotation $quotation)
+    {
+        $this->authorize('update', $quotation);
+
+        try {
+            $this->quotationService->cancelQuotation($quotation);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Quotation cancelled successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
         }
     }
 
@@ -337,6 +399,29 @@ class QuotationController extends Controller
     }
 
     /**
+     * Duplicate quotation
+     */
+    public function duplicate(Quotation $quotation)
+    {
+        $this->authorize('create', Quotation::class);
+
+        try {
+            $newQuotation = $this->quotationService->duplicateQuotation($quotation);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Quotation duplicated successfully.',
+                'redirect' => route('supervisor.quotations.edit', $newQuotation)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+
+    /**
      * Export to Excel
      */
     public function export(Request $request)
@@ -344,6 +429,7 @@ class QuotationController extends Controller
         $this->authorize('export', Quotation::class);
 
         $filters = $request->only(['quotation_type', 'status', 'client_id', 'vendor_id', 'date_from', 'date_to']);
+        $filters['team_member_ids'] = $this->getTeamMemberIds();
 
         return Excel::download(
             new QuotationsExport($filters),
@@ -352,7 +438,7 @@ class QuotationController extends Controller
     }
 
     /**
-     * Print quotation
+     * Print quotation (HTML preview)
      */
     public function print(Quotation $quotation)
     {
@@ -371,10 +457,7 @@ class QuotationController extends Controller
         $this->authorize('view', $quotation);
 
         try {
-            // Validate quotation
             $this->pdfService->validateQuotation($quotation);
-
-            // Add watermark for draft/expired
             $watermark = $this->pdfService->getWatermark($quotation);
 
             return $this->pdfService->downloadPdf($quotation, [
@@ -393,10 +476,7 @@ class QuotationController extends Controller
         $this->authorize('view', $quotation);
 
         try {
-            // Validate quotation
             $this->pdfService->validateQuotation($quotation);
-
-            // Add watermark for draft/expired
             $watermark = $this->pdfService->getWatermark($quotation);
 
             return $this->pdfService->streamPdf($quotation, [
@@ -417,26 +497,21 @@ class QuotationController extends Controller
         $request->validate([
             'email' => 'required|email',
             'subject' => 'nullable|string|max:255',
-            'message' => 'nullable|string|max:1000',
+            'custom_message' => 'nullable|string|max:1000',
         ]);
 
         try {
-            // Validate quotation
             $this->pdfService->validateQuotation($quotation);
 
-            // Get recipient email
             $recipientEmail = $request->email;
 
-            // Prepare email options
             $emailOptions = [
                 'subject' => $request->subject,
-                'message' => $request->message,
+                'custom_message' => $request->custom_message,
             ];
 
-            // Send email
             Mail::to($recipientEmail)->send(new QuotationEmail($quotation, $emailOptions));
 
-            // Update quotation status if approved
             if ($quotation->status === Quotation::STATUS_APPROVED) {
                 $this->quotationService->sendQuotation($quotation);
             }
@@ -459,6 +534,7 @@ class QuotationController extends Controller
     public function getModelPrice($modelId)
     {
         $model = TerminalModel::find($modelId);
+
         if (!$model) {
             return response()->json(['success' => false, 'message' => 'Model not found'], 404);
         }
@@ -477,6 +553,7 @@ class QuotationController extends Controller
     public function getChargePrice($chargeId)
     {
         $charge = ChargeCatalog::find($chargeId);
+
         if (!$charge) {
             return response()->json(['success' => false, 'message' => 'Charge not found'], 404);
         }

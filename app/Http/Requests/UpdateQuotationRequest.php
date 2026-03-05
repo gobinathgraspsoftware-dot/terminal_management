@@ -17,6 +17,18 @@ class UpdateQuotationRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        $quotation = $this->route('quotation');
+
+        $this->merge([
+            'currency' => $this->currency ?? ($quotation ? $quotation->currency : 'MYR'),
+        ]);
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
@@ -103,7 +115,7 @@ class UpdateQuotationRequest extends FormRequest
     protected function failedAuthorization(): void
     {
         $quotation = $this->route('quotation');
-        
+
         if ($quotation->isConvertedToPO()) {
             throw new \Illuminate\Auth\Access\AuthorizationException(
                 'Cannot edit quotation that has been converted to Purchase Order.'

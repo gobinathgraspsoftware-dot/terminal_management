@@ -1,3 +1,6 @@
+<!-- Hidden Currency Field (defaults to MYR) -->
+<input type="hidden" name="currency" value="{{ old('currency', $quotation->currency ?? 'MYR') }}">
+
 <!-- Quotation Header -->
 <div class="row mb-3">
     <div class="col-md-3">
@@ -12,13 +15,13 @@
     <div class="col-md-3">
         <label class="form-label">Quotation Date <span class="text-danger">*</span></label>
         <input type="date" name="quotation_date" class="form-control" 
-               value="{{ old('quotation_date', $quotation->quotation_date ?? now()->format('Y-m-d')) }}" required>
+               value="{{ old('quotation_date', isset($quotation) && $quotation->quotation_date ? $quotation->quotation_date->format('Y-m-d') : now()->format('Y-m-d')) }}" required>
     </div>
     
     <div class="col-md-3">
         <label class="form-label">Valid Until <span class="text-danger">*</span></label>
         <input type="date" name="valid_until" class="form-control" 
-               value="{{ old('valid_until', $quotation->valid_until ?? now()->addDays(30)->format('Y-m-d')) }}" required>
+               value="{{ old('valid_until', isset($quotation) && $quotation->valid_until ? $quotation->valid_until->format('Y-m-d') : now()->addDays(30)->format('Y-m-d')) }}" required>
     </div>
     
     <div class="col-md-3">
@@ -166,19 +169,17 @@ $(document).ready(function() {
         width: '100%'
     });
 
-    // Show/hide client/vendor based on quotation type
+    // Toggle client/vendor fields based on type
     function togglePartyFields() {
         var type = $('#quotation-type').val();
         if (type === 'customer') {
             $('#client-field').show();
             $('#vendor-field').hide();
-            $('#client-select').prop('required', true);
-            $('#vendor-select').prop('required', false);
+            $('#vendor-select').val('').trigger('change');
         } else if (type === 'vendor') {
             $('#client-field').hide();
             $('#vendor-field').show();
-            $('#client-select').prop('required', false);
-            $('#vendor-select').prop('required', true);
+            $('#client-select').val('').trigger('change');
         } else {
             $('#client-field').hide();
             $('#vendor-field').hide();
@@ -258,7 +259,7 @@ $(document).ready(function() {
         var row = $(this).closest('tr');
         
         if (modelId) {
-            $.get('{{ route("admin.quotations.model-price", ":id") }}'.replace(':id', modelId), function(data) {
+            $.get('{{ url("/" . (request()->segment(1)) . "/quotations/model-price") }}/' + modelId, function(data) {
                 if (data.success) {
                     row.find('.unit-price').val(data.price);
                     row.find('.description').val(data.description);
@@ -273,7 +274,7 @@ $(document).ready(function() {
         var row = $(this).closest('tr');
         
         if (chargeId) {
-            $.get('{{ route("admin.quotations.charge-price", ":id") }}'.replace(':id', chargeId), function(data) {
+            $.get('{{ url("/" . (request()->segment(1)) . "/quotations/charge-price") }}/' + chargeId, function(data) {
                 if (data.success) {
                     row.find('.unit-price').val(data.price);
                     row.find('.description').val(data.description);
@@ -302,7 +303,7 @@ $(document).ready(function() {
         var subtotal = qty * price;
         var discount = subtotal * (discountPercent / 100);
         var afterDiscount = subtotal - discount;
-        var lineTotal = afterDiscount; // Tax added at total level
+        var lineTotal = afterDiscount;
         
         row.find('.line-total').val(lineTotal.toFixed(2));
         calculateGrandTotal();

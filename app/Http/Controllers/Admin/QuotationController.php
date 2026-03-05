@@ -55,7 +55,7 @@ class QuotationController extends Controller
     }
 
     /**
-     * DataTables AJAX endpoint - FIXED
+     * DataTables AJAX endpoint
      */
     protected function datatable(Request $request)
     {
@@ -98,36 +98,26 @@ class QuotationController extends Controller
                 return '<span class="badge ' . $q->getStatusBadgeClass() . '">' . $q->getStatusLabel() . '</span>';
             })
             ->addColumn('actions', function ($q) {
-                $actions = '<div class="btn-group btn-group-sm">';
-                $actions .= '<a href="' . route('admin.quotations.show', $q) . '" class="btn btn-info" title="View"><i class="fas fa-eye"></i></a>';
+                $actions = '<div class="d-flex align-items-center gap-1 flex-nowrap">';
+                $actions .= '<a href="' . route('admin.quotations.show', $q) . '" class="btn btn-sm btn-info" title="View"><i class="bi bi-eye"></i></a>';
 
                 if (auth()->user()->can('update', $q)) {
-                    $actions .= '<a href="' . route('admin.quotations.edit', $q) . '" class="btn btn-primary" title="Edit"><i class="fas fa-edit"></i></a>';
+                    $actions .= '<a href="' . route('admin.quotations.edit', $q) . '" class="btn btn-sm btn-warning" title="Edit"><i class="bi bi-pencil"></i></a>';
                 }
-                $actions .= '</div>';
-                $actions .= ' <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" class="btn btn-danger dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="PDF Options">
-                        <i class="fas fa-file-pdf"></i>
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li>
-                            <a class="dropdown-item" href="' . route('admin.quotations.pdf.download', $q) . '">
-                                <i class="fas fa-download"></i> Download PDF
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="' . route('admin.quotations.pdf.preview', $q) . '" target="_blank">
-                                <i class="fas fa-eye"></i> Preview PDF
-                            </a>
-                        </li>
-                    </ul>
-                </div>';
+
+                $actions .= '<a href="' . route('admin.quotations.print', $q) . '" class="btn btn-sm btn-secondary" target="_blank" title="Print"><i class="bi bi-printer"></i></a>';
+
+                $actions .= '<div class="btn-group btn-group-sm"><button type="button" class="btn btn-danger dropdown-toggle" data-bs-toggle="dropdown" title="PDF"><i class="bi bi-file-pdf"></i></button>';
+                $actions .= '<ul class="dropdown-menu dropdown-menu-end">';
+                $actions .= '<li><a class="dropdown-item" href="' . route('admin.quotations.pdf.download', $q) . '"><i class="bi bi-download me-1"></i>Download</a></li>';
+                $actions .= '<li><a class="dropdown-item" href="' . route('admin.quotations.pdf.preview', $q) . '" target="_blank"><i class="bi bi-eye me-1"></i>Preview</a></li>';
+                $actions .= '</ul></div>';
 
                 if (auth()->user()->can('delete', $q)) {
-                    $actions .= '<button type="button" class="btn btn-danger delete-btn" data-id="' . $q->id . '" title="Delete"><i class="fas fa-trash"></i></button>';
+                    $actions .= '<button type="button" class="btn btn-sm btn-danger delete-btn" data-id="' . $q->id . '" title="Delete"><i class="bi bi-trash"></i></button>';
                 }
 
-
+                $actions .= '</div>';
                 return $actions;
             })
             ->editColumn('quotation_date', function($q) {
@@ -135,7 +125,6 @@ class QuotationController extends Controller
             })
             ->editColumn('valid_until', function($q) {
                 if ($q->valid_until) {
-                    // Check if expired
                     if ($q->valid_until->isPast()) {
                         return '<span class="text-danger fw-bold">' . $q->valid_until->format('d M Y') . '</span>';
                     }
@@ -299,9 +288,10 @@ class QuotationController extends Controller
     }
 
     /**
-     * Approve quotation
+     * Process approval (approve or reject) - called from show page buttons
+     * Route: POST /{quotation}/process-approval
      */
-    public function approve(ApproveQuotationRequest $request, Quotation $quotation)
+    public function processApproval(ApproveQuotationRequest $request, Quotation $quotation)
     {
         try {
             if ($request->action === 'approve') {
@@ -316,6 +306,14 @@ class QuotationController extends Controller
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * Approve quotation (legacy/alternate route)
+     */
+    public function approve(ApproveQuotationRequest $request, Quotation $quotation)
+    {
+        return $this->processApproval($request, $quotation);
     }
 
     /**
@@ -458,10 +456,7 @@ class QuotationController extends Controller
         $this->authorize('view', $quotation);
 
         try {
-            // Validate quotation
             $this->pdfService->validateQuotation($quotation);
-
-            // Add watermark for draft/expired
             $watermark = $this->pdfService->getWatermark($quotation);
 
             return $this->pdfService->downloadPdf($quotation, [
@@ -480,10 +475,7 @@ class QuotationController extends Controller
         $this->authorize('view', $quotation);
 
         try {
-            // Validate quotation
             $this->pdfService->validateQuotation($quotation);
-
-            // Add watermark for draft/expired
             $watermark = $this->pdfService->getWatermark($quotation);
 
             return $this->pdfService->streamPdf($quotation, [
@@ -504,26 +496,21 @@ class QuotationController extends Controller
         $request->validate([
             'email' => 'required|email',
             'subject' => 'nullable|string|max:255',
-            'message' => 'nullable|string|max:1000',
+            'custom_message' => 'nullable|string|max:1000',
         ]);
 
         try {
-            // Validate quotation
             $this->pdfService->validateQuotation($quotation);
 
-            // Get recipient email
             $recipientEmail = $request->email;
 
-            // Prepare email options
             $emailOptions = [
                 'subject' => $request->subject,
-                'message' => $request->message,
+                'custom_message' => $request->custom_message,
             ];
 
-            // Send email
             Mail::to($recipientEmail)->send(new QuotationEmail($quotation, $emailOptions));
 
-            // Update quotation status if approved
             if ($quotation->status === Quotation::STATUS_APPROVED) {
                 $this->quotationService->sendQuotation($quotation);
             }
