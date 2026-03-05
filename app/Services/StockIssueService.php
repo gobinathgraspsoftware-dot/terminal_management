@@ -437,10 +437,16 @@ class StockIssueService
             ]
         );
 
-        $balance->update([
-            'quantity_on_hand' => DB::raw("quantity_on_hand + ($quantity)"),
-            'last_movement_date' => $movementDate,
         ]);
+        // Use increment/decrement to avoid Brick\Math\BigNumber casting conflict with DB::raw()
+        if ($quantity > 0) {
+            $balance->increment('quantity_on_hand', abs($quantity));
+        } else {
+            $balance->decrement('quantity_on_hand', abs($quantity));
+        }
+
+        // Update last movement date separately
+        $balance->update(['last_movement_date' => $movementDate]);
     }
 
     /**
