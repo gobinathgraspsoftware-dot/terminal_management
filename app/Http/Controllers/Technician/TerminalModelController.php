@@ -8,6 +8,7 @@ use App\Services\TerminalModelService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -49,8 +50,9 @@ class TerminalModelController extends Controller
                 ? '<span class="badge bg-primary"><i class="bi bi-check-circle"></i> Yes</span>'
                 : '<span class="badge bg-secondary">No</span>')
             ->addColumn('image_preview', function ($model) {
-                if ($model->image_path) {
-                    return '<img src="' . asset('storage/' . $model->image_path) . '" alt="' . e($model->model_name) . '" class="img-thumbnail" style="max-width: 50px; max-height: 50px;" onerror="this.onerror=null;this.src=\'' . asset('images/no-image.png') . '\';">';
+                if ($model->image_path && Storage::disk('public')->exists($model->image_path)) {
+                    $url = Storage::url($model->image_path);
+                    return '<img src="' . $url . '" alt="' . e($model->model_name) . '" class="img-thumbnail" style="max-width: 50px; max-height: 50px; object-fit: cover;">';
                 }
                 return '<i class="bi bi-image text-muted" style="font-size: 1.5rem;"></i>';
             })

@@ -6,9 +6,8 @@ use App\Models\TerminalModel;
 use App\Models\TerminalCategory;
 use App\Models\InventorySerial;
 use App\Models\StockBalance;
-use App\Models\Depot;
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
@@ -55,14 +54,15 @@ class TerminalModelService
     {
         DB::beginTransaction();
         try {
-            // Generate model code if not provided
             if (empty($data['model_code'])) {
                 $data['model_code'] = $this->generateModelCode();
             }
 
-            // Handle image upload
+            // Handle image upload BEFORE create
             if (isset($data['image']) && $data['image'] instanceof UploadedFile) {
                 $data['image_path'] = $this->handleImageUpload($data['image']);
+                unset($data['image']);
+            } else {
                 unset($data['image']);
             }
 
@@ -82,7 +82,11 @@ class TerminalModelService
 
             DB::commit();
 
-            Log::info('Terminal model created', ['id' => $terminalModel->id, 'model_code' => $terminalModel->model_code]);
+            Log::info('Terminal model created', [
+                'id' => $terminalModel->id,
+                'model_code' => $terminalModel->model_code,
+                'image_path' => $terminalModel->image_path,
+            ]);
 
             return $terminalModel;
 
@@ -108,6 +112,8 @@ class TerminalModelService
                 }
                 $data['image_path'] = $this->handleImageUpload($data['image']);
                 unset($data['image']);
+            } else {
+                unset($data['image']);
             }
 
             // Handle specifications JSON
@@ -126,7 +132,10 @@ class TerminalModelService
 
             DB::commit();
 
-            Log::info('Terminal model updated', ['id' => $terminalModel->id]);
+            Log::info('Terminal model updated', [
+                'id' => $terminalModel->id,
+                'image_path' => $terminalModel->image_path,
+            ]);
 
             return $terminalModel->fresh();
 
@@ -144,19 +153,18 @@ class TerminalModelService
     {
         DB::beginTransaction();
         try {
-            // Check if model has inventory serials
-            $hasSerials = $terminalModel->inventorySerials()->exists();
-
-            if ($hasSerials) {
+            if ($terminalModel->inventorySerials()->exists()) {
                 throw new \Exception('Cannot delete terminal model with existing inventory serials.');
+            }
+
+            // Delete image file if exists
+            if ($terminalModel->image_path) {
+                $this->deleteImage($terminalModel->image_path);
             }
 
             $terminalModel->delete();
 
             DB::commit();
-
-            Log::info('Terminal model deleted', ['id' => $terminalModel->id]);
-
             return true;
 
         } catch (\Exception $e) {
@@ -181,19 +189,17 @@ class TerminalModelService
 
     /**
      * Get stock summary for a model
-     * StockBalance uses location_type/location_id (not a depot relationship)
      */
     public function getStockSummary(TerminalModel $terminalModel): array
     {
         $stockBalances = StockBalance::where('model_id', $terminalModel->id)->get();
 
         $byLocation = $stockBalances->map(function ($balance) {
-            $locationName = $balance->location_name; // uses accessor from StockBalance model
             return [
                 'id' => $balance->id,
                 'location_type' => $balance->location_type,
                 'location_id' => $balance->location_id,
-                'location_name' => $locationName,
+                'location_name' => $balance->location_name,
                 'quantity_on_hand' => $balance->quantity_on_hand,
                 'quantity_reserved' => $balance->quantity_reserved,
                 'quantity_available' => $balance->quantity_available,
@@ -213,7 +219,7 @@ class TerminalModelService
     }
 
     /**
-     * Get recent stock movements (recent serial updates)
+     * Get recent stock movements
      */
     public function getRecentMovements(TerminalModel $terminalModel, int $limit = 10)
     {
@@ -252,33 +258,60 @@ class TerminalModelService
     }
 
     /**
-     * Handle image upload
+     * Handle image upload — cPanel compatible
+     * Uses move() to public_path('storage/') directly instead of storeAs()
+     * storeAs() writes to storage/app/public/ which needs a symlink that cPanel breaks
      */
     protected function handleImageUpload(UploadedFile $image): string
     {
         $directory = 'terminal_models';
+        $targetDir = public_path('storage/' . $directory);
 
-        // Ensure directory exists
-        if (!Storage::disk('public')->exists($directory)) {
-            Storage::disk('public')->makeDirectory($directory);
+        // Create directory if not exists
+        if (!File::isDirectory($targetDir)) {
+            File::makeDirectory($targetDir, 0755, true);
+            Log::info('Created directory', ['path' => $targetDir]);
         }
 
         $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-        $path = $image->storeAs($directory, $filename, 'public');
+        $relativePath = $directory . '/' . $filename;
 
-        Log::info('Terminal model image uploaded', ['path' => $path]);
+        // Move file directly to public/storage/terminal_models/
+        $image->move($targetDir, $filename);
 
-        return $path;
+        // Verify file exists
+        $fullPath = $targetDir . '/' . $filename;
+        if (!file_exists($fullPath)) {
+            Log::error('Image file not found after move', ['path' => $fullPath]);
+            throw new \Exception('Failed to save image file');
+        }
+
+        Log::info('Terminal model image uploaded (cPanel move)', [
+            'relative_path' => $relativePath,
+            'full_path' => $fullPath,
+            'file_size' => filesize($fullPath),
+        ]);
+
+        return $relativePath;
     }
 
     /**
-     * Delete image file
+     * Delete image file — checks both public_path and storage disk
      */
     protected function deleteImage(string $path): void
     {
+        // Check public_path first (cPanel direct uploads)
+        $publicFile = public_path('storage/' . $path);
+        if (file_exists($publicFile)) {
+            unlink($publicFile);
+            Log::info('Image deleted from public_path', ['path' => $publicFile]);
+            return;
+        }
+
+        // Fallback: check storage disk (for older uploads via storeAs)
         if (Storage::disk('public')->exists($path)) {
             Storage::disk('public')->delete($path);
-            Log::info('Terminal model image deleted', ['path' => $path]);
+            Log::info('Image deleted from storage disk', ['path' => $path]);
         }
     }
 
@@ -289,21 +322,18 @@ class TerminalModelService
     {
         if ($terminalModel->image_path) {
             $this->deleteImage($terminalModel->image_path);
-            $terminalModel->update(['image_path' => null]);
+
+            DB::table('terminal_models')
+                ->where('id', $terminalModel->id)
+                ->update([
+                    'image_path' => null,
+                    'updated_at' => now(),
+                ]);
+
+            $terminalModel->refresh();
+
             return true;
         }
         return false;
-    }
-
-    /**
-     * Get image URL for a terminal model
-     */
-    public function getImageUrl(?string $imagePath): string
-    {
-        if ($imagePath && Storage::disk('public')->exists($imagePath)) {
-            return asset('storage/' . $imagePath);
-        }
-
-        return asset('images/no-image.png');
     }
 }

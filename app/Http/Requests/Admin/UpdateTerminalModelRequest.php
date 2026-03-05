@@ -20,7 +20,12 @@ class UpdateTerminalModelRequest extends FormRequest
      */
     public function rules(): array
     {
-        $terminalModelId = $this->route('terminal_model');
+        // FIX: Route parameter is 'terminalModel' (camelCase) not 'terminal_model'
+        // Route::resource('', Controller)->parameters(['' => 'terminalModel'])
+        // Using route('terminal_model') returned null, causing unique validation
+        // to fail (not ignoring current record) → 302 redirect
+        $terminalModel = $this->route('terminalModel');
+        $terminalModelId = is_object($terminalModel) ? $terminalModel->id : $terminalModel;
 
         return [
             'model_code' => [
@@ -84,7 +89,7 @@ class UpdateTerminalModelRequest extends FormRequest
                 'nullable',
                 'image',
                 'mimes:jpeg,png,jpg,gif',
-                'max:2048', // 2MB
+                'max:2048',
             ],
             'sort_order' => [
                 'nullable',

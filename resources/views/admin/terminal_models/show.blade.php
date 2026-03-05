@@ -28,7 +28,6 @@
     </div>
 
     <div class="row">
-        <!-- Main Details -->
         <div class="col-md-8">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white">
@@ -37,8 +36,8 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-4 text-center mb-3">
-                            @if($terminalModel->image_path && Storage::disk('public')->exists($terminalModel->image_path))
-                                <img src="{{ asset('storage/' . $terminalModel->image_path) }}"
+                            @if($terminalModel->image_url)
+                                <img src="{{ $terminalModel->image_url }}"
                                      alt="{{ $terminalModel->model_name }}"
                                      class="img-fluid img-thumbnail rounded"
                                      style="max-width: 250px; max-height: 250px; object-fit: contain;">
@@ -53,14 +52,8 @@
                         </div>
                         <div class="col-md-8">
                             <table class="table table-borderless">
-                                <tr>
-                                    <th class="text-muted" style="width: 40%;">Model Code</th>
-                                    <td><strong>{{ $terminalModel->model_code }}</strong></td>
-                                </tr>
-                                <tr>
-                                    <th class="text-muted">Model Name</th>
-                                    <td>{{ $terminalModel->model_name }}</td>
-                                </tr>
+                                <tr><th class="text-muted" style="width:40%;">Model Code</th><td><strong>{{ $terminalModel->model_code }}</strong></td></tr>
+                                <tr><th class="text-muted">Model Name</th><td>{{ $terminalModel->model_name }}</td></tr>
                                 <tr>
                                     <th class="text-muted">Category</th>
                                     <td>
@@ -71,38 +64,17 @@
                                         @endif
                                     </td>
                                 </tr>
-                                <tr>
-                                    <th class="text-muted">Brand</th>
-                                    <td>{{ $terminalModel->brand ?? '-' }}</td>
-                                </tr>
-                                <tr>
-                                    <th class="text-muted">Warranty</th>
-                                    <td>{{ $terminalModel->warranty_months }} months</td>
-                                </tr>
+                                <tr><th class="text-muted">Brand</th><td>{{ $terminalModel->brand ?? '-' }}</td></tr>
+                                <tr><th class="text-muted">Warranty</th><td>{{ $terminalModel->warranty_months }} months</td></tr>
                                 <tr>
                                     <th class="text-muted">Serial Tracked</th>
-                                    <td>
-                                        @if($terminalModel->is_serial_tracked)
-                                            <span class="badge bg-primary"><i class="bi bi-check-circle"></i> Yes</span>
-                                        @else
-                                            <span class="badge bg-secondary">No</span>
-                                        @endif
-                                    </td>
+                                    <td>{!! $terminalModel->is_serial_tracked ? '<span class="badge bg-primary"><i class="bi bi-check-circle"></i> Yes</span>' : '<span class="badge bg-secondary">No</span>' !!}</td>
                                 </tr>
                                 <tr>
                                     <th class="text-muted">Status</th>
-                                    <td>
-                                        @if($terminalModel->status === 'active')
-                                            <span class="badge bg-success">Active</span>
-                                        @else
-                                            <span class="badge bg-secondary">Inactive</span>
-                                        @endif
-                                    </td>
+                                    <td>{!! $terminalModel->status === 'active' ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>' !!}</td>
                                 </tr>
-                                <tr>
-                                    <th class="text-muted">Sort Order</th>
-                                    <td>{{ $terminalModel->sort_order }}</td>
-                                </tr>
+                                <tr><th class="text-muted">Sort Order</th><td>{{ $terminalModel->sort_order }}</td></tr>
                             </table>
                         </div>
                     </div>
@@ -124,19 +96,11 @@
                 </div>
                 <div class="card-body">
                     <table class="table table-sm table-striped">
-                        <thead>
-                            <tr>
-                                <th style="width: 40%;">Specification</th>
-                                <th>Value</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th style="width:40%;">Specification</th><th>Value</th></tr></thead>
                         <tbody>
                             @foreach($terminalModel->specifications as $spec)
                                 @if(!empty($spec['key']) || !empty($spec['value']))
-                                <tr>
-                                    <td><strong>{{ $spec['key'] ?? '-' }}</strong></td>
-                                    <td>{{ $spec['value'] ?? '-' }}</td>
-                                </tr>
+                                <tr><td><strong>{{ $spec['key'] ?? '-' }}</strong></td><td>{{ $spec['value'] ?? '-' }}</td></tr>
                                 @endif
                             @endforeach
                         </tbody>
@@ -175,23 +139,15 @@
                     @if($stockSummary['by_location']->count() > 0)
                     <table class="table table-sm table-hover">
                         <thead class="table-light">
-                            <tr>
-                                <th>Location</th>
-                                <th class="text-end">On Hand</th>
-                                <th class="text-end">Reserved</th>
-                                <th class="text-end">Available</th>
-                            </tr>
+                            <tr><th>Location</th><th class="text-end">On Hand</th><th class="text-end">Reserved</th><th class="text-end">Available</th></tr>
                         </thead>
                         <tbody>
-                            @foreach($stockSummary['by_location'] as $location)
+                            @foreach($stockSummary['by_location'] as $loc)
                             <tr>
-                                <td>
-                                    <i class="bi bi-{{ $location['location_type'] === 'depot' ? 'building' : 'person' }} me-1"></i>
-                                    {{ $location['location_name'] }}
-                                </td>
-                                <td class="text-end">{{ number_format($location['quantity_on_hand'], 0) }}</td>
-                                <td class="text-end">{{ number_format($location['quantity_reserved'], 0) }}</td>
-                                <td class="text-end">{{ number_format($location['quantity_available'], 0) }}</td>
+                                <td><i class="bi bi-{{ $loc['location_type'] === 'depot' ? 'building' : 'person' }} me-1"></i>{{ $loc['location_name'] }}</td>
+                                <td class="text-end">{{ number_format($loc['quantity_on_hand'], 0) }}</td>
+                                <td class="text-end">{{ number_format($loc['quantity_reserved'], 0) }}</td>
+                                <td class="text-end">{{ number_format($loc['quantity_available'], 0) }}</td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -211,11 +167,7 @@
                 <div class="card-body">
                     <table class="table table-sm table-hover">
                         <thead class="table-light">
-                            <tr>
-                                <th>Serial No</th>
-                                <th>Status</th>
-                                <th>Updated</th>
-                            </tr>
+                            <tr><th>Serial No</th><th>Status</th><th>Updated</th></tr>
                         </thead>
                         <tbody>
                             @foreach($recentMovements as $serial)
@@ -232,7 +184,6 @@
             @endif
         </div>
 
-        <!-- Sidebar -->
         <div class="col-md-4">
             <!-- Quick Actions -->
             <div class="card border-0 shadow-sm mb-4">
@@ -241,8 +192,7 @@
                 </div>
                 <div class="card-body">
                     @can('edit_models')
-                    <button class="btn btn-outline-primary w-100 mb-2" id="toggleStatusBtn"
-                            data-status="{{ $terminalModel->status }}">
+                    <button class="btn btn-outline-primary w-100 mb-2" id="toggleStatusBtn" data-status="{{ $terminalModel->status }}">
                         <i class="bi bi-toggle-{{ $terminalModel->status === 'active' ? 'on' : 'off' }} me-1"></i>
                         {{ $terminalModel->status === 'active' ? 'Deactivate' : 'Activate' }}
                     </button>
@@ -265,19 +215,15 @@
                     <ul class="list-group list-group-flush">
                         @foreach($accessories as $accessory)
                         <li class="list-group-item d-flex align-items-center px-0">
-                            @if($accessory->image_path && Storage::disk('public')->exists($accessory->image_path))
-                                <img src="{{ asset('storage/' . $accessory->image_path) }}"
-                                     alt="{{ $accessory->model_name }}"
-                                     class="img-thumbnail me-2" style="width: 40px; height: 40px; object-fit: cover;">
+                            @if($accessory->image_url)
+                                <img src="{{ $accessory->image_url }}" alt="{{ $accessory->model_name }}"
+                                     class="img-thumbnail me-2" style="width:40px;height:40px;object-fit:cover;">
                             @else
-                                <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" style="width:40px;height:40px;">
                                     <i class="bi bi-puzzle text-muted"></i>
                                 </div>
                             @endif
-                            <div>
-                                <strong>{{ $accessory->model_name }}</strong>
-                                <br><small class="text-muted">{{ $accessory->model_code }}</small>
-                            </div>
+                            <div><strong>{{ $accessory->model_name }}</strong><br><small class="text-muted">{{ $accessory->model_code }}</small></div>
                         </li>
                         @endforeach
                     </ul>
@@ -292,14 +238,8 @@
                 </div>
                 <div class="card-body">
                     <table class="table table-sm table-borderless mb-0">
-                        <tr>
-                            <td class="text-muted">Created</td>
-                            <td>{{ $terminalModel->created_at->format('d M Y H:i') }}</td>
-                        </tr>
-                        <tr>
-                            <td class="text-muted">Updated</td>
-                            <td>{{ $terminalModel->updated_at->format('d M Y H:i') }}</td>
-                        </tr>
+                        <tr><td class="text-muted">Created</td><td>{{ $terminalModel->created_at->format('d M Y H:i') }}</td></tr>
+                        <tr><td class="text-muted">Updated</td><td>{{ $terminalModel->updated_at->format('d M Y H:i') }}</td></tr>
                     </table>
                 </div>
             </div>
@@ -311,11 +251,8 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Toggle Status
     $('#toggleStatusBtn').on('click', function() {
-        var btn = $(this);
-        var currentStatus = btn.data('status');
-
+        var currentStatus = $(this).data('status');
         confirmAction(
             currentStatus === 'active' ? 'Deactivate Model?' : 'Activate Model?',
             'Are you sure you want to change the status?',
@@ -324,40 +261,25 @@ $(document).ready(function() {
                     url: '{{ route("admin.terminal-models.toggle-status", $terminalModel) }}',
                     type: 'POST',
                     success: function(response) {
-                        if (response.success) {
-                            showToast(response.message);
-                            setTimeout(function() { location.reload(); }, 1000);
-                        } else {
-                            showToast(response.message, 'error');
-                        }
+                        if (response.success) { showToast(response.message); setTimeout(function() { location.reload(); }, 1000); }
+                        else { showToast(response.message, 'error'); }
                     },
-                    error: function(xhr) {
-                        showToast(xhr.responseJSON?.message || 'Failed to update status', 'error');
-                    }
+                    error: function(xhr) { showToast(xhr.responseJSON?.message || 'Failed', 'error'); }
                 });
             }
         );
     });
 
-    // Delete
     $('#deleteModelBtn').on('click', function() {
         confirmAction('Delete Terminal Model?', 'This action can be undone.', function() {
             $.ajax({
                 url: '{{ route("admin.terminal-models.destroy", $terminalModel) }}',
                 type: 'DELETE',
                 success: function(response) {
-                    if (response.success) {
-                        showToast(response.message);
-                        setTimeout(function() {
-                            window.location.href = '{{ route("admin.terminal-models.index") }}';
-                        }, 1000);
-                    } else {
-                        showToast(response.message, 'error');
-                    }
+                    if (response.success) { showToast(response.message); setTimeout(function() { window.location.href = '{{ route("admin.terminal-models.index") }}'; }, 1000); }
+                    else { showToast(response.message, 'error'); }
                 },
-                error: function(xhr) {
-                    showToast(xhr.responseJSON?.message || 'Delete failed', 'error');
-                }
+                error: function(xhr) { showToast(xhr.responseJSON?.message || 'Delete failed', 'error'); }
             });
         });
     });

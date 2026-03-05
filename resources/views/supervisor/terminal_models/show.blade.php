@@ -23,23 +23,16 @@
     <div class="row">
         <div class="col-md-8">
             <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Model Details</h6>
-                </div>
+                <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Model Details</h6></div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-4 text-center mb-3">
-                            @if($terminalModel->image_path && Storage::disk('public')->exists($terminalModel->image_path))
-                                <img src="{{ asset('storage/' . $terminalModel->image_path) }}"
-                                     alt="{{ $terminalModel->model_name }}"
-                                     class="img-fluid img-thumbnail rounded"
-                                     style="max-width: 250px; max-height: 250px; object-fit: contain;">
+                            @if($terminalModel->image_url)
+                                <img src="{{ $terminalModel->image_url }}" alt="{{ $terminalModel->model_name }}"
+                                     class="img-fluid img-thumbnail rounded" style="max-width: 250px; max-height: 250px; object-fit: contain;">
                             @else
-                                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 200px; height: 200px; margin: 0 auto;">
-                                    <div class="text-center text-muted">
-                                        <i class="bi bi-image" style="font-size: 3rem;"></i>
-                                        <p class="mb-0 small">No Image</p>
-                                    </div>
+                                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width:200px;height:200px;margin:0 auto;">
+                                    <div class="text-center text-muted"><i class="bi bi-image" style="font-size:3rem;"></i><p class="mb-0 small">No Image</p></div>
                                 </div>
                             @endif
                         </div>
@@ -55,12 +48,8 @@
                             </table>
                         </div>
                     </div>
-
                     @if($terminalModel->description)
-                    <div class="mt-3">
-                        <h6 class="text-muted">Description</h6>
-                        <p>{{ $terminalModel->description }}</p>
-                    </div>
+                    <div class="mt-3"><h6 class="text-muted">Description</h6><p>{{ $terminalModel->description }}</p></div>
                     @endif
                 </div>
             </div>
@@ -83,36 +72,17 @@
             </div>
             @endif
 
-            <!-- Stock Summary -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-box me-2"></i>Stock Summary</h6></div>
                 <div class="card-body">
                     <div class="row mb-3">
-                        <div class="col-md-4">
-                            <div class="border rounded p-3 text-center">
-                                <div class="h4 text-primary mb-0">{{ number_format($stockSummary['total_on_hand'], 0) }}</div>
-                                <small class="text-muted">On Hand</small>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="border rounded p-3 text-center">
-                                <div class="h4 text-warning mb-0">{{ number_format($stockSummary['total_reserved'], 0) }}</div>
-                                <small class="text-muted">Reserved</small>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="border rounded p-3 text-center">
-                                <div class="h4 text-success mb-0">{{ number_format($stockSummary['total_available'], 0) }}</div>
-                                <small class="text-muted">Available</small>
-                            </div>
-                        </div>
+                        <div class="col-md-4"><div class="border rounded p-3 text-center"><div class="h4 text-primary mb-0">{{ number_format($stockSummary['total_on_hand'], 0) }}</div><small class="text-muted">On Hand</small></div></div>
+                        <div class="col-md-4"><div class="border rounded p-3 text-center"><div class="h4 text-warning mb-0">{{ number_format($stockSummary['total_reserved'], 0) }}</div><small class="text-muted">Reserved</small></div></div>
+                        <div class="col-md-4"><div class="border rounded p-3 text-center"><div class="h4 text-success mb-0">{{ number_format($stockSummary['total_available'], 0) }}</div><small class="text-muted">Available</small></div></div>
                     </div>
-
                     @if($stockSummary['by_location']->count() > 0)
                     <table class="table table-sm table-hover">
-                        <thead class="table-light">
-                            <tr><th>Location</th><th class="text-end">On Hand</th><th class="text-end">Reserved</th><th class="text-end">Available</th></tr>
-                        </thead>
+                        <thead class="table-light"><tr><th>Location</th><th class="text-end">On Hand</th><th class="text-end">Reserved</th><th class="text-end">Available</th></tr></thead>
                         <tbody>
                             @foreach($stockSummary['by_location'] as $loc)
                             <tr>
@@ -139,8 +109,8 @@
                     <ul class="list-group list-group-flush">
                         @foreach($accessories as $accessory)
                         <li class="list-group-item d-flex align-items-center px-0">
-                            @if($accessory->image_path && Storage::disk('public')->exists($accessory->image_path))
-                                <img src="{{ asset('storage/' . $accessory->image_path) }}" class="img-thumbnail me-2" style="width:40px;height:40px;object-fit:cover;">
+                            @if($accessory->image_url)
+                                <img src="{{ $accessory->image_url }}" class="img-thumbnail me-2" style="width:40px;height:40px;object-fit:cover;">
                             @else
                                 <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" style="width:40px;height:40px;"><i class="bi bi-puzzle text-muted"></i></div>
                             @endif
@@ -151,16 +121,7 @@
                 </div>
             </div>
             @endif
-
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-clock me-2"></i>Metadata</h6></div>
-                <div class="card-body">
-                    <table class="table table-sm table-borderless mb-0">
-                        <tr><td class="text-muted">Created</td><td>{{ $terminalModel->created_at->format('d M Y H:i') }}</td></tr>
-                        <tr><td class="text-muted">Updated</td><td>{{ $terminalModel->updated_at->format('d M Y H:i') }}</td></tr>
-                    </table>
-                </div>
-            </div>
+            <div class="card border-0 shadow-sm"><div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-clock me-2"></i>Metadata</h6></div><div class="card-body"><table class="table table-sm table-borderless mb-0"><tr><td class="text-muted">Created</td><td>{{ $terminalModel->created_at->format('d M Y H:i') }}</td></tr><tr><td class="text-muted">Updated</td><td>{{ $terminalModel->updated_at->format('d M Y H:i') }}</td></tr></table></div></div>
         </div>
     </div>
 </div>
