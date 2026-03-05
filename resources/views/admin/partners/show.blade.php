@@ -17,7 +17,7 @@
             </nav>
         </div>
         <div class="col-auto">
-            @can('partners.edit')
+            @can('edit_partners')
             <a href="{{ route('admin.partners.edit', $partner->id) }}" class="btn btn-primary me-2">
                 <i class="bi bi-pencil me-1"></i> Edit
             </a>
@@ -486,7 +486,7 @@ $(document).ready(function() {
     @if($partner->job_intake_method === 'api' && $partner->api_key)
     const apiKeyFull = "{{ $partner->api_key }}";
     const apiKeyMasked = "{{ Str::mask($partner->api_key, '*', 8) }}";
-    
+
     $('#toggleApiKey').on('click', function() {
         let isVisible = $(this).data('visible');
         if (isVisible) {

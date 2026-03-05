@@ -62,13 +62,13 @@ $(document).ready(function() {
     // Form submission
     $('#partnerForm').on('submit', function(e) {
         e.preventDefault();
-        
+
         // Clear previous errors
         $('.is-invalid').removeClass('is-invalid');
         $('.invalid-feedback').remove();
-        
+
         let formData = new FormData(this);
-        
+
         // Collect SLA rules
         let slaRules = [];
         $('#slaRulesContainer .sla-rule-row').each(function() {
@@ -84,10 +84,21 @@ $(document).ready(function() {
                 slaRules.push(rule);
             }
         });
-        formData.append('sla_rules', JSON.stringify(slaRules));
-        
+
+        $('#slaRulesContainer .sla-rule-row').each(function(index) {
+            let slaType = $(this).find('[name="sla_type"]').val();
+            if (slaType) {
+                formData.append('sla_rules[' + index + '][sla_type]', slaType);
+                formData.append('sla_rules[' + index + '][priority]', $(this).find('[name="sla_priority"]').val());
+                formData.append('sla_rules[' + index + '][response_hours]', $(this).find('[name="response_hours"]').val());
+                formData.append('sla_rules[' + index + '][resolution_hours]', $(this).find('[name="resolution_hours"]').val());
+                formData.append('sla_rules[' + index + '][escalation_enabled]', $(this).find('[name="escalation_enabled"]').is(':checked') ? '1' : '0');
+                formData.append('sla_rules[' + index + '][escalation_hours]', $(this).find('[name="escalation_hours"]').val() || '');
+            }
+        });
+
         showLoading();
-        
+
         $.ajax({
             url: $(this).attr('action'),
             type: 'POST',
