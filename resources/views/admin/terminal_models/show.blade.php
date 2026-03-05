@@ -1,312 +1,366 @@
 @extends('layouts.app')
 
-@section('title', 'Terminal Model Details')
+@section('title', $terminalModel->model_name . ' - Terminal Models - TMS')
 
 @section('content')
 <div class="container-fluid">
-    <!-- Page Header -->
-    <div class="row mb-4">
-        <div class="col-md-12">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1"><i class="bi bi-box-seam me-2"></i>{{ $terminalModel->model_name }}</h4>
             <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
                     <li class="breadcrumb-item"><a href="{{ route('admin.terminal-models.index') }}">Terminal Models</a></li>
                     <li class="breadcrumb-item active">{{ $terminalModel->model_code }}</li>
                 </ol>
             </nav>
-            <div class="d-flex justify-content-between align-items-center">
-                <h1 class="h3 mb-0">{{ $terminalModel->model_name }}</h1>
-                <div>
-                    @can('update', $terminalModel)
-                        <a href="{{ route('admin.terminal-models.edit', $terminalModel) }}" class="btn btn-warning">
-                            <i class="bi bi-pencil"></i> Edit
-                        </a>
-                    @endcan
-                    <a href="{{ route('admin.terminal-models.index') }}" class="btn btn-secondary">
-                        <i class="bi bi-arrow-left"></i> Back to List
-                    </a>
-                </div>
-            </div>
+        </div>
+        <div>
+            @can('edit_models')
+            <a href="{{ route('admin.terminal-models.edit', $terminalModel) }}" class="btn btn-warning">
+                <i class="bi bi-pencil me-1"></i> Edit
+            </a>
+            @endcan
+            <a href="{{ route('admin.terminal-models.index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back
+            </a>
         </div>
     </div>
 
     <div class="row">
-        <!-- Left Column - Details -->
+        <!-- Main Details -->
         <div class="col-md-8">
-            <!-- Basic Information Card -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">Basic Information</h5>
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Model Details</h6>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Model Code</label>
-                            <p class="mb-0">{{ $terminalModel->model_code }}</p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Model Name</label>
-                            <p class="mb-0">{{ $terminalModel->model_name }}</p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Category</label>
-                            <p class="mb-0">
-                                @if($terminalModel->category)
-                                    <span class="badge bg-info">{{ $terminalModel->category->category_name }}</span>
-                                @else
-                                    <span class="text-muted">N/A</span>
-                                @endif
-                            </p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Brand</label>
-                            <p class="mb-0">{{ $terminalModel->brand ?? 'N/A' }}</p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Warranty Period</label>
-                            <p class="mb-0">{{ $terminalModel->warranty_months }} months</p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Serial Tracking</label>
-                            <p class="mb-0">
-                                @if($terminalModel->is_serial_tracked)
-                                    <span class="badge bg-primary"><i class="bi bi-check-circle"></i> Yes</span>
-                                @else
-                                    <span class="badge bg-secondary">No</span>
-                                @endif
-                            </p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Status</label>
-                            <p class="mb-0">
-                                @if($terminalModel->status === 'active')
-                                    <span class="badge bg-success">Active</span>
-                                @else
-                                    <span class="badge bg-secondary">Inactive</span>
-                                @endif
-                            </p>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Sort Order</label>
-                            <p class="mb-0">{{ $terminalModel->sort_order }}</p>
-                        </div>
-                        @if($terminalModel->description)
-                            <div class="col-md-12 mb-3">
-                                <label class="form-label fw-bold">Description</label>
-                                <p class="mb-0">{{ $terminalModel->description }}</p>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-
-            <!-- Specifications Card -->
-            @if($terminalModel->specifications && count($terminalModel->specifications) > 0)
-                <div class="card mb-3">
-                    <div class="card-header">
-                        <h5 class="mb-0">Specifications</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th width="40%">Specification</th>
-                                        <th>Value</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($terminalModel->specifications as $spec)
-                                        @if(!empty($spec['key']) || !empty($spec['value']))
-                                            <tr>
-                                                <td><strong>{{ $spec['key'] ?? 'N/A' }}</strong></td>
-                                                <td>{{ $spec['value'] ?? 'N/A' }}</td>
-                                            </tr>
-                                        @endif
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            @endif
-
-            <!-- Default Accessories Card -->
-            @if(count($accessories) > 0)
-                <div class="card mb-3">
-                    <div class="card-header">
-                        <h5 class="mb-0">Default Accessories</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="list-group">
-                            @foreach($accessories as $accessory)
-                                <div class="list-group-item">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>{{ $accessory->model_code }}</strong> - {{ $accessory->model_name }}
-                                            @if($accessory->brand)
-                                                <br><small class="text-muted">{{ $accessory->brand }}</small>
-                                            @endif
-                                        </div>
-                                        <span class="badge bg-{{ $accessory->status === 'active' ? 'success' : 'secondary' }}">
-                                            {{ ucfirst($accessory->status) }}
-                                        </span>
+                        <div class="col-md-4 text-center mb-3">
+                            @if($terminalModel->image_path && Storage::disk('public')->exists($terminalModel->image_path))
+                                <img src="{{ asset('storage/' . $terminalModel->image_path) }}"
+                                     alt="{{ $terminalModel->model_name }}"
+                                     class="img-fluid img-thumbnail rounded"
+                                     style="max-width: 250px; max-height: 250px; object-fit: contain;">
+                            @else
+                                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 200px; height: 200px; margin: 0 auto;">
+                                    <div class="text-center text-muted">
+                                        <i class="bi bi-image" style="font-size: 3rem;"></i>
+                                        <p class="mb-0 small">No Image</p>
                                     </div>
                                 </div>
-                            @endforeach
+                            @endif
                         </div>
-                    </div>
-                </div>
-            @endif
-
-            <!-- Stock Summary Card -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">Stock Summary</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row text-center mb-3">
-                        <div class="col-md-3">
-                            <h4 class="text-success">{{ $stockSummary['total_in_stock'] }}</h4>
-                            <small class="text-muted">In Stock</small>
-                        </div>
-                        <div class="col-md-3">
-                            <h4 class="text-warning">{{ $stockSummary['total_issued'] }}</h4>
-                            <small class="text-muted">Issued</small>
-                        </div>
-                        <div class="col-md-3">
-                            <h4 class="text-info">{{ $stockSummary['total_installed'] }}</h4>
-                            <small class="text-muted">Installed</small>
-                        </div>
-                        <div class="col-md-3">
-                            <h4 class="text-primary">{{ $stockSummary['total_overall'] }}</h4>
-                            <small class="text-muted">Total</small>
-                        </div>
-                    </div>
-
-                    @if(count($stockSummary['by_depot']) > 0)
-                        <hr>
-                        <h6>By Depot</h6>
-                        <div class="table-responsive">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Depot</th>
-                                        <th class="text-end">In Stock</th>
-                                        <th class="text-end">Issued</th>
-                                        <th class="text-end">Installed</th>
-                                        <th class="text-end">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($stockSummary['by_depot'] as $balance)
-                                        <tr>
-                                            <td>{{ $balance->depot ? $balance->depot->depot_name : 'Unknown' }}</td>
-                                            <td class="text-end">{{ $balance->quantity_in_stock }}</td>
-                                            <td class="text-end">{{ $balance->quantity_issued }}</td>
-                                            <td class="text-end">{{ $balance->quantity_installed }}</td>
-                                            <td class="text-end"><strong>{{ $balance->quantity_in_stock + $balance->quantity_issued + $balance->quantity_installed }}</strong></td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
+                        <div class="col-md-8">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th class="text-muted" style="width: 40%;">Model Code</th>
+                                    <td><strong>{{ $terminalModel->model_code }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Model Name</th>
+                                    <td>{{ $terminalModel->model_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Category</th>
+                                    <td>
+                                        @if($terminalModel->category)
+                                            <span class="badge bg-info">{{ $terminalModel->category->category_name }}</span>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Brand</th>
+                                    <td>{{ $terminalModel->brand ?? '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Warranty</th>
+                                    <td>{{ $terminalModel->warranty_months }} months</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Serial Tracked</th>
+                                    <td>
+                                        @if($terminalModel->is_serial_tracked)
+                                            <span class="badge bg-primary"><i class="bi bi-check-circle"></i> Yes</span>
+                                        @else
+                                            <span class="badge bg-secondary">No</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Status</th>
+                                    <td>
+                                        @if($terminalModel->status === 'active')
+                                            <span class="badge bg-success">Active</span>
+                                        @else
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Sort Order</th>
+                                    <td>{{ $terminalModel->sort_order }}</td>
+                                </tr>
                             </table>
                         </div>
-                    @else
-                        <p class="text-muted text-center mb-0">No stock available</p>
+                    </div>
+
+                    @if($terminalModel->description)
+                    <div class="mt-3">
+                        <h6 class="text-muted">Description</h6>
+                        <p class="mb-0">{{ $terminalModel->description }}</p>
+                    </div>
                     @endif
                 </div>
             </div>
 
-            <!-- Recent Movements Card -->
-            @if(count($recentMovements) > 0)
-                <div class="card mb-3">
-                    <div class="card-header">
-                        <h5 class="mb-0">Recent Stock Movements (Last 10)</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Serial No</th>
-                                        <th>Status</th>
-                                        <th>Location</th>
-                                        <th>Updated</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($recentMovements as $serial)
-                                        <tr>
-                                            <td><code>{{ $serial->serial_no }}</code></td>
-                                            <td><span class="badge bg-secondary">{{ $serial->current_status }}</span></td>
-                                            <td>
-                                                @if($serial->current_location_type === 'depot' && $serial->currentLocationDepot)
-                                                    <i class="bi bi-building"></i> {{ $serial->currentLocationDepot->depot_name }}
-                                                @elseif($serial->current_location_type === 'site' && $serial->currentLocationSite)
-                                                    <i class="bi bi-geo-alt"></i> {{ $serial->currentLocationSite->site_name }}
-                                                @elseif($serial->current_location_type === 'user' && $serial->currentLocationUser)
-                                                    <i class="bi bi-person"></i> {{ $serial->currentLocationUser->name }}
-                                                @else
-                                                    <span class="text-muted">N/A</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                <small class="text-muted">{{ $serial->updated_at->format('Y-m-d H:i') }}</small>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+            <!-- Specifications -->
+            @if($terminalModel->specifications && is_array($terminalModel->specifications) && count($terminalModel->specifications) > 0)
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-list-check me-2"></i>Specifications</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th style="width: 40%;">Specification</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($terminalModel->specifications as $spec)
+                                @if(!empty($spec['key']) || !empty($spec['value']))
+                                <tr>
+                                    <td><strong>{{ $spec['key'] ?? '-' }}</strong></td>
+                                    <td>{{ $spec['value'] ?? '-' }}</td>
+                                </tr>
+                                @endif
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endif
+
+            <!-- Stock Summary -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-box me-2"></i>Stock Summary</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="border rounded p-3 text-center">
+                                <div class="h4 text-primary mb-0">{{ number_format($stockSummary['total_on_hand'], 0) }}</div>
+                                <small class="text-muted">On Hand</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded p-3 text-center">
+                                <div class="h4 text-warning mb-0">{{ number_format($stockSummary['total_reserved'], 0) }}</div>
+                                <small class="text-muted">Reserved</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border rounded p-3 text-center">
+                                <div class="h4 text-success mb-0">{{ number_format($stockSummary['total_available'], 0) }}</div>
+                                <small class="text-muted">Available</small>
+                            </div>
                         </div>
                     </div>
+
+                    @if($stockSummary['by_location']->count() > 0)
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Location</th>
+                                <th class="text-end">On Hand</th>
+                                <th class="text-end">Reserved</th>
+                                <th class="text-end">Available</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($stockSummary['by_location'] as $location)
+                            <tr>
+                                <td>
+                                    <i class="bi bi-{{ $location['location_type'] === 'depot' ? 'building' : 'person' }} me-1"></i>
+                                    {{ $location['location_name'] }}
+                                </td>
+                                <td class="text-end">{{ number_format($location['quantity_on_hand'], 0) }}</td>
+                                <td class="text-end">{{ number_format($location['quantity_reserved'], 0) }}</td>
+                                <td class="text-end">{{ number_format($location['quantity_available'], 0) }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                    @else
+                    <p class="text-muted text-center mb-0">No stock records found.</p>
+                    @endif
                 </div>
+            </div>
+
+            <!-- Recent Movements -->
+            @if($recentMovements->count() > 0)
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Recent Serial Updates</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Serial No</th>
+                                <th>Status</th>
+                                <th>Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($recentMovements as $serial)
+                            <tr>
+                                <td><code>{{ $serial->serial_no }}</code></td>
+                                <td><span class="badge bg-secondary">{{ ucfirst($serial->current_status) }}</span></td>
+                                <td>{{ $serial->updated_at->format('d M Y H:i') }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
             @endif
         </div>
 
-        <!-- Right Column - Image & Meta -->
+        <!-- Sidebar -->
         <div class="col-md-4">
-            <!-- Image Card -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">Model Image</h5>
+            <!-- Quick Actions -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-lightning me-2"></i>Quick Actions</h6>
                 </div>
-                <div class="card-body text-center">
-                    @if($terminalModel->image_path)
-                        <img src="{{ asset('storage/' . $terminalModel->image_path) }}" 
-                             alt="{{ $terminalModel->model_name }}" 
-                             class="img-fluid rounded">
-                    @else
-                        <div class="text-muted py-5">
-                            <i class="bi bi-image" style="font-size: 4rem;"></i>
-                            <p class="mt-2">No image available</p>
-                        </div>
-                    @endif
+                <div class="card-body">
+                    @can('edit_models')
+                    <button class="btn btn-outline-primary w-100 mb-2" id="toggleStatusBtn"
+                            data-status="{{ $terminalModel->status }}">
+                        <i class="bi bi-toggle-{{ $terminalModel->status === 'active' ? 'on' : 'off' }} me-1"></i>
+                        {{ $terminalModel->status === 'active' ? 'Deactivate' : 'Activate' }}
+                    </button>
+                    @endcan
+                    @can('delete_models')
+                    <button class="btn btn-outline-danger w-100" id="deleteModelBtn">
+                        <i class="bi bi-trash me-1"></i> Delete Model
+                    </button>
+                    @endcan
                 </div>
             </div>
 
-            <!-- Metadata Card -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0">Metadata</h5>
+            <!-- Default Accessories -->
+            @if($accessories->count() > 0)
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-puzzle me-2"></i>Default Accessories</h6>
                 </div>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">Created At</label>
-                        <p class="mb-0 small">{{ $terminalModel->created_at ? $terminalModel->created_at->format('Y-m-d H:i:s') : 'N/A' }}</p>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">Updated At</label>
-                        <p class="mb-0 small">{{ $terminalModel->updated_at ? $terminalModel->updated_at->format('Y-m-d H:i:s') : 'N/A' }}</p>
-                    </div>
-                    @if($terminalModel->deleted_at)
-                        <div class="mb-0">
-                            <label class="form-label fw-bold small">Deleted At</label>
-                            <p class="mb-0 small text-danger">{{ $terminalModel->deleted_at->format('Y-m-d H:i:s') }}</p>
-                        </div>
-                    @endif
+                    <ul class="list-group list-group-flush">
+                        @foreach($accessories as $accessory)
+                        <li class="list-group-item d-flex align-items-center px-0">
+                            @if($accessory->image_path && Storage::disk('public')->exists($accessory->image_path))
+                                <img src="{{ asset('storage/' . $accessory->image_path) }}"
+                                     alt="{{ $accessory->model_name }}"
+                                     class="img-thumbnail me-2" style="width: 40px; height: 40px; object-fit: cover;">
+                            @else
+                                <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="bi bi-puzzle text-muted"></i>
+                                </div>
+                            @endif
+                            <div>
+                                <strong>{{ $accessory->model_name }}</strong>
+                                <br><small class="text-muted">{{ $accessory->model_code }}</small>
+                            </div>
+                        </li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+            @endif
+
+            <!-- Metadata -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-clock me-2"></i>Metadata</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted">Created</td>
+                            <td>{{ $terminalModel->created_at->format('d M Y H:i') }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Updated</td>
+                            <td>{{ $terminalModel->updated_at->format('d M Y H:i') }}</td>
+                        </tr>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+    // Toggle Status
+    $('#toggleStatusBtn').on('click', function() {
+        var btn = $(this);
+        var currentStatus = btn.data('status');
+
+        confirmAction(
+            currentStatus === 'active' ? 'Deactivate Model?' : 'Activate Model?',
+            'Are you sure you want to change the status?',
+            function() {
+                $.ajax({
+                    url: '{{ route("admin.terminal-models.toggle-status", $terminalModel) }}',
+                    type: 'POST',
+                    success: function(response) {
+                        if (response.success) {
+                            showToast(response.message);
+                            setTimeout(function() { location.reload(); }, 1000);
+                        } else {
+                            showToast(response.message, 'error');
+                        }
+                    },
+                    error: function(xhr) {
+                        showToast(xhr.responseJSON?.message || 'Failed to update status', 'error');
+                    }
+                });
+            }
+        );
+    });
+
+    // Delete
+    $('#deleteModelBtn').on('click', function() {
+        confirmAction('Delete Terminal Model?', 'This action can be undone.', function() {
+            $.ajax({
+                url: '{{ route("admin.terminal-models.destroy", $terminalModel) }}',
+                type: 'DELETE',
+                success: function(response) {
+                    if (response.success) {
+                        showToast(response.message);
+                        setTimeout(function() {
+                            window.location.href = '{{ route("admin.terminal-models.index") }}';
+                        }, 1000);
+                    } else {
+                        showToast(response.message, 'error');
+                    }
+                },
+                error: function(xhr) {
+                    showToast(xhr.responseJSON?.message || 'Delete failed', 'error');
+                }
+            });
+        });
+    });
+});
+</script>
+@endpush

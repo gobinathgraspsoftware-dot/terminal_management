@@ -6,7 +6,10 @@ use App\Models\TerminalModel;
 use App\Models\TerminalCategory;
 use App\Models\InventorySerial;
 use App\Models\StockBalance;
+use App\Models\Depot;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 
@@ -31,6 +34,7 @@ class TerminalModelService
     public function generateModelCode(): string
     {
         $lastModel = TerminalModel::withTrashed()
+            ->where('model_code', 'like', 'MDL%')
             ->orderBy('id', 'desc')
             ->first();
 
@@ -64,25 +68,27 @@ class TerminalModelService
 
             // Handle specifications JSON
             if (isset($data['specifications']) && is_array($data['specifications'])) {
-                // Remove empty specification entries
-                $data['specifications'] = array_filter($data['specifications'], function($spec) {
+                $data['specifications'] = array_values(array_filter($data['specifications'], function ($spec) {
                     return !empty($spec['key']) || !empty($spec['value']);
-                });
+                }));
             }
 
             // Handle default accessories JSON
             if (isset($data['default_accessories']) && is_array($data['default_accessories'])) {
-                // Filter out empty values
-                $data['default_accessories'] = array_filter($data['default_accessories']);
+                $data['default_accessories'] = array_values(array_filter($data['default_accessories']));
             }
 
             $terminalModel = TerminalModel::create($data);
 
             DB::commit();
+
+            Log::info('Terminal model created', ['id' => $terminalModel->id, 'model_code' => $terminalModel->model_code]);
+
             return $terminalModel;
 
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Failed to create terminal model', ['error' => $e->getMessage()]);
             throw $e;
         }
     }
@@ -106,23 +112,27 @@ class TerminalModelService
 
             // Handle specifications JSON
             if (isset($data['specifications']) && is_array($data['specifications'])) {
-                $data['specifications'] = array_filter($data['specifications'], function($spec) {
+                $data['specifications'] = array_values(array_filter($data['specifications'], function ($spec) {
                     return !empty($spec['key']) || !empty($spec['value']);
-                });
+                }));
             }
 
             // Handle default accessories JSON
             if (isset($data['default_accessories']) && is_array($data['default_accessories'])) {
-                $data['default_accessories'] = array_filter($data['default_accessories']);
+                $data['default_accessories'] = array_values(array_filter($data['default_accessories']));
             }
 
             $terminalModel->update($data);
 
             DB::commit();
+
+            Log::info('Terminal model updated', ['id' => $terminalModel->id]);
+
             return $terminalModel->fresh();
 
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Failed to update terminal model', ['id' => $terminalModel->id, 'error' => $e->getMessage()]);
             throw $e;
         }
     }
@@ -144,6 +154,9 @@ class TerminalModelService
             $terminalModel->delete();
 
             DB::commit();
+
+            Log::info('Terminal model deleted', ['id' => $terminalModel->id]);
+
             return true;
 
         } catch (\Exception $e) {
@@ -168,33 +181,43 @@ class TerminalModelService
 
     /**
      * Get stock summary for a model
+     * StockBalance uses location_type/location_id (not a depot relationship)
      */
     public function getStockSummary(TerminalModel $terminalModel): array
     {
-        $stockBalances = StockBalance::where('model_id', $terminalModel->id)
-            ->with('depot')
-            ->get();
+        $stockBalances = StockBalance::where('model_id', $terminalModel->id)->get();
 
-        $totalInStock = $stockBalances->sum('quantity_in_stock');
-        $totalIssued = $stockBalances->sum('quantity_issued');
-        $totalInstalled = $stockBalances->sum('quantity_installed');
+        $byLocation = $stockBalances->map(function ($balance) {
+            $locationName = $balance->location_name; // uses accessor from StockBalance model
+            return [
+                'id' => $balance->id,
+                'location_type' => $balance->location_type,
+                'location_id' => $balance->location_id,
+                'location_name' => $locationName,
+                'quantity_on_hand' => $balance->quantity_on_hand,
+                'quantity_reserved' => $balance->quantity_reserved,
+                'quantity_available' => $balance->quantity_available,
+            ];
+        });
+
+        $totalOnHand = $stockBalances->sum('quantity_on_hand');
+        $totalReserved = $stockBalances->sum('quantity_reserved');
 
         return [
-            'by_depot' => $stockBalances,
-            'total_in_stock' => $totalInStock,
-            'total_issued' => $totalIssued,
-            'total_installed' => $totalInstalled,
-            'total_overall' => $totalInStock + $totalIssued + $totalInstalled,
+            'by_location' => $byLocation,
+            'total_on_hand' => $totalOnHand,
+            'total_reserved' => $totalReserved,
+            'total_available' => $totalOnHand - $totalReserved,
+            'total_overall' => $totalOnHand,
         ];
     }
 
     /**
-     * Get recent stock movements
+     * Get recent stock movements (recent serial updates)
      */
     public function getRecentMovements(TerminalModel $terminalModel, int $limit = 10)
     {
         return $terminalModel->inventorySerials()
-            ->with(['currentLocationDepot', 'currentLocationSite', 'currentLocationUser'])
             ->orderBy('updated_at', 'desc')
             ->limit($limit)
             ->get();
@@ -233,8 +256,17 @@ class TerminalModelService
      */
     protected function handleImageUpload(UploadedFile $image): string
     {
+        $directory = 'terminal_models';
+
+        // Ensure directory exists
+        if (!Storage::disk('public')->exists($directory)) {
+            Storage::disk('public')->makeDirectory($directory);
+        }
+
         $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-        $path = $image->storeAs('terminal_models', $filename, 'public');
+        $path = $image->storeAs($directory, $filename, 'public');
+
+        Log::info('Terminal model image uploaded', ['path' => $path]);
 
         return $path;
     }
@@ -246,6 +278,7 @@ class TerminalModelService
     {
         if (Storage::disk('public')->exists($path)) {
             Storage::disk('public')->delete($path);
+            Log::info('Terminal model image deleted', ['path' => $path]);
         }
     }
 
@@ -260,5 +293,17 @@ class TerminalModelService
             return true;
         }
         return false;
+    }
+
+    /**
+     * Get image URL for a terminal model
+     */
+    public function getImageUrl(?string $imagePath): string
+    {
+        if ($imagePath && Storage::disk('public')->exists($imagePath)) {
+            return asset('storage/' . $imagePath);
+        }
+
+        return asset('images/no-image.png');
     }
 }
