@@ -29,7 +29,6 @@
             iconBg="primary"
             :value="$stats['today_jobs']"
             label="Jobs Today"
-            link="#"
             :refreshable="true"
             widgetId="tech_today_jobs"
         />
@@ -41,7 +40,6 @@
             iconBg="warning"
             :value="$stats['jobs_by_status']['in_progress'] ?? 0"
             label="Jobs In Progress"
-            link="#"
         />
     </div>
 
@@ -51,7 +49,6 @@
             iconBg="success"
             :value="$stats['jobs_by_status']['completed'] ?? 0"
             label="Completed Jobs"
-            link="#"
         />
     </div>
 </div>
@@ -113,7 +110,7 @@
                                 <div class="d-flex align-items-start mb-2">
                                     <div class="flex-grow-1">
                                         <h6 class="mb-1">
-                                            <strong>{{ $job->job_number }}</strong>
+                                            <strong>{{ $job->job_no }}</strong>
                                             @if($job->priority === 'high')
                                                 <span class="badge bg-danger ms-2">HIGH PRIORITY</span>
                                             @elseif($job->priority === 'medium')
@@ -178,17 +175,17 @@
                             <div class="col-md-4 d-flex align-items-center justify-content-end">
                                 <div class="d-grid gap-2 w-100">
                                     @if($job->status === 'assigned')
-                                        <a href="#" class="btn btn-success btn-sm">
+                                        <button type="button" class="btn btn-success btn-sm" disabled title="Job module coming soon">
                                             <i class="bi bi-play-fill me-1"></i> Start Job
-                                        </a>
+                                        </button>
                                     @elseif($job->status === 'in_progress')
-                                        <a href="#" class="btn btn-primary btn-sm">
+                                        <button type="button" class="btn btn-primary btn-sm" disabled title="Job module coming soon">
                                             <i class="bi bi-arrow-right-circle me-1"></i> Continue
-                                        </a>
+                                        </button>
                                     @endif
-                                    <a href="#" class="btn btn-outline-primary btn-sm">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" disabled title="Job module coming soon">
                                         <i class="bi bi-eye me-1"></i> View Details
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -197,9 +194,6 @@
                     <div class="text-center text-muted py-5">
                         <i class="bi bi-calendar-x fs-1"></i>
                         <p class="mt-3">No jobs scheduled for today</p>
-                        <a href="#" class="btn btn-outline-primary">
-                            <i class="bi bi-clock-history me-2"></i> View All Jobs
-                        </a>
                     </div>
                 @endforelse
             </div>
@@ -231,7 +225,7 @@
                             @forelse($recent_jobs as $job)
                                 <tr>
                                     <td>
-                                        <strong>{{ $job->job_number }}</strong>
+                                        <strong>{{ $job->job_no }}</strong>
                                     </td>
                                     <td>{{ $job->client_name }}</td>
                                     <td>{{ $job->site_name ?? 'N/A' }}</td>

@@ -25,17 +25,17 @@
         <div class="card">
             <div class="card-body">
                 <div class="d-flex gap-2 flex-wrap">
-                    <a href="#" class="btn btn-primary">
-                        <i class="bi bi-plus-circle me-2"></i> Create Job
+                    <a href="{{ route('admin.purchase-orders.create') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-2"></i> Create PO
                     </a>
-                    <a href="#" class="btn btn-success">
-                        <i class="bi bi-receipt me-2"></i> Create Invoice
+                    <a href="{{ route('admin.grns.create') }}" class="btn btn-success">
+                        <i class="bi bi-receipt me-2"></i> Create GRN
                     </a>
-                    <a href="#" class="btn btn-info">
+                    <a href="{{ route('admin.inventory-serials.create') }}" class="btn btn-info">
                         <i class="bi bi-box-seam me-2"></i> Add Stock
                     </a>
-                    <a href="#" class="btn btn-warning">
-                        <i class="bi bi-exclamation-triangle me-2"></i> View Pending Items
+                    <a href="{{ route('admin.purchase-orders.index') }}" class="btn btn-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i> View Pending POs
                     </a>
                 </div>
             </div>
@@ -51,7 +51,6 @@
             iconBg="primary"
             :value="$stats['pending_jobs']"
             label="Pending Jobs"
-            link="#"
             :refreshable="true"
             widgetId="pending_jobs"
         />
@@ -63,7 +62,6 @@
             iconBg="success"
             :value="array_sum($stats['today_jobs'])"
             label="Today's Jobs"
-            link="#"
             :refreshable="true"
             widgetId="today_jobs"
         />
@@ -75,7 +73,6 @@
             iconBg="danger"
             :value="$stats['sla_breaches']"
             label="SLA Breaches"
-            link="#"
             :refreshable="true"
             widgetId="sla_breaches"
         />
@@ -87,7 +84,7 @@
             iconBg="warning"
             :value="$stats['low_stock_items']"
             label="Low Stock Alerts"
-            link="#"
+            :link="route('admin.inventory-dashboard.index')"
         />
     </div>
 </div>
@@ -101,7 +98,7 @@
             iconBg="info"
             :value="$stats['pending_po_approvals']"
             label="Pending PO Approvals"
-            link="#"
+            :link="route('admin.purchase-orders.index')"
         />
     </div>
 
@@ -112,7 +109,6 @@
             iconBg="warning"
             :value="$stats['pending_claim_approvals']"
             label="Pending Claim Approvals"
-            link="#"
         />
     </div>
 
@@ -123,7 +119,6 @@
             iconBg="success"
             :value="$stats['pending_payout_approvals']"
             label="Pending Payout Approvals"
-            link="#"
         />
     </div>
 </div>
@@ -180,7 +175,6 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-activity me-2"></i> Recent Activities</span>
-                <a href="#" class="btn btn-sm btn-link">View All</a>
             </div>
             <div class="card-body p-0">
                 <div class="list-group list-group-flush">

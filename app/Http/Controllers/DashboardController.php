@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -16,12 +17,26 @@ class DashboardController extends Controller
         $user = auth()->user();
         $role = $user->roles->first()?->name;
 
-        return match ($role) {
-            'admin' => view('dashboard.admin', $this->getAdminData()),
-            'supervisor' => view('dashboard.supervisor', $this->getSupervisorData()),
-            'technician' => view('dashboard.technician', $this->getTechnicianData()),
-            default => redirect()->route('login'),
-        };
+        try {
+            return match ($role) {
+                'admin' => view('dashboard.admin', $this->getAdminData()),
+                'supervisor' => view('dashboard.supervisor', $this->getSupervisorData()),
+                'technician' => view('dashboard.technician', $this->getTechnicianData()),
+                default => redirect()->route('login'),
+            };
+        } catch (\Exception $e) {
+            Log::error('Dashboard Error [' . $role . ']: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Return view with empty data to avoid white screen
+            return match ($role) {
+                'admin' => view('dashboard.admin', $this->getEmptyAdminData()),
+                'supervisor' => view('dashboard.supervisor', $this->getEmptySupervisorData()),
+                'technician' => view('dashboard.technician', $this->getEmptyTechnicianData()),
+                default => redirect()->route('login'),
+            };
+        }
     }
 
     /**
@@ -114,11 +129,11 @@ class DashboardController extends Controller
 
     protected function getLowStockCount(): int
     {
-        // Count models with low stock (less than 5 units available across all locations)
         return DB::table('stock_balances')
             ->select('model_id', DB::raw('SUM(quantity_available) as total_available'))
             ->groupBy('model_id')
             ->havingRaw('SUM(quantity_available) < 5')
+            ->get()
             ->count();
     }
 
@@ -221,11 +236,11 @@ class DashboardController extends Controller
     protected function getRecentActivities(int $limit = 10): array
     {
         return DB::table('activity_log')
-            ->join('users', 'activity_log.causer_id', '=', 'users.id')
+            ->leftJoin('users', 'activity_log.causer_id', '=', 'users.id')
             ->select(
                 'activity_log.description',
                 'activity_log.created_at',
-                'users.name as user_name'
+                DB::raw("COALESCE(users.name, 'System') as user_name")
             )
             ->orderBy('activity_log.created_at', 'desc')
             ->limit($limit)
@@ -548,20 +563,81 @@ class DashboardController extends Controller
      */
     public function getWidgetData(Request $request)
     {
-        $widget = $request->input('widget');
-        $user = auth()->user();
-        $role = $user->roles->first()?->name;
+        try {
+            $widget = $request->input('widget');
+            $user = auth()->user();
+            $role = $user->roles->first()?->name;
 
-        $data = match ($widget) {
-            'pending_jobs' => ['count' => $this->getPendingJobsCount()],
-            'today_jobs' => $this->getTodayJobsStats(),
-            'low_stock' => ['count' => $this->getLowStockCount()],
-            'sla_breaches' => ['count' => $this->getSLABreaches()],
-            'team_jobs_today' => ['count' => $this->getTeamJobsToday($user)],
-            'tech_today_jobs' => ['count' => $this->getTechnicianTodayJobs($user)],
-            default => ['error' => 'Invalid widget'],
-        };
+            $data = match ($widget) {
+                'pending_jobs' => ['count' => $this->getPendingJobsCount()],
+                'today_jobs' => ['count' => array_sum($this->getTodayJobsStats())],
+                'low_stock' => ['count' => $this->getLowStockCount()],
+                'sla_breaches' => ['count' => $this->getSLABreaches()],
+                'team_jobs_today' => ['count' => $this->getTeamJobsToday($user)],
+                'tech_today_jobs' => ['count' => $this->getTechnicianTodayJobs($user)],
+                default => ['error' => 'Invalid widget'],
+            };
 
-        return response()->json($data);
+            return response()->json($data);
+        } catch (\Exception $e) {
+            Log::error('Widget Data Error: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to load data'], 500);
+        }
+    }
+
+    // ==========================================
+    // EMPTY DATA FALLBACKS (for error handling)
+    // ==========================================
+
+    protected function getEmptyAdminData(): array
+    {
+        return [
+            'stats' => [
+                'pending_jobs' => 0,
+                'today_jobs' => [],
+                'low_stock_items' => 0,
+                'pending_po_approvals' => 0,
+                'pending_claim_approvals' => 0,
+                'pending_payout_approvals' => 0,
+                'sla_breaches' => 0,
+            ],
+            'charts' => [
+                'jobs_this_week' => ['labels' => [], 'data' => []],
+                'revenue_this_month' => ['labels' => [], 'data' => []],
+            ],
+            'recent_activities' => [],
+        ];
+    }
+
+    protected function getEmptySupervisorData(): array
+    {
+        return [
+            'stats' => [
+                'team_jobs_today' => 0,
+                'job_status_breakdown' => [],
+                'team_sla_performance' => ['total' => 0, 'on_time' => 0, 'rate' => 0],
+                'team_members' => ['total' => 0, 'active' => 0, 'inactive' => 0],
+                'pending_claims' => 0,
+                'top_performers' => [],
+            ],
+            'charts' => [
+                'team_jobs_this_week' => ['labels' => [], 'data' => []],
+                'sla_compliance_trend' => ['labels' => [], 'data' => []],
+            ],
+            'team_members_list' => [],
+        ];
+    }
+
+    protected function getEmptyTechnicianData(): array
+    {
+        return [
+            'stats' => [
+                'today_jobs' => 0,
+                'jobs_by_status' => [],
+                'commission_summary' => ['this_month' => 0, 'pending' => 0, 'paid_ytd' => 0],
+            ],
+            'today_jobs_list' => [],
+            'recent_jobs' => [],
+        ];
     }
 }

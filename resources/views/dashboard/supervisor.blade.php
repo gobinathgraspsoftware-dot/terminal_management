@@ -25,16 +25,16 @@
         <div class="card">
             <div class="card-body">
                 <div class="d-flex gap-2 flex-wrap">
-                    <a href="#" class="btn btn-primary">
+                    <a href="{{ route('supervisor.teams.index') }}" class="btn btn-primary">
                         <i class="bi bi-person-plus me-2"></i> Assign Jobs
                     </a>
-                    <a href="#" class="btn btn-success">
+                    <a href="{{ route('supervisor.teams.index') }}" class="btn btn-success">
                         <i class="bi bi-people me-2"></i> View Team
                     </a>
-                    <a href="#" class="btn btn-warning">
+                    <a href="{{ route('supervisor.purchase-orders.index') }}" class="btn btn-warning">
                         <i class="bi bi-file-earmark-check me-2"></i> Pending Approvals
                     </a>
-                    <a href="#" class="btn btn-info">
+                    <a href="{{ route('supervisor.stock-reports.index') }}" class="btn btn-info">
                         <i class="bi bi-graph-up me-2"></i> Team Reports
                     </a>
                 </div>
@@ -51,7 +51,6 @@
             iconBg="primary"
             :value="$stats['team_jobs_today']"
             label="Team Jobs Today"
-            link="#"
             :refreshable="true"
             widgetId="team_jobs_today"
         />
@@ -63,7 +62,7 @@
             iconBg="success"
             :value="$stats['team_members']['total']"
             label="Total Team Members"
-            link="#"
+            :link="route('supervisor.teams.index')"
         >
             <div class="d-flex justify-content-between text-sm">
                 <span class="text-success">
@@ -99,7 +98,6 @@
             iconBg="warning"
             :value="$stats['pending_claims']"
             label="Pending Claim Approvals"
-            link="#"
         />
     </div>
 </div>
@@ -217,9 +215,6 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-people me-2"></i> My Team Members</span>
-                <a href="#" class="btn btn-sm btn-primary">
-                    <i class="bi bi-person-plus me-1"></i> Add Member
-                </a>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -254,11 +249,8 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <a href="#" class="btn btn-outline-primary" title="View">
+                                            <a href="{{ route('supervisor.teams.show', $member->id) }}" class="btn btn-outline-primary" title="View">
                                                 <i class="bi bi-eye"></i>
-                                            </a>
-                                            <a href="#" class="btn btn-outline-success" title="Assign Job">
-                                                <i class="bi bi-clipboard-plus"></i>
                                             </a>
                                         </div>
                                     </td>
