@@ -913,6 +913,20 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{grn}/download', [SupervisorGrnController::class, 'downloadPdf'])->name('download');
     });
 
+    /* GRN Reports Routes (Supervisor - team-scoped) */
+    Route::prefix('grn-reports')->name('grn-reports.')->middleware('permission:view_reports_grns')->group(function () {
+        Route::get('/', [SupervisorGrnReportController::class, 'index'])->name('index');
+        Route::get('/register', [SupervisorGrnReportController::class, 'register'])->name('register');
+        Route::get('/receiving-by-vendor', [SupervisorGrnReportController::class, 'receivingByVendor'])->name('receiving-by-vendor');
+        Route::get('/receiving-by-model', [SupervisorGrnReportController::class, 'receivingByModel'])->name('receiving-by-model');
+
+        // Exports
+        Route::get('/export-list', [SupervisorGrnReportController::class, 'exportList'])->name('export-list');
+        Route::get('/export-register', [SupervisorGrnReportController::class, 'exportRegister'])->name('export-register');
+        Route::get('/export-receiving-by-vendor', [SupervisorGrnReportController::class, 'exportReceivingByVendor'])->name('export-receiving-by-vendor');
+        Route::get('/export-receiving-by-model', [SupervisorGrnReportController::class, 'exportReceivingByModel'])->name('export-receiving-by-model');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
