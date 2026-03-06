@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 
@@ -18,7 +21,7 @@ class UserService
      */
     public function createUser(array $data): User
     {
-        // Handle avatar upload
+        // Handle avatar upload (cPanel compatible)
         if (isset($data['avatar']) && $data['avatar'] instanceof UploadedFile) {
             $data['avatar'] = $this->handleAvatarUpload($data['avatar']);
         } else {
@@ -59,7 +62,7 @@ class UserService
             }
             $data['avatar'] = null;
         }
-        // Handle new avatar upload
+        // Handle new avatar upload (cPanel compatible)
         elseif (isset($data['avatar']) && $data['avatar'] instanceof UploadedFile) {
             if ($user->avatar) {
                 $this->deleteAvatar($user->avatar);
@@ -98,32 +101,63 @@ class UserService
     }
 
     /**
-     * Handle avatar file upload
+     * Handle avatar file upload — cPanel compatible
+     *
+     * Uses move() to public_path('storage/') directly instead of storeAs().
+     * storeAs() writes to storage/app/public/ which needs a symlink that cPanel breaks.
+     * Same pattern as TerminalModelService::handleImageUpload().
      */
     protected function handleAvatarUpload(UploadedFile $file): string
     {
-        $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
         $directory = 'avatars';
+        $targetDir = public_path('storage/' . $directory);
 
-        if (!Storage::disk('public')->exists($directory)) {
-            Storage::disk('public')->makeDirectory($directory);
+        // Create directory if not exists
+        if (!File::isDirectory($targetDir)) {
+            File::makeDirectory($targetDir, 0755, true);
+            Log::info('Created avatars directory', ['path' => $targetDir]);
         }
 
-        return $file->storeAs($directory, $filename, 'public');
+        $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+        $relativePath = $directory . '/' . $filename;
+
+        // Move file directly to public/storage/avatars/ (bypasses symlink)
+        $file->move($targetDir, $filename);
+
+        // Verify file exists
+        $fullPath = $targetDir . '/' . $filename;
+        if (!file_exists($fullPath)) {
+            Log::error('Avatar file not found after move', ['path' => $fullPath]);
+            throw new \Exception('Failed to save avatar file');
+        }
+
+        Log::info('Avatar uploaded (cPanel move)', [
+            'relative_path' => $relativePath,
+            'full_path' => $fullPath,
+            'file_size' => filesize($fullPath),
+        ]);
+
+        return $relativePath;
     }
 
     /**
-     * Delete avatar file and thumbnail
+     * Delete avatar file — checks both public_path and storage disk
+     * Same pattern as TerminalModelService::deleteImage()
      */
     protected function deleteAvatar(string $path): void
     {
-        if (Storage::disk('public')->exists($path)) {
-            Storage::disk('public')->delete($path);
+        // Check public_path first (cPanel direct uploads via move())
+        $publicFile = public_path('storage/' . $path);
+        if (file_exists($publicFile)) {
+            unlink($publicFile);
+            Log::info('Avatar deleted from public_path', ['path' => $publicFile]);
+            return;
         }
 
-        $thumbnailPath = str_replace('avatars/', 'avatars/thumbnails/', $path);
-        if (Storage::disk('public')->exists($thumbnailPath)) {
-            Storage::disk('public')->delete($thumbnailPath);
+        // Fallback: check storage disk (for older uploads via storeAs)
+        if (Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+            Log::info('Avatar deleted from storage disk', ['path' => $path]);
         }
     }
 

@@ -37,8 +37,15 @@
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body text-center">
                     @if($user->avatar)
-                        <img src="{{ asset('storage/' . $user->avatar_url) }}" alt="{{ $user->name }}"
-                             class="rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover;">
+                        {{-- FIX: avatar_url accessor already returns full URL via asset()
+                             Do NOT wrap in asset('storage/...') again --}}
+                        <img src="{{ $user->avatar_url }}" alt="{{ $user->name }}"
+                             class="rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover;"
+                             onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='flex';">
+                        <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                             style="width: 120px; height: 120px; font-size: 48px; display: none;">
+                            {{ strtoupper(substr($user->name, 0, 1)) }}
+                        </div>
                     @else
                         <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
                              style="width: 120px; height: 120px; font-size: 48px;">
@@ -195,7 +202,7 @@
                         @if($user->hasRole('technician'))
                         <div class="col-md-6">
                             <small class="text-muted d-block">Rate Card</small>
-                            <strong>{{ $user->rate_card_id ? 'Assigned' : 'Not assigned' }}</strong>
+                            <strong>{{ $user->default_rate_card_id ? 'Assigned' : 'Not assigned' }}</strong>
                         </div>
                         @endif
                     </div>

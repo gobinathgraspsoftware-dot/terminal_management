@@ -190,7 +190,7 @@ $(document).ready(function() {
         table.draw();
     });
 
-    // View user
+    // View user — FIX: use avatar_url from model accessor (auto-appended in JSON)
     $(document).on('click', '.view-user', function() {
         var userId = $(this).data('id');
         $('#viewUserBody').html('<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>');
@@ -208,12 +208,13 @@ $(document).ready(function() {
 
                     var statusClass = user.status === 'active' ? 'success' : (user.status === 'inactive' ? 'warning' : 'danger');
 
-                    var avatarUrl = user.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=200&background=random';
-                    var initial = user.name ? user.name.charAt(0).toUpperCase() : 'U';
+                    // avatar_url is auto-appended by User model — already a full URL
+                    var avatarUrl = user.avatar_url;
+                    var fallbackUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=200&background=random';
 
                     var html = '<div class="row">';
                     html += '<div class="col-md-4 text-center mb-3">';
-                    html += '<img src="' + avatarUrl + '" class="rounded-circle img-fluid" style="width:120px;height:120px;object-fit:cover;" alt="' + user.name + '" onerror="this.onerror=null;this.src=\'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=200&background=random\';">';
+                    html += '<img src="' + avatarUrl + '" class="rounded-circle img-fluid" style="width:120px;height:120px;object-fit:cover;" alt="' + user.name + '" onerror="this.onerror=null;this.src=\'' + fallbackUrl + '\';">';
                     html += '<h5 class="mt-2 mb-0">' + user.name + '</h5>';
                     html += '<p class="text-muted">' + roleBadge + '</p>';
                     html += '</div>';

@@ -51,15 +51,6 @@ class User extends Authenticatable
     ];
 
     /**
-     * The accessors to append to the model's array/JSON form.
-     *
-     * @var array<int, string>
-     */
-    protected $appends = [
-        'avatar_url',
-    ];
-
-    /**
      * The attributes that should be hidden for serialization.
      *
      * @var array<int, string>
@@ -68,6 +59,11 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    /**
+     * Append avatar_url to JSON serialization
+     */
+    protected $appends = ['avatar_url'];
 
     /**
      * Get the attributes that should be cast.
@@ -121,101 +117,80 @@ class User extends Authenticatable
         return $prefix . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
     }
 
-    /**
-     * Relationships
-     */
+    // =========================================================================
+    // RELATIONSHIPS
+    // =========================================================================
 
-    // Self-referencing relationship - Supervisor
     public function supervisor()
     {
         return $this->belongsTo(User::class, 'supervisor_id');
     }
 
-    // Self-referencing relationship - Technicians under this supervisor
     public function technicians()
     {
         return $this->hasMany(User::class, 'supervisor_id');
     }
 
-    // Default rate card
     public function defaultRateCard()
     {
         return $this->belongsTo(RateCard::class, 'default_rate_card_id');
     }
 
-    /**
-     * Get stock balances for this technician
-     * Used when technician has their own stock depot
-     */
     public function stockBalances()
     {
         return $this->hasMany(StockBalance::class, 'location_id')
             ->where('location_type', 'technician');
     }
 
-    /**
-     * Get stock balance for technician's personal depot
-     * Alternative method that's more specific
-     */
     public function technicianStockBalances()
     {
         return $this->hasMany(StockBalance::class, 'location_id')
             ->where('location_type', 'technician');
     }
 
-    /**
-     * Get the user's login histories.
-     */
     public function loginHistories()
     {
         return $this->hasMany(LoginHistory::class);
     }
 
-    // Jobs assigned as technician
     public function assignedJobs()
     {
         return $this->hasMany(JobOrder::class, 'technician_id');
     }
 
-    // Jobs as supervisor
     public function supervisedJobs()
     {
         return $this->hasMany(JobOrder::class, 'supervisor_id');
     }
 
-    // Job assignments (for multi-technician jobs)
     public function jobAssignments()
     {
         return $this->hasMany(JobAssignment::class, 'technician_id');
     }
 
-    // Stock issues
     public function stockIssues()
     {
         return $this->hasMany(StockIssue::class, 'to_technician_id');
     }
 
-    // Claims
     public function claims()
     {
         return $this->hasMany(Claim::class, 'technician_id');
     }
 
-    // Payout lines
     public function payoutLines()
     {
         return $this->hasMany(PayoutLine::class, 'technician_id');
     }
 
-    // GPS tracks
     public function gpsTracks()
     {
         return $this->hasMany(GpsTrack::class, 'technician_id');
     }
 
-    /**
-     * Scopes
-     */
+    // =========================================================================
+    // SCOPES
+    // =========================================================================
 
     public function scopeActive($query)
     {
@@ -262,9 +237,9 @@ class User extends Authenticatable
         return $query->whereJsonContains('coverage_states', $state);
     }
 
-    /**
-     * Accessors
-     */
+    // =========================================================================
+    // ACCESSORS
+    // =========================================================================
 
     public function getFullNameAttribute(): string
     {
@@ -314,16 +289,30 @@ class User extends Authenticatable
         return $this->technicians()->active()->count();
     }
 
-    public function getAvatarUrlAttribute(): string
+    /**
+     * Get avatar URL — cPanel compatible (same pattern as TerminalModel)
+     *
+     * Uses asset('storage/...') directly without file_exists checks.
+     * On cPanel, public_path() != DOCUMENT_ROOT so checks always fail.
+     * The onerror handler in views provides fallback if file is missing.
+     */
+    public function getAvatarUrlAttribute(): ?string
     {
         if ($this->avatar) {
-            // Use asset('storage/...') - consistent with sidebar_blade.php
             return asset('storage/' . $this->avatar);
         }
 
-        // Default avatar based on first letter
-        $initial = strtoupper(substr($this->name ?? 'U', 0, 1));
-        return "https://ui-avatars.com/api/?name={$initial}&size=200&background=random";
+        // Default avatar using UI Avatars
+        $name = urlencode($this->name ?? 'U');
+        return "https://ui-avatars.com/api/?name={$name}&size=200&background=random";
+    }
+
+    /**
+     * Check if user has an avatar set
+     */
+    public function getHasAvatarAttribute(): bool
+    {
+        return !empty($this->avatar);
     }
 
     public function getStatusBadgeAttribute(): string
@@ -336,9 +325,9 @@ class User extends Authenticatable
         };
     }
 
-    /**
-     * Helper Methods
-     */
+    // =========================================================================
+    // HELPER METHODS
+    // =========================================================================
 
     public function canManageUser(User $user): bool
     {
@@ -347,11 +336,9 @@ class User extends Authenticatable
         }
 
         if ($this->hasRole('supervisor')) {
-            // Can manage own team members
             return $user->supervisor_id === $this->id;
         }
 
-        // Technicians can only view self
         return $this->id === $user->id;
     }
 
@@ -362,12 +349,10 @@ class User extends Authenticatable
         }
 
         if ($this->hasRole('supervisor')) {
-            // Can view jobs where they are supervisor or jobs of their team
             return $job->supervisor_id === $this->id
                 || $this->technicians->contains($job->technician_id);
         }
 
-        // Technician can only view own jobs
         return $job->technician_id === $this->id;
     }
 
@@ -386,7 +371,6 @@ class User extends Authenticatable
             });
         }
 
-        // Technician - only own jobs
         return JobOrder::where('technician_id', $this->id);
     }
 }
