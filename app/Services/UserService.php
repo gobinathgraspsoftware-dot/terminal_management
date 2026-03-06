@@ -21,7 +21,7 @@ class UserService
      */
     public function createUser(array $data): User
     {
-        // Handle avatar upload (cPanel compatible)
+        // Handle avatar upload (cPanel compatible — uses DOCUMENT_ROOT)
         if (isset($data['avatar']) && $data['avatar'] instanceof UploadedFile) {
             $data['avatar'] = $this->handleAvatarUpload($data['avatar']);
         } else {
@@ -40,7 +40,7 @@ class UserService
         $role = $data['role'] ?? null;
         unset($data['role'], $data['has_supervisor'], $data['password_confirmation'], $data['remove_avatar']);
 
-        // Create user (password auto-hashed by model cast, arrays auto-encoded)
+        // Create user (password auto-hashed by model cast, arrays auto-encoded by cast)
         $user = User::create($data);
 
         if ($role) {
@@ -76,9 +76,9 @@ class UserService
         if (empty($data['password'])) {
             unset($data['password']);
         }
-        // If password is provided, model cast 'hashed' will auto-hash it
+        // If password is provided, model cast 'hashed' will auto-hash it — do NOT Hash::make()
 
-        // Ensure arrays are proper arrays
+        // Ensure arrays are proper arrays (model cast handles encoding)
         if (isset($data['coverage_states']) && is_string($data['coverage_states'])) {
             $data['coverage_states'] = json_decode($data['coverage_states'], true) ?? [];
         }
@@ -101,16 +101,21 @@ class UserService
     }
 
     /**
-     * Handle avatar file upload — cPanel compatible
+     * Handle avatar file upload — cPanel compatible (PERMANENT FIX)
      *
-     * Uses move() to public_path('storage/') directly instead of storeAs().
-     * storeAs() writes to storage/app/public/ which needs a symlink that cPanel breaks.
-     * Same pattern as TerminalModelService::handleImageUpload().
+     * CRITICAL: On cPanel, public_path() returns the Laravel project's /public directory,
+     * but the actual web root is $_SERVER['DOCUMENT_ROOT'] (e.g., /home/user/public_html).
+     * Using public_path() writes files to a directory the web server can't serve.
+     *
+     * Solution: Use $_SERVER['DOCUMENT_ROOT'] for file placement,
+     * and asset('storage/...') for URL generation (no file_exists checks).
      */
     protected function handleAvatarUpload(UploadedFile $file): string
     {
         $directory = 'avatars';
-        $targetDir = public_path('storage/' . $directory);
+
+        // Use DOCUMENT_ROOT — the actual web-accessible directory on cPanel
+        $targetDir = $_SERVER['DOCUMENT_ROOT'] . '/storage/' . $directory;
 
         // Create directory if not exists
         if (!File::isDirectory($targetDir)) {
@@ -121,7 +126,7 @@ class UserService
         $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
         $relativePath = $directory . '/' . $filename;
 
-        // Move file directly to public/storage/avatars/ (bypasses symlink)
+        // Move file directly to DOCUMENT_ROOT/storage/avatars/ (bypasses symlink issues)
         $file->move($targetDir, $filename);
 
         // Verify file exists
@@ -131,9 +136,10 @@ class UserService
             throw new \Exception('Failed to save avatar file');
         }
 
-        Log::info('Avatar uploaded (cPanel move)', [
+        Log::info('Avatar uploaded (cPanel DOCUMENT_ROOT)', [
             'relative_path' => $relativePath,
             'full_path' => $fullPath,
+            'document_root' => $_SERVER['DOCUMENT_ROOT'],
             'file_size' => filesize($fullPath),
         ]);
 
@@ -141,12 +147,19 @@ class UserService
     }
 
     /**
-     * Delete avatar file — checks both public_path and storage disk
-     * Same pattern as TerminalModelService::deleteImage()
+     * Delete avatar file — checks DOCUMENT_ROOT first, then storage disk fallback
      */
     protected function deleteAvatar(string $path): void
     {
-        // Check public_path first (cPanel direct uploads via move())
+        // Check DOCUMENT_ROOT first (cPanel direct uploads)
+        $docRootFile = $_SERVER['DOCUMENT_ROOT'] . '/storage/' . $path;
+        if (file_exists($docRootFile)) {
+            unlink($docRootFile);
+            Log::info('Avatar deleted from DOCUMENT_ROOT', ['path' => $docRootFile]);
+            return;
+        }
+
+        // Fallback: check public_path (local dev / XAMPP)
         $publicFile = public_path('storage/' . $path);
         if (file_exists($publicFile)) {
             unlink($publicFile);
@@ -154,7 +167,7 @@ class UserService
             return;
         }
 
-        // Fallback: check storage disk (for older uploads via storeAs)
+        // Fallback: check storage disk (for very old uploads via storeAs)
         if (Storage::disk('public')->exists($path)) {
             Storage::disk('public')->delete($path);
             Log::info('Avatar deleted from storage disk', ['path' => $path]);

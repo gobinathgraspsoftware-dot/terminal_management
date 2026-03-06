@@ -4,12 +4,9 @@
 
 @section('content')
 <div class="container-fluid">
-    <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="mb-0">
-                <i class="bi bi-person me-2"></i>User Details
-            </h2>
+            <h2 class="mb-0"><i class="bi bi-person me-2"></i>User Details</h2>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
@@ -31,14 +28,12 @@
     </div>
 
     <div class="row">
-        <!-- Left Column -->
         <div class="col-lg-4">
-            <!-- User Profile Card -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body text-center">
                     @if($user->avatar)
                         {{-- FIX: avatar_url accessor already returns full URL via asset()
-                             Do NOT wrap in asset('storage/...') again --}}
+                             Do NOT wrap in asset('storage/...') again — that causes double-pathing --}}
                         <img src="{{ $user->avatar_url }}" alt="{{ $user->name }}"
                              class="rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover;"
                              onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='flex';">
@@ -81,7 +76,6 @@
                 </div>
             </div>
 
-            <!-- Contact Information -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white">
                     <h5 class="mb-0"><i class="bi bi-telephone me-2"></i>Contact Information</h5>
@@ -107,7 +101,6 @@
                 </div>
             </div>
 
-            <!-- Bank Details (if technician) -->
             @if($user->hasRole('technician') && ($user->bank_name || $user->bank_account_no))
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white">
@@ -131,9 +124,7 @@
             @endif
         </div>
 
-        <!-- Right Column -->
         <div class="col-lg-8">
-            <!-- Basic Information -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white">
                     <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Basic Information</h5>
@@ -168,7 +159,6 @@
                 </div>
             </div>
 
-            <!-- Employment Information -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white">
                     <h5 class="mb-0"><i class="bi bi-briefcase me-2"></i>Employment Information</h5>
@@ -209,7 +199,6 @@
                 </div>
             </div>
 
-            <!-- Technician-specific Information -->
             @if($user->hasRole('technician'))
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white">
@@ -252,7 +241,6 @@
             </div>
             @endif
 
-            <!-- Supervisor's Team -->
             @if($user->hasRole('supervisor') && $user->technicians && $user->technicians->count() > 0)
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white">
@@ -293,7 +281,6 @@
             </div>
             @endif
 
-            <!-- Activity Timeline -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white">
                     <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Activity Timeline</h5>

@@ -22,8 +22,6 @@ class User extends Authenticatable
 
     /**
      * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
      */
     protected $fillable = [
         'employee_id',
@@ -52,8 +50,6 @@ class User extends Authenticatable
 
     /**
      * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
      */
     protected $hidden = [
         'password',
@@ -62,13 +58,12 @@ class User extends Authenticatable
 
     /**
      * Append avatar_url to JSON serialization
+     * This ensures AJAX responses (e.g., view user modal) include the full avatar URL
      */
     protected $appends = ['avatar_url'];
 
     /**
      * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
      */
     protected function casts(): array
     {
@@ -290,15 +285,17 @@ class User extends Authenticatable
     }
 
     /**
-     * Get avatar URL — cPanel compatible (same pattern as TerminalModel)
+     * Get avatar URL — cPanel compatible (PERMANENT FIX)
      *
-     * Uses asset('storage/...') directly without file_exists checks.
-     * On cPanel, public_path() != DOCUMENT_ROOT so checks always fail.
+     * Uses asset('storage/...') which generates a full URL.
+     * Does NOT use file_exists() or Storage::exists() checks because
+     * on cPanel public_path() ≠ DOCUMENT_ROOT, so checks always fail.
      * The onerror handler in views provides fallback if file is missing.
      */
     public function getAvatarUrlAttribute(): ?string
     {
         if ($this->avatar) {
+            // asset() generates the correct full URL regardless of server setup
             return asset('storage/' . $this->avatar);
         }
 
@@ -308,7 +305,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user has an avatar set
+     * Check if user has an avatar set in DB
      */
     public function getHasAvatarAttribute(): bool
     {

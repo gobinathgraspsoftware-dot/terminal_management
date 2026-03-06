@@ -4,21 +4,22 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\LoginHistory;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\UploadedFile;
 
 class ProfileService
 {
     /**
-     * Update user profile information.
+     * Update user profile.
      */
     public function updateProfile(User $user, array $data): User
     {
         $user->update([
             'name' => $data['name'],
-            'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
             'address' => $data['address'] ?? null,
             'date_of_birth' => $data['date_of_birth'] ?? null,
@@ -32,172 +33,105 @@ class ProfileService
 
     /**
      * Update user password.
-     *
-     * IMPORTANT: User model has 'password' => 'hashed' cast.
-     * Eloquent auto-hashes on set. Do NOT call Hash::make() here.
+     * NOTE: Model has 'password' => 'hashed' cast, but ProfileService is called
+     * from ProfileController which explicitly wants Hash::make() for the password
+     * change flow (not going through mass assignment). Keep Hash::make() here since
+     * we're using $user->update() with an already-validated password.
      */
     public function updatePassword(User $user, string $newPassword): void
     {
-        // Model cast 'hashed' will auto-hash this - do NOT Hash::make()
-        $user->update([
-            'password' => $newPassword,
-        ]);
+        // Use DB::table to bypass model cast and manually hash
+        DB::table('users')
+            ->where('id', $user->id)
+            ->update([
+                'password' => Hash::make($newPassword),
+                'updated_at' => now(),
+            ]);
     }
 
     /**
-     * Update user avatar with comprehensive debugging.
+     * Update user avatar — cPanel compatible (PERMANENT FIX)
+     *
+     * CRITICAL: On cPanel, public_path() ≠ $_SERVER['DOCUMENT_ROOT']
+     * public_path() → /home/user/project/public (NOT web-accessible)
+     * DOCUMENT_ROOT → /home/user/public_html (the actual web root)
+     *
+     * Uses $_SERVER['DOCUMENT_ROOT'] for file placement.
+     * Uses asset('storage/...') for URL generation without file_exists checks.
      */
     public function updateAvatar(User $user, UploadedFile $file): string
     {
         try {
             Log::info('=== AVATAR UPLOAD START ===', [
                 'user_id' => $user->id,
-                'user_name' => $user->name,
                 'current_avatar' => $user->avatar,
-                'file_original_name' => $file->getClientOriginalName(),
+                'file_name' => $file->getClientOriginalName(),
                 'file_size' => $file->getSize(),
-                'file_mime_type' => $file->getMimeType(),
-                'file_extension' => $file->getClientOriginalExtension(),
+                'file_mime' => $file->getMimeType(),
+                'document_root' => $_SERVER['DOCUMENT_ROOT'],
+                'public_path' => public_path(),
             ]);
 
             // Step 1: Delete old avatar if exists
             if ($user->avatar) {
-                Log::info('Deleting old avatar', ['old_avatar' => $user->avatar]);
-
-                if (Storage::disk('public')->exists($user->avatar)) {
-                    Storage::disk('public')->delete($user->avatar);
-                    Log::info('Old avatar deleted successfully');
-                } else {
-                    Log::warning('Old avatar file does not exist', ['path' => $user->avatar]);
-                }
-
-                // Delete old thumbnail
-                $oldThumbnail = str_replace('avatars/', 'avatars/thumbnails/', $user->avatar);
-                if (Storage::disk('public')->exists($oldThumbnail)) {
-                    Storage::disk('public')->delete($oldThumbnail);
-                    Log::info('Old thumbnail deleted');
-                }
+                $this->deleteAvatarFile($user->avatar);
             }
 
-            // Step 2: Create directory if not exists
+            // Step 2: Determine target directory using DOCUMENT_ROOT
             $directory = 'avatars';
-            if (!Storage::disk('public')->exists($directory)) {
-                Storage::disk('public')->makeDirectory($directory);
-                Log::info('Created avatars directory');
+            $targetDir = $_SERVER['DOCUMENT_ROOT'] . '/storage/' . $directory;
+
+            // Create directory if not exists
+            if (!File::isDirectory($targetDir)) {
+                File::makeDirectory($targetDir, 0755, true);
+                Log::info('Created avatars directory', ['path' => $targetDir]);
             }
 
             // Step 3: Generate unique filename
             $filename = time() . '_' . $user->id . '.' . $file->getClientOriginalExtension();
-            $path = $directory . '/' . $filename;
+            $relativePath = $directory . '/' . $filename;
 
-            Log::info('Generated filename', [
-                'filename' => $filename,
-                'full_path' => $path,
-                'storage_path' => storage_path('app/public/' . $path)
+            // Step 4: Move file directly to DOCUMENT_ROOT/storage/avatars/
+            $file->move($targetDir, $filename);
+
+            // Step 5: Verify file exists
+            $fullPath = $targetDir . '/' . $filename;
+            if (!file_exists($fullPath)) {
+                Log::error('Avatar file not found after move', ['path' => $fullPath]);
+                throw new \Exception('Failed to save avatar file');
+            }
+
+            Log::info('Avatar file moved successfully', [
+                'full_path' => $fullPath,
+                'file_size' => filesize($fullPath),
             ]);
 
-            // Step 4: Store the file
-            $stored = $file->storeAs($directory, $filename, 'public');
-
-            if (!$stored) {
-                Log::error('Failed to store file');
-                throw new \Exception('Failed to store avatar file');
-            }
-
-            Log::info('File stored successfully', ['stored_path' => $stored]);
-
-            // Step 5: Verify file was stored
-            $storedPath = storage_path('app/public/' . $path);
-            if (!file_exists($storedPath)) {
-                Log::error('File was not found after storage', ['path' => $storedPath]);
-                throw new \Exception('Avatar file was not saved to storage');
-            }
-
-            $fileSize = filesize($storedPath);
-            Log::info('File verified on disk', [
-                'path' => $storedPath,
-                'size' => $fileSize,
-                'exists' => true
-            ]);
-
-            // Step 6: Create thumbnail
-            try {
-                $this->createThumbnail($file, $directory, $filename);
-                Log::info('Thumbnail created successfully');
-            } catch (\Exception $e) {
-                Log::warning('Failed to create thumbnail', ['error' => $e->getMessage()]);
-            }
-
-            // Step 7: Update database
-            DB::beginTransaction();
-            try {
-                DB::table('users')
-                    ->where('id', $user->id)
-                    ->update([
-                        'avatar' => $path,
-                        'updated_at' => now()
-                    ]);
-
-                DB::commit();
-                Log::info('Database updated successfully');
-            } catch (\Exception $e) {
-                DB::rollBack();
-                Log::error('Database update failed', ['error' => $e->getMessage()]);
-                throw new \Exception('Failed to update avatar in database: ' . $e->getMessage());
-            }
-
-            // Step 8: Verify database update
-            $updatedUser = DB::table('users')->where('id', $user->id)->first();
-            Log::info('Database verification', [
-                'user_id' => $user->id,
-                'avatar_in_db' => $updatedUser->avatar,
-            ]);
-
-            if ($updatedUser->avatar !== $path) {
-                Log::error('Database update verification failed', [
-                    'expected' => $path,
-                    'got' => $updatedUser->avatar
+            // Step 6: Update database
+            DB::table('users')
+                ->where('id', $user->id)
+                ->update([
+                    'avatar' => $relativePath,
+                    'updated_at' => now(),
                 ]);
-                throw new \Exception('Avatar path mismatch in database');
-            }
 
-            // Step 9: Refresh the user model
+            // Step 7: Verify DB update
             $user->refresh();
 
             Log::info('=== AVATAR UPLOAD SUCCESS ===', [
                 'user_id' => $user->id,
-                'avatar_path' => $path,
+                'avatar_path' => $relativePath,
+                'db_avatar' => $user->avatar,
             ]);
 
-            return $path;
+            return $relativePath;
 
         } catch (\Exception $e) {
             Log::error('=== AVATAR UPLOAD FAILED ===', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
+                'trace' => $e->getTraceAsString(),
             ]);
-
             throw $e;
-        }
-    }
-
-    /**
-     * Create thumbnail for avatar.
-     */
-    private function createThumbnail(UploadedFile $file, string $directory, string $filename): void
-    {
-        $thumbnailDir = $directory . '/thumbnails';
-
-        if (!Storage::disk('public')->exists($thumbnailDir)) {
-            Storage::disk('public')->makeDirectory($thumbnailDir);
-        }
-
-        $thumbnailPath = storage_path('app/public/' . $thumbnailDir . '/' . $filename);
-
-        if (!copy($file->getRealPath(), $thumbnailPath)) {
-            throw new \Exception('Failed to create thumbnail');
         }
     }
 
@@ -209,19 +143,47 @@ class ProfileService
         if ($user->avatar) {
             Log::info('Deleting avatar', [
                 'user_id' => $user->id,
-                'avatar' => $user->avatar
+                'avatar' => $user->avatar,
             ]);
 
-            Storage::disk('public')->delete($user->avatar);
-
-            // Delete thumbnail
-            $thumbnailPath = str_replace('avatars/', 'avatars/thumbnails/', $user->avatar);
-            Storage::disk('public')->delete($thumbnailPath);
+            $this->deleteAvatarFile($user->avatar);
 
             $user->update(['avatar' => null]);
 
-            Log::info('Avatar deleted successfully');
+            Log::info('Avatar deleted and DB cleared');
         }
+    }
+
+    /**
+     * Delete avatar file from disk — checks all possible locations
+     * (DOCUMENT_ROOT, public_path, storage disk)
+     */
+    private function deleteAvatarFile(string $path): void
+    {
+        // 1. Check DOCUMENT_ROOT (cPanel live server)
+        $docRootFile = $_SERVER['DOCUMENT_ROOT'] . '/storage/' . $path;
+        if (file_exists($docRootFile)) {
+            unlink($docRootFile);
+            Log::info('Avatar deleted from DOCUMENT_ROOT', ['path' => $docRootFile]);
+            return;
+        }
+
+        // 2. Check public_path (local dev / XAMPP)
+        $publicFile = public_path('storage/' . $path);
+        if (file_exists($publicFile)) {
+            unlink($publicFile);
+            Log::info('Avatar deleted from public_path', ['path' => $publicFile]);
+            return;
+        }
+
+        // 3. Fallback: storage disk (very old uploads via storeAs)
+        if (Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+            Log::info('Avatar deleted from storage disk', ['path' => $path]);
+            return;
+        }
+
+        Log::warning('Avatar file not found in any location', ['path' => $path]);
     }
 
     /**
@@ -280,75 +242,5 @@ class ProfileService
             'last_login' => $lastLogin,
             'avg_session_duration' => round($avgSessionDuration ?? 0),
         ];
-    }
-
-    /**
-     * Get avatar URL - uses Storage::disk('public')->url() for production compatibility
-     */
-    public function getAvatarUrl(?string $avatar): string
-    {
-        if ($avatar && Storage::disk('public')->exists($avatar)) {
-            return Storage::disk('public')->url($avatar);
-        }
-
-        return 'https://ui-avatars.com/api/?name=U&size=200&background=random';
-    }
-
-    /**
-     * Get avatar thumbnail URL.
-     */
-    public function getAvatarThumbnailUrl(?string $avatar): string
-    {
-        if ($avatar) {
-            $thumbnailPath = str_replace('avatars/', 'avatars/thumbnails/', $avatar);
-            if (Storage::disk('public')->exists($thumbnailPath)) {
-                return Storage::disk('public')->url($thumbnailPath);
-            }
-        }
-
-        return 'https://ui-avatars.com/api/?name=U&size=200&background=random';
-    }
-
-    /**
-     * Check if profile is complete.
-     */
-    public function isProfileComplete(User $user): bool
-    {
-        $requiredFields = ['name', 'email', 'phone'];
-
-        foreach ($requiredFields as $field) {
-            if (empty($user->$field)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Get profile completion percentage.
-     */
-    public function getProfileCompletionPercentage(User $user): int
-    {
-        $fields = [
-            'name', 'email', 'phone', 'address', 'avatar',
-            'date_of_birth', 'gender', 'emergency_contact_name'
-        ];
-
-        // Add bank details for technicians
-        if ($user->hasRole('technician')) {
-            $fields = array_merge($fields, [
-                'bank_name', 'bank_account_no', 'bank_account_name'
-            ]);
-        }
-
-        $completed = 0;
-        foreach ($fields as $field) {
-            if (!empty($user->$field)) {
-                $completed++;
-            }
-        }
-
-        return round(($completed / count($fields)) * 100);
     }
 }

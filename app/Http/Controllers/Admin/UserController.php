@@ -59,13 +59,16 @@ class UserController extends Controller
 
         // Apply team scoping
         if ($currentUser->hasRole('supervisor')) {
+            // Supervisor sees only their team technicians
             $query->where(function($q) use ($currentUser) {
                 $q->where('supervisor_id', $currentUser->id)
-                  ->orWhere('id', $currentUser->id);
+                  ->orWhere('id', $currentUser->id); // Include self
             });
         } elseif ($currentUser->hasRole('technician')) {
+            // Technician sees only self
             $query->where('id', $currentUser->id);
         }
+        // Admin sees all users (no additional filter)
 
         return DataTables::of($query)
             ->addColumn('role', function ($user) {
@@ -127,6 +130,7 @@ class UserController extends Controller
                 return $actions ?: '<span class="text-muted small">No actions</span>';
             })
             ->filter(function ($query) use ($request) {
+                // Search functionality
                 if ($request->has('search') && $request->search['value']) {
                     $searchValue = $request->search['value'];
                     $query->where(function($q) use ($searchValue) {
@@ -136,22 +140,24 @@ class UserController extends Controller
                     });
                 }
 
-                // Role filter — use whereHas to avoid JOIN ambiguity
+                // Role filter
                 if ($request->has('role') && $request->role) {
                     $query->whereHas('roles', function($q) use ($request) {
                         $q->where('roles.name', $request->role);
                     });
                 }
 
+                // Status filter
                 if ($request->has('status') && $request->status) {
-                    $query->where('users.status', $request->status);
+                    $query->where('status', $request->status);
                 }
 
+                // Supervisor filter
                 if ($request->has('supervisor_id') && $request->supervisor_id) {
                     if ($request->supervisor_id === 'null') {
-                        $query->whereNull('users.supervisor_id');
+                        $query->whereNull('supervisor_id');
                     } else {
-                        $query->where('users.supervisor_id', $request->supervisor_id);
+                        $query->where('supervisor_id', $request->supervisor_id);
                     }
                 }
             })
@@ -170,12 +176,14 @@ class UserController extends Controller
             ->where('status', 'active')
             ->get(['id', 'name']);
 
+        // Coverage states (Malaysian states)
         $states = [
             'Johor', 'Kedah', 'Kelantan', 'Malacca', 'Negeri Sembilan',
             'Pahang', 'Penang', 'Perak', 'Perlis', 'Sabah', 'Sarawak',
             'Selangor', 'Terengganu', 'Kuala Lumpur', 'Labuan', 'Putrajaya'
         ];
 
+        // Skill tags
         $skillTags = [
             'Installation', 'Repair', 'Troubleshooting', 'Maintenance',
             'Network Setup', 'POS Configuration', 'Training', 'Collection'
@@ -190,6 +198,7 @@ class UserController extends Controller
     public function store(StoreUserRequest $request): JsonResponse
     {
         try {
+            // Check authorization - user must have create_users permission
             if (!Auth::user()->can('create_users')) {
                 return response()->json([
                     'success' => false,
@@ -203,6 +212,7 @@ class UserController extends Controller
 
             DB::commit();
 
+            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
@@ -228,22 +238,24 @@ class UserController extends Controller
 
     /**
      * Display the specified user
-     * Returns JSON with avatar_url for AJAX modal, or Blade view for browser
      */
     public function show(User $user): View|JsonResponse
     {
+        // Check authorization
         $this->authorize('view', $user);
 
+        // Load relationships
         $user->load(['roles', 'supervisor']);
 
+        // Return JSON for AJAX requests
         if (request()->ajax() || request()->wantsJson()) {
-            // avatar_url is auto-appended via $appends in User model
             return response()->json([
                 'success' => true,
                 'user' => $user
             ]);
         }
 
+        // Return Blade view for normal browser requests
         return view('admin.users.show', compact('user'));
     }
 
@@ -252,21 +264,24 @@ class UserController extends Controller
      */
     public function edit(User $user): View
     {
+        // Check authorization
         $this->authorize('update', $user);
 
         $roles = Role::all();
 
         $supervisors = User::role('supervisor')
             ->where('status', 'active')
-            ->where('id', '!=', $user->id)
+            ->where('id', '!=', $user->id) // Exclude current user
             ->get(['id', 'name']);
 
+        // Coverage states (Malaysian states)
         $states = [
             'Johor', 'Kedah', 'Kelantan', 'Malacca', 'Negeri Sembilan',
             'Pahang', 'Penang', 'Perak', 'Perlis', 'Sabah', 'Sarawak',
             'Selangor', 'Terengganu', 'Kuala Lumpur', 'Labuan', 'Putrajaya'
         ];
 
+        // Skill tags
         $skillTags = [
             'Installation', 'Repair', 'Troubleshooting', 'Maintenance',
             'Network Setup', 'POS Configuration', 'Training', 'Collection'
@@ -281,6 +296,7 @@ class UserController extends Controller
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
         try {
+            // Check authorization
             $this->authorize('update', $user);
 
             DB::beginTransaction();
@@ -289,6 +305,7 @@ class UserController extends Controller
 
             DB::commit();
 
+            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($updatedUser)
@@ -318,8 +335,10 @@ class UserController extends Controller
     public function destroy(User $user): JsonResponse
     {
         try {
+            // Check authorization
             $this->authorize('delete', $user);
 
+            // Prevent deleting self
             if ($user->id === Auth::id()) {
                 return response()->json([
                     'success' => false,
@@ -328,8 +347,11 @@ class UserController extends Controller
             }
 
             $user->delete();
+
+            // Revoke all tokens
             $user->tokens()->delete();
 
+            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
@@ -355,10 +377,13 @@ class UserController extends Controller
     {
         try {
             $user = User::withTrashed()->findOrFail($id);
+
+            // Check authorization
             $this->authorize('restore', $user);
 
             $user->restore();
 
+            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
@@ -379,14 +404,14 @@ class UserController extends Controller
 
     /**
      * Change user password
-     * NOTE: Do NOT use Hash::make() — model cast 'hashed' auto-hashes
      */
     public function changePassword(ChangePasswordRequest $request, User $user): JsonResponse
     {
         try {
+            // Check authorization
             $this->authorize('update', $user);
 
-            // Model cast 'password' => 'hashed' auto-hashes, no Hash::make() needed
+            // Model cast 'password' => 'hashed' auto-hashes — do NOT Hash::make()
             $user->update([
                 'password' => $request->new_password
             ]);
@@ -396,6 +421,7 @@ class UserController extends Controller
                 $user->tokens()->delete();
             }
 
+            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
@@ -420,14 +446,17 @@ class UserController extends Controller
     public function assignRole(Request $request, User $user): JsonResponse
     {
         try {
+            // Check authorization
             $this->authorize('update', $user);
 
             $request->validate([
                 'role' => 'required|exists:roles,name'
             ]);
 
+            // Sync role (replace existing)
             $user->syncRoles([$request->role]);
 
+            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
@@ -453,12 +482,14 @@ class UserController extends Controller
     public function assignSupervisor(Request $request, User $user): JsonResponse
     {
         try {
+            // Check authorization
             $this->authorize('update', $user);
 
             $request->validate([
                 'supervisor_id' => 'nullable|exists:users,id'
             ]);
 
+            // Verify supervisor has supervisor role
             if ($request->supervisor_id) {
                 $supervisor = User::findOrFail($request->supervisor_id);
                 if (!$supervisor->hasRole('supervisor')) {
@@ -473,6 +504,7 @@ class UserController extends Controller
                 'supervisor_id' => $request->supervisor_id
             ]);
 
+            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
@@ -498,8 +530,10 @@ class UserController extends Controller
     public function toggleStatus(User $user): JsonResponse
     {
         try {
+            // Check authorization
             $this->authorize('update', $user);
 
+            // Prevent deactivating self
             if ($user->id === Auth::id()) {
                 return response()->json([
                     'success' => false,
@@ -508,12 +542,15 @@ class UserController extends Controller
             }
 
             $newStatus = $user->status === 'active' ? 'inactive' : 'active';
+
             $user->update(['status' => $newStatus]);
 
+            // If deactivating, revoke all tokens
             if ($newStatus === 'inactive') {
                 $user->tokens()->delete();
             }
 
+            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($user)
@@ -571,6 +608,9 @@ class UserController extends Controller
      */
     public function export(Request $request)
     {
+        // Implementation for export functionality
+        // You can use Laravel Excel package or generate CSV
+
         return response()->json([
             'success' => false,
             'message' => 'Export functionality not yet implemented'
@@ -588,6 +628,7 @@ class UserController extends Controller
                 'user_ids.*' => 'exists:users,id'
             ]);
 
+            // Prevent deleting self
             if (in_array(Auth::id(), $request->user_ids)) {
                 return response()->json([
                     'success' => false,
@@ -598,6 +639,7 @@ class UserController extends Controller
             $deletedCount = User::whereIn('id', $request->user_ids)
                 ->delete();
 
+            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->withProperties(['user_ids' => $request->user_ids])

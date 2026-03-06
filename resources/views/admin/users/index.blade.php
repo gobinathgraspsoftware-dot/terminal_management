@@ -4,7 +4,6 @@
 
 @section('content')
 <div class="container-fluid">
-    {{-- Page Header --}}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h4 class="mb-1"><i class="bi bi-people me-2"></i>User Management</h4>
@@ -22,7 +21,6 @@
         @endcan
     </div>
 
-    {{-- Statistics Cards --}}
     <div class="row mb-4" id="statsRow">
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card border-0 shadow-sm">
@@ -58,7 +56,6 @@
         </div>
     </div>
 
-    {{-- Filters --}}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <div class="row g-3">
@@ -99,7 +96,6 @@
         </div>
     </div>
 
-    {{-- DataTable --}}
     <div class="card border-0 shadow-sm">
         <div class="card-body">
             <div class="table-responsive">
@@ -123,7 +119,6 @@
     </div>
 </div>
 
-{{-- View User Modal --}}
 <div class="modal fade" id="viewUserModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -147,7 +142,6 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Initialize DataTable
     var table = $('#usersTable').DataTable({
         processing: true,
         serverSide: true,
@@ -180,7 +174,6 @@ $(document).ready(function() {
         }
     });
 
-    // Filter handlers
     $('#filterRole, #filterStatus, #filterSupervisor').on('change', function() {
         table.draw();
     });
@@ -190,7 +183,7 @@ $(document).ready(function() {
         table.draw();
     });
 
-    // View user — FIX: use avatar_url from model accessor (auto-appended in JSON)
+    // View user modal — avatar_url comes from User model $appends (full URL)
     $(document).on('click', '.view-user', function() {
         var userId = $(this).data('id');
         $('#viewUserBody').html('<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>');
@@ -237,7 +230,6 @@ $(document).ready(function() {
         });
     });
 
-    // Delete user
     $(document).on('click', '.delete-user', function() {
         var userId = $(this).data('id');
         confirmAction('Delete User', 'Are you sure you want to delete this user?', function() {
@@ -260,7 +252,6 @@ $(document).ready(function() {
         });
     });
 
-    // Restore user
     $(document).on('click', '.restore-user', function() {
         var userId = $(this).data('id');
         confirmAction('Restore User', 'Are you sure you want to restore this user?', function() {
