@@ -14,6 +14,7 @@ use App\Exports\StockIssuesExport;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Maatwebsite\Excel\Facades\Excel;
+use Yajra\DataTables\Facades\DataTables;
 use Exception;
 
 class StockIssueController extends Controller
@@ -41,7 +42,7 @@ class StockIssueController extends Controller
                 auth()->id()
             );
 
-            return datatables()->eloquent($query)
+            return DataTables::of($query)
                 ->addColumn('issue_type_badge', function ($issue) {
                     $type = $issue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH ? 'Issue to Tech' : 'Return from Tech';
                     $class = $issue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH ? 'primary' : 'success';
@@ -70,7 +71,7 @@ class StockIssueController extends Controller
                     return $badges[$issue->status] ?? $issue->status;
                 })
                 ->addColumn('action', function ($issue) {
-                    $actions = '<div class="btn-group" role="group">';
+                    $actions = '<div class="d-flex align-items-center gap-1 flex-nowrap">';
 
                     // View
                     $actions .= '<a href="' . route('supervisor.stock-issues.show', $issue->id) . '" class="btn btn-sm btn-info" title="View">
@@ -103,8 +104,11 @@ class StockIssueController extends Controller
                 ->make(true);
         }
 
-        // Get team technicians only
-        $teamTechnicians = auth()->user()->teamMembers;
+        // Get team technicians using the correct relationship
+        $teamTechnicians = User::where('supervisor_id', auth()->id())
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
         $depots = Depot::orderBy('depot_name')->get();
 
         return view('supervisor.stock-issues.index', compact('depots', 'teamTechnicians'));
@@ -118,7 +122,10 @@ class StockIssueController extends Controller
         $this->authorize('create', StockIssue::class);
 
         $depots = Depot::orderBy('depot_name')->get();
-        $teamTechnicians = auth()->user()->teamMembers;
+        $teamTechnicians = User::where('supervisor_id', auth()->id())
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
         $models = TerminalModel::where('status', 'active')->orderBy('model_name')->get();
 
         return view('supervisor.stock-issues.create', compact('depots', 'teamTechnicians', 'models'));
@@ -178,7 +185,10 @@ class StockIssueController extends Controller
 
         $stockIssue->load('lines.model', 'lines.serial');
         $depots = Depot::orderBy('depot_name')->get();
-        $teamTechnicians = auth()->user()->teamMembers;
+        $teamTechnicians = User::where('supervisor_id', auth()->id())
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
         $models = TerminalModel::where('status', 'active')->orderBy('model_name')->get();
 
         return view('supervisor.stock-issues.edit', compact('stockIssue', 'depots', 'teamTechnicians', 'models'));

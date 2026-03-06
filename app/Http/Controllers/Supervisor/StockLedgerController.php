@@ -7,7 +7,6 @@ use App\Models\StockLedger;
 use App\Models\TerminalModel;
 use App\Models\User;
 use App\Services\Inventory\StockLedgerService;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -89,14 +88,16 @@ class StockLedgerController extends Controller
 
     /**
      * Get DataTable data (scoped to supervisor's team)
+     * Uses manual server-side pagination matching admin pattern.
      */
     protected function getDatatableData(Request $request)
     {
         // Get supervisor's team technician IDs
-        $teamTechIds = User::where('supervisor_id', auth()->id())->pluck('id')->toArray();
+        $supervisorId = auth()->id();
+        $teamTechIds = User::where('supervisor_id', $supervisorId)->pluck('id')->toArray();
 
         $query = StockLedger::with(['model', 'serial', 'createdBy'])
-            ->where(function ($q) use ($teamTechIds) {
+            ->where(function ($q) use ($teamTechIds, $supervisorId) {
                 // Show movements involving supervisor's technicians
                 $q->where(function ($sub) use ($teamTechIds) {
                     $sub->where('from_location_type', 'technician')
@@ -107,15 +108,46 @@ class StockLedgerController extends Controller
                         ->whereIn('to_location_id', $teamTechIds);
                 })
                 // Or created by supervisor or team members
-                ->orWhereIn('created_by', array_merge([$auth()->id()], $teamTechIds));
-            })
-            ->orderBy('transaction_date', 'desc')
-            ->orderBy('id', 'desc');
+                ->orWhereIn('created_by', array_merge([$supervisorId], $teamTechIds));
+            });
 
         // Apply filters
         $this->applyFilters($query, $request);
 
-        return DataTableHelper::make($query, $request, function ($ledger) {
+        // Get total count before pagination
+        $totalRecords = StockLedger::count();
+        $filteredRecords = $query->count();
+
+        // Apply sorting
+        $orderColumn = $request->input('order.0.column', 0);
+        $orderDir = $request->input('order.0.dir', 'desc');
+
+        $columns = [
+            'transaction_date',
+            'transaction_no',
+            'transaction_type',
+            'model_id',
+            'serial_no',
+            'quantity',
+            'from_location_type',
+            'to_location_type',
+            'created_by',
+        ];
+
+        if (isset($columns[$orderColumn])) {
+            $query->orderBy($columns[$orderColumn], $orderDir);
+        } else {
+            $query->orderBy('transaction_date', 'desc')->orderBy('id', 'desc');
+        }
+
+        // Apply pagination
+        $start = $request->input('start', 0);
+        $length = $request->input('length', 25);
+
+        $ledgers = $query->skip($start)->take($length)->get();
+
+        // Format data
+        $data = $ledgers->map(function ($ledger) {
             return [
                 'id' => $ledger->id,
                 'transaction_date' => $ledger->transaction_date->format('Y-m-d'),
@@ -136,6 +168,13 @@ class StockLedgerController extends Controller
                 'can_reverse' => $ledger->is_reversible && Gate::allows('reverse', $ledger),
             ];
         });
+
+        return response()->json([
+            'draw' => intval($request->input('draw')),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $filteredRecords,
+            'data' => $data,
+        ]);
     }
 
     /**

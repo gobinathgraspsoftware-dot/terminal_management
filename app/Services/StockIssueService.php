@@ -8,6 +8,7 @@ use App\Models\InventorySerial;
 use App\Models\StockLedger;
 use App\Models\StockBalance;
 use App\Models\NumberSeries;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Exception;
@@ -28,7 +29,8 @@ class StockIssueService
 
         // Apply role-based filtering
         if ($role === 'supervisor') {
-            $teamTechnicianIds = Auth::user()->teamMembers()->pluck('id');
+            // Use User model query — User does NOT have a teamMembers() relationship
+            $teamTechnicianIds = User::where('supervisor_id', Auth::id())->pluck('id');
             $query->where(function($q) use ($teamTechnicianIds) {
                 $q->whereIn('to_technician_id', $teamTechnicianIds)
                   ->orWhereIn('from_technician_id', $teamTechnicianIds);
@@ -253,12 +255,12 @@ class StockIssueService
             // Mark as posted
             $stockIssue->update([
                 'status' => StockIssue::STATUS_POSTED,
-                'posted_at' => now(),
                 'posted_by' => Auth::id(),
+                'posted_at' => now(),
             ]);
 
             DB::commit();
-            return $stockIssue->fresh(['lines.model', 'lines.serial']);
+            return $stockIssue->fresh();
         } catch (Exception $e) {
             DB::rollBack();
             throw $e;
@@ -266,52 +268,43 @@ class StockIssueService
     }
 
     /**
-     * Validate stock availability
+     * Validate stock availability before posting
      */
     protected function validateStockAvailability(StockIssue $stockIssue): void
     {
         foreach ($stockIssue->lines as $line) {
-            // For issue to technician - check depot stock
             if ($stockIssue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH) {
-                if ($line->serial_id) {
-                    // Check serial availability
-                    $serial = InventorySerial::find($line->serial_id);
-                    if (!$serial || $serial->current_location_type !== 'depot'
-                        || $serial->current_location_id !== $stockIssue->from_depot_id) {
-                        throw new Exception("Serial {$line->serial_no} is not available in the selected depot");
-                    }
-                    if ($serial->status !== 'available') {
-                        throw new Exception("Serial {$line->serial_no} is not available (status: {$serial->status})");
-                    }
-                } else {
-                    // Check non-serialized stock balance
-                    $balance = StockBalance::where('model_id', $line->model_id)
-                        ->where('location_type', 'depot')
-                        ->where('location_id', $stockIssue->from_depot_id)
-                        ->first();
+                // Check depot stock
+                $balance = StockBalance::where('model_id', $line->model_id)
+                    ->where('location_type', 'depot')
+                    ->where('location_id', $stockIssue->from_depot_id)
+                    ->first();
 
-                    $available = $balance ? $balance->quantity_on_hand - $balance->quantity_reserved : 0;
-                    if ($available < $line->quantity) {
-                        throw new Exception("Insufficient stock for model {$line->model->model_name}. Available: {$available}, Required: {$line->quantity}");
-                    }
+                $available = $balance ? ($balance->quantity_on_hand - $balance->quantity_reserved) : 0;
+
+                if ($available < $line->quantity) {
+                    $modelName = $line->model->model_name ?? "Model #{$line->model_id}";
+                    throw new Exception("Insufficient stock for {$modelName}. Available: {$available}, Required: {$line->quantity}");
                 }
-            }
+            } else {
+                // Check technician stock
+                $balance = StockBalance::where('model_id', $line->model_id)
+                    ->where('location_type', 'technician')
+                    ->where('location_id', $stockIssue->from_technician_id)
+                    ->first();
 
-            // For return from technician - check technician stock
-            if ($stockIssue->issue_type === StockIssue::TYPE_RETURN_FROM_TECH) {
-                if ($line->serial_id) {
-                    $serial = InventorySerial::find($line->serial_id);
-                    if (!$serial || $serial->current_location_type !== 'technician'
-                        || $serial->current_location_id !== $stockIssue->from_technician_id) {
-                        throw new Exception("Serial {$line->serial_no} is not with the selected technician");
-                    }
+                $available = $balance ? ($balance->quantity_on_hand - $balance->quantity_reserved) : 0;
+
+                if ($available < $line->quantity) {
+                    $modelName = $line->model->model_name ?? "Model #{$line->model_id}";
+                    throw new Exception("Insufficient stock for {$modelName}. Available: {$available}, Required: {$line->quantity}");
                 }
             }
         }
     }
 
     /**
-     * Create ledger entry for stock issue line
+     * Create ledger entry for a line
      */
     protected function createLedgerEntry(StockIssue $stockIssue, StockIssueLine $line): void
     {
@@ -319,19 +312,16 @@ class StockIssueService
             ? 'issue_to_tech'
             : 'return_from_tech';
 
-        // Determine from/to locations
         if ($stockIssue->issue_type === StockIssue::TYPE_ISSUE_TO_TECH) {
-            $fromLocationType = 'depot';
-            $fromLocationId = $stockIssue->from_depot_id;
-            $toLocationType = 'technician';
-            $toLocationId = $stockIssue->to_technician_id;
-            $quantity = -$line->quantity; // Negative for out
+            $fromLocType = 'depot';
+            $fromLocId = $stockIssue->from_depot_id;
+            $toLocType = 'technician';
+            $toLocId = $stockIssue->to_technician_id;
         } else {
-            $fromLocationType = 'technician';
-            $fromLocationId = $stockIssue->from_technician_id;
-            $toLocationType = 'depot';
-            $toLocationId = $stockIssue->to_depot_id;
-            $quantity = $line->quantity; // Positive for in
+            $fromLocType = 'technician';
+            $fromLocId = $stockIssue->from_technician_id;
+            $toLocType = 'depot';
+            $toLocId = $stockIssue->to_depot_id;
         }
 
         StockLedger::create([
@@ -343,18 +333,18 @@ class StockIssueService
             'serial_id' => $line->serial_id,
             'serial_no' => $line->serial_no,
             'model_id' => $line->model_id,
-            'quantity' => $quantity,
-            'from_location_type' => $fromLocationType,
-            'from_location_id' => $fromLocationId,
-            'to_location_type' => $toLocationType,
-            'to_location_id' => $toLocationId,
-            'remarks' => $line->remarks,
+            'quantity' => $line->quantity,
+            'from_location_type' => $fromLocType,
+            'from_location_id' => $fromLocId,
+            'to_location_type' => $toLocType,
+            'to_location_id' => $toLocId,
+            'remarks' => $line->remarks ?? $stockIssue->remarks,
             'created_by' => Auth::id(),
         ]);
     }
 
     /**
-     * Update serial status
+     * Update serial status after posting
      */
     protected function updateSerialStatus(StockIssue $stockIssue, StockIssueLine $line): void
     {
@@ -365,19 +355,19 @@ class StockIssueService
             $serial->update([
                 'current_location_type' => 'technician',
                 'current_location_id' => $stockIssue->to_technician_id,
-                'status' => 'issued',
+                'current_status' => 'issued',
             ]);
         } else {
             $serial->update([
                 'current_location_type' => 'depot',
                 'current_location_id' => $stockIssue->to_depot_id,
-                'status' => 'available',
+                'current_status' => 'available',
             ]);
         }
     }
 
     /**
-     * Update stock balances
+     * Update stock balances after posting
      */
     protected function updateStockBalances(StockIssue $stockIssue, StockIssueLine $line): void
     {
@@ -537,14 +527,14 @@ class StockIssueService
             $serial->update([
                 'current_location_type' => 'depot',
                 'current_location_id' => $stockIssue->from_depot_id,
-                'status' => 'available',
+                'current_status' => 'available',
             ]);
         } else {
             // Return to technician
             $serial->update([
                 'current_location_type' => 'technician',
                 'current_location_id' => $stockIssue->from_technician_id,
-                'status' => 'issued',
+                'current_status' => 'issued',
             ]);
         }
     }
@@ -600,7 +590,7 @@ class StockIssueService
     {
         $query = InventorySerial::where('current_location_type', 'depot')
             ->where('current_location_id', $depotId)
-            ->where('status', 'available');
+            ->where('current_status', 'available');
 
         if ($modelId) {
             $query->where('model_id', $modelId);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Supervisor;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\Inventory\InventoryDashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -18,10 +19,13 @@ class InventoryDashboardController extends Controller
 
     /**
      * Get current supervisor's team technician IDs
+     * Queries User model directly — no dependency on service method.
      */
     protected function getTeamTechIds(): array
     {
-        return $this->dashboardService->getTeamTechnicianIds(auth()->id());
+        return User::where('supervisor_id', auth()->id())
+            ->pluck('id')
+            ->toArray();
     }
 
     /**
@@ -34,7 +38,15 @@ class InventoryDashboardController extends Controller
         $techIds = $this->getTeamTechIds();
 
         // Get team stock totals (technician locations only)
-        $overallTotals  = $this->dashboardService->getOverallTotals('technician');
+        // Service returns stdClass; view calls ->first()->total_quantity
+        // so we wrap it in a collection and add the alias property
+        $rawTotals = $this->dashboardService->getOverallTotals('technician');
+
+        if ($rawTotals) {
+            $rawTotals->total_quantity = $rawTotals->total_on_hand ?? 0;
+        }
+
+        $overallTotals  = collect([$rawTotals]);
         $lowStockCounts = $this->dashboardService->getLowStockCounts('technician');
 
         return view('supervisor.inventory-dashboard.index', compact(

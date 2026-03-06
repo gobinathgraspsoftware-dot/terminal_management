@@ -27,7 +27,7 @@ class StockReturnService
 
         // Apply role-based filtering
         if ($role === 'supervisor') {
-            $teamTechnicianIds = Auth::user()->teamMembers()->pluck('id');
+            $teamTechnicianIds = User::where('supervisor_id', Auth::id())->pluck('id');
             $query->whereIn('from_technician_id', $teamTechnicianIds);
         } elseif ($role === 'technician') {
             $query->where('from_technician_id', $userId);
@@ -571,7 +571,7 @@ class StockReturnService
 
         // Apply role-based filtering
         if ($role === 'supervisor') {
-            $teamTechnicianIds = Auth::user()->teamMembers()->pluck('id');
+            $teamTechnicianIds = User::where('supervisor_id', Auth::id())->pluck('id');
             $query->whereHas('stockIssue', function($q) use ($teamTechnicianIds) {
                 $q->whereIn('from_technician_id', $teamTechnicianIds);
             });

@@ -29,22 +29,19 @@ class StockIssuePolicy
 
         $role = $user->roles->first()?->name;
 
-        // Admin can view all
         if ($role === 'admin') {
             return true;
         }
 
-        // Supervisor can view issues from their team's depots or to their team technicians
         if ($role === 'supervisor') {
-            $teamTechnicianIds = $user->teamMembers()->pluck('id');
-            
-            return $stockIssue->to_technician_id && $teamTechnicianIds->contains($stockIssue->to_technician_id)
-                || $stockIssue->from_technician_id && $teamTechnicianIds->contains($stockIssue->from_technician_id);
+            $teamTechnicianIds = User::where('supervisor_id', $user->id)->pluck('id');
+
+            return ($stockIssue->to_technician_id && $teamTechnicianIds->contains($stockIssue->to_technician_id))
+                || ($stockIssue->from_technician_id && $teamTechnicianIds->contains($stockIssue->from_technician_id));
         }
 
-        // Technician can only view their own issues
         if ($role === 'technician') {
-            return $stockIssue->to_technician_id === $user->id 
+            return $stockIssue->to_technician_id === $user->id
                 || $stockIssue->from_technician_id === $user->id;
         }
 
@@ -68,24 +65,21 @@ class StockIssuePolicy
             return false;
         }
 
-        // Can only edit draft issues
         if ($stockIssue->status !== StockIssue::STATUS_DRAFT) {
             return false;
         }
 
         $role = $user->roles->first()?->name;
 
-        // Admin can edit all drafts
         if ($role === 'admin') {
             return true;
         }
 
-        // Supervisor can edit drafts from their team
         if ($role === 'supervisor') {
-            $teamTechnicianIds = $user->teamMembers()->pluck('id');
-            
-            return $stockIssue->to_technician_id && $teamTechnicianIds->contains($stockIssue->to_technician_id)
-                || $stockIssue->from_technician_id && $teamTechnicianIds->contains($stockIssue->from_technician_id);
+            $teamTechnicianIds = User::where('supervisor_id', $user->id)->pluck('id');
+
+            return ($stockIssue->to_technician_id && $teamTechnicianIds->contains($stockIssue->to_technician_id))
+                || ($stockIssue->from_technician_id && $teamTechnicianIds->contains($stockIssue->from_technician_id));
         }
 
         return false;
@@ -100,7 +94,6 @@ class StockIssuePolicy
             return false;
         }
 
-        // Can only post draft issues
         return $stockIssue->status === StockIssue::STATUS_DRAFT;
     }
 
@@ -113,7 +106,6 @@ class StockIssuePolicy
             return false;
         }
 
-        // Can only cancel posted issues (not already cancelled)
         return $stockIssue->status === StockIssue::STATUS_POSTED;
     }
 
@@ -122,8 +114,7 @@ class StockIssuePolicy
      */
     public function delete(User $user, StockIssue $stockIssue): bool
     {
-        // Only draft issues can be deleted, and only by admin
-        return $user->roles->first()?->name === 'admin' 
+        return $user->roles->first()?->name === 'admin'
             && $stockIssue->status === StockIssue::STATUS_DRAFT;
     }
 }

@@ -65,40 +65,92 @@ class TeamService
 
     /**
      * Get supervisor's own team statistics.
-     * Used by: Admin\TeamController::stats(), Supervisor\TeamController::stats()
+     * Used by: Admin\TeamController::stats(), Supervisor\TeamController::index() & stats()
+     *
+     * Returns keys matching supervisor/teams/index.blade.php:
+     *   total_members, active_members, todays_jobs, pending_jobs,
+     *   completed_this_month, sla_compliance, coverage_states
      */
     public function getSupervisorTeamStats(User $supervisor): array
     {
-        $teamMembers = User::where('supervisor_id', $supervisor->id)
-            ->where('status', 'active')
-            ->get();
+        $allTeamMembers = User::where('supervisor_id', $supervisor->id)->get();
+        $activeMembers = $allTeamMembers->where('status', 'active');
 
-        $totalMembers = $teamMembers->count();
-        $membersWithCoverage = $teamMembers->filter(fn($m) => !empty($m->coverage_states))->count();
+        $totalMembers = $allTeamMembers->count();
+        $activeCount = $activeMembers->count();
 
-        $teamIds = $teamMembers->pluck('id');
-        $totalJobs = 0;
-        $completedJobs = 0;
+        // Collect unique coverage states across all active members
+        $coverageStates = $activeMembers
+            ->pluck('coverage_states')
+            ->filter()
+            ->flatten()
+            ->unique()
+            ->sort()
+            ->values()
+            ->toArray();
+
+        $teamIds = $allTeamMembers->pluck('id');
+
+        $todaysJobs = 0;
         $pendingJobs = 0;
+        $completedThisMonth = 0;
+        $slaRate = 100;
+        $slaOnTime = 0;
+        $slaTotal = 0;
 
         try {
             if (class_exists(JobOrder::class)) {
-                $totalJobs = JobOrder::whereIn('technician_id', $teamIds)->count();
-                $completedJobs = JobOrder::whereIn('technician_id', $teamIds)->where('status', 'completed')->count();
+                $todaysJobs = JobOrder::whereIn('technician_id', $teamIds)
+                    ->whereDate('job_date', today())
+                    ->count();
+
                 $pendingJobs = JobOrder::whereIn('technician_id', $teamIds)
-                    ->whereIn('status', ['pending_assignment', 'assigned', 'in_progress'])->count();
+                    ->whereIn('status', ['pending_assignment', 'assigned', 'in_progress'])
+                    ->count();
+
+                $completedThisMonth = JobOrder::whereIn('technician_id', $teamIds)
+                    ->where('status', 'completed')
+                    ->whereMonth('updated_at', now()->month)
+                    ->whereYear('updated_at', now()->year)
+                    ->count();
+
+                // SLA compliance
+                $slaTotal = JobOrder::whereIn('technician_id', $teamIds)
+                    ->where('status', 'completed')
+                    ->count();
+
+                if ($slaTotal > 0) {
+                    $slaOnTime = JobOrder::whereIn('technician_id', $teamIds)
+                        ->where('status', 'completed')
+                        ->where(function ($q) {
+                            $q->whereNull('sla_deadline')
+                              ->orWhereColumn('completed_at', '<=', 'sla_deadline');
+                        })
+                        ->count();
+                    $slaRate = round(($slaOnTime / $slaTotal) * 100, 1);
+                }
             }
         } catch (\Exception $e) {
-            // job_orders table may not exist or be empty
+            // job_orders table may not exist yet
         }
 
         return [
-            'total_members' => $totalMembers,
-            'members_with_coverage' => $membersWithCoverage,
-            'total_jobs' => $totalJobs,
-            'completed_jobs' => $completedJobs,
-            'pending_jobs' => $pendingJobs,
-            'completion_rate' => $totalJobs > 0 ? round(($completedJobs / $totalJobs) * 100, 1) : 0,
+            'total_members'       => $totalMembers,
+            'active_members'      => $activeCount,
+            'todays_jobs'         => $todaysJobs,
+            'pending_jobs'        => $pendingJobs,
+            'completed_this_month' => $completedThisMonth,
+            'sla_compliance'      => [
+                'rate'    => $slaRate,
+                'on_time' => $slaOnTime,
+                'total'   => $slaTotal,
+            ],
+            'coverage_states'     => $coverageStates,
+            // Backward-compatible keys used by Admin\TeamController::stats()
+            'members_with_coverage' => $activeMembers->filter(fn($m) => !empty($m->coverage_states))->count(),
+            'total_jobs'          => ($todaysJobs + $pendingJobs + $completedThisMonth),
+            'completed_jobs'      => $completedThisMonth,
+            'completion_rate'     => $slaRate,
         ];
     }
 
@@ -296,7 +348,10 @@ class TeamService
 
     /**
      * Get team performance data for supervisor dashboard chart.
-     * Used by: Supervisor\TeamController::performance()
+     * Used by: Supervisor\TeamController::index() & performance()
+     *
+     * Returns nested under 'jobs_this_week' key to match view expectation:
+     *   $teamPerformance['jobs_this_week']['labels'] / ['data']
      */
     public function getTeamPerformance(User $supervisor): array
     {
@@ -322,6 +377,11 @@ class TeamService
             $data = [0, 0, 0, 0, 0, 0, 0];
         }
 
-        return ['labels' => $labels, 'data' => $data];
+        return [
+            'jobs_this_week' => [
+                'labels' => $labels,
+                'data'   => $data,
+            ],
+        ];
     }
 }
