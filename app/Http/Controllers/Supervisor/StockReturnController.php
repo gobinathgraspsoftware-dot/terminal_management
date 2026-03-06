@@ -43,11 +43,11 @@ class StockReturnController extends Controller
 
             return datatables()->eloquent($query)
                 ->addColumn('from_technician', function ($return) {
-                    return $return->fromTechnician ? 
+                    return $return->fromTechnician ?
                         '<i class="bi bi-person"></i> ' . $return->fromTechnician->name : '-';
                 })
                 ->addColumn('to_depot', function ($return) {
-                    return $return->toDepot ? 
+                    return $return->toDepot ?
                         '<i class="bi bi-building"></i> ' . $return->toDepot->depot_name : '-';
                 })
                 ->addColumn('status_badge', function ($return) {
@@ -62,23 +62,23 @@ class StockReturnController extends Controller
                     $hasDamaged = $return->lines()
                         ->whereIn('condition', ['damaged', 'defective'])
                         ->exists();
-                    
-                    return $hasDamaged ? 
-                        '<span class="badge bg-warning"><i class="bi bi-exclamation-triangle"></i> Has Damaged</span>' : 
+
+                    return $hasDamaged ?
+                        '<span class="badge bg-warning"><i class="bi bi-exclamation-triangle"></i> Has Damaged</span>' :
                         '<span class="badge bg-success"><i class="bi bi-check-circle"></i> All Good</span>';
                 })
                 ->addColumn('action', function ($return) {
                     $actions = '<div class="btn-group" role="group">';
 
                     // View
-                    $actions .= '<a href="' . route('supervisor.stock-returns.show', $return->id) . '" 
+                    $actions .= '<a href="' . route('supervisor.stock-returns.show', $return->id) . '"
                                    class="btn btn-sm btn-info" title="View">
                                     <i class="bi bi-eye"></i>
                                 </a>';
 
                     // Edit (only for draft)
                     if ($return->status === StockIssue::STATUS_DRAFT && auth()->user()->can('edit_stock_returns')) {
-                        $actions .= '<a href="' . route('supervisor.stock-returns.edit', $return->id) . '" 
+                        $actions .= '<a href="' . route('supervisor.stock-returns.edit', $return->id) . '"
                                        class="btn btn-sm btn-warning" title="Edit">
                                         <i class="bi bi-pencil"></i>
                                     </a>';
@@ -86,7 +86,7 @@ class StockReturnController extends Controller
 
                     // Post (only for draft)
                     if ($return->status === StockIssue::STATUS_DRAFT && auth()->user()->can('post_stock_returns')) {
-                        $actions .= '<button type="button" class="btn btn-sm btn-success" 
+                        $actions .= '<button type="button" class="btn btn-sm btn-success"
                                             onclick="postReturn(' . $return->id . ')" title="Post">
                                         <i class="bi bi-check-circle"></i>
                                     </button>';
@@ -94,14 +94,14 @@ class StockReturnController extends Controller
 
                     // Cancel (only for posted)
                     if ($return->status === StockIssue::STATUS_POSTED && auth()->user()->can('cancel_stock_returns')) {
-                        $actions .= '<button type="button" class="btn btn-sm btn-danger" 
+                        $actions .= '<button type="button" class="btn btn-sm btn-danger"
                                             onclick="cancelReturn(' . $return->id . ')" title="Cancel">
                                         <i class="bi bi-x-circle"></i>
                                     </button>';
                     }
 
                     // Print
-                    $actions .= '<a href="' . route('supervisor.stock-returns.print', $return->id) . '" 
+                    $actions .= '<a href="' . route('supervisor.stock-returns.print', $return->id) . '"
                                    target="_blank" class="btn btn-sm btn-secondary" title="Print">
                                     <i class="bi bi-printer"></i>
                                 </a>';
@@ -114,7 +114,7 @@ class StockReturnController extends Controller
         }
 
         // Get team technicians
-        $technicians = auth()->user()->teamMembers()->orderBy('name')->get();
+        $technicians = User::where('supervisor_id', auth()->id())->orderBy('name')->get();
         $depots = Depot::orderBy('depot_name')->get();
 
         return view('supervisor.stock-returns.index', compact('depots', 'technicians'));
@@ -128,7 +128,7 @@ class StockReturnController extends Controller
         $this->authorize('create_stock_returns');
 
         $depots = Depot::orderBy('depot_name')->get();
-        $technicians = auth()->user()->teamMembers()->orderBy('name')->get();
+        $technicians = User::where('supervisor_id', auth()->id())->orderBy('name')->get();
         $models = TerminalModel::where('status', 'active')->orderBy('model_name')->get();
 
         return view('supervisor.stock-returns.create', compact('depots', 'technicians', 'models'));
@@ -167,7 +167,7 @@ class StockReturnController extends Controller
             abort(404);
         }
 
-        $teamTechnicianIds = auth()->user()->teamMembers()->pluck('id');
+        $teamTechnicianIds = User::where('supervisor_id', auth()->id())->pluck('id');
         if (!$teamTechnicianIds->contains($stockReturn->from_technician_id)) {
             abort(403, 'This return is not from your team');
         }
@@ -201,7 +201,7 @@ class StockReturnController extends Controller
 
         $stockReturn->load('lines.model', 'lines.serial');
         $depots = Depot::orderBy('depot_name')->get();
-        $technicians = auth()->user()->teamMembers()->orderBy('name')->get();
+        $technicians = User::where('supervisor_id', auth()->id())->orderBy('name')->get();
         $models = TerminalModel::where('status', 'active')->orderBy('model_name')->get();
 
         return view('supervisor.stock-returns.edit', compact('stockReturn', 'depots', 'technicians', 'models'));
@@ -317,9 +317,9 @@ class StockReturnController extends Controller
         $this->authorize('view_technician_inventory_stock_returns');
 
         $technicianId = $request->technician_id;
-        
+
         // Verify technician is in supervisor's team
-        $teamTechnicianIds = auth()->user()->teamMembers()->pluck('id');
+        $teamTechnicianIds = User::where('supervisor_id', auth()->id())->pluck('id');
         if (!$teamTechnicianIds->contains($technicianId)) {
             return response()->json([
                 'success' => false,
@@ -344,9 +344,9 @@ class StockReturnController extends Controller
         $this->authorize('view_technician_inventory_stock_returns');
 
         $technicianId = $request->technician_id;
-        
+
         // Verify technician is in supervisor's team
-        $teamTechnicianIds = auth()->user()->teamMembers()->pluck('id');
+        $teamTechnicianIds = User::where('supervisor_id', auth()->id())->pluck('id');
         if (!$teamTechnicianIds->contains($technicianId)) {
             return response()->json([
                 'success' => false,

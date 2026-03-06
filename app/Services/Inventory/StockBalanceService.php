@@ -220,7 +220,7 @@ class StockBalanceService
      */
     public function getModelBalances(int $modelId)
     {
-        return StockBalance::with(['model', 'location'])
+        return StockBalance::with(['model'])
             ->where('model_id', $modelId)
             ->where('quantity_on_hand', '>', 0)
             ->orderBy('location_type')
@@ -246,7 +246,7 @@ class StockBalanceService
      */
     public function getLowStockItems(?string $locationType = null, ?int $locationId = null)
     {
-        $query = StockBalance::with(['model', 'location'])
+        $query = StockBalance::with(['model'])
             ->where('quantity_on_hand', '>', 0)
             ->orderBy('quantity_available', 'asc');
 
@@ -270,7 +270,7 @@ class StockBalanceService
      */
     public function getOutOfStockItems(?string $locationType = null, ?int $locationId = null)
     {
-        $query = StockBalance::with(['model', 'location'])
+        $query = StockBalance::with(['model'])
             ->where('quantity_available', '<=', 0);
 
         if ($locationType && $locationId) {

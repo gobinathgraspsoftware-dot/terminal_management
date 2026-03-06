@@ -8,7 +8,6 @@ use App\Models\TerminalModel;
 use App\Models\TerminalCategory;
 use App\Models\User;
 use App\Services\Inventory\StockBalanceService;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -39,7 +38,7 @@ class StockBalanceController extends Controller
             \DB::raw('COUNT(DISTINCT model_id) as unique_models'),
             \DB::raw('SUM(quantity_on_hand) as total_quantity'),
             \DB::raw('SUM(quantity_reserved) as total_reserved'),
-            \DB::raw('SUM(quantity_available) as total_available')
+            \DB::raw('SUM(quantity_on_hand - quantity_reserved) as total_available')
         )
         ->where('location_type', 'technician')
         ->whereIn('location_id', $teamTechIds)
@@ -97,32 +96,58 @@ class StockBalanceController extends Controller
         // Get supervisor's team technician IDs
         $teamTechIds = User::where('supervisor_id', auth()->id())->pluck('id')->toArray();
 
-        $query = StockBalance::with(['model'])
+        $query = StockBalance::with(['model.category'])
             ->where('location_type', 'technician')
             ->whereIn('location_id', $teamTechIds)
-            ->where('quantity_on_hand', '>', 0)
-            ->orderBy('model_id');
+            ->where('quantity_on_hand', '>', 0);
 
         // Apply filters
         $this->applyFilters($query, $request);
 
-        return DataTableHelper::make($query, $request, function ($balance) {
+        // Search
+        if ($search = $request->input('search.value')) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('model', function ($mq) use ($search) {
+                    $mq->where('model_name', 'like', "%{$search}%")
+                       ->orWhere('model_code', 'like', "%{$search}%");
+                });
+            });
+        }
+
+        $totalRecords = StockBalance::where('location_type', 'technician')
+            ->whereIn('location_id', $teamTechIds)
+            ->where('quantity_on_hand', '>', 0)
+            ->count();
+
+        $filteredRecords = $query->count();
+
+        // Sorting
+        $sortColumn = $request->input('order.0.column', 0);
+        $sortDir = $request->input('order.0.dir', 'asc');
+        $columns = ['id', 'model_id', 'model_id', 'model_id', 'location_id', 'quantity_on_hand', 'quantity_reserved', 'quantity_on_hand', 'quantity_on_hand', 'quantity_on_hand', 'last_movement_date'];
+        $orderBy = $columns[$sortColumn] ?? 'model_id';
+        $query->orderBy($orderBy, $sortDir);
+
+        // Pagination
+        $start = $request->input('start', 0);
+        $length = $request->input('length', 25);
+        $balances = $query->skip($start)->take($length)->get();
+
+        // Pre-load technician names
+        $technicianNames = User::whereIn('id', $teamTechIds)->pluck('name', 'id');
+
+        $data = $balances->map(function ($balance) use ($technicianNames) {
             $model = $balance->model;
             $minStock = $model->min_stock_level ?? 5;
+            $available = $balance->quantity_on_hand - $balance->quantity_reserved;
 
             // Determine stock status
-            $stockStatus = 'normal';
             $stockBadge = '<span class="badge bg-success">Normal</span>';
-
-            if ($balance->quantity_available <= 0) {
-                $stockStatus = 'out_of_stock';
+            if ($available <= 0) {
                 $stockBadge = '<span class="badge bg-danger">Out of Stock</span>';
-            } elseif ($balance->quantity_available <= $minStock) {
-                $stockStatus = 'low_stock';
+            } elseif ($available <= $minStock) {
                 $stockBadge = '<span class="badge bg-warning text-dark">Low Stock</span>';
             }
-
-            $technician = User::find($balance->location_id);
 
             return [
                 'id' => $balance->id,
@@ -130,16 +155,22 @@ class StockBalanceController extends Controller
                 'model_name' => $model->model_name ?? '-',
                 'model_code' => $model->model_code ?? '-',
                 'category' => $model->category->category_name ?? '-',
-                'technician_name' => $technician->name ?? "Technician #{$balance->location_id}",
+                'technician_name' => $technicianNames[$balance->location_id] ?? "Technician #{$balance->location_id}",
                 'quantity_on_hand' => number_format($balance->quantity_on_hand, 2),
                 'quantity_reserved' => number_format($balance->quantity_reserved, 2),
-                'quantity_available' => number_format($balance->quantity_available, 2),
+                'quantity_available' => number_format($available, 2),
                 'min_stock_level' => number_format($minStock, 2),
-                'stock_status' => $stockStatus,
                 'stock_badge' => $stockBadge,
-                'last_movement_date' => $balance->last_movement_date?->format('Y-m-d') ?? '-',
+                'last_movement_date' => $balance->last_movement_date ? date('Y-m-d', strtotime($balance->last_movement_date)) : '-',
             ];
         });
+
+        return response()->json([
+            'draw' => intval($request->input('draw')),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $filteredRecords,
+            'data' => $data,
+        ]);
     }
 
     /**
@@ -163,7 +194,10 @@ class StockBalanceController extends Controller
 
         if ($request->filled('stock_status')) {
             if ($request->stock_status == 'out_of_stock') {
-                $query->where('quantity_available', '<=', 0);
+                $query->whereRaw('(quantity_on_hand - quantity_reserved) <= 0');
+            } elseif ($request->stock_status == 'low_stock') {
+                $query->whereRaw('(quantity_on_hand - quantity_reserved) > 0')
+                      ->whereRaw('(quantity_on_hand - quantity_reserved) <= COALESCE((SELECT min_stock_level FROM terminal_models WHERE id = stock_balances.model_id), 5)');
             }
         }
     }
