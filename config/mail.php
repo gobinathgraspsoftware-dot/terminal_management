@@ -42,18 +42,11 @@ return [
             'scheme' => env('MAIL_SCHEME'),
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', 'smtp.gmail.com'),
-            'port' => env('MAIL_PORT', 465),
-            'username' => env('MAIL_USERNAME', 'gobinath.graspsoftware@gmail.com'),
-            'password' => env('MAIL_PASSWORD', 'znncrokvbaskzllg'),
+            'port' => env('MAIL_PORT', 587),
+            'username' => env('MAIL_USERNAME', 'rashidasyed1802@gmail.com'),
+            'password' => env('MAIL_PASSWORD', 'xbfaccfmrnpxhzcf'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
-            'stream' => [
-                'ssl' => [
-                    'allow_self_signed' => true,
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                ],
-            ],
         ],
 
         'ses' => [
