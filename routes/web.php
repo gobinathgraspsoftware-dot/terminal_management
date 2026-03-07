@@ -85,6 +85,7 @@ use App\Http\Controllers\Supervisor\GrnController as SupervisorGrnController;
 use App\Http\Controllers\Technician\GrnController as TechnicianGrnController;
 use App\Http\Controllers\Admin\GrnReportController as AdminGrnReportController;
 use App\Http\Controllers\Supervisor\GrnReportController as SupervisorGrnReportController;
+use App\Http\Controllers\LocationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -128,6 +129,12 @@ Route::middleware(['auth', 'active'])->group(function () {
 Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
     /* Admin Dashboard */
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::prefix('ajax')->name('ajax.')->group(function () {
+        Route::get('/states', [LocationController::class, 'states'])->name('states');
+        Route::get('/cities', [LocationController::class, 'cities'])->name('cities');
+        Route::get('/supervisors', [LocationController::class, 'supervisors'])->name('supervisors');
+    });
 
     /* User Management Routes */
     Route::controller(UserController::class)->prefix('users')->name('users.')->group(function () {
@@ -635,6 +642,12 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
 Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->group(function () {
     /* Supervisor Dashboard */
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::prefix('ajax')->name('ajax.')->group(function () {
+        Route::get('/states', [LocationController::class, 'states'])->name('states');
+        Route::get('/cities', [LocationController::class, 'cities'])->name('cities');
+        Route::get('/supervisors', [LocationController::class, 'supervisors'])->name('supervisors');
+    });
 
     /* User Management Routes */
     Route::controller(UserController::class)->prefix('users')->name('users.')->group(function () {

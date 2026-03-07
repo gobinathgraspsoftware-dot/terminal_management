@@ -28,6 +28,10 @@ class StoreUserRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:20'],
             'employee_id' => ['nullable', 'string', 'max:50', 'unique:users,employee_id'],
 
+            // State & City — available for ALL roles
+            'state_id' => ['nullable', 'integer', 'exists:states,id'],
+            'city_id' => ['nullable', 'integer', 'exists:cities,id'],
+
             // Password
             'password' => ['required', 'string', 'min:8', 'confirmed'],
 
@@ -39,9 +43,6 @@ class StoreUserRequest extends FormRequest
 
             // Technician-specific fields
             'has_supervisor' => ['nullable', 'boolean'],
-
-            // FIX: Only require supervisor_id when has_supervisor is checked (true)
-            // Previously was 'required_if:role,technician' which broke independent technicians
             'supervisor_id' => [
                 'nullable',
                 'exists:users,id',
@@ -85,6 +86,8 @@ class StoreUserRequest extends FormRequest
             'role.required' => 'Please select a role for the user.',
             'role.exists' => 'The selected role is invalid.',
             'status.required' => 'Please select a status.',
+            'state_id.exists' => 'The selected state is invalid.',
+            'city_id.exists' => 'The selected city is invalid.',
             'supervisor_id.required_if' => 'Please select a supervisor when "Assign to Supervisor" is enabled.',
             'supervisor_id.exists' => 'The selected supervisor is invalid.',
             'avatar.image' => 'Avatar must be an image file.',
@@ -104,13 +107,20 @@ class StoreUserRequest extends FormRequest
                 'has_supervisor' => filter_var($this->has_supervisor, FILTER_VALIDATE_BOOLEAN)
             ]);
         } else {
-            // If checkbox not present in form data, default to false
             $this->merge(['has_supervisor' => false]);
         }
 
         // If has_supervisor is false OR role is not technician, clear supervisor_id
         if (!$this->has_supervisor || $this->role !== 'technician') {
             $this->merge(['supervisor_id' => null]);
+        }
+
+        // Convert empty string state_id/city_id to null
+        if ($this->state_id === '' || $this->state_id === null) {
+            $this->merge(['state_id' => null]);
+        }
+        if ($this->city_id === '' || $this->city_id === null) {
+            $this->merge(['city_id' => null]);
         }
 
         // Convert remove_avatar to boolean

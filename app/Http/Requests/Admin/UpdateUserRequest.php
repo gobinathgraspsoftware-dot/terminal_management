@@ -26,9 +26,23 @@ class UpdateUserRequest extends FormRequest
         return [
             // Basic Information
             'name' => ['required', 'string', 'min:3', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($userId)
+            ],
             'phone' => ['nullable', 'string', 'max:20'],
-            'employee_id' => ['nullable', 'string', 'max:50', Rule::unique('users', 'employee_id')->ignore($userId)],
+            'employee_id' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('users', 'employee_id')->ignore($userId)
+            ],
+
+            // State & City — available for ALL roles
+            'state_id' => ['nullable', 'integer', 'exists:states,id'],
+            'city_id' => ['nullable', 'integer', 'exists:cities,id'],
 
             // Password (optional for update)
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
@@ -41,14 +55,10 @@ class UpdateUserRequest extends FormRequest
 
             // Technician-specific fields
             'has_supervisor' => ['nullable', 'boolean'],
-
-            // FIX: Only require supervisor_id when has_supervisor is checked
             'supervisor_id' => [
                 'nullable',
                 'exists:users,id',
-                'different:id',
-                'required_if:has_supervisor,1',
-                'required_if:has_supervisor,true',
+                'different:id' // Cannot be own supervisor
             ],
 
             'coverage_states' => ['nullable', 'array'],
@@ -86,7 +96,8 @@ class UpdateUserRequest extends FormRequest
             'role.required' => 'Please select a role for the user.',
             'role.exists' => 'The selected role is invalid.',
             'status.required' => 'Please select a status.',
-            'supervisor_id.required_if' => 'Please select a supervisor when "Assign to Supervisor" is enabled.',
+            'state_id.exists' => 'The selected state is invalid.',
+            'city_id.exists' => 'The selected city is invalid.',
             'supervisor_id.exists' => 'The selected supervisor is invalid.',
             'supervisor_id.different' => 'A user cannot be their own supervisor.',
             'avatar.image' => 'Avatar must be an image file.',
@@ -105,13 +116,19 @@ class UpdateUserRequest extends FormRequest
             $this->merge([
                 'has_supervisor' => filter_var($this->has_supervisor, FILTER_VALIDATE_BOOLEAN)
             ]);
-        } else {
-            $this->merge(['has_supervisor' => false]);
         }
 
-        // If has_supervisor is false OR role is not technician, clear supervisor_id
-        if (!$this->has_supervisor || $this->role !== 'technician') {
+        // If has_supervisor is false, remove supervisor_id
+        if (!$this->has_supervisor) {
             $this->merge(['supervisor_id' => null]);
+        }
+
+        // Convert empty string state_id/city_id to null
+        if ($this->state_id === '' || $this->state_id === null) {
+            $this->merge(['state_id' => null]);
+        }
+        if ($this->city_id === '' || $this->city_id === null) {
+            $this->merge(['city_id' => null]);
         }
 
         // Convert remove_avatar to boolean

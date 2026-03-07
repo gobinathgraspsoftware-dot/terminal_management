@@ -183,7 +183,7 @@ $(document).ready(function() {
         table.draw();
     });
 
-    // View user modal — avatar_url comes from User model $appends (full URL)
+    // View user modal — shows state/city info
     $(document).on('click', '.view-user', function() {
         var userId = $(this).data('id');
         $('#viewUserBody').html('<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>');
@@ -201,9 +201,11 @@ $(document).ready(function() {
 
                     var statusClass = user.status === 'active' ? 'success' : (user.status === 'inactive' ? 'warning' : 'danger');
 
-                    // avatar_url is auto-appended by User model — already a full URL
                     var avatarUrl = user.avatar_url;
                     var fallbackUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=200&background=random';
+
+                    var stateName = user.state ? user.state.name : '-';
+                    var cityName = user.city ? user.city.name + ' (' + user.city.postcode + ')' : '-';
 
                     var html = '<div class="row">';
                     html += '<div class="col-md-4 text-center mb-3">';
@@ -218,6 +220,8 @@ $(document).ready(function() {
                     html += '<tr><th>Employee ID</th><td>' + (user.employee_id || '-') + '</td></tr>';
                     html += '<tr><th>Status</th><td><span class="badge bg-' + statusClass + '">' + (user.status ? user.status.charAt(0).toUpperCase() + user.status.slice(1) : '-') + '</span></td></tr>';
                     html += '<tr><th>Supervisor</th><td>' + (user.supervisor ? user.supervisor.name : 'None') + '</td></tr>';
+                    html += '<tr><th>State</th><td>' + stateName + '</td></tr>';
+                    html += '<tr><th>City</th><td>' + cityName + '</td></tr>';
                     html += '<tr><th>Address</th><td>' + (user.address || '-') + '</td></tr>';
                     html += '</table>';
                     html += '</div></div>';

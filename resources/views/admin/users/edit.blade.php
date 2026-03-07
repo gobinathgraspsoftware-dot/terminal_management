@@ -91,6 +91,28 @@
                         <input type="text" name="employee_id" class="form-control" value="{{ $user->employee_id }}" maxlength="50">
                         <div class="form-text">Auto-generated if not provided</div>
                     </div>
+                    {{-- State & City — available for ALL roles --}}
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">State</label>
+                        <select name="state_id" id="stateSelect" class="form-select">
+                            @if($user->state)
+                                <option value="{{ $user->state_id }}" selected>{{ $user->state->name }}</option>
+                            @else
+                                <option value="">Select State</option>
+                            @endif
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">City</label>
+                        <select name="city_id" id="citySelect" class="form-select">
+                            @if($user->city)
+                                <option value="{{ $user->city_id }}" selected>{{ $user->city->name }} ({{ $user->city->postcode }})</option>
+                            @else
+                                <option value="">Select City</option>
+                            @endif
+                        </select>
+                        <div class="form-text">Cities will load based on selected state</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -129,7 +151,6 @@
         @php
             $isTechnician = $user->hasRole('technician');
             $hasSupervisor = !is_null($user->supervisor_id);
-            $userCoverageStates = $user->coverage_states ? (is_string($user->coverage_states) ? json_decode($user->coverage_states, true) : $user->coverage_states) : [];
             $userSkillTags = $user->skill_tags ? (is_string($user->skill_tags) ? json_decode($user->skill_tags, true) : $user->skill_tags) : [];
         @endphp
         <div class="card border-0 shadow-sm mb-4 {{ $isTechnician ? '' : 'd-none' }}" id="technicianSection">
@@ -147,30 +168,17 @@
                     </div>
                 </div>
 
-                {{-- Supervisor Dropdown --}}
+                {{-- Supervisor Dropdown (AJAX filtered by state) --}}
                 <div class="mb-3" id="supervisorField" style="{{ $hasSupervisor ? '' : 'display:none;' }}">
                     <label class="form-label fw-semibold">Supervisor <span class="text-danger" id="supervisorRequired" style="{{ $hasSupervisor ? '' : 'display:none;' }}">*</span></label>
-                    <select name="supervisor_id" id="supervisorSelect" class="form-select select2">
-                        <option value="">Select an option</option>
-                        @foreach($supervisors as $supervisor)
-                            <option value="{{ $supervisor->id }}" {{ $user->supervisor_id == $supervisor->id ? 'selected' : '' }}>
-                                {{ $supervisor->name }}
-                            </option>
-                        @endforeach
+                    <select name="supervisor_id" id="supervisorSelect" class="form-select">
+                        @if($user->supervisor)
+                            <option value="{{ $user->supervisor_id }}" selected>{{ $user->supervisor->name }} ({{ $user->supervisor->employee_id }})</option>
+                        @else
+                            <option value="">Select Supervisor</option>
+                        @endif
                     </select>
-                </div>
-
-                {{-- Coverage States --}}
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Coverage States (Work Areas)</label>
-                    <select name="coverage_states[]" id="coverageStates" class="form-select select2" multiple>
-                        @foreach($states as $state)
-                            <option value="{{ $state }}" {{ in_array($state, $userCoverageStates ?? []) ? 'selected' : '' }}>
-                                {{ $state }}
-                            </option>
-                        @endforeach
-                    </select>
-                    <div class="form-text">Select states where this technician can work</div>
+                    <div class="form-text">Supervisors are filtered by selected state</div>
                 </div>
 
                 {{-- Skills --}}
@@ -178,7 +186,7 @@
                     <label class="form-label fw-semibold">Skills</label>
                     <select name="skill_tags[]" id="skillTags" class="form-select select2" multiple>
                         @foreach($skillTags as $skill)
-                            <option value="{{ $skill }}" {{ in_array($skill, $userSkillTags ?? []) ? 'selected' : '' }}>
+                            <option value="{{ $skill }}" {{ in_array($skill, $userSkillTags) ? 'selected' : '' }}>
                                 {{ $skill }}
                             </option>
                         @endforeach
@@ -188,24 +196,53 @@
             </div>
         </div>
 
-        {{-- Bank Details Section --}}
+        {{-- Password Section --}}
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-primary text-white">
-                <h6 class="mb-0"><i class="bi bi-bank me-2"></i>Bank Details</h6>
+                <h6 class="mb-0"><i class="bi bi-key me-2"></i>Change Password (Optional)</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">New Password</label>
+                        <div class="input-group">
+                            <input type="password" name="password" id="password" class="form-control" minlength="8" placeholder="Leave blank to keep current">
+                            <button type="button" class="btn btn-outline-secondary toggle-password" data-target="password">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Confirm New Password</label>
+                        <div class="input-group">
+                            <input type="password" name="password_confirmation" id="password_confirmation" class="form-control" minlength="8" placeholder="Confirm new password">
+                            <button type="button" class="btn btn-outline-secondary toggle-password" data-target="password_confirmation">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Bank Details Section --}}
+        <div class="card border-0 shadow-sm mb-4 {{ $isTechnician ? '' : 'd-none' }}" id="bankSection">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="bi bi-bank me-2"></i>Bank Details (For Commission Payout)</h6>
             </div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">Bank Name</label>
-                        <input type="text" name="bank_name" class="form-control" value="{{ $user->bank_name }}" maxlength="100">
+                        <input type="text" name="bank_name" class="form-control" value="{{ $user->bank_name }}" maxlength="100" placeholder="e.g. Maybank">
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">Account Number</label>
-                        <input type="text" name="bank_account_no" class="form-control" value="{{ $user->bank_account_no }}" maxlength="50">
+                        <input type="text" name="bank_account_no" class="form-control" value="{{ $user->bank_account_no }}" maxlength="50" placeholder="Enter account number">
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">Account Name</label>
-                        <input type="text" name="bank_account_name" class="form-control" value="{{ $user->bank_account_name }}" maxlength="255">
+                        <input type="text" name="bank_account_name" class="form-control" value="{{ $user->bank_account_name }}" maxlength="255" placeholder="Enter account holder name">
                     </div>
                 </div>
             </div>
@@ -217,7 +254,7 @@
                 <h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Address</h6>
             </div>
             <div class="card-body">
-                <textarea name="address" class="form-control" rows="3" maxlength="500">{{ $user->address }}</textarea>
+                <textarea name="address" class="form-control" rows="3" maxlength="500" placeholder="Enter full address">{{ $user->address }}</textarea>
             </div>
         </div>
 
@@ -232,10 +269,10 @@
         </div>
     </form>
 
-    {{-- Change Password Section (Separate Form) --}}
+    {{-- Separate Change Password Form --}}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-warning text-dark">
-            <h6 class="mb-0"><i class="bi bi-key me-2"></i>Change Password</h6>
+            <h6 class="mb-0"><i class="bi bi-shield-lock me-2"></i>Force Change Password</h6>
         </div>
         <div class="card-body">
             <form id="changePasswordForm">
@@ -243,21 +280,11 @@
                 <div class="row g-3">
                     <div class="col-md-5">
                         <label class="form-label fw-semibold">New Password <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <input type="password" name="new_password" id="newPassword" class="form-control" required minlength="8" placeholder="Min 8 characters">
-                            <button type="button" class="btn btn-outline-secondary toggle-password" data-target="newPassword">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
+                        <input type="password" id="newPassword" class="form-control" required minlength="8" placeholder="Min 8 characters">
                     </div>
                     <div class="col-md-5">
                         <label class="form-label fw-semibold">Confirm Password <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <input type="password" name="new_password_confirmation" id="newPasswordConfirmation" class="form-control" required minlength="8" placeholder="Re-enter password">
-                            <button type="button" class="btn btn-outline-secondary toggle-password" data-target="newPasswordConfirmation">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
+                        <input type="password" id="newPasswordConfirmation" class="form-control" required minlength="8" placeholder="Confirm password">
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
                         <button type="submit" class="btn btn-warning w-100" id="changePasswordBtn">
@@ -274,13 +301,145 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Initialize Select2
-    $('.select2').select2({
+
+    // Initialize basic Select2 (non-AJAX)
+    $('.select2').not('#stateSelect, #citySelect, #supervisorSelect').select2({
         theme: 'bootstrap-5',
         width: '100%'
     });
 
+    // =============================================
+    // State Select2 (AJAX) — ALL roles
+    // =============================================
+    $('#stateSelect').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Search and select state...',
+        allowClear: true,
+        ajax: {
+            url: '{{ route("admin.ajax.states") }}',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return { search: params.term, page: params.page || 1 };
+            },
+            processResults: function(data, params) {
+                params.page = params.page || 1;
+                return { results: data.results, pagination: { more: data.pagination.more } };
+            },
+            cache: true
+        },
+        minimumInputLength: 0
+    });
+
+    // =============================================
+    // City Select2 (AJAX — dependent on state) — ALL roles
+    // =============================================
+    $('#citySelect').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: '{{ $user->state_id ? "Search and select city..." : "Select state first..." }}',
+        allowClear: true,
+        ajax: {
+            url: '{{ route("admin.ajax.cities") }}',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return { state_id: $('#stateSelect').val(), search: params.term, page: params.page || 1 };
+            },
+            processResults: function(data, params) {
+                params.page = params.page || 1;
+                return { results: data.results, pagination: { more: data.pagination.more } };
+            },
+            cache: true
+        },
+        minimumInputLength: 0
+    });
+
+    // =============================================
+    // Supervisor Select2 (AJAX — technician only, filtered by state)
+    // =============================================
+    $('#supervisorSelect').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Search and select supervisor...',
+        allowClear: true,
+        ajax: {
+            url: '{{ route("admin.ajax.supervisors") }}',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return { state_id: $('#stateSelect').val(), city_id: $('#citySelect').val(), search: params.term, page: params.page || 1 };
+            },
+            processResults: function(data, params) {
+                params.page = params.page || 1;
+                return { results: data.results, pagination: { more: data.pagination.more } };
+            },
+            cache: true
+        },
+        minimumInputLength: 0
+    });
+
+    // =============================================
+    // Helper: Load supervisors filtered by current state/city
+    // =============================================
+    function loadFilteredSupervisors() {
+        var stateId = $('#stateSelect').val();
+        if (!stateId) return;
+
+        // Clear current supervisor selection
+        $('#supervisorSelect').val(null).trigger('change');
+
+        // Fetch first page of supervisors matching current state/city
+        $.ajax({
+            url: '{{ route("admin.ajax.supervisors") }}',
+            dataType: 'json',
+            data: {
+                state_id: stateId,
+                city_id: $('#citySelect').val(),
+                search: '',
+                page: 1
+            },
+            success: function(data) {
+                $('#supervisorSelect').empty().append('<option value="">Select Supervisor</option>');
+                if (data.results && data.results.length > 0) {
+                    $.each(data.results, function(i, item) {
+                        $('#supervisorSelect').append(
+                            $('<option>', { value: item.id, text: item.text })
+                        );
+                    });
+                }
+                $('#supervisorSelect').trigger('change');
+            }
+        });
+    }
+
+    // =============================================
+    // State change → reset City & reload Supervisor
+    // =============================================
+    $('#stateSelect').on('change', function() {
+        $('#citySelect').val(null).trigger('change');
+        if ($(this).val()) {
+            $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Search and select city...');
+        } else {
+            $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Select state first...');
+        }
+        $('#supervisorSelect').val(null).trigger('change');
+        if ($('#roleSelect').val() === 'technician' && $('#hasSupervisorToggle').is(':checked')) {
+            loadFilteredSupervisors();
+        }
+    });
+
+    $('#citySelect').on('change', function() {
+        $('#supervisorSelect').val(null).trigger('change');
+        if ($('#roleSelect').val() === 'technician' && $('#hasSupervisorToggle').is(':checked')) {
+            loadFilteredSupervisors();
+        }
+    });
+
+    // =============================================
     // Avatar preview
+    // =============================================
     $('#avatarInput').on('change', function() {
         var file = this.files[0];
         if (file) {
@@ -294,11 +453,9 @@ $(document).ready(function() {
                 $('#avatarPreview').html('<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;">');
             };
             reader.readAsDataURL(file);
-            $('#removeAvatarField').val('0');
         }
     });
 
-    // Remove avatar
     $('#removeAvatarBtn').on('click', function() {
         $('#removeAvatarField').val('1');
         $('#avatarPreview').html('<i class="bi bi-person"></i>');
@@ -306,34 +463,47 @@ $(document).ready(function() {
         showToast('Avatar will be removed on save', 'info');
     });
 
+    // =============================================
     // Role change handler
+    // =============================================
     $('#roleSelect').on('change', function() {
         var role = $(this).val();
         if (role === 'technician') {
             $('#technicianSection').removeClass('d-none');
+            $('#bankSection').removeClass('d-none');
+
+            // Auto-load supervisors filtered by already-selected state/city
+            if ($('#hasSupervisorToggle').is(':checked')) {
+                loadFilteredSupervisors();
+            }
         } else {
             $('#technicianSection').addClass('d-none');
+            $('#bankSection').addClass('d-none');
             $('#hasSupervisorToggle').prop('checked', false);
-            $('#supervisorSelect').val('').trigger('change');
-            $('#coverageStates').val([]).trigger('change');
+            $('#supervisorSelect').val(null).trigger('change');
             $('#skillTags').val([]).trigger('change');
         }
     });
 
-    // Supervisor toggle handler - FIX: properly show/hide supervisor field
+    // =============================================
+    // Supervisor toggle handler
+    // =============================================
     $('#hasSupervisorToggle').on('change', function() {
-        var isChecked = $(this).is(':checked');
-        if (isChecked) {
+        if ($(this).is(':checked')) {
             $('#supervisorField').slideDown();
             $('#supervisorRequired').show();
+            // Auto-load filtered supervisors when toggling ON
+            loadFilteredSupervisors();
         } else {
             $('#supervisorField').slideUp();
             $('#supervisorRequired').hide();
-            $('#supervisorSelect').val('').trigger('change');
+            $('#supervisorSelect').val(null).trigger('change');
         }
     });
 
+    // =============================================
     // Password toggle
+    // =============================================
     $(document).on('click', '.toggle-password', function() {
         var target = $(this).data('target');
         var input = $('#' + target);
@@ -347,22 +517,23 @@ $(document).ready(function() {
         }
     });
 
+    // =============================================
     // Edit User Form submission
+    // =============================================
     $('#editUserForm').on('submit', function(e) {
         e.preventDefault();
 
         var formData = new FormData(this);
 
-        // If has_supervisor is unchecked, send as 0
         if (!$('#hasSupervisorToggle').is(':checked')) {
             formData.set('has_supervisor', '0');
         }
 
-        // If role is not technician, remove technician fields
+        // Only remove technician-specific fields when not technician
+        // state_id and city_id are ALWAYS sent
         if ($('#roleSelect').val() !== 'technician') {
             formData.delete('has_supervisor');
             formData.delete('supervisor_id');
-            formData.delete('coverage_states[]');
             formData.delete('skill_tags[]');
         }
 
@@ -408,7 +579,9 @@ $(document).ready(function() {
         });
     });
 
-    // Change Password Form - FIX: Uses POST method (not PUT) to match route
+    // =============================================
+    // Change Password Form
+    // =============================================
     $('#changePasswordForm').on('submit', function(e) {
         e.preventDefault();
 
@@ -429,7 +602,7 @@ $(document).ready(function() {
 
         $.ajax({
             url: '{{ route("admin.users.change-password", $user->id) }}',
-            type: 'POST',  // FIX: Must be POST to match Route::post() definition
+            type: 'POST',
             data: {
                 _token: $('meta[name="csrf-token"]').attr('content'),
                 new_password: newPassword,

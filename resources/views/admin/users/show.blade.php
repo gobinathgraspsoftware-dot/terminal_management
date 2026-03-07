@@ -32,8 +32,6 @@
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body text-center">
                     @if($user->avatar)
-                        {{-- FIX: avatar_url accessor already returns full URL via asset()
-                             Do NOT wrap in asset('storage/...') again — that causes double-pathing --}}
                         <img src="{{ $user->avatar_url }}" alt="{{ $user->name }}"
                              class="rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover;"
                              onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='flex';">
@@ -206,12 +204,18 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-12">
-                            <small class="text-muted d-block">Coverage States</small>
-                            @if($user->coverage_states && count($user->coverage_states) > 0)
-                                @foreach($user->coverage_states as $state)
-                                    <span class="badge bg-info me-1">{{ $state }}</span>
-                                @endforeach
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">State</small>
+                            @if($user->state)
+                                <span class="badge bg-info">{{ $user->state->name }}</span>
+                            @else
+                                <strong>Not set</strong>
+                            @endif
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">City</small>
+                            @if($user->city)
+                                <span class="badge bg-info">{{ $user->city->name }} ({{ $user->city->postcode }})</span>
                             @else
                                 <strong>Not set</strong>
                             @endif
@@ -253,6 +257,8 @@
                                 <tr>
                                     <th>Name</th>
                                     <th>Employee ID</th>
+                                    <th>State</th>
+                                    <th>City</th>
                                     <th>Status</th>
                                     <th>Action</th>
                                 </tr>
@@ -262,6 +268,8 @@
                                 <tr>
                                     <td>{{ $member->name }}</td>
                                     <td>{{ $member->employee_id }}</td>
+                                    <td>{{ $member->state?->name ?? '-' }}</td>
+                                    <td>{{ $member->city?->name ?? '-' }}</td>
                                     <td>
                                         <span class="badge bg-{{ $member->status === 'active' ? 'success' : 'warning' }}">
                                             {{ ucfirst($member->status) }}

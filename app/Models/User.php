@@ -22,6 +22,8 @@ class User extends Authenticatable
 
     /**
      * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
      */
     protected $fillable = [
         'employee_id',
@@ -35,6 +37,8 @@ class User extends Authenticatable
         'skill_tags',
         'default_rate_card_id',
         'address',
+        'state_id',
+        'city_id',
         'bank_name',
         'bank_account_no',
         'bank_account_name',
@@ -50,6 +54,8 @@ class User extends Authenticatable
 
     /**
      * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
      */
     protected $hidden = [
         'password',
@@ -57,13 +63,9 @@ class User extends Authenticatable
     ];
 
     /**
-     * Append avatar_url to JSON serialization
-     * This ensures AJAX responses (e.g., view user modal) include the full avatar URL
-     */
-    protected $appends = ['avatar_url'];
-
-    /**
      * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
      */
     protected function casts(): array
     {
@@ -112,80 +114,113 @@ class User extends Authenticatable
         return $prefix . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
     }
 
-    // =========================================================================
-    // RELATIONSHIPS
-    // =========================================================================
+    /**
+     * Relationships
+     */
 
+    // Self-referencing relationship - Supervisor
     public function supervisor()
     {
         return $this->belongsTo(User::class, 'supervisor_id');
     }
 
+    // Self-referencing relationship - Technicians under this supervisor
     public function technicians()
     {
         return $this->hasMany(User::class, 'supervisor_id');
     }
 
+    // State relationship
+    public function state()
+    {
+        return $this->belongsTo(State::class, 'state_id');
+    }
+
+    // City relationship
+    public function city()
+    {
+        return $this->belongsTo(City::class, 'city_id');
+    }
+
+    // Default rate card
     public function defaultRateCard()
     {
         return $this->belongsTo(RateCard::class, 'default_rate_card_id');
     }
 
+    /**
+     * Get stock balances for this technician
+     * Used when technician has their own stock depot
+     */
     public function stockBalances()
     {
         return $this->hasMany(StockBalance::class, 'location_id')
             ->where('location_type', 'technician');
     }
 
+    /**
+     * Get stock balance for technician's personal depot
+     * Alternative method that's more specific
+     */
     public function technicianStockBalances()
     {
         return $this->hasMany(StockBalance::class, 'location_id')
             ->where('location_type', 'technician');
     }
 
+    /**
+     * Get the user's login histories.
+     */
     public function loginHistories()
     {
         return $this->hasMany(LoginHistory::class);
     }
 
+    // Jobs assigned as technician
     public function assignedJobs()
     {
         return $this->hasMany(JobOrder::class, 'technician_id');
     }
 
+    // Jobs as supervisor
     public function supervisedJobs()
     {
         return $this->hasMany(JobOrder::class, 'supervisor_id');
     }
 
+    // Job assignments (for multi-technician jobs)
     public function jobAssignments()
     {
         return $this->hasMany(JobAssignment::class, 'technician_id');
     }
 
+    // Stock issues
     public function stockIssues()
     {
         return $this->hasMany(StockIssue::class, 'to_technician_id');
     }
 
+    // Claims
     public function claims()
     {
         return $this->hasMany(Claim::class, 'technician_id');
     }
 
+    // Payout lines
     public function payoutLines()
     {
         return $this->hasMany(PayoutLine::class, 'technician_id');
     }
 
+    // GPS tracks
     public function gpsTracks()
     {
         return $this->hasMany(GpsTrack::class, 'technician_id');
     }
 
-    // =========================================================================
-    // SCOPES
-    // =========================================================================
+    /**
+     * Scopes
+     */
 
     public function scopeActive($query)
     {
@@ -232,9 +267,19 @@ class User extends Authenticatable
         return $query->whereJsonContains('coverage_states', $state);
     }
 
-    // =========================================================================
-    // ACCESSORS
-    // =========================================================================
+    public function scopeByStateId($query, $stateId)
+    {
+        return $query->where('state_id', $stateId);
+    }
+
+    public function scopeByCityId($query, $cityId)
+    {
+        return $query->where('city_id', $cityId);
+    }
+
+    /**
+     * Accessors
+     */
 
     public function getFullNameAttribute(): string
     {
@@ -284,32 +329,16 @@ class User extends Authenticatable
         return $this->technicians()->active()->count();
     }
 
-    /**
-     * Get avatar URL — cPanel compatible (PERMANENT FIX)
-     *
-     * Uses asset('storage/...') which generates a full URL.
-     * Does NOT use file_exists() or Storage::exists() checks because
-     * on cPanel public_path() ≠ DOCUMENT_ROOT, so checks always fail.
-     * The onerror handler in views provides fallback if file is missing.
-     */
-    public function getAvatarUrlAttribute(): ?string
+    public function getAvatarUrlAttribute(): string
     {
         if ($this->avatar) {
-            // asset() generates the correct full URL regardless of server setup
-            return asset('storage/' . $this->avatar);
+            // Use Storage::url() which works regardless of symlink
+            return \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar);
         }
 
-        // Default avatar using UI Avatars
-        $name = urlencode($this->name ?? 'U');
-        return "https://ui-avatars.com/api/?name={$name}&size=200&background=random";
-    }
-
-    /**
-     * Check if user has an avatar set in DB
-     */
-    public function getHasAvatarAttribute(): bool
-    {
-        return !empty($this->avatar);
+        // Default avatar based on first letter
+        $initial = strtoupper(substr($this->name, 0, 1));
+        return "https://ui-avatars.com/api/?name={$initial}&size=200&background=random";
     }
 
     public function getStatusBadgeAttribute(): string
@@ -322,9 +351,25 @@ class User extends Authenticatable
         };
     }
 
-    // =========================================================================
-    // HELPER METHODS
-    // =========================================================================
+    /**
+     * Get state name accessor
+     */
+    public function getStateNameAttribute(): ?string
+    {
+        return $this->state?->name;
+    }
+
+    /**
+     * Get city name accessor
+     */
+    public function getCityNameAttribute(): ?string
+    {
+        return $this->city?->name;
+    }
+
+    /**
+     * Helper Methods
+     */
 
     public function canManageUser(User $user): bool
     {
@@ -333,9 +378,11 @@ class User extends Authenticatable
         }
 
         if ($this->hasRole('supervisor')) {
+            // Can manage own team members
             return $user->supervisor_id === $this->id;
         }
 
+        // Technicians can only view self
         return $this->id === $user->id;
     }
 
@@ -346,10 +393,12 @@ class User extends Authenticatable
         }
 
         if ($this->hasRole('supervisor')) {
+            // Can view jobs where they are supervisor or jobs of their team
             return $job->supervisor_id === $this->id
                 || $this->technicians->contains($job->technician_id);
         }
 
+        // Technician can only view own jobs
         return $job->technician_id === $this->id;
     }
 
@@ -368,6 +417,7 @@ class User extends Authenticatable
             });
         }
 
+        // Technician - only own jobs
         return JobOrder::where('technician_id', $this->id);
     }
 }

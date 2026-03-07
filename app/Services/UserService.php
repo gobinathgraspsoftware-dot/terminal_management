@@ -3,9 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 
@@ -13,41 +11,53 @@ class UserService
 {
     /**
      * Create a new user
-     *
-     * IMPORTANT - Model casts handle these automatically:
-     *   'password' => 'hashed'        → do NOT Hash::make()
-     *   'coverage_states' => 'array'   → do NOT json_encode()
-     *   'skill_tags' => 'array'        → do NOT json_encode()
      */
     public function createUser(array $data): User
     {
-        // Handle avatar upload (cPanel compatible — uses DOCUMENT_ROOT)
+        // Handle avatar upload
         if (isset($data['avatar']) && $data['avatar'] instanceof UploadedFile) {
             $data['avatar'] = $this->handleAvatarUpload($data['avatar']);
-        } else {
-            unset($data['avatar']);
         }
 
-        // Ensure arrays are proper arrays (Select2 may send strings)
-        if (isset($data['coverage_states']) && is_string($data['coverage_states'])) {
-            $data['coverage_states'] = json_decode($data['coverage_states'], true) ?? [];
-        }
-        if (isset($data['skill_tags']) && is_string($data['skill_tags'])) {
-            $data['skill_tags'] = json_decode($data['skill_tags'], true) ?? [];
+        // NOTE: Do NOT manually Hash::make — User model has 'password' => 'hashed' cast
+        // Just pass the plain password; the cast handles hashing automatically.
+
+        // Convert arrays to JSON for coverage_states (kept for backward compat)
+        if (isset($data['coverage_states']) && is_array($data['coverage_states'])) {
+            $data['coverage_states'] = json_encode($data['coverage_states']);
         }
 
-        // Extract non-fillable fields
+        if (isset($data['skill_tags']) && is_array($data['skill_tags'])) {
+            $data['skill_tags'] = json_encode($data['skill_tags']);
+        }
+
+        // Handle state_id / city_id — ensure null when not technician
+        if (!isset($data['role']) || $data['role'] !== 'technician') {
+            $data['state_id'] = null;
+            $data['city_id'] = null;
+            $data['supervisor_id'] = null;
+            $data['coverage_states'] = null;
+            $data['skill_tags'] = null;
+        }
+
+        // Extract role before creating user
         $role = $data['role'] ?? null;
-        unset($data['role'], $data['has_supervisor'], $data['password_confirmation'], $data['remove_avatar']);
+        unset($data['role']);
 
-        // Create user (password auto-hashed by model cast, arrays auto-encoded by cast)
+        // Remove non-fillable fields
+        unset($data['has_supervisor']);
+        unset($data['password_confirmation']);
+        unset($data['remove_avatar']);
+
+        // Create user
         $user = User::create($data);
 
+        // Assign role
         if ($role) {
             $user->assignRole($role);
         }
 
-        return $user->fresh(['roles', 'supervisor']);
+        return $user->fresh(['roles', 'supervisor', 'state', 'city']);
     }
 
     /**
@@ -56,13 +66,13 @@ class UserService
     public function updateUser(User $user, array $data): User
     {
         // Handle remove avatar
-        if (!empty($data['remove_avatar'])) {
+        if (isset($data['remove_avatar']) && $data['remove_avatar']) {
             if ($user->avatar) {
                 $this->deleteAvatar($user->avatar);
             }
             $data['avatar'] = null;
         }
-        // Handle new avatar upload (cPanel compatible)
+        // Handle avatar upload
         elseif (isset($data['avatar']) && $data['avatar'] instanceof UploadedFile) {
             if ($user->avatar) {
                 $this->deleteAvatar($user->avatar);
@@ -72,105 +82,76 @@ class UserService
             unset($data['avatar']);
         }
 
-        // Remove password if empty (user didn't change it)
-        if (empty($data['password'])) {
+        // NOTE: Do NOT manually Hash::make — User model has 'password' => 'hashed' cast
+        if (isset($data['password']) && !empty($data['password'])) {
+            // Pass plain password — the model cast handles hashing
+        } else {
             unset($data['password']);
-        }
-        // If password is provided, model cast 'hashed' will auto-hash it — do NOT Hash::make()
-
-        // Ensure arrays are proper arrays (model cast handles encoding)
-        if (isset($data['coverage_states']) && is_string($data['coverage_states'])) {
-            $data['coverage_states'] = json_decode($data['coverage_states'], true) ?? [];
-        }
-        if (isset($data['skill_tags']) && is_string($data['skill_tags'])) {
-            $data['skill_tags'] = json_decode($data['skill_tags'], true) ?? [];
+            unset($data['password_confirmation']);
         }
 
-        // Extract non-fillable fields
+        // Convert arrays to JSON
+        if (isset($data['coverage_states']) && is_array($data['coverage_states'])) {
+            $data['coverage_states'] = json_encode($data['coverage_states']);
+        }
+
+        if (isset($data['skill_tags']) && is_array($data['skill_tags'])) {
+            $data['skill_tags'] = json_encode($data['skill_tags']);
+        }
+
+        // Handle state_id / city_id — clear when not technician
+        if (isset($data['role']) && $data['role'] !== 'technician') {
+            $data['state_id'] = null;
+            $data['city_id'] = null;
+            $data['supervisor_id'] = null;
+            $data['coverage_states'] = null;
+            $data['skill_tags'] = null;
+        }
+
+        // Extract role before updating user
         $role = $data['role'] ?? null;
-        unset($data['role'], $data['has_supervisor'], $data['password_confirmation'], $data['remove_avatar']);
+        unset($data['role']);
+
+        // Remove non-fillable fields
+        unset($data['has_supervisor']);
+        unset($data['password_confirmation']);
+        unset($data['remove_avatar']);
 
         // Update user
         $user->update($data);
 
+        // Update role if provided
         if ($role) {
             $user->syncRoles([$role]);
         }
 
-        return $user->fresh(['roles', 'supervisor']);
+        return $user->fresh(['roles', 'supervisor', 'state', 'city']);
     }
 
     /**
-     * Handle avatar file upload — cPanel compatible (PERMANENT FIX)
-     *
-     * CRITICAL: On cPanel, public_path() returns the Laravel project's /public directory,
-     * but the actual web root is $_SERVER['DOCUMENT_ROOT'] (e.g., /home/user/public_html).
-     * Using public_path() writes files to a directory the web server can't serve.
-     *
-     * Solution: Use $_SERVER['DOCUMENT_ROOT'] for file placement,
-     * and asset('storage/...') for URL generation (no file_exists checks).
+     * Handle avatar file upload
      */
     protected function handleAvatarUpload(UploadedFile $file): string
     {
-        $directory = 'avatars';
-
-        // Use DOCUMENT_ROOT — the actual web-accessible directory on cPanel
-        $targetDir = $_SERVER['DOCUMENT_ROOT'] . '/storage/' . $directory;
-
-        // Create directory if not exists
-        if (!File::isDirectory($targetDir)) {
-            File::makeDirectory($targetDir, 0755, true);
-            Log::info('Created avatars directory', ['path' => $targetDir]);
-        }
-
         $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
-        $relativePath = $directory . '/' . $filename;
 
-        // Move file directly to DOCUMENT_ROOT/storage/avatars/ (bypasses symlink issues)
-        $file->move($targetDir, $filename);
-
-        // Verify file exists
-        $fullPath = $targetDir . '/' . $filename;
-        if (!file_exists($fullPath)) {
-            Log::error('Avatar file not found after move', ['path' => $fullPath]);
-            throw new \Exception('Failed to save avatar file');
+        $directory = 'avatars';
+        if (!Storage::disk('public')->exists($directory)) {
+            Storage::disk('public')->makeDirectory($directory);
         }
 
-        Log::info('Avatar uploaded (cPanel DOCUMENT_ROOT)', [
-            'relative_path' => $relativePath,
-            'full_path' => $fullPath,
-            'document_root' => $_SERVER['DOCUMENT_ROOT'],
-            'file_size' => filesize($fullPath),
-        ]);
+        $path = $file->storeAs($directory, $filename, 'public');
 
-        return $relativePath;
+        return $path;
     }
 
     /**
-     * Delete avatar file — checks DOCUMENT_ROOT first, then storage disk fallback
+     * Delete avatar file
      */
     protected function deleteAvatar(string $path): void
     {
-        // Check DOCUMENT_ROOT first (cPanel direct uploads)
-        $docRootFile = $_SERVER['DOCUMENT_ROOT'] . '/storage/' . $path;
-        if (file_exists($docRootFile)) {
-            unlink($docRootFile);
-            Log::info('Avatar deleted from DOCUMENT_ROOT', ['path' => $docRootFile]);
-            return;
-        }
-
-        // Fallback: check public_path (local dev / XAMPP)
-        $publicFile = public_path('storage/' . $path);
-        if (file_exists($publicFile)) {
-            unlink($publicFile);
-            Log::info('Avatar deleted from public_path', ['path' => $publicFile]);
-            return;
-        }
-
-        // Fallback: check storage disk (for very old uploads via storeAs)
         if (Storage::disk('public')->exists($path)) {
             Storage::disk('public')->delete($path);
-            Log::info('Avatar deleted from storage disk', ['path' => $path]);
         }
     }
 
@@ -201,10 +182,11 @@ class UserService
      */
     public function getUsersByRole(string $role, ?User $currentUser = null): \Illuminate\Database\Eloquent\Collection
     {
-        $query = User::role($role)->where('status', 'active');
+        $query = User::whereHas('roles', fn ($q) => $q->where('roles.name', $role))
+                     ->where('status', 'active');
 
         if ($currentUser && $currentUser->hasRole('supervisor')) {
-            $query->where(function($q) use ($currentUser) {
+            $query->where(function ($q) use ($currentUser) {
                 $q->where('supervisor_id', $currentUser->id)
                   ->orWhere('id', $currentUser->id);
             });
@@ -283,7 +265,7 @@ class UserService
         return [
             'total_team_members' => $teamMembers->count(),
             'active_team_members' => $teamMembers->where('status', 'active')->count(),
-            'team_with_coverage' => $teamMembers->filter(function($member) {
+            'team_with_coverage' => $teamMembers->filter(function ($member) {
                 return !empty($member->coverage_states);
             })->count(),
         ];

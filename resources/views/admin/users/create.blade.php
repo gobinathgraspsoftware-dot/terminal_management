@@ -67,6 +67,20 @@
                         <input type="text" name="employee_id" class="form-control" maxlength="50" placeholder="Auto-generated if not provided">
                         <div class="form-text">Auto-generated if not provided</div>
                     </div>
+                    {{-- State & City — available for ALL roles --}}
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">State</label>
+                        <select name="state_id" id="stateSelect" class="form-select">
+                            <option value="">Select State</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">City</label>
+                        <select name="city_id" id="citySelect" class="form-select">
+                            <option value="">Select City</option>
+                        </select>
+                        <div class="form-text">Cities will load based on selected state</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -115,26 +129,13 @@
                     </div>
                 </div>
 
-                {{-- Supervisor Dropdown --}}
+                {{-- Supervisor Dropdown (AJAX filtered by state) --}}
                 <div class="mb-3" id="supervisorField">
                     <label class="form-label fw-semibold">Supervisor <span class="text-danger" id="supervisorRequired">*</span></label>
-                    <select name="supervisor_id" id="supervisorSelect" class="form-select select2">
-                        <option value="">Select an option</option>
-                        @foreach($supervisors as $supervisor)
-                            <option value="{{ $supervisor->id }}">{{ $supervisor->name }}</option>
-                        @endforeach
+                    <select name="supervisor_id" id="supervisorSelect" class="form-select">
+                        <option value="">Select Supervisor</option>
                     </select>
-                </div>
-
-                {{-- Coverage States --}}
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Coverage States (Work Areas)</label>
-                    <select name="coverage_states[]" id="coverageStates" class="form-select select2" multiple>
-                        @foreach($states as $state)
-                            <option value="{{ $state }}">{{ $state }}</option>
-                        @endforeach
-                    </select>
-                    <div class="form-text">Select states where this technician can work</div>
+                    <div class="form-text">Supervisors are filtered by selected state</div>
                 </div>
 
                 {{-- Skills --}}
@@ -179,10 +180,10 @@
             </div>
         </div>
 
-        {{-- Bank Details Section --}}
-        <div class="card border-0 shadow-sm mb-4">
+        {{-- Bank Details Section (shown for technicians) --}}
+        <div class="card border-0 shadow-sm mb-4 d-none" id="bankSection">
             <div class="card-header bg-primary text-white">
-                <h6 class="mb-0"><i class="bi bi-bank me-2"></i>Bank Details</h6>
+                <h6 class="mb-0"><i class="bi bi-bank me-2"></i>Bank Details (For Commission Payout)</h6>
             </div>
             <div class="card-body">
                 <div class="row g-3">
@@ -228,13 +229,113 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Initialize Select2
-    $('.select2').select2({
+
+    // Initialize basic Select2 (non-AJAX)
+    $('.select2').not('#stateSelect, #citySelect, #supervisorSelect').select2({
         theme: 'bootstrap-5',
         width: '100%'
     });
 
+    // =============================================
+    // State Select2 (AJAX) — ALL roles
+    // =============================================
+    $('#stateSelect').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Search and select state...',
+        allowClear: true,
+        ajax: {
+            url: '{{ route("admin.ajax.states") }}',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return { search: params.term, page: params.page || 1 };
+            },
+            processResults: function(data, params) {
+                params.page = params.page || 1;
+                return { results: data.results, pagination: { more: data.pagination.more } };
+            },
+            cache: true
+        },
+        minimumInputLength: 0
+    });
+
+    // =============================================
+    // City Select2 (AJAX — dependent on state) — ALL roles
+    // =============================================
+    $('#citySelect').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select state first...',
+        allowClear: true,
+        ajax: {
+            url: '{{ route("admin.ajax.cities") }}',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return { state_id: $('#stateSelect').val(), search: params.term, page: params.page || 1 };
+            },
+            processResults: function(data, params) {
+                params.page = params.page || 1;
+                return { results: data.results, pagination: { more: data.pagination.more } };
+            },
+            cache: true
+        },
+        minimumInputLength: 0
+    });
+
+    // =============================================
+    // Supervisor Select2 (AJAX — technician only, filtered by state)
+    // =============================================
+    $('#supervisorSelect').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Search and select supervisor...',
+        allowClear: true,
+        ajax: {
+            url: '{{ route("admin.ajax.supervisors") }}',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return { state_id: $('#stateSelect').val(), city_id: $('#citySelect').val(), search: params.term, page: params.page || 1 };
+            },
+            processResults: function(data, params) {
+                params.page = params.page || 1;
+                return { results: data.results, pagination: { more: data.pagination.more } };
+            },
+            cache: true
+        },
+        minimumInputLength: 0
+    });
+
+    // =============================================
+    // State change → reset City & reload Supervisor
+    // =============================================
+    $('#stateSelect').on('change', function() {
+        $('#citySelect').val(null).trigger('change');
+        if ($(this).val()) {
+            $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Search and select city...');
+        } else {
+            $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Select state first...');
+        }
+        // Reset and reload supervisor if technician role is active
+        $('#supervisorSelect').val(null).trigger('change');
+        if ($('#roleSelect').val() === 'technician' && $('#hasSupervisorToggle').is(':checked')) {
+            loadFilteredSupervisors();
+        }
+    });
+
+    $('#citySelect').on('change', function() {
+        $('#supervisorSelect').val(null).trigger('change');
+        // Reload supervisor with updated city filter if technician role is active
+        if ($('#roleSelect').val() === 'technician' && $('#hasSupervisorToggle').is(':checked')) {
+            loadFilteredSupervisors();
+        }
+    });
+
+    // =============================================
     // Avatar preview
+    // =============================================
     $('#avatarInput').on('change', function() {
         var file = this.files[0];
         if (file) {
@@ -251,35 +352,86 @@ $(document).ready(function() {
         }
     });
 
-    // Role change handler - show/hide technician section
+    // =============================================
+    // Helper: Load supervisors filtered by current state/city
+    // =============================================
+    function loadFilteredSupervisors() {
+        var stateId = $('#stateSelect').val();
+        if (!stateId) return; // No state selected, nothing to filter
+
+        // Clear current supervisor selection
+        $('#supervisorSelect').val(null).trigger('change');
+
+        // Fetch first page of supervisors matching current state/city
+        $.ajax({
+            url: '{{ route("admin.ajax.supervisors") }}',
+            dataType: 'json',
+            data: {
+                state_id: stateId,
+                city_id: $('#citySelect').val(),
+                search: '',
+                page: 1
+            },
+            success: function(data) {
+                // Clear existing options
+                $('#supervisorSelect').empty().append('<option value="">Select Supervisor</option>');
+
+                // Populate with filtered results
+                if (data.results && data.results.length > 0) {
+                    $.each(data.results, function(i, item) {
+                        $('#supervisorSelect').append(
+                            $('<option>', { value: item.id, text: item.text })
+                        );
+                    });
+                }
+
+                // Re-initialize to allow AJAX search still
+                $('#supervisorSelect').trigger('change');
+            }
+        });
+    }
+
+    // =============================================
+    // Role change handler — only technician-specific sections toggle
+    // =============================================
     $('#roleSelect').on('change', function() {
         var role = $(this).val();
         if (role === 'technician') {
             $('#technicianSection').removeClass('d-none');
+            $('#bankSection').removeClass('d-none');
+
+            // Auto-load supervisors filtered by already-selected state/city
+            if ($('#hasSupervisorToggle').is(':checked')) {
+                loadFilteredSupervisors();
+            }
         } else {
             $('#technicianSection').addClass('d-none');
-            // Clear technician fields when not technician
+            $('#bankSection').addClass('d-none');
             $('#hasSupervisorToggle').prop('checked', true);
-            $('#supervisorSelect').val('').trigger('change');
-            $('#coverageStates').val([]).trigger('change');
+            $('#supervisorSelect').val(null).trigger('change');
             $('#skillTags').val([]).trigger('change');
         }
     });
 
+    // =============================================
     // Supervisor toggle handler
+    // =============================================
     $('#hasSupervisorToggle').on('change', function() {
-        var isChecked = $(this).is(':checked');
-        if (isChecked) {
+        if ($(this).is(':checked')) {
             $('#supervisorField').slideDown();
             $('#supervisorRequired').show();
+            // Auto-load filtered supervisors when toggling ON
+            loadFilteredSupervisors();
         } else {
             $('#supervisorField').slideUp();
             $('#supervisorRequired').hide();
-            $('#supervisorSelect').val('').trigger('change');
+            $('#supervisorSelect').val(null).trigger('change');
         }
     });
 
+    // =============================================
     // Password toggle
+    // =============================================
     $(document).on('click', '.toggle-password', function() {
         var target = $(this).data('target');
         var input = $('#' + target);
@@ -293,22 +445,23 @@ $(document).ready(function() {
         }
     });
 
+    // =============================================
     // Form submission
+    // =============================================
     $('#createUserForm').on('submit', function(e) {
         e.preventDefault();
 
         var formData = new FormData(this);
 
-        // If has_supervisor is unchecked, ensure it's sent as 0
         if (!$('#hasSupervisorToggle').is(':checked')) {
             formData.set('has_supervisor', '0');
         }
 
-        // If role is not technician, remove technician fields
+        // Only remove technician-specific fields when not technician
+        // state_id and city_id are ALWAYS sent
         if ($('#roleSelect').val() !== 'technician') {
             formData.delete('has_supervisor');
             formData.delete('supervisor_id');
-            formData.delete('coverage_states[]');
             formData.delete('skill_tags[]');
         }
 
