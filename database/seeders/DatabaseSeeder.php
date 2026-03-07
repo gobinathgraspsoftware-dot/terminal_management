@@ -55,5 +55,9 @@ class DatabaseSeeder extends Seeder
         $this->command->info('⚠️  IMPORTANT: Change default passwords in production!');
         $this->command->info('');
         $this->command->info('════════════════════════════════════════════════════');
+        $this->call([
+            CitySeeder::class,
+            StateSeeder::class
+        ]);
     }
 }
