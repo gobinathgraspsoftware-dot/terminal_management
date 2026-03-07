@@ -25,7 +25,7 @@
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-primary fs-3 fw-bold" id="statTotal">-</div>
+                    <div class="text-primary fs-3 fw-bold">{{ $stats['total'] }}</div>
                     <small class="text-muted">Total Users</small>
                 </div>
             </div>
@@ -33,7 +33,7 @@
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-success fs-3 fw-bold" id="statActive">-</div>
+                    <div class="text-success fs-3 fw-bold">{{ $stats['active'] }}</div>
                     <small class="text-muted">Active</small>
                 </div>
             </div>
@@ -41,7 +41,7 @@
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-warning fs-3 fw-bold" id="statInactive">-</div>
+                    <div class="text-warning fs-3 fw-bold">{{ $stats['inactive'] }}</div>
                     <small class="text-muted">Inactive</small>
                 </div>
             </div>
@@ -49,7 +49,7 @@
         <div class="col-md-3 col-sm-6 mb-3">
             <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-danger fs-3 fw-bold" id="statSuspended">-</div>
+                    <div class="text-danger fs-3 fw-bold">{{ $stats['suspended'] }}</div>
                     <small class="text-muted">Suspended</small>
                 </div>
             </div>

@@ -43,7 +43,15 @@ class UserController extends Controller
             ->where('status', 'active')
             ->get(['id', 'name']);
 
-        return view('admin.users.index', compact('roles', 'supervisors'));
+        // User statistics for dashboard cards
+        $stats = [
+            'total' => User::count(),
+            'active' => User::where('status', 'active')->count(),
+            'inactive' => User::where('status', 'inactive')->count(),
+            'suspended' => User::where('status', 'suspended')->count(),
+        ];
+
+        return view('admin.users.index', compact('roles', 'supervisors', 'stats'));
     }
 
     /**
