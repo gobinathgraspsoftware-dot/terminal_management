@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Models\Vendor;
+use App\Models\VendorBranch;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -51,11 +52,6 @@ class VendorsImport implements ToModel, WithHeadingRow, WithBatchInserts, SkipsO
                     'company_name' => $row['company_name'] ?? null,
                     'registration_no' => $row['registration_no'] ?? null,
                     'tax_id' => $row['tax_id'] ?? null,
-                    'address' => $row['address'] ?? null,
-                    'city' => $row['city'] ?? null,
-                    'state' => $row['state'] ?? null,
-                    'postcode' => $row['postcode'] ?? null,
-                    'country' => $row['country'] ?? 'Malaysia',
                     'pic_name' => $row['pic_name'] ?? null,
                     'pic_email' => $row['pic_email'] ?? null,
                     'pic_phone' => $row['pic_phone'] ?? null,
@@ -68,25 +64,21 @@ class VendorsImport implements ToModel, WithHeadingRow, WithBatchInserts, SkipsO
                     'updated_by' => Auth::id(),
                 ]);
 
+                // Create/update default branch from address columns if provided
+                $this->syncImportBranch($existingVendor, $row);
+
                 $this->successCount++;
                 return null; // Don't create a new model
             }
 
             // Create new vendor
-            $this->successCount++;
-
-            return new Vendor([
+            $vendor = Vendor::create([
                 'vendor_code' => $row['vendor_code'],
                 'vendor_name' => $row['vendor_name'],
                 'vendor_type' => strtolower($row['vendor_type']),
                 'company_name' => $row['company_name'] ?? null,
                 'registration_no' => $row['registration_no'] ?? null,
                 'tax_id' => $row['tax_id'] ?? null,
-                'address' => $row['address'] ?? null,
-                'city' => $row['city'] ?? null,
-                'state' => $row['state'] ?? null,
-                'postcode' => $row['postcode'] ?? null,
-                'country' => $row['country'] ?? 'Malaysia',
                 'pic_name' => $row['pic_name'] ?? null,
                 'pic_email' => $row['pic_email'] ?? null,
                 'pic_phone' => $row['pic_phone'] ?? null,
@@ -100,6 +92,12 @@ class VendorsImport implements ToModel, WithHeadingRow, WithBatchInserts, SkipsO
                 'updated_by' => Auth::id(),
             ]);
 
+            // Create default branch from address columns
+            $this->syncImportBranch($vendor, $row);
+
+            $this->successCount++;
+            return null;
+
         } catch (\Exception $e) {
             $this->failedCount++;
             $this->errors[] = [
@@ -107,6 +105,61 @@ class VendorsImport implements ToModel, WithHeadingRow, WithBatchInserts, SkipsO
                 'errors' => [$e->getMessage()],
             ];
             return null;
+        }
+    }
+
+    /**
+     * Create or update a branch from import row address fields
+     * Supports both old-style (address/city/state) and new branch_name column
+     */
+    protected function syncImportBranch(Vendor $vendor, array $row): void
+    {
+        $branchName = $row['branch_name'] ?? 'Main Branch';
+        $address = $row['address'] ?? null;
+        $city = $row['city'] ?? null;
+        $state = $row['state'] ?? null;
+        $postcode = $row['postcode'] ?? null;
+        $country = $row['country'] ?? 'Malaysia';
+
+        // Only create branch if at least branch_name or address data exists
+        if (!$address && !$city && !$state && $branchName === 'Main Branch') {
+            // No address data and no explicit branch name - only create if vendor has no branches
+            if ($vendor->branches()->count() === 0) {
+                VendorBranch::create([
+                    'vendor_id' => $vendor->id,
+                    'branch_name' => $branchName,
+                    'country' => $country,
+                    'is_primary' => true,
+                    'status' => 'active',
+                ]);
+            }
+            return;
+        }
+
+        // Check if a branch with this name already exists for this vendor
+        $existingBranch = $vendor->branches()->where('branch_name', $branchName)->first();
+
+        if ($existingBranch) {
+            $existingBranch->update([
+                'address' => $address,
+                'city' => $city,
+                'state' => $state,
+                'postcode' => $postcode,
+                'country' => $country,
+            ]);
+        } else {
+            $isPrimary = $vendor->branches()->count() === 0;
+            VendorBranch::create([
+                'vendor_id' => $vendor->id,
+                'branch_name' => $branchName,
+                'address' => $address,
+                'city' => $city,
+                'state' => $state,
+                'postcode' => $postcode,
+                'country' => $country,
+                'is_primary' => $isPrimary,
+                'status' => 'active',
+            ]);
         }
     }
 

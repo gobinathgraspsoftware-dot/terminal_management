@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Vendor;
+use App\Models\VendorBranch;
 use App\Models\PurchaseOrder;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\Auth;
@@ -24,6 +25,7 @@ class VendorService
             'couriers' => Vendor::where('vendor_type', Vendor::TYPE_COURIER)->count(),
             'total_purchase_orders' => PurchaseOrder::count(),
             'active_purchase_orders' => PurchaseOrder::whereNotIn('status', ['closed', 'cancelled'])->count(),
+            'total_branches' => VendorBranch::count(),
         ];
     }
 
@@ -50,6 +52,8 @@ class VendorService
                 ->where('invoice_type', 'vendor')
                 ->where('status', '!=', 'paid')
                 ->sum('total_amount'),
+            'total_branches' => $vendor->branches()->count(),
+            'active_branches' => $vendor->branches()->where('status', 'active')->count(),
         ];
     }
 
@@ -59,7 +63,7 @@ class VendorService
     public function getApAging(Vendor $vendor): array
     {
         $today = now();
-        
+
         $invoices = $vendor->invoices()
             ->where('invoice_type', 'vendor')
             ->where('status', '!=', 'paid')
@@ -97,26 +101,111 @@ class VendorService
     }
 
     /**
-     * Create a new vendor
+     * Create a new vendor with branches
      */
     public function createVendor(array $data): Vendor
     {
         $data['created_by'] = Auth::id();
         $data['updated_by'] = Auth::id();
 
-        return Vendor::create($data);
+        $branches = $data['branches'] ?? [];
+        unset($data['branches']);
+
+        $vendor = Vendor::create($data);
+
+        // Create branches
+        $this->syncBranches($vendor, $branches);
+
+        return $vendor->load('branches');
     }
 
     /**
-     * Update a vendor
+     * Update a vendor with branches
      */
     public function updateVendor(Vendor $vendor, array $data): Vendor
     {
         $data['updated_by'] = Auth::id();
 
+        $branches = $data['branches'] ?? [];
+        unset($data['branches']);
+
         $vendor->update($data);
 
-        return $vendor->fresh();
+        // Sync branches
+        $this->syncBranches($vendor, $branches);
+
+        return $vendor->fresh(['branches']);
+    }
+
+    /**
+     * Sync vendor branches
+     * Handles create, update, and delete of branches
+     */
+    protected function syncBranches(Vendor $vendor, array $branches): void
+    {
+        $existingIds = $vendor->branches()->pluck('id')->toArray();
+        $submittedIds = [];
+
+        foreach ($branches as $index => $branchData) {
+            // Clean up branch data
+            $branchData = array_intersect_key($branchData, array_flip([
+                'id', 'branch_name', 'address', 'city', 'state', 'postcode',
+                'country', 'contact_person', 'contact_email', 'contact_phone',
+                'is_primary', 'status',
+            ]));
+
+            // Set defaults
+            $branchData['country'] = $branchData['country'] ?? 'Malaysia';
+            $branchData['status'] = $branchData['status'] ?? 'active';
+            $branchData['is_primary'] = !empty($branchData['is_primary']) ? true : false;
+
+            if (!empty($branchData['id']) && in_array($branchData['id'], $existingIds)) {
+                // Update existing branch
+                $branch = VendorBranch::find($branchData['id']);
+                if ($branch && $branch->vendor_id === $vendor->id) {
+                    unset($branchData['id']);
+                    $branch->update($branchData);
+                    $submittedIds[] = $branch->id;
+                }
+            } else {
+                // Create new branch
+                unset($branchData['id']);
+                $branchData['vendor_id'] = $vendor->id;
+                $newBranch = VendorBranch::create($branchData);
+                $submittedIds[] = $newBranch->id;
+            }
+        }
+
+        // Delete branches that were removed from the form
+        $toDelete = array_diff($existingIds, $submittedIds);
+        if (!empty($toDelete)) {
+            VendorBranch::whereIn('id', $toDelete)
+                ->where('vendor_id', $vendor->id)
+                ->delete();
+        }
+
+        // Ensure only one primary branch
+        $this->ensureSinglePrimary($vendor);
+    }
+
+    /**
+     * Ensure only one branch is marked as primary
+     */
+    protected function ensureSinglePrimary(Vendor $vendor): void
+    {
+        $primaryCount = $vendor->branches()->where('is_primary', true)->count();
+
+        if ($primaryCount === 0 && $vendor->branches()->count() > 0) {
+            // Set the first branch as primary
+            $vendor->branches()->oldest()->first()->update(['is_primary' => true]);
+        } elseif ($primaryCount > 1) {
+            // Keep only the latest primary, reset others
+            $latestPrimary = $vendor->branches()->where('is_primary', true)->latest()->first();
+            $vendor->branches()
+                ->where('is_primary', true)
+                ->where('id', '!=', $latestPrimary->id)
+                ->update(['is_primary' => false]);
+        }
     }
 
     /**
@@ -124,7 +213,6 @@ class VendorService
      */
     public function validateBankDetails(array $data): bool
     {
-        // If any bank field is filled, all must be filled
         $bankFields = ['bank_name', 'bank_account_no', 'bank_account_name'];
         $filledFields = array_filter($bankFields, fn($field) => !empty($data[$field]));
 
@@ -166,7 +254,7 @@ class VendorService
     public function getPerformanceMetrics(Vendor $vendor): array
     {
         $totalPOs = $vendor->purchaseOrders()->count();
-        
+
         if ($totalPOs === 0) {
             return [
                 'on_time_delivery_rate' => 0,

@@ -46,6 +46,8 @@ class LocationController extends Controller
     /**
      * Select2 AJAX: Search cities filtered by state_id
      * GET /ajax/cities?state_id=1&search=&page=1
+     *
+     * Returns postcode as separate field for auto-fill support
      */
     public function cities(Request $request): JsonResponse
     {
@@ -76,8 +78,9 @@ class LocationController extends Controller
                          ->take($perPage)
                          ->get(['id', 'name', 'postcode'])
                          ->map(fn ($c) => [
-                             'id'   => $c->id,
-                             'text' => $c->name . ' (' . $c->postcode . ')',
+                             'id'       => $c->id,
+                             'text'     => $c->name . ' (' . $c->postcode . ')',
+                             'postcode' => $c->postcode,
                          ]);
 
         return response()->json([

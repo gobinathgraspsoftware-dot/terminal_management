@@ -7,17 +7,11 @@ use Illuminate\Validation\Rule;
 
 class StoreVendorRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return $this->user()->can('create_vendors');
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     */
     public function rules(): array
     {
         return [
@@ -33,13 +27,6 @@ class StoreVendorRequest extends FormRequest
             'company_name' => 'nullable|string|max:255',
             'registration_no' => 'nullable|string|max:100',
             'tax_id' => 'nullable|string|max:100',
-
-            // Address Information
-            'address' => 'nullable|string|max:500',
-            'city' => 'nullable|string|max:100',
-            'state' => 'nullable|string|max:100',
-            'postcode' => 'nullable|string|max:20',
-            'country' => 'nullable|string|max:100',
 
             // Contact Information
             'pic_name' => 'nullable|string|max:100',
@@ -64,12 +51,24 @@ class StoreVendorRequest extends FormRequest
             // Other
             'notes' => 'nullable|string|max:1000',
             'status' => 'required|in:active,inactive',
+
+            // Branches (at least one required)
+            'branches' => 'required|array|min:1',
+            'branches.*.id' => 'nullable|integer',
+            'branches.*.branch_name' => 'required|string|max:255',
+            'branches.*.address' => 'nullable|string|max:500',
+            'branches.*.state_id' => 'nullable|integer|exists:states,id',
+            'branches.*.city_id' => 'nullable|integer|exists:cities,id',
+            'branches.*.postcode' => 'nullable|string|max:20',
+            'branches.*.country' => 'nullable|string|max:100',
+            'branches.*.contact_person' => 'nullable|string|max:100',
+            'branches.*.contact_email' => 'nullable|email|max:255',
+            'branches.*.contact_phone' => 'nullable|string|max:20',
+            'branches.*.is_primary' => 'nullable|boolean',
+            'branches.*.status' => 'nullable|in:active,inactive',
         ];
     }
 
-    /**
-     * Get custom attribute names for validator errors.
-     */
     public function attributes(): array
     {
         return [
@@ -86,12 +85,13 @@ class StoreVendorRequest extends FormRequest
             'bank_account_no' => 'bank account number',
             'bank_account_name' => 'bank account name',
             'payment_terms' => 'payment terms',
+            'branches.*.branch_name' => 'branch name',
+            'branches.*.state_id' => 'state',
+            'branches.*.city_id' => 'city',
+            'branches.*.contact_email' => 'branch contact email',
         ];
     }
 
-    /**
-     * Get custom messages for validator errors.
-     */
     public function messages(): array
     {
         return [
@@ -105,12 +105,15 @@ class StoreVendorRequest extends FormRequest
             'payment_terms.max' => 'Payment terms cannot exceed 365 days.',
             'status.required' => 'Please select a status.',
             'status.in' => 'Invalid status selected.',
+            'branches.required' => 'At least one branch is required.',
+            'branches.min' => 'At least one branch is required.',
+            'branches.*.branch_name.required' => 'Branch name is required for all branches.',
+            'branches.*.state_id.exists' => 'The selected state is invalid.',
+            'branches.*.city_id.exists' => 'The selected city is invalid.',
+            'branches.*.contact_email.email' => 'Please enter a valid email for the branch contact.',
         ];
     }
 
-    /**
-     * Validate bank details - if any field is filled, all must be filled
-     */
     protected function validateBankDetails($fail): void
     {
         $bankName = $this->input('bank_name');
@@ -126,22 +129,12 @@ class StoreVendorRequest extends FormRequest
         }
     }
 
-    /**
-     * Prepare the data for validation.
-     */
     protected function prepareForValidation(): void
     {
-        // Set default country if not provided
-        if (!$this->has('country') || empty($this->country)) {
-            $this->merge(['country' => 'Malaysia']);
-        }
-
-        // Set default payment terms if not provided
         if (!$this->has('payment_terms') || $this->payment_terms === null) {
             $this->merge(['payment_terms' => 30]);
         }
 
-        // Set default status if not provided
         if (!$this->has('status') || empty($this->status)) {
             $this->merge(['status' => 'active']);
         }

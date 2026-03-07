@@ -46,6 +46,7 @@ class VendorController extends Controller
         $query = Vendor::with(['createdBy', 'updatedBy'])
             ->withCount('purchaseOrders')
             ->withCount('grns')
+            ->withCount('branches')
             ->withCount(['invoices' => function ($q) {
                 $q->where('invoice_type', 'ap');
             }])
@@ -62,7 +63,6 @@ class VendorController extends Controller
                     return '<span class="badge bg-danger">Deleted</span>';
                 }
 
-                // Add data-id and clickable class to badge
                 $badgeClass = $vendor->status === Vendor::STATUS_ACTIVE ? 'bg-success' : 'bg-secondary';
                 $statusText = ucfirst($vendor->status);
 
@@ -93,6 +93,10 @@ class VendorController extends Controller
                 }
                 return '<span class="text-muted">Not Set</span>';
             })
+            ->addColumn('branches_count_display', function ($vendor) {
+                $count = $vendor->branches_count ?? 0;
+                return '<span class="badge bg-light text-dark">' . $count . ' branch' . ($count !== 1 ? 'es' : '') . '</span>';
+            })
             ->addColumn('payment_terms_display', function ($vendor) {
                 return $vendor->payment_terms . ' days';
             })
@@ -119,8 +123,15 @@ class VendorController extends Controller
                             ->orWhere('company_name', 'like', "%{$searchValue}%")
                             ->orWhere('pic_name', 'like', "%{$searchValue}%")
                             ->orWhere('pic_email', 'like', "%{$searchValue}%")
-                            ->orWhere('city', 'like', "%{$searchValue}%")
-                            ->orWhere('state', 'like', "%{$searchValue}%");
+                            ->orWhereHas('branches', function ($bq) use ($searchValue) {
+                                $bq->where('branch_name', 'like', "%{$searchValue}%")
+                                   ->orWhereHas('city', function ($cq) use ($searchValue) {
+                                       $cq->where('name', 'like', "%{$searchValue}%");
+                                   })
+                                   ->orWhereHas('state', function ($sq) use ($searchValue) {
+                                       $sq->where('name', 'like', "%{$searchValue}%");
+                                   });
+                            });
                     });
                 }
 
@@ -134,12 +145,14 @@ class VendorController extends Controller
                     $query->where('vendor_type', $request->vendor_type);
                 }
 
-                // State filter
+                // State filter (via branches.state_id)
                 if ($request->filled('state')) {
-                    $query->where('state', $request->state);
+                    $query->whereHas('branches', function ($bq) use ($request) {
+                        $bq->where('state_id', $request->state);
+                    });
                 }
             })
-            ->rawColumns(['status_badge', 'vendor_type_badge', 'pic_info', 'bank_info', 'created_info', 'actions'])
+            ->rawColumns(['status_badge', 'vendor_type_badge', 'pic_info', 'bank_info', 'branches_count_display', 'created_info', 'actions'])
             ->make(true);
     }
 
@@ -148,46 +161,42 @@ class VendorController extends Controller
      */
     private function getActionButtons(Vendor $vendor): string
     {
-        $actions = '<div class="btn-group btn-group-sm" role="group">';
+        $actions = '<div class="d-flex align-items-center gap-1 flex-nowrap">';
 
         // View button
         if (Auth::user()->can('view_vendors')) {
             $actions .= '<a href="' . route('admin.vendors.show', $vendor->id) . '"
-                class="btn btn-info" title="View">
+                class="btn btn-sm btn-info" title="View">
                 <i class="bi bi-eye"></i>
             </a>';
         }
 
         if ($vendor->trashed()) {
-            // Restore button for deleted vendors
             if (Auth::user()->can('restore_vendors')) {
-                $actions .= '<button type="button" class="btn btn-success restore-vendor"
+                $actions .= '<button type="button" class="btn btn-sm btn-success restore-vendor"
                     data-id="' . $vendor->id . '" title="Restore">
                     <i class="bi bi-arrow-counterclockwise"></i>
                 </button>';
             }
         } else {
-            // Edit button
             if (Auth::user()->can('edit_vendors')) {
                 $actions .= '<a href="' . route('admin.vendors.edit', $vendor->id) . '"
-                    class="btn btn-primary" title="Edit">
+                    class="btn btn-sm btn-primary" title="Edit">
                     <i class="bi bi-pencil"></i>
                 </a>';
             }
 
-            // Toggle status button
             if (Auth::user()->can('edit_vendors')) {
                 $statusIcon = $vendor->status === 'active' ? 'bi-toggle-on text-success' : 'bi-toggle-off text-secondary';
                 $statusTitle = $vendor->status === 'active' ? 'Deactivate' : 'Activate';
-                $actions .= '<button type="button" class="btn btn-outline-secondary toggle-status"
+                $actions .= '<button type="button" class="btn btn-sm btn-outline-secondary toggle-status"
                     data-id="' . $vendor->id . '" title="' . $statusTitle . '">
                     <i class="bi ' . $statusIcon . '"></i>
                 </button>';
             }
 
-            // Delete button
             if (Auth::user()->can('delete_vendors')) {
-                $actions .= '<button type="button" class="btn btn-danger delete-vendor"
+                $actions .= '<button type="button" class="btn btn-sm btn-danger delete-vendor"
                     data-id="' . $vendor->id . '" title="Delete">
                     <i class="bi bi-trash"></i>
                 </button>';
@@ -218,10 +227,9 @@ class VendorController extends Controller
     public function create(): View
     {
         $nextCode = Vendor::generateVendorCode();
-        $states = $this->getMalaysianStates();
         $vendorTypes = $this->getVendorTypes();
 
-        return view('admin.vendors.create', compact('nextCode', 'states', 'vendorTypes'));
+        return view('admin.vendors.create', compact('nextCode', 'vendorTypes'));
     }
 
     /**
@@ -236,7 +244,6 @@ class VendorController extends Controller
 
             DB::commit();
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($vendor)
@@ -266,6 +273,8 @@ class VendorController extends Controller
     public function show(Vendor $vendor): View
     {
         $vendor->load([
+            'branches.state',
+            'branches.city',
             'purchaseOrders' => function ($query) {
                 $query->latest()->limit(10);
             },
@@ -292,10 +301,10 @@ class VendorController extends Controller
      */
     public function edit(Vendor $vendor): View
     {
-        $states = $this->getMalaysianStates();
+        $vendor->load(['branches.state', 'branches.city']);
         $vendorTypes = $this->getVendorTypes();
 
-        return view('admin.vendors.edit', compact('vendor', 'states', 'vendorTypes'));
+        return view('admin.vendors.edit', compact('vendor', 'vendorTypes'));
     }
 
     /**
@@ -310,7 +319,6 @@ class VendorController extends Controller
 
             DB::commit();
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($vendor)
@@ -320,7 +328,7 @@ class VendorController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Vendor updated successfully',
-                'vendor' => $vendor->fresh(),
+                'vendor' => $vendor->fresh(['branches']),
                 'redirect' => route('admin.vendors.index')
             ]);
 
@@ -340,7 +348,6 @@ class VendorController extends Controller
     public function destroy(Vendor $vendor): JsonResponse
     {
         try {
-            // Check if vendor has active purchase orders
             if ($vendor->purchaseOrders()->whereNotIn('status', ['closed', 'cancelled'])->exists()) {
                 return response()->json([
                     'success' => false,
@@ -348,8 +355,7 @@ class VendorController extends Controller
                 ], 422);
             }
 
-            // Check if vendor has pending invoices
-            if ($vendor->invoices()->where('payment_status', '!=', 'paid')->exists()) {
+            if ($vendor->invoices()->where('status', '!=', 'paid')->exists()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Cannot delete vendor with pending invoices.'
@@ -363,7 +369,6 @@ class VendorController extends Controller
 
             DB::commit();
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($vendor)
@@ -406,7 +411,6 @@ class VendorController extends Controller
 
             DB::commit();
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($vendor)
@@ -446,7 +450,6 @@ class VendorController extends Controller
 
             DB::commit();
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->performedOn($vendor)
@@ -476,7 +479,6 @@ class VendorController extends Controller
     {
         $filename = 'vendors_' . date('Y-m-d_His') . '.xlsx';
 
-        // Log activity
         activity()
             ->causedBy(Auth::user())
             ->withProperties(['filename' => $filename, 'filters' => $request->all()])
@@ -491,7 +493,7 @@ class VendorController extends Controller
     public function import(Request $request): JsonResponse
     {
         $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240' // Max 10MB
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240'
         ]);
 
         try {
@@ -500,7 +502,6 @@ class VendorController extends Controller
 
             $results = $import->getResults();
 
-            // Log activity
             activity()
                 ->causedBy(Auth::user())
                 ->withProperties($results)
@@ -564,18 +565,6 @@ class VendorController extends Controller
                 ];
             })
         ]);
-    }
-
-    /**
-     * Get Malaysian states for dropdown
-     */
-    private function getMalaysianStates(): array
-    {
-        return [
-            'Johor', 'Kedah', 'Kelantan', 'Melaka', 'Negeri Sembilan',
-            'Pahang', 'Penang', 'Perak', 'Perlis', 'Sabah', 'Sarawak',
-            'Selangor', 'Terengganu', 'Kuala Lumpur', 'Labuan', 'Putrajaya'
-        ];
     }
 
     /**

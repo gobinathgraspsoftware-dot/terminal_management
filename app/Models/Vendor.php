@@ -61,7 +61,7 @@ class Vendor extends Model
         });
     }
 
-    protected static function generateVendorCode(): string
+    public static function generateVendorCode(): string
     {
         $prefix = 'VND';
         $lastVendor = static::withTrashed()
@@ -80,6 +80,21 @@ class Vendor extends Model
     }
 
     // Relationships
+    public function branches()
+    {
+        return $this->hasMany(VendorBranch::class);
+    }
+
+    public function activeBranches()
+    {
+        return $this->hasMany(VendorBranch::class)->where('status', 'active');
+    }
+
+    public function primaryBranch()
+    {
+        return $this->hasOne(VendorBranch::class)->where('is_primary', true);
+    }
+
     public function purchaseOrders()
     {
         return $this->hasMany(PurchaseOrder::class);
@@ -124,6 +139,15 @@ class Vendor extends Model
     // Accessors
     public function getFullAddressAttribute(): string
     {
+        // Try primary branch first, then fallback to vendor address fields
+        $primaryBranch = $this->relationLoaded('primaryBranch')
+            ? $this->primaryBranch
+            : $this->primaryBranch()->first();
+
+        if ($primaryBranch) {
+            return $primaryBranch->full_address;
+        }
+
         $parts = array_filter([
             $this->address,
             $this->postcode . ' ' . $this->city,
