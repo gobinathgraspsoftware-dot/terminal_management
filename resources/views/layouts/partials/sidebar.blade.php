@@ -137,7 +137,7 @@
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Master Data</small>
                 <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
+                    {{-- <li class="nav-item">
                         <a class="nav-link {{ $isPartnerRoute ? 'active' : '' }}"
                            href="{{ route('admin.partners.index') }}">
                             <i class="bi bi-building-fill me-2"></i> Partners
@@ -148,7 +148,7 @@
                            href="{{ route('admin.clients.index') }}">
                             <i class="bi bi-shop me-2"></i> Clients
                         </a>
-                    </li>
+                    </li> --}}
                     <li class="nav-item">
                         <a class="nav-link {{ $isVendorRoute ? 'active' : '' }}"
                            href="{{ route('admin.vendors.index') }}">
@@ -595,7 +595,7 @@
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Master Data</small>
                 <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
+                    {{-- <li class="nav-item">
                         <a class="nav-link {{ $isPartnerRoute ? 'active' : '' }}"
                            href="{{ route('supervisor.partners.index') }}">
                             <i class="bi bi-building-fill me-2"></i> Partners
@@ -606,7 +606,7 @@
                            href="#">
                             <i class="bi bi-shop me-2"></i> Clients
                         </a>
-                    </li>
+                    </li> --}}
                     <li class="nav-item">
                         <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
                            href="{{ route('supervisor.sites.index') }}">
@@ -1002,7 +1002,7 @@
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Reference Data</small>
                 <ul class="nav flex-column mt-2">
-                    @can('view_partners')
+                    {{-- @can('view_partners')
                     <li class="nav-item">
                         <a class="nav-link {{ $isPartnerRoute ? 'active' : '' }}"
                         href="{{ route('technician.partners.index') }}">
@@ -1017,7 +1017,7 @@
                             <i class="bi bi-shop me-2"></i> Clients
                         </a>
                     </li>
-                    @endcan
+                    @endcan --}}
                     @can('view_sites')
                     <li class="nav-item">
                         <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
