@@ -43,6 +43,7 @@ class StoreUserRequest extends FormRequest
 
             // Technician-specific fields
             'has_supervisor' => ['nullable', 'boolean'],
+
             'supervisor_id' => [
                 'nullable',
                 'exists:users,id',
@@ -86,10 +87,10 @@ class StoreUserRequest extends FormRequest
             'role.required' => 'Please select a role for the user.',
             'role.exists' => 'The selected role is invalid.',
             'status.required' => 'Please select a status.',
-            'state_id.exists' => 'The selected state is invalid.',
-            'city_id.exists' => 'The selected city is invalid.',
             'supervisor_id.required_if' => 'Please select a supervisor when "Assign to Supervisor" is enabled.',
             'supervisor_id.exists' => 'The selected supervisor is invalid.',
+            'state_id.exists' => 'The selected state is invalid.',
+            'city_id.exists' => 'The selected city is invalid.',
             'avatar.image' => 'Avatar must be an image file.',
             'avatar.mimes' => 'Avatar must be a JPG, JPEG, PNG, or GIF file.',
             'avatar.max' => 'Avatar file size must not exceed 2MB.',

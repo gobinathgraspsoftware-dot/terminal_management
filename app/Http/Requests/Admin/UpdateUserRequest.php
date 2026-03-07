@@ -26,25 +26,15 @@ class UpdateUserRequest extends FormRequest
         return [
             // Basic Information
             'name' => ['required', 'string', 'min:3', 'max:255'],
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('users', 'email')->ignore($userId)
-            ],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'phone' => ['nullable', 'string', 'max:20'],
-            'employee_id' => [
-                'nullable',
-                'string',
-                'max:50',
-                Rule::unique('users', 'employee_id')->ignore($userId)
-            ],
+            'employee_id' => ['nullable', 'string', 'max:50', Rule::unique('users', 'employee_id')->ignore($userId)],
 
             // State & City — available for ALL roles
             'state_id' => ['nullable', 'integer', 'exists:states,id'],
             'city_id' => ['nullable', 'integer', 'exists:cities,id'],
 
-            // Password (optional for update)
+            // Password (optional for update — NOT in main form, handled by separate route)
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
 
             // Role
@@ -55,12 +45,7 @@ class UpdateUserRequest extends FormRequest
 
             // Technician-specific fields
             'has_supervisor' => ['nullable', 'boolean'],
-            'supervisor_id' => [
-                'nullable',
-                'exists:users,id',
-                'different:id' // Cannot be own supervisor
-            ],
-
+            'supervisor_id' => ['nullable', 'exists:users,id', 'different:id'],
             'coverage_states' => ['nullable', 'array'],
             'coverage_states.*' => ['string', 'max:100'],
             'skill_tags' => ['nullable', 'array'],
@@ -96,10 +81,10 @@ class UpdateUserRequest extends FormRequest
             'role.required' => 'Please select a role for the user.',
             'role.exists' => 'The selected role is invalid.',
             'status.required' => 'Please select a status.',
-            'state_id.exists' => 'The selected state is invalid.',
-            'city_id.exists' => 'The selected city is invalid.',
             'supervisor_id.exists' => 'The selected supervisor is invalid.',
             'supervisor_id.different' => 'A user cannot be their own supervisor.',
+            'state_id.exists' => 'The selected state is invalid.',
+            'city_id.exists' => 'The selected city is invalid.',
             'avatar.image' => 'Avatar must be an image file.',
             'avatar.mimes' => 'Avatar must be a JPG, JPEG, PNG, or GIF file.',
             'avatar.max' => 'Avatar file size must not exceed 2MB.',

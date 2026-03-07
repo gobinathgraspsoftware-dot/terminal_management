@@ -67,7 +67,7 @@
                         <input type="text" name="employee_id" class="form-control" maxlength="50" placeholder="Auto-generated if not provided">
                         <div class="form-text">Auto-generated if not provided</div>
                     </div>
-                    {{-- State & City — available for ALL roles --}}
+                    {{-- State & City — ALL roles --}}
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">State</label>
                         <select name="state_id" id="stateSelect" class="form-select">
@@ -309,7 +309,30 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // State change → reset City & reload Supervisor
+    // Helper: Load supervisors filtered by current state/city
+    // =============================================
+    function loadFilteredSupervisors() {
+        var stateId = $('#stateSelect').val();
+        if (!stateId) return;
+        $('#supervisorSelect').val(null).trigger('change');
+        $.ajax({
+            url: '{{ route("admin.ajax.supervisors") }}',
+            dataType: 'json',
+            data: { state_id: stateId, city_id: $('#citySelect').val(), search: '', page: 1 },
+            success: function(data) {
+                $('#supervisorSelect').empty().append('<option value="">Select Supervisor</option>');
+                if (data.results && data.results.length > 0) {
+                    $.each(data.results, function(i, item) {
+                        $('#supervisorSelect').append($('<option>', { value: item.id, text: item.text }));
+                    });
+                }
+                $('#supervisorSelect').trigger('change');
+            }
+        });
+    }
+
+    // =============================================
+    // State change → reset City & reload Supervisor if technician
     // =============================================
     $('#stateSelect').on('change', function() {
         $('#citySelect').val(null).trigger('change');
@@ -318,17 +341,14 @@ $(document).ready(function() {
         } else {
             $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Select state first...');
         }
-        // Reset and reload supervisor if technician role is active
-        $('#supervisorSelect').val(null).trigger('change');
         if ($('#roleSelect').val() === 'technician' && $('#hasSupervisorToggle').is(':checked')) {
             loadFilteredSupervisors();
         }
     });
 
     $('#citySelect').on('change', function() {
-        $('#supervisorSelect').val(null).trigger('change');
-        // Reload supervisor with updated city filter if technician role is active
         if ($('#roleSelect').val() === 'technician' && $('#hasSupervisorToggle').is(':checked')) {
+            $('#supervisorSelect').val(null).trigger('change');
             loadFilteredSupervisors();
         }
     });
@@ -353,54 +373,13 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // Helper: Load supervisors filtered by current state/city
-    // =============================================
-    function loadFilteredSupervisors() {
-        var stateId = $('#stateSelect').val();
-        if (!stateId) return; // No state selected, nothing to filter
-
-        // Clear current supervisor selection
-        $('#supervisorSelect').val(null).trigger('change');
-
-        // Fetch first page of supervisors matching current state/city
-        $.ajax({
-            url: '{{ route("admin.ajax.supervisors") }}',
-            dataType: 'json',
-            data: {
-                state_id: stateId,
-                city_id: $('#citySelect').val(),
-                search: '',
-                page: 1
-            },
-            success: function(data) {
-                // Clear existing options
-                $('#supervisorSelect').empty().append('<option value="">Select Supervisor</option>');
-
-                // Populate with filtered results
-                if (data.results && data.results.length > 0) {
-                    $.each(data.results, function(i, item) {
-                        $('#supervisorSelect').append(
-                            $('<option>', { value: item.id, text: item.text })
-                        );
-                    });
-                }
-
-                // Re-initialize to allow AJAX search still
-                $('#supervisorSelect').trigger('change');
-            }
-        });
-    }
-
-    // =============================================
-    // Role change handler — only technician-specific sections toggle
+    // Role change handler — state/city stays, only technician section toggles
     // =============================================
     $('#roleSelect').on('change', function() {
         var role = $(this).val();
         if (role === 'technician') {
             $('#technicianSection').removeClass('d-none');
             $('#bankSection').removeClass('d-none');
-
-            // Auto-load supervisors filtered by already-selected state/city
             if ($('#hasSupervisorToggle').is(':checked')) {
                 loadFilteredSupervisors();
             }
@@ -420,7 +399,6 @@ $(document).ready(function() {
         if ($(this).is(':checked')) {
             $('#supervisorField').slideDown();
             $('#supervisorRequired').show();
-            // Auto-load filtered supervisors when toggling ON
             loadFilteredSupervisors();
         } else {
             $('#supervisorField').slideUp();
@@ -446,7 +424,7 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // Form submission
+    // Form submission — state_id & city_id ALWAYS sent for all roles
     // =============================================
     $('#createUserForm').on('submit', function(e) {
         e.preventDefault();
@@ -457,8 +435,8 @@ $(document).ready(function() {
             formData.set('has_supervisor', '0');
         }
 
-        // Only remove technician-specific fields when not technician
-        // state_id and city_id are ALWAYS sent
+        // Remove ONLY technician-specific fields for non-technician roles
+        // state_id and city_id are NEVER removed — they apply to ALL roles
         if ($('#roleSelect').val() !== 'technician') {
             formData.delete('has_supervisor');
             formData.delete('supervisor_id');

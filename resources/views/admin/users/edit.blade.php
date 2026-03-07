@@ -91,7 +91,7 @@
                         <input type="text" name="employee_id" class="form-control" value="{{ $user->employee_id }}" maxlength="50">
                         <div class="form-text">Auto-generated if not provided</div>
                     </div>
-                    {{-- State & City — available for ALL roles --}}
+                    {{-- State & City — ALL roles --}}
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">State</label>
                         <select name="state_id" id="stateSelect" class="form-select">
@@ -196,35 +196,6 @@
             </div>
         </div>
 
-        {{-- Password Section --}}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-primary text-white">
-                <h6 class="mb-0"><i class="bi bi-key me-2"></i>Change Password (Optional)</h6>
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">New Password</label>
-                        <div class="input-group">
-                            <input type="password" name="password" id="password" class="form-control" minlength="8" placeholder="Leave blank to keep current">
-                            <button type="button" class="btn btn-outline-secondary toggle-password" data-target="password">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">Confirm New Password</label>
-                        <div class="input-group">
-                            <input type="password" name="password_confirmation" id="password_confirmation" class="form-control" minlength="8" placeholder="Confirm new password">
-                            <button type="button" class="btn btn-outline-secondary toggle-password" data-target="password_confirmation">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         {{-- Bank Details Section --}}
         <div class="card border-0 shadow-sm mb-4 {{ $isTechnician ? '' : 'd-none' }}" id="bankSection">
             <div class="card-header bg-primary text-white">
@@ -269,10 +240,10 @@
         </div>
     </form>
 
-    {{-- Separate Change Password Form --}}
+    {{-- Change Password Section (SINGLE — outside main form) --}}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-warning text-dark">
-            <h6 class="mb-0"><i class="bi bi-shield-lock me-2"></i>Force Change Password</h6>
+            <h6 class="mb-0"><i class="bi bi-shield-lock me-2"></i>Change Password</h6>
         </div>
         <div class="card-body">
             <form id="changePasswordForm">
@@ -280,11 +251,21 @@
                 <div class="row g-3">
                     <div class="col-md-5">
                         <label class="form-label fw-semibold">New Password <span class="text-danger">*</span></label>
-                        <input type="password" id="newPassword" class="form-control" required minlength="8" placeholder="Min 8 characters">
+                        <div class="input-group">
+                            <input type="password" id="newPassword" class="form-control" required minlength="8" placeholder="Min 8 characters">
+                            <button type="button" class="btn btn-outline-secondary toggle-password" data-target="newPassword">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="col-md-5">
                         <label class="form-label fw-semibold">Confirm Password <span class="text-danger">*</span></label>
-                        <input type="password" id="newPasswordConfirmation" class="form-control" required minlength="8" placeholder="Confirm password">
+                        <div class="input-group">
+                            <input type="password" id="newPasswordConfirmation" class="form-control" required minlength="8" placeholder="Confirm password">
+                            <button type="button" class="btn btn-outline-secondary toggle-password" data-target="newPasswordConfirmation">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="col-md-2 d-flex align-items-end">
                         <button type="submit" class="btn btn-warning w-100" id="changePasswordBtn">
@@ -386,27 +367,16 @@ $(document).ready(function() {
     function loadFilteredSupervisors() {
         var stateId = $('#stateSelect').val();
         if (!stateId) return;
-
-        // Clear current supervisor selection
         $('#supervisorSelect').val(null).trigger('change');
-
-        // Fetch first page of supervisors matching current state/city
         $.ajax({
             url: '{{ route("admin.ajax.supervisors") }}',
             dataType: 'json',
-            data: {
-                state_id: stateId,
-                city_id: $('#citySelect').val(),
-                search: '',
-                page: 1
-            },
+            data: { state_id: stateId, city_id: $('#citySelect').val(), search: '', page: 1 },
             success: function(data) {
                 $('#supervisorSelect').empty().append('<option value="">Select Supervisor</option>');
                 if (data.results && data.results.length > 0) {
                     $.each(data.results, function(i, item) {
-                        $('#supervisorSelect').append(
-                            $('<option>', { value: item.id, text: item.text })
-                        );
+                        $('#supervisorSelect').append($('<option>', { value: item.id, text: item.text }));
                     });
                 }
                 $('#supervisorSelect').trigger('change');
@@ -415,7 +385,7 @@ $(document).ready(function() {
     }
 
     // =============================================
-    // State change → reset City & reload Supervisor
+    // State change → reset City & reload Supervisor if technician
     // =============================================
     $('#stateSelect').on('change', function() {
         $('#citySelect').val(null).trigger('change');
@@ -424,15 +394,14 @@ $(document).ready(function() {
         } else {
             $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Select state first...');
         }
-        $('#supervisorSelect').val(null).trigger('change');
         if ($('#roleSelect').val() === 'technician' && $('#hasSupervisorToggle').is(':checked')) {
             loadFilteredSupervisors();
         }
     });
 
     $('#citySelect').on('change', function() {
-        $('#supervisorSelect').val(null).trigger('change');
         if ($('#roleSelect').val() === 'technician' && $('#hasSupervisorToggle').is(':checked')) {
+            $('#supervisorSelect').val(null).trigger('change');
             loadFilteredSupervisors();
         }
     });
@@ -464,15 +433,13 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // Role change handler
+    // Role change handler — state/city stays, only technician section toggles
     // =============================================
     $('#roleSelect').on('change', function() {
         var role = $(this).val();
         if (role === 'technician') {
             $('#technicianSection').removeClass('d-none');
             $('#bankSection').removeClass('d-none');
-
-            // Auto-load supervisors filtered by already-selected state/city
             if ($('#hasSupervisorToggle').is(':checked')) {
                 loadFilteredSupervisors();
             }
@@ -492,7 +459,6 @@ $(document).ready(function() {
         if ($(this).is(':checked')) {
             $('#supervisorField').slideDown();
             $('#supervisorRequired').show();
-            // Auto-load filtered supervisors when toggling ON
             loadFilteredSupervisors();
         } else {
             $('#supervisorField').slideUp();
@@ -518,7 +484,7 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // Edit User Form submission
+    // Edit User Form submission — state_id & city_id ALWAYS sent
     // =============================================
     $('#editUserForm').on('submit', function(e) {
         e.preventDefault();
@@ -529,8 +495,8 @@ $(document).ready(function() {
             formData.set('has_supervisor', '0');
         }
 
-        // Only remove technician-specific fields when not technician
-        // state_id and city_id are ALWAYS sent
+        // Remove ONLY technician-specific fields for non-technician roles
+        // state_id and city_id are NEVER removed — they apply to ALL roles
         if ($('#roleSelect').val() !== 'technician') {
             formData.delete('has_supervisor');
             formData.delete('supervisor_id');
@@ -580,7 +546,7 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // Change Password Form
+    // Change Password Form (SINGLE password section)
     // =============================================
     $('#changePasswordForm').on('submit', function(e) {
         e.preventDefault();

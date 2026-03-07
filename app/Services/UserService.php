@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 
@@ -19,26 +20,11 @@ class UserService
             $data['avatar'] = $this->handleAvatarUpload($data['avatar']);
         }
 
-        // NOTE: Do NOT manually Hash::make — User model has 'password' => 'hashed' cast
-        // Just pass the plain password; the cast handles hashing automatically.
+        // DO NOT Hash::make() password here — User model has 'password' => 'hashed' cast
+        // which auto-hashes on create/update. Manual Hash::make() causes DOUBLE hashing.
 
-        // Convert arrays to JSON for coverage_states (kept for backward compat)
-        if (isset($data['coverage_states']) && is_array($data['coverage_states'])) {
-            $data['coverage_states'] = json_encode($data['coverage_states']);
-        }
-
-        if (isset($data['skill_tags']) && is_array($data['skill_tags'])) {
-            $data['skill_tags'] = json_encode($data['skill_tags']);
-        }
-
-        // Handle state_id / city_id — ensure null when not technician
-        if (!isset($data['role']) || $data['role'] !== 'technician') {
-            $data['state_id'] = null;
-            $data['city_id'] = null;
-            $data['supervisor_id'] = null;
-            $data['coverage_states'] = null;
-            $data['skill_tags'] = null;
-        }
+        // DO NOT json_encode() coverage_states/skill_tags — User model has 'array' cast
+        // which auto-handles JSON encoding. Manual json_encode() causes DOUBLE encoding.
 
         // Extract role before creating user
         $role = $data['role'] ?? null;
@@ -48,6 +34,10 @@ class UserService
         unset($data['has_supervisor']);
         unset($data['password_confirmation']);
         unset($data['remove_avatar']);
+
+        // Log what we're creating (debug)
+        Log::info('UserService::createUser - Data keys: ' . implode(', ', array_keys($data)));
+        Log::info('UserService::createUser - state_id: ' . ($data['state_id'] ?? 'NULL') . ', city_id: ' . ($data['city_id'] ?? 'NULL'));
 
         // Create user
         $user = User::create($data);
@@ -82,31 +72,14 @@ class UserService
             unset($data['avatar']);
         }
 
-        // NOTE: Do NOT manually Hash::make — User model has 'password' => 'hashed' cast
-        if (isset($data['password']) && !empty($data['password'])) {
-            // Pass plain password — the model cast handles hashing
-        } else {
+        // DO NOT Hash::make() password — User model has 'password' => 'hashed' cast
+        // Just remove if empty/not provided
+        if (!isset($data['password']) || empty($data['password'])) {
             unset($data['password']);
-            unset($data['password_confirmation']);
         }
+        unset($data['password_confirmation']);
 
-        // Convert arrays to JSON
-        if (isset($data['coverage_states']) && is_array($data['coverage_states'])) {
-            $data['coverage_states'] = json_encode($data['coverage_states']);
-        }
-
-        if (isset($data['skill_tags']) && is_array($data['skill_tags'])) {
-            $data['skill_tags'] = json_encode($data['skill_tags']);
-        }
-
-        // Handle state_id / city_id — clear when not technician
-        if (isset($data['role']) && $data['role'] !== 'technician') {
-            $data['state_id'] = null;
-            $data['city_id'] = null;
-            $data['supervisor_id'] = null;
-            $data['coverage_states'] = null;
-            $data['skill_tags'] = null;
-        }
+        // DO NOT json_encode() coverage_states/skill_tags — User model has 'array' cast
 
         // Extract role before updating user
         $role = $data['role'] ?? null;
@@ -114,8 +87,12 @@ class UserService
 
         // Remove non-fillable fields
         unset($data['has_supervisor']);
-        unset($data['password_confirmation']);
         unset($data['remove_avatar']);
+
+        // Log what we're updating (debug)
+        Log::info('UserService::updateUser - User ID: ' . $user->id);
+        Log::info('UserService::updateUser - Data keys: ' . implode(', ', array_keys($data)));
+        Log::info('UserService::updateUser - state_id: ' . ($data['state_id'] ?? 'NULL') . ', city_id: ' . ($data['city_id'] ?? 'NULL'));
 
         // Update user
         $user->update($data);
@@ -124,6 +101,8 @@ class UserService
         if ($role) {
             $user->syncRoles([$role]);
         }
+
+        Log::info('UserService::updateUser - After save - state_id: ' . $user->state_id . ', city_id: ' . $user->city_id);
 
         return $user->fresh(['roles', 'supervisor', 'state', 'city']);
     }
@@ -182,11 +161,10 @@ class UserService
      */
     public function getUsersByRole(string $role, ?User $currentUser = null): \Illuminate\Database\Eloquent\Collection
     {
-        $query = User::whereHas('roles', fn ($q) => $q->where('roles.name', $role))
-                     ->where('status', 'active');
+        $query = User::role($role)->where('status', 'active');
 
         if ($currentUser && $currentUser->hasRole('supervisor')) {
-            $query->where(function ($q) use ($currentUser) {
+            $query->where(function($q) use ($currentUser) {
                 $q->where('supervisor_id', $currentUser->id)
                   ->orWhere('id', $currentUser->id);
             });
@@ -265,9 +243,22 @@ class UserService
         return [
             'total_team_members' => $teamMembers->count(),
             'active_team_members' => $teamMembers->where('status', 'active')->count(),
-            'team_with_coverage' => $teamMembers->filter(function ($member) {
+            'team_with_coverage' => $teamMembers->filter(function($member) {
                 return !empty($member->coverage_states);
             })->count(),
         ];
+    }
+
+    /**
+     * Change user password
+     */
+    public function changePassword(User $user, string $newPassword): User
+    {
+        // DO NOT Hash::make() — User model 'password' => 'hashed' cast handles it
+        $user->update([
+            'password' => $newPassword,
+        ]);
+
+        return $user;
     }
 }
