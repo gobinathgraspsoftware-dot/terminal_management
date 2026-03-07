@@ -93,8 +93,8 @@
                     </div>
                     {{-- State & City — ALL roles --}}
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">State</label>
-                        <select name="state_id" id="stateSelect" class="form-select">
+                        <label class="form-label fw-semibold">State <span class="text-danger">*</span></label>
+                        <select name="state_id" id="stateSelect" class="form-select" required>
                             @if($user->state)
                                 <option value="{{ $user->state_id }}" selected>{{ $user->state->name }}</option>
                             @else
@@ -103,8 +103,8 @@
                         </select>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">City</label>
-                        <select name="city_id" id="citySelect" class="form-select">
+                        <label class="form-label fw-semibold">City <span class="text-danger">*</span></label>
+                        <select name="city_id" id="citySelect" class="form-select" required>
                             @if($user->city)
                                 <option value="{{ $user->city_id }}" selected>{{ $user->city->name }} ({{ $user->city->postcode }})</option>
                             @else

@@ -69,14 +69,14 @@
                     </div>
                     {{-- State & City — ALL roles --}}
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">State</label>
-                        <select name="state_id" id="stateSelect" class="form-select">
+                        <label class="form-label fw-semibold">State <span class="text-danger">*</span></label>
+                        <select name="state_id" id="stateSelect" class="form-select" required>
                             <option value="">Select State</option>
                         </select>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">City</label>
-                        <select name="city_id" id="citySelect" class="form-select">
+                        <label class="form-label fw-semibold">City <span class="text-danger">*</span></label>
+                        <select name="city_id" id="citySelect" class="form-select" required>
                             <option value="">Select City</option>
                         </select>
                         <div class="form-text">Cities will load based on selected state</div>

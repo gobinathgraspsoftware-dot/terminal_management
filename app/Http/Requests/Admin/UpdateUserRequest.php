@@ -31,8 +31,8 @@ class UpdateUserRequest extends FormRequest
             'employee_id' => ['nullable', 'string', 'max:50', Rule::unique('users', 'employee_id')->ignore($userId)],
 
             // State & City — available for ALL roles
-            'state_id' => ['nullable', 'integer', 'exists:states,id'],
-            'city_id' => ['nullable', 'integer', 'exists:cities,id'],
+            'state_id' => ['required', 'integer', 'exists:states,id'],
+            'city_id' => ['required', 'integer', 'exists:cities,id'],
 
             // Password (optional for update — NOT in main form, handled by separate route)
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
@@ -83,7 +83,9 @@ class UpdateUserRequest extends FormRequest
             'status.required' => 'Please select a status.',
             'supervisor_id.exists' => 'The selected supervisor is invalid.',
             'supervisor_id.different' => 'A user cannot be their own supervisor.',
+            'state_id.required' => 'Please select a state.',
             'state_id.exists' => 'The selected state is invalid.',
+            'city_id.required' => 'Please select a city.',
             'city_id.exists' => 'The selected city is invalid.',
             'avatar.image' => 'Avatar must be an image file.',
             'avatar.mimes' => 'Avatar must be a JPG, JPEG, PNG, or GIF file.',
@@ -106,14 +108,6 @@ class UpdateUserRequest extends FormRequest
         // If has_supervisor is false, remove supervisor_id
         if (!$this->has_supervisor) {
             $this->merge(['supervisor_id' => null]);
-        }
-
-        // Convert empty string state_id/city_id to null
-        if ($this->state_id === '' || $this->state_id === null) {
-            $this->merge(['state_id' => null]);
-        }
-        if ($this->city_id === '' || $this->city_id === null) {
-            $this->merge(['city_id' => null]);
         }
 
         // Convert remove_avatar to boolean
