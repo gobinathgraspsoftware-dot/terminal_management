@@ -154,7 +154,9 @@ $(document).ready(function() {
             }
         },
         columns: [
-            { data: 'id', name: 'id' },
+            { data: null, name: 'id', orderable: false, searchable: false, render: function(data, type, row, meta) {
+                return meta.row + meta.settings._iDisplayStart + 1;
+            }},
             { data: 'name', name: 'name' },
             { data: 'email', name: 'email' },
             { data: 'employee_id', name: 'employee_id', defaultContent: '-' },
