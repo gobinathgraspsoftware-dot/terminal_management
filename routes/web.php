@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\DashboardController;
@@ -110,6 +111,16 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/api/widget/data', [DashboardController::class, 'getWidgetData'])->name('api.widget.data');
+
+    // Clear Cache Route — accessible by all authenticated roles
+    Route::get('/clear-cache', function () {
+        Artisan::call('cache:clear');
+        Artisan::call('view:clear');
+        Artisan::call('config:clear');
+        Artisan::call('route:clear');
+        Artisan::call('optimize:clear');
+        return redirect()->back()->with('success', 'All caches cleared successfully!');
+    })->name('clear-cache');
 
     /* Serial Lookup API Routes */
     Route::prefix('api/serials')->name('api.serials.')->group(function () {
