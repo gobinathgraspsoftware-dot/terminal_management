@@ -227,13 +227,12 @@
             </div>
             <div class="col-md-2">
                 <label class="form-label">Postcode</label>
-                <input type="text" class="form-control branch-postcode" name="branches[__INDEX__][postcode]"
-                    readonly disabled>
+                <input type="text" class="form-control branch-postcode"
+                    name="branches[__INDEX__][postcode]" readonly>
             </div>
             <div class="col-md-2">
                 <label class="form-label">Country</label>
-                <input type="text" class="form-control" name="branches[__INDEX__][country]"
-                    value="Malaysia" readonly disabled>
+                <input type="text" class="form-control" value="Malaysia" readonly>
                 {{-- Hidden field to ensure country value is submitted --}}
                 <input type="hidden" name="branches[__INDEX__][country]" value="Malaysia">
             </div>
@@ -264,6 +263,7 @@
 <script>
 $(document).ready(function() {
     let branchIndex = 0;
+    let isInitializing = true; // Flag to prevent state-change clearing city during edit load
     const ajaxStatesUrl = @json($ajaxStatesUrl);
     const ajaxCitiesUrl = @json($ajaxCitiesUrl);
 
@@ -278,10 +278,16 @@ $(document).ready(function() {
         addBranchRow({ branch_name: 'Main Branch', is_primary: true, country: 'Malaysia', status: 'active' });
     @endif
 
+    // After initial load, enable state-change clearing
+    setTimeout(function() {
+        isInitializing = false;
+    }, 500);
+
     updateNoBranchesAlert();
 
     // Add Branch button
     $('#addBranchBtn').on('click', function() {
+        isInitializing = false;
         addBranchRow({});
         updateNoBranchesAlert();
     });
@@ -331,12 +337,13 @@ $(document).ready(function() {
             return;
         }
 
-        // Enable disabled fields temporarily so they get submitted
-        form.find('.branch-postcode').prop('disabled', false);
-
         submitBtn.prop('disabled', true).html(
             '<span class="spinner-border spinner-border-sm me-1"></span> Saving...'
         );
+
+        // Clear previous validation errors
+        form.find('.is-invalid').removeClass('is-invalid');
+        form.find('.invalid-feedback').remove();
 
         $.ajax({
             url: form.attr('action'),
@@ -362,9 +369,6 @@ $(document).ready(function() {
                 if (xhr.status === 422) {
                     const errors = xhr.responseJSON?.errors;
                     if (errors) {
-                        form.find('.is-invalid').removeClass('is-invalid');
-                        form.find('.invalid-feedback').remove();
-
                         let firstErrorField = null;
                         $.each(errors, function(field, messages) {
                             let selector;
@@ -377,15 +381,23 @@ $(document).ready(function() {
 
                             const input = form.find(selector);
                             if (input.length) {
-                                input.addClass('is-invalid');
-                                input.after('<div class="invalid-feedback">' + messages[0] + '</div>');
+                                // For Select2 fields, add error to the container
+                                if (input.hasClass('select2-hidden-accessible')) {
+                                    input.next('.select2-container').addClass('is-invalid');
+                                    input.closest('.col-md-3').append(
+                                        '<div class="invalid-feedback d-block">' + messages[0] + '</div>'
+                                    );
+                                } else {
+                                    input.addClass('is-invalid');
+                                    input.after('<div class="invalid-feedback">' + messages[0] + '</div>');
+                                }
                                 if (!firstErrorField) firstErrorField = input;
                             }
                         });
 
                         if (firstErrorField) {
                             $('html, body').animate({
-                                scrollTop: firstErrorField.offset().top - 100
+                                scrollTop: firstErrorField.closest('.branch-row, .card').offset().top - 100
                             }, 300);
                         }
 
@@ -397,10 +409,6 @@ $(document).ready(function() {
                 submitBtn.prop('disabled', false).html(
                     '<i class="bi bi-check-circle me-1"></i> {{ $isEdit ? "Update Vendor" : "Create Vendor" }}'
                 );
-            },
-            complete: function() {
-                // Re-disable postcode fields
-                form.find('.branch-postcode').prop('disabled', true);
             }
         });
     });
@@ -409,6 +417,7 @@ $(document).ready(function() {
      * Add a branch row to the container
      */
     function addBranchRow(data) {
+        data = data || {};
         const template = $('#branchRowTemplate').html();
         const html = template
             .replace(/__INDEX__/g, branchIndex)
@@ -462,8 +471,8 @@ $(document).ready(function() {
                 data: function(params) {
                     return { search: params.term, page: params.page || 1 };
                 },
-                processResults: function(data) {
-                    return { results: data.results, pagination: data.pagination };
+                processResults: function(response) {
+                    return { results: response.results, pagination: response.pagination };
                 },
                 cache: true
             }
@@ -484,21 +493,22 @@ $(document).ready(function() {
                     var stateId = $row.find('.branch-state-select').val();
                     return { state_id: stateId, search: params.term, page: params.page || 1 };
                 },
-                processResults: function(data) {
-                    return { results: data.results, pagination: data.pagination };
+                processResults: function(response) {
+                    return { results: response.results, pagination: response.pagination };
                 },
                 cache: true
             }
         });
 
-        // State change → clear city & postcode, re-enable city
+        // State change → clear city & postcode (but NOT during initial edit load)
         $stateSelect.on('change', function() {
-            // Clear city and postcode when state changes
-            $citySelect.val(null).trigger('change');
-            $row.find('.branch-postcode').val('');
+            if (!isInitializing) {
+                $citySelect.val(null).trigger('change');
+                $row.find('.branch-postcode').val('');
+            }
         });
 
-        // City change → auto-fill postcode
+        // City change → auto-fill postcode from city data
         $citySelect.on('select2:select', function(e) {
             var selectedData = e.params.data;
             if (selectedData && selectedData.postcode) {
@@ -514,15 +524,15 @@ $(document).ready(function() {
         if (data.state_id && data.state) {
             var stateName = data.state.name || '';
             var stateOption = new Option(stateName, data.state_id, true, true);
-            $stateSelect.append(stateOption).trigger('change');
+            $stateSelect.append(stateOption).trigger('change.select2');
         }
 
         if (data.city_id && data.city) {
             var cityName = data.city.name || '';
             var cityPostcode = data.city.postcode || '';
-            var cityText = cityName + ' (' + cityPostcode + ')';
+            var cityText = cityName + (cityPostcode ? ' (' + cityPostcode + ')' : '');
             var cityOption = new Option(cityText, data.city_id, true, true);
-            $citySelect.append(cityOption).trigger('change');
+            $citySelect.append(cityOption).trigger('change.select2');
         }
 
         branchIndex++;

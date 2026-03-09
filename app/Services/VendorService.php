@@ -116,7 +116,7 @@ class VendorService
         // Create branches
         $this->syncBranches($vendor, $branches);
 
-        return $vendor->load('branches');
+        return $vendor->load(['branches.state', 'branches.city']);
     }
 
     /**
@@ -131,10 +131,10 @@ class VendorService
 
         $vendor->update($data);
 
-        // Sync branches
+        // Sync branches (create/update/delete)
         $this->syncBranches($vendor, $branches);
 
-        return $vendor->fresh(['branches']);
+        return $vendor->fresh(['branches.state', 'branches.city']);
     }
 
     /**
@@ -146,25 +146,33 @@ class VendorService
         $existingIds = $vendor->branches()->pluck('id')->toArray();
         $submittedIds = [];
 
+        // IMPORTANT: Use state_id and city_id (FK columns), NOT state/city text
+        $allowedFields = [
+            'id', 'branch_name', 'address', 'state_id', 'city_id', 'postcode',
+            'country', 'contact_person', 'contact_email', 'contact_phone',
+            'is_primary', 'status',
+        ];
+
         foreach ($branches as $index => $branchData) {
-            // Clean up branch data
-            $branchData = array_intersect_key($branchData, array_flip([
-                'id', 'branch_name', 'address', 'city', 'state', 'postcode',
-                'country', 'contact_person', 'contact_email', 'contact_phone',
-                'is_primary', 'status',
-            ]));
+            // Clean up branch data - only allow expected fields
+            $branchData = array_intersect_key($branchData, array_flip($allowedFields));
 
             // Set defaults
             $branchData['country'] = $branchData['country'] ?? 'Malaysia';
             $branchData['status'] = $branchData['status'] ?? 'active';
             $branchData['is_primary'] = !empty($branchData['is_primary']) ? true : false;
 
+            // Ensure state_id and city_id are stored as integers or null
+            $branchData['state_id'] = !empty($branchData['state_id']) ? (int) $branchData['state_id'] : null;
+            $branchData['city_id'] = !empty($branchData['city_id']) ? (int) $branchData['city_id'] : null;
+
             if (!empty($branchData['id']) && in_array($branchData['id'], $existingIds)) {
                 // Update existing branch
                 $branch = VendorBranch::find($branchData['id']);
                 if ($branch && $branch->vendor_id === $vendor->id) {
-                    unset($branchData['id']);
-                    $branch->update($branchData);
+                    $updateData = $branchData;
+                    unset($updateData['id']);
+                    $branch->update($updateData);
                     $submittedIds[] = $branch->id;
                 }
             } else {

@@ -2,6 +2,11 @@
 
 @section('title', 'Vendors')
 
+@php
+    $roleName = auth()->user()->roles->first()?->name ?? 'admin';
+    $ajaxStatesUrl = route($roleName . '.ajax.states');
+@endphp
+
 @section('content')
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -111,12 +116,6 @@
                     <label class="form-label">State (Branch)</label>
                     <select class="form-select" id="filterState">
                         <option value="">All States</option>
-                        @php
-                            $states = ['Johor','Kedah','Kelantan','Melaka','Negeri Sembilan','Pahang','Penang','Perak','Perlis','Sabah','Sarawak','Selangor','Terengganu','Kuala Lumpur','Labuan','Putrajaya'];
-                        @endphp
-                        @foreach($states as $state)
-                            <option value="{{ $state }}">{{ $state }}</option>
-                        @endforeach
                     </select>
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
@@ -194,6 +193,26 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
+
+    // Initialize State filter as Select2 AJAX
+    $('#filterState').select2({
+        placeholder: 'All States',
+        allowClear: true,
+        width: '100%',
+        ajax: {
+            url: @json($ajaxStatesUrl),
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return { search: params.term, page: params.page || 1 };
+            },
+            processResults: function(response) {
+                return { results: response.results, pagination: response.pagination };
+            },
+            cache: true
+        }
+    });
+
     // Initialize DataTable
     var table = $('#vendorsTable').DataTable({
         processing: true,
@@ -203,7 +222,7 @@ $(document).ready(function() {
             data: function(d) {
                 d.status = $('#filterStatus').val();
                 d.vendor_type = $('#filterType').val();
-                d.state = $('#filterState').val();
+                d.state = $('#filterState').val(); // Now sends state_id (integer)
                 d.show_trashed = $('#showTrashed').is(':checked') ? 'true' : 'false';
             }
         },
@@ -225,7 +244,12 @@ $(document).ready(function() {
     });
 
     // Filter changes
-    $('#filterStatus, #filterType, #filterState').on('change', function() {
+    $('#filterStatus, #filterType').on('change', function() {
+        table.draw();
+    });
+
+    // Select2 change event for state filter
+    $('#filterState').on('change', function() {
         table.draw();
     });
 
