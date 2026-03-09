@@ -233,7 +233,6 @@
             <div class="col-md-2">
                 <label class="form-label">Country</label>
                 <input type="text" class="form-control" value="Malaysia" readonly>
-                {{-- Hidden field to ensure country value is submitted --}}
                 <input type="hidden" name="branches[__INDEX__][country]" value="Malaysia">
             </div>
             <div class="col-md-2">
@@ -263,7 +262,7 @@
 <script>
 $(document).ready(function() {
     let branchIndex = 0;
-    let isInitializing = true; // Flag to prevent state-change clearing city during edit load
+    let isInitializing = true; // Prevents state-change from clearing city during edit load
     const ajaxStatesUrl = @json($ajaxStatesUrl);
     const ajaxCitiesUrl = @json($ajaxCitiesUrl);
 
@@ -278,7 +277,7 @@ $(document).ready(function() {
         addBranchRow({ branch_name: 'Main Branch', is_primary: true, country: 'Malaysia', status: 'active' });
     @endif
 
-    // After initial load, enable state-change clearing
+    // After initial load complete, enable state-change clearing
     setTimeout(function() {
         isInitializing = false;
     }, 500);
@@ -300,8 +299,8 @@ $(document).ready(function() {
             return;
         }
 
-        const $row = $(this).closest('.branch-row');
-        // Destroy Select2 instances before removing
+        var $row = $(this).closest('.branch-row');
+        // Destroy Select2 instances before removing DOM
         $row.find('.branch-state-select').each(function() {
             if ($(this).hasClass('select2-hidden-accessible')) {
                 $(this).select2('destroy');
@@ -328,8 +327,8 @@ $(document).ready(function() {
     $('#vendorForm').on('submit', function(e) {
         e.preventDefault();
 
-        const form = $(this);
-        const submitBtn = $('#submitBtn');
+        var form = $(this);
+        var submitBtn = $('#submitBtn');
 
         // Validate at least one branch
         if ($('#branchesContainer .branch-row').length === 0) {
@@ -356,7 +355,7 @@ $(document).ready(function() {
                 if (response.success) {
                     showToast('success', response.message);
                     if (response.redirect) {
-                        setTimeout(() => window.location.href = response.redirect, 1000);
+                        setTimeout(function() { window.location.href = response.redirect; }, 1000);
                     }
                 } else {
                     showToast('error', response.message || 'Something went wrong.');
@@ -367,21 +366,21 @@ $(document).ready(function() {
             },
             error: function(xhr) {
                 if (xhr.status === 422) {
-                    const errors = xhr.responseJSON?.errors;
+                    var errors = xhr.responseJSON?.errors;
                     if (errors) {
-                        let firstErrorField = null;
+                        var firstErrorField = null;
                         $.each(errors, function(field, messages) {
-                            let selector;
+                            var selector;
                             if (field.startsWith('branches.')) {
-                                const parts = field.split('.');
+                                var parts = field.split('.');
                                 selector = '[name="branches[' + parts[1] + '][' + parts[2] + ']"]';
                             } else {
                                 selector = '[name="' + field + '"]';
                             }
 
-                            const input = form.find(selector);
+                            var input = form.find(selector);
                             if (input.length) {
-                                // For Select2 fields, add error to the container
+                                // For Select2 fields, highlight the container
                                 if (input.hasClass('select2-hidden-accessible')) {
                                     input.next('.select2-container').addClass('is-invalid');
                                     input.closest('.col-md-3').append(
@@ -418,15 +417,15 @@ $(document).ready(function() {
      */
     function addBranchRow(data) {
         data = data || {};
-        const template = $('#branchRowTemplate').html();
-        const html = template
+        var template = $('#branchRowTemplate').html();
+        var html = template
             .replace(/__INDEX__/g, branchIndex)
             .replace(/__NUMBER__/g, branchIndex + 1);
 
-        const $row = $(html);
+        var $row = $(html);
         $('#branchesContainer').append($row);
 
-        const currentIndex = branchIndex;
+        var currentIndex = branchIndex;
 
         // Populate simple fields
         if (data.id) {
@@ -458,9 +457,12 @@ $(document).ready(function() {
             $row.find('.primary-switch').prop('checked', true);
         }
 
-        // Initialize Select2 for State
-        const $stateSelect = $row.find('.branch-state-select');
+        // ============================================================
+        // Initialize Select2 for State — with Bootstrap 5 theme
+        // ============================================================
+        var $stateSelect = $row.find('.branch-state-select');
         $stateSelect.select2({
+            theme: 'bootstrap-5',
             placeholder: 'Select State',
             allowClear: true,
             width: '100%',
@@ -478,9 +480,12 @@ $(document).ready(function() {
             }
         });
 
-        // Initialize Select2 for City
-        const $citySelect = $row.find('.branch-city-select');
+        // ============================================================
+        // Initialize Select2 for City — with Bootstrap 5 theme
+        // ============================================================
+        var $citySelect = $row.find('.branch-city-select');
         $citySelect.select2({
+            theme: 'bootstrap-5',
             placeholder: 'Select City',
             allowClear: true,
             width: '100%',
@@ -489,7 +494,6 @@ $(document).ready(function() {
                 dataType: 'json',
                 delay: 250,
                 data: function(params) {
-                    // Get the state_id from the same branch row
                     var stateId = $row.find('.branch-state-select').val();
                     return { state_id: stateId, search: params.term, page: params.page || 1 };
                 },
@@ -500,7 +504,7 @@ $(document).ready(function() {
             }
         });
 
-        // State change → clear city & postcode (but NOT during initial edit load)
+        // State change → clear city & postcode (skip during initial edit load)
         $stateSelect.on('change', function() {
             if (!isInitializing) {
                 $citySelect.val(null).trigger('change');
@@ -508,7 +512,7 @@ $(document).ready(function() {
             }
         });
 
-        // City change → auto-fill postcode from city data
+        // City select → auto-fill postcode
         $citySelect.on('select2:select', function(e) {
             var selectedData = e.params.data;
             if (selectedData && selectedData.postcode) {
@@ -516,11 +520,15 @@ $(document).ready(function() {
             }
         });
 
+        // City clear → clear postcode
         $citySelect.on('select2:clear', function() {
             $row.find('.branch-postcode').val('');
         });
 
-        // Pre-select state and city for edit mode
+        // ============================================================
+        // Pre-select state and city for EDIT mode
+        // Uses trigger('change.select2') to avoid firing the change handler
+        // ============================================================
         if (data.state_id && data.state) {
             var stateName = data.state.name || '';
             var stateOption = new Option(stateName, data.state_id, true, true);

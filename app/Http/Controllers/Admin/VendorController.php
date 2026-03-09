@@ -40,17 +40,21 @@ class VendorController extends Controller
 
     /**
      * DataTables server-side processing
+     *
+     * FIX: select('vendors.*') MUST come BEFORE withCount()
+     * If placed after, it overwrites the SELECT clause and removes
+     * all count subqueries — causing 0 counts for branches, POs, etc.
      */
     public function datatable(Request $request): JsonResponse
     {
-        $query = Vendor::with(['createdBy', 'updatedBy'])
+        $query = Vendor::select('vendors.*')
+            ->with(['createdBy', 'updatedBy'])
             ->withCount('purchaseOrders')
             ->withCount('grns')
             ->withCount('branches')
-            ->withCount(['invoices' => function ($q) {
+            ->withCount(['invoices as invoices_count' => function ($q) {
                 $q->where('invoice_type', 'ap');
-            }])
-            ->select('vendors.*');
+            }]);
 
         // Include trashed if requested
         if ($request->get('show_trashed') === 'true') {

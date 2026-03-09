@@ -33,13 +33,15 @@ class VendorController extends Controller
 
     /**
      * DataTables server-side processing
+     *
+     * FIX: select('vendors.*') MUST come BEFORE withCount()
      */
     public function datatable(Request $request): JsonResponse
     {
-        $query = Vendor::with(['createdBy'])
+        $query = Vendor::select('vendors.*')
+            ->with(['createdBy'])
             ->withCount('branches')
             ->withCount('purchaseOrders')
-            ->select('vendors.*')
             ->where('status', Vendor::STATUS_ACTIVE);
 
         return DataTables::of($query)

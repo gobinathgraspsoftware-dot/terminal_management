@@ -194,8 +194,9 @@
 <script>
 $(document).ready(function() {
 
-    // Initialize State filter as Select2 AJAX
+    // State filter — Select2 AJAX with Bootstrap 5 theme
     $('#filterState').select2({
+        theme: 'bootstrap-5',
         placeholder: 'All States',
         allowClear: true,
         width: '100%',
@@ -222,7 +223,7 @@ $(document).ready(function() {
             data: function(d) {
                 d.status = $('#filterStatus').val();
                 d.vendor_type = $('#filterType').val();
-                d.state = $('#filterState').val(); // Now sends state_id (integer)
+                d.state = $('#filterState').val(); // Sends state_id (integer)
                 d.show_trashed = $('#showTrashed').is(':checked') ? 'true' : 'false';
             }
         },
@@ -248,7 +249,7 @@ $(document).ready(function() {
         table.draw();
     });
 
-    // Select2 change event for state filter
+    // Select2 change event
     $('#filterState').on('change', function() {
         table.draw();
     });
