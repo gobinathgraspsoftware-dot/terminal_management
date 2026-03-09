@@ -132,6 +132,9 @@ class PermissionSeeder extends Seeder
 
             // Notifications
             'notifications' => ['view', 'create', 'send'],
+
+            // Master Data - Job Types
+            'job_types' => ['view', 'create', 'edit', 'delete'],
         ];
 
         // Create permissions

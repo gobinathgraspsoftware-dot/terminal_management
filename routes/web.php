@@ -87,6 +87,7 @@ use App\Http\Controllers\Technician\GrnController as TechnicianGrnController;
 use App\Http\Controllers\Admin\GrnReportController as AdminGrnReportController;
 use App\Http\Controllers\Supervisor\GrnReportController as SupervisorGrnReportController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\Admin\JobTypeController as AdminJobTypeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -378,6 +379,18 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::put('/{rate_card}', [AdminRateCardController::class, 'update'])->name('update');
         Route::delete('/{rate_card}', [AdminRateCardController::class, 'destroy'])->name('destroy');
         Route::post('/{rate_card}/toggle-status', [AdminRateCardController::class, 'toggleStatus'])->name('toggle-status');
+    });
+
+    /* Job Types Routes */
+    Route::prefix('job-types')->name('job-types.')->group(function () {
+        Route::get('/datatable', [AdminJobTypeController::class, 'datatable'])->name('datatable');
+        Route::patch('/{job_type}/toggle-status', [AdminJobTypeController::class, 'toggleStatus'])->name('toggle-status');
+        Route::get('/', [AdminJobTypeController::class, 'index'])->name('index');
+        Route::get('/create', [AdminJobTypeController::class, 'create'])->name('create');
+        Route::post('/', [AdminJobTypeController::class, 'store'])->name('store');
+        Route::get('/{job_type}/edit', [AdminJobTypeController::class, 'edit'])->name('edit');
+        Route::put('/{job_type}', [AdminJobTypeController::class, 'update'])->name('update');
+        Route::delete('/{job_type}', [AdminJobTypeController::class, 'destroy'])->name('destroy');
     });
 
     /* Depots Routes */
