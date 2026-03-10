@@ -9,21 +9,13 @@ class ChargeCatalog extends Model
 {
     use HasFactory;
 
-    const TYPE_INSTALLATION = 'installation';
-    const TYPE_SERVICE = 'service';
-    const TYPE_HARDWARE = 'hardware';
-    const TYPE_ACCESSORY = 'accessory';
-    const TYPE_LABOUR = 'labour';
-    const TYPE_TRANSPORT = 'transport';
-    const TYPE_OTHER = 'other';
-
     const STATUS_ACTIVE = 'active';
     const STATUS_INACTIVE = 'inactive';
 
     protected $table = 'charge_catalog';
 
     protected $fillable = [
-        'charge_code', 'charge_name', 'charge_type', 'description',
+        'charge_code', 'charge_name', 'job_type_id', 'description',
         'default_price', 'tax_rate', 'is_taxable', 'unit', 'status',
     ];
 
@@ -36,6 +28,14 @@ class ChargeCatalog extends Model
         ];
     }
 
+    /**
+     * Get the job type (replaces old charge_type enum).
+     */
+    public function jobType()
+    {
+        return $this->belongsTo(JobType::class);
+    }
+
     public function scopeActive($query) { return $query->where('status', self::STATUS_ACTIVE); }
-    public function scopeByType($query, $type) { return $query->where('charge_type', $type); }
+    public function scopeByType($query, $jobTypeId) { return $query->where('job_type_id', $jobTypeId); }
 }

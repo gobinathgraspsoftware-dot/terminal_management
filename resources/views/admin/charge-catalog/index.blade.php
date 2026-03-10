@@ -96,15 +96,11 @@
                     <h5 class="mb-0">Charge Catalog</h5>
                 </div>
                 <div class="col-auto">
-                    <div class="btn-group btn-group-sm" role="group">
-                        <button type="button" class="btn btn-outline-primary" id="filterAll">All</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="installation">Installation</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="service">Service</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="hardware">Hardware</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="accessory">Accessory</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="labour">Labour</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="transport">Transport</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="other">Other</button>
+                    <div class="btn-group btn-group-sm flex-wrap" role="group">
+                        <button type="button" class="btn btn-outline-primary active" id="filterAll">All</button>
+                        @foreach($jobTypes as $jobType)
+                        <button type="button" class="btn btn-outline-primary" data-type-id="{{ $jobType->id }}">{{ $jobType->job_title }}</button>
+                        @endforeach
                     </div>
                 </div>
             </div>
@@ -136,7 +132,7 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    var currentType = '';
+    var currentTypeId = '';
 
     // Initialize DataTable
     var table = $('#chargesTable').DataTable({
@@ -145,13 +141,13 @@ $(document).ready(function() {
         ajax: {
             url: '{{ route("admin.charge-catalog.datatable") }}',
             data: function(d) {
-                d.charge_type = currentType;
+                d.job_type_id = currentTypeId;
             }
         },
         columns: [
             { data: 'charge_code', name: 'charge_code' },
-            { 
-                data: 'charge_name', 
+            {
+                data: 'charge_name',
                 name: 'charge_name',
                 render: function(data, type, row) {
                     var html = '<strong>' + data + '</strong>';
@@ -161,7 +157,7 @@ $(document).ready(function() {
                     return html;
                 }
             },
-            { data: 'type_badge', name: 'charge_type', orderable: false, searchable: false },
+            { data: 'type_badge', name: 'job_type_id', orderable: false, searchable: false },
             { data: 'price_display', name: 'default_price', orderable: false, searchable: false },
             { data: 'tax_info', name: 'tax_rate', orderable: false, searchable: false },
             { data: 'status_badge', name: 'status', orderable: false, searchable: false },
@@ -174,23 +170,20 @@ $(document).ready(function() {
         }
     });
 
-    // Filter by type
-    $('.btn-group button[data-type]').on('click', function() {
-        currentType = $(this).data('type');
+    // Filter by job type (dynamic buttons)
+    $('.btn-group button[data-type-id]').on('click', function() {
+        currentTypeId = $(this).data('type-id');
         $('.btn-group button').removeClass('active');
         $(this).addClass('active');
         table.ajax.reload();
     });
 
     $('#filterAll').on('click', function() {
-        currentType = '';
+        currentTypeId = '';
         $('.btn-group button').removeClass('active');
         $(this).addClass('active');
         table.ajax.reload();
     });
-
-    // Set "All" as active by default
-    $('#filterAll').addClass('active');
 
     // Toggle Status
     $('#chargesTable').on('click', '.btn-toggle-status', function() {
@@ -201,7 +194,6 @@ $(document).ready(function() {
             'Change Status',
             'Are you sure you want to change the status of this charge?',
             function() {
-                // Show loading state on button
                 btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span>');
 
                 $.ajax({

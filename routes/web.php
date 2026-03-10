@@ -357,6 +357,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
     Route::prefix('charge-catalog')->name('charge-catalog.')->group(function () {
         Route::get('/', [AdminChargeCatalogController::class, 'index'])->name('index');
         Route::get('/datatable', [AdminChargeCatalogController::class, 'datatable'])->name('datatable');
+        Route::get('/ajax/job-types', [AdminChargeCatalogController::class, 'ajaxJobTypes'])->name('ajax.job-types');
         Route::get('/create', [AdminChargeCatalogController::class, 'create'])->name('create');
         Route::post('/', [AdminChargeCatalogController::class, 'store'])->name('store');
         Route::get('/{chargeCatalog}/edit', [AdminChargeCatalogController::class, 'edit'])->name('edit');

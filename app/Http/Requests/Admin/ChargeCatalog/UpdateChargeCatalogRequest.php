@@ -40,17 +40,10 @@ class UpdateChargeCatalogRequest extends FormRequest
                 'string',
                 'max:255',
             ],
-            'charge_type' => [
+            'job_type_id' => [
                 'required',
-                Rule::in([
-                    'installation',
-                    'service',
-                    'hardware',
-                    'accessory',
-                    'labour',
-                    'transport',
-                    'other',
-                ]),
+                'integer',
+                'exists:job_types,id',
             ],
             'description' => [
                 'nullable',
@@ -93,7 +86,7 @@ class UpdateChargeCatalogRequest extends FormRequest
         return [
             'charge_code' => 'charge code',
             'charge_name' => 'charge name',
-            'charge_type' => 'charge type',
+            'job_type_id' => 'charge type',
             'default_price' => 'default price',
             'tax_rate' => 'tax rate',
             'is_taxable' => 'taxable',
@@ -108,7 +101,7 @@ class UpdateChargeCatalogRequest extends FormRequest
         return [
             'charge_code.regex' => 'The charge code must be in format CHG000001.',
             'charge_code.unique' => 'This charge code already exists.',
-            'charge_type.in' => 'Invalid charge type selected.',
+            'job_type_id.exists' => 'The selected charge type is invalid.',
             'default_price.max' => 'The default price cannot exceed 9,999,999,999.99.',
             'tax_rate.max' => 'The tax rate cannot exceed 100%.',
         ];
@@ -119,7 +112,6 @@ class UpdateChargeCatalogRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        // Convert checkbox to boolean
         if ($this->has('is_taxable')) {
             $this->merge([
                 'is_taxable' => $this->boolean('is_taxable'),
@@ -130,7 +122,6 @@ class UpdateChargeCatalogRequest extends FormRequest
             ]);
         }
 
-        // If tax_rate is empty and not taxable, set to 0
         if (!$this->is_taxable && empty($this->tax_rate)) {
             $this->merge([
                 'tax_rate' => 0,

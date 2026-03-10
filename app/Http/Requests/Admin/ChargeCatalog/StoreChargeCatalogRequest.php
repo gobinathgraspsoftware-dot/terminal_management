@@ -38,17 +38,10 @@ class StoreChargeCatalogRequest extends FormRequest
                 'string',
                 'max:255',
             ],
-            'charge_type' => [
+            'job_type_id' => [
                 'required',
-                Rule::in([
-                    'installation',
-                    'service',
-                    'hardware',
-                    'accessory',
-                    'labour',
-                    'transport',
-                    'other',
-                ]),
+                'integer',
+                'exists:job_types,id',
             ],
             'description' => [
                 'nullable',
@@ -91,7 +84,7 @@ class StoreChargeCatalogRequest extends FormRequest
         return [
             'charge_code' => 'charge code',
             'charge_name' => 'charge name',
-            'charge_type' => 'charge type',
+            'job_type_id' => 'charge type',
             'default_price' => 'default price',
             'tax_rate' => 'tax rate',
             'is_taxable' => 'taxable',
@@ -106,7 +99,7 @@ class StoreChargeCatalogRequest extends FormRequest
         return [
             'charge_code.regex' => 'The charge code must be in format CHG000001.',
             'charge_code.unique' => 'This charge code already exists.',
-            'charge_type.in' => 'Invalid charge type selected.',
+            'job_type_id.exists' => 'The selected charge type is invalid.',
             'default_price.max' => 'The default price cannot exceed 9,999,999,999.99.',
             'tax_rate.max' => 'The tax rate cannot exceed 100%.',
         ];

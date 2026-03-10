@@ -19,14 +19,14 @@ class ChargeCatalogService
     public function generateChargeCode(): string
     {
         $lastCharge = ChargeCatalog::orderBy('id', 'desc')->first();
-        
+
         if (!$lastCharge) {
             return 'CHG000001';
         }
 
         $lastNumber = (int) substr($lastCharge->charge_code, 3);
         $newNumber = $lastNumber + 1;
-        
+
         return 'CHG' . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
     }
 
@@ -132,8 +132,8 @@ class ChargeCatalogService
      */
     public function toggleStatus(ChargeCatalog $charge): ChargeCatalog
     {
-        $newStatus = $charge->status === ChargeCatalog::STATUS_ACTIVE 
-            ? ChargeCatalog::STATUS_INACTIVE 
+        $newStatus = $charge->status === ChargeCatalog::STATUS_ACTIVE
+            ? ChargeCatalog::STATUS_INACTIVE
             : ChargeCatalog::STATUS_ACTIVE;
 
         $charge->update(['status' => $newStatus]);
@@ -155,7 +155,7 @@ class ChargeCatalogService
     {
         $subtotal = $charge->default_price * $quantity;
         $taxAmount = 0;
-        
+
         if ($charge->is_taxable && $charge->tax_rate > 0) {
             $taxAmount = $subtotal * ($charge->tax_rate / 100);
         }
@@ -168,26 +168,29 @@ class ChargeCatalogService
     }
 
     /**
-     * Get charges by type.
+     * Get charges by job type.
      */
-    public function getByType(string $type)
+    public function getByType(int $jobTypeId)
     {
-        return ChargeCatalog::where('charge_type', $type)
+        return ChargeCatalog::where('job_type_id', $jobTypeId)
             ->where('status', ChargeCatalog::STATUS_ACTIVE)
             ->orderBy('charge_name')
             ->get();
     }
 
     /**
-     * Get all active charges grouped by type.
+     * Get all active charges grouped by job type.
      */
     public function getGroupedByType()
     {
-        return ChargeCatalog::where('status', ChargeCatalog::STATUS_ACTIVE)
-            ->orderBy('charge_type')
+        return ChargeCatalog::with('jobType')
+            ->where('status', ChargeCatalog::STATUS_ACTIVE)
+            ->orderBy('job_type_id')
             ->orderBy('charge_name')
             ->get()
-            ->groupBy('charge_type');
+            ->groupBy(function ($charge) {
+                return $charge->jobType?->job_title ?? 'Unknown';
+            });
     }
 
     /**
@@ -195,11 +198,15 @@ class ChargeCatalogService
      */
     public function searchForLineItems(string $query = '')
     {
-        return ChargeCatalog::where('status', ChargeCatalog::STATUS_ACTIVE)
+        return ChargeCatalog::with('jobType')
+            ->where('status', ChargeCatalog::STATUS_ACTIVE)
             ->where(function ($q) use ($query) {
                 $q->where('charge_name', 'like', "%{$query}%")
                   ->orWhere('charge_code', 'like', "%{$query}%")
-                  ->orWhere('description', 'like', "%{$query}%");
+                  ->orWhere('description', 'like', "%{$query}%")
+                  ->orWhereHas('jobType', function ($jt) use ($query) {
+                      $jt->where('job_title', 'like', "%{$query}%");
+                  });
             })
             ->orderBy('charge_name')
             ->limit(50)
@@ -209,7 +216,8 @@ class ChargeCatalogService
                     'id' => $charge->id,
                     'code' => $charge->charge_code,
                     'name' => $charge->charge_name,
-                    'type' => $charge->charge_type,
+                    'type' => $charge->jobType?->job_title ?? 'Unknown',
+                    'job_type_id' => $charge->job_type_id,
                     'price' => $charge->default_price,
                     'tax_rate' => $charge->tax_rate,
                     'is_taxable' => $charge->is_taxable,

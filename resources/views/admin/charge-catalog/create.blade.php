@@ -29,26 +29,26 @@
                         <!-- Charge Code -->
                         <div class="mb-3">
                             <label for="charge_code" class="form-label">
-                                Charge Code <span class="text-muted">(Auto-generated if left empty)</span>
+                                Job Code <span class="text-muted">(Auto-generated if left empty)</span>
                             </label>
-                            <input type="text" 
-                                   class="form-control" 
-                                   id="charge_code" 
-                                   name="charge_code" 
+                            <input type="text"
+                                   class="form-control"
+                                   id="charge_code"
+                                   name="charge_code"
                                    value="{{ $nextCode }}"
-                                   placeholder="CHG000001">
+                                   placeholder="CHG000001" readonly>
                             <div class="invalid-feedback"></div>
                         </div>
 
                         <!-- Charge Name -->
                         <div class="mb-3">
                             <label for="charge_name" class="form-label">
-                                Charge Name <span class="text-danger">*</span>
+                                Job Name <span class="text-danger">*</span>
                             </label>
-                            <input type="text" 
-                                   class="form-control" 
-                                   id="charge_name" 
-                                   name="charge_name" 
+                            <input type="text"
+                                   class="form-control"
+                                   id="charge_name"
+                                   name="charge_name"
                                    required
                                    placeholder="Enter charge name">
                             <div class="invalid-feedback"></div>
@@ -56,28 +56,19 @@
 
                         <!-- Charge Type -->
                         <div class="mb-3">
-                            <label for="charge_type" class="form-label">
-                                Charge Type <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select" id="charge_type" name="charge_type" required>
+                            <label for="job_type_id" class="form-label">Job Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="job_type_id" name="job_type_id" required style="width: 100%;">
                                 <option value="">-- Select Type --</option>
-                                <option value="installation">Installation</option>
-                                <option value="service">Service</option>
-                                <option value="hardware">Hardware</option>
-                                <option value="accessory">Accessory</option>
-                                <option value="labour">Labour</option>
-                                <option value="transport">Transport</option>
-                                <option value="other">Other</option>
                             </select>
-                            <div class="invalid-feedback"></div>
+                            <div class="invalid-feedback" id="error-job_type_id"></div>
                         </div>
 
                         <!-- Description -->
                         <div class="mb-3">
                             <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" 
-                                      id="description" 
-                                      name="description" 
+                            <textarea class="form-control"
+                                      id="description"
+                                      name="description"
                                       rows="3"
                                       placeholder="Enter charge description"></textarea>
                             <div class="invalid-feedback"></div>
@@ -89,12 +80,12 @@
                                 <label for="default_price" class="form-label">
                                     Default Price (RM) <span class="text-danger">*</span>
                                 </label>
-                                <input type="number" 
-                                       class="form-control" 
-                                       id="default_price" 
-                                       name="default_price" 
-                                       step="0.01" 
-                                       min="0" 
+                                <input type="number"
+                                       class="form-control"
+                                       id="default_price"
+                                       name="default_price"
+                                       step="0.01"
+                                       min="0"
                                        required
                                        placeholder="0.00">
                                 <div class="invalid-feedback"></div>
@@ -103,10 +94,10 @@
                             <!-- Unit -->
                             <div class="col-md-6 mb-3">
                                 <label for="unit" class="form-label">Unit</label>
-                                <input type="text" 
-                                       class="form-control" 
-                                       id="unit" 
-                                       name="unit" 
+                                <input type="text"
+                                       class="form-control"
+                                       id="unit"
+                                       name="unit"
                                        placeholder="per unit, per hour, per terminal, etc.">
                                 <div class="invalid-feedback"></div>
                             </div>
@@ -116,15 +107,15 @@
                         <div class="card bg-light mb-3">
                             <div class="card-body">
                                 <h6 class="mb-3">Tax Configuration</h6>
-                                
+
                                 <!-- Is Taxable -->
                                 <div class="form-check mb-3">
                                     <input type="hidden" name="is_taxable" value="0">
-                                    <input class="form-check-input" 
-                                           type="checkbox" 
-                                           id="is_taxable" 
-                                           name="is_taxable" 
-                                           value="1" 
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           id="is_taxable"
+                                           name="is_taxable"
+                                           value="1"
                                            checked>
                                     <label class="form-check-label" for="is_taxable">
                                         This charge is taxable
@@ -136,12 +127,12 @@
                                     <label for="tax_rate" class="form-label">
                                         Tax Rate (%) <span class="text-danger">*</span>
                                     </label>
-                                    <input type="number" 
-                                           class="form-control" 
-                                           id="tax_rate" 
-                                           name="tax_rate" 
-                                           step="0.01" 
-                                           min="0" 
+                                    <input type="number"
+                                           class="form-control"
+                                           id="tax_rate"
+                                           name="tax_rate"
+                                           step="0.01"
+                                           min="0"
                                            max="100"
                                            value="6.00"
                                            required>
@@ -217,6 +208,28 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
+
+    /* Select2 for Job Type */
+    $('#job_type_id').select2({
+        theme: 'bootstrap-5',
+        placeholder: '-- Select Type --',
+        allowClear: true,
+        width: '100%',
+        ajax: {
+            url: '{{ route("admin.charge-catalog.ajax.job-types") }}',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return { q: params.term || '' };
+            },
+            processResults: function(data) {
+                return { results: data.results };
+            },
+            cache: true
+        },
+        minimumInputLength: 0
+    });
+
     // Toggle tax rate field based on is_taxable checkbox
     $('#is_taxable').on('change', function() {
         if ($(this).is(':checked')) {
@@ -239,7 +252,7 @@ $(document).ready(function() {
         var submitBtn = $('#submitBtn');
         var originalBtnText = submitBtn.html();
         var formData = $('#createChargeForm').serialize();
-        
+
         submitBtn.prop('disabled', true)
                  .html('<span class="spinner-border spinner-border-sm me-1"></span> Creating...');
 
@@ -271,8 +284,8 @@ $(document).ready(function() {
                     });
                     showToast('Please correct the errors in the form', 'error');
                 } else {
-                    var msg = (xhr.responseJSON && xhr.responseJSON.message) 
-                              ? xhr.responseJSON.message 
+                    var msg = (xhr.responseJSON && xhr.responseJSON.message)
+                              ? xhr.responseJSON.message
                               : 'An error occurred. Please try again.';
                     showToast(msg, 'error');
                 }

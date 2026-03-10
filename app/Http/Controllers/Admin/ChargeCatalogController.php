@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ChargeCatalog\StoreChargeCatalogRequest;
 use App\Http\Requests\Admin\ChargeCatalog\UpdateChargeCatalogRequest;
 use App\Models\ChargeCatalog;
+use App\Models\JobType;
 use App\Services\ChargeCatalogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -53,7 +54,8 @@ class ChargeCatalogController extends Controller implements HasMiddleware
     {
         Gate::authorize('view', ChargeCatalog::class);
 
-        $charges = ChargeCatalog::orderBy('charge_type')
+        $charges = ChargeCatalog::with('jobType')
+            ->orderBy('job_type_id')
             ->orderBy('charge_name')
             ->get();
 
@@ -62,15 +64,20 @@ class ChargeCatalogController extends Controller implements HasMiddleware
             'total_charges' => ChargeCatalog::count(),
             'active_charges' => ChargeCatalog::where('status', ChargeCatalog::STATUS_ACTIVE)->count(),
             'taxable_charges' => ChargeCatalog::where('is_taxable', true)->count(),
-            'types' => ChargeCatalog::select('charge_type')
+            'types' => ChargeCatalog::select('job_type_id')
                 ->distinct()
                 ->count(),
         ];
 
-        // Group charges by type for quick reference
-        $chargesByType = $charges->groupBy('charge_type');
+        // Group charges by job type for quick reference
+        $chargesByType = $charges->groupBy(function ($charge) {
+            return $charge->jobType?->job_title ?? 'Unknown';
+        });
 
-        return view('admin.charge-catalog.index', compact('charges', 'stats', 'chargesByType'));
+        // Job types for filter dropdown
+        $jobTypes = JobType::active()->orderBy('job_title')->get();
+
+        return view('admin.charge-catalog.index', compact('charges', 'stats', 'chargesByType', 'jobTypes'));
     }
 
     /**
@@ -80,11 +87,12 @@ class ChargeCatalogController extends Controller implements HasMiddleware
     {
         Gate::authorize('view', ChargeCatalog::class);
 
-        $query = ChargeCatalog::select('charge_catalog.*');
+        $query = ChargeCatalog::with('jobType')
+            ->select('charge_catalog.*');
 
-        // Filter by charge type if provided
-        if ($request->filled('charge_type')) {
-            $query->where('charge_type', $request->charge_type);
+        // Filter by job type if provided
+        if ($request->filled('job_type_id')) {
+            $query->where('job_type_id', $request->job_type_id);
         }
 
         // Filter by status if provided
@@ -94,17 +102,8 @@ class ChargeCatalogController extends Controller implements HasMiddleware
 
         return DataTables::of($query)
             ->addColumn('type_badge', function ($charge) {
-                $colors = [
-                    'installation' => 'primary',
-                    'service' => 'info',
-                    'hardware' => 'success',
-                    'accessory' => 'warning',
-                    'labour' => 'secondary',
-                    'transport' => 'dark',
-                    'other' => 'light',
-                ];
-                $color = $colors[$charge->charge_type] ?? 'secondary';
-                return '<span class="badge bg-' . $color . '">' . ucfirst($charge->charge_type) . '</span>';
+                $title = $charge->jobType?->job_title ?? 'Unknown';
+                return '<span class="badge bg-primary">' . htmlspecialchars($title) . '</span>';
             })
             ->addColumn('price_display', function ($charge) {
                 return '<strong>RM ' . number_format($charge->default_price, 2) . '</strong>' .
@@ -123,41 +122,41 @@ class ChargeCatalogController extends Controller implements HasMiddleware
             })
             ->addColumn('action', function ($charge) {
                 $actions = '';
-                
+
                 // Edit button
                 if (auth()->user()->can('update', $charge)) {
-                    $actions .= '<a href="' . route('admin.charge-catalog.edit', $charge->id) . '" 
-                                   class="btn btn-sm btn-primary me-1" 
+                    $actions .= '<a href="' . route('admin.charge-catalog.edit', $charge->id) . '"
+                                   class="btn btn-sm btn-primary me-1"
                                    title="Edit">
                                    <i class="bi bi-pencil"></i>
                                </a>';
                 }
-                
+
                 // Status toggle button
                 if (auth()->user()->can('update', $charge)) {
-                    $statusIcon = $charge->status === ChargeCatalog::STATUS_ACTIVE 
-                        ? 'bi-toggle-on text-success' 
+                    $statusIcon = $charge->status === ChargeCatalog::STATUS_ACTIVE
+                        ? 'bi-toggle-on text-success'
                         : 'bi-toggle-off text-secondary';
-                    $actions .= '<button type="button" 
-                                   class="btn btn-sm btn-outline-secondary me-1 btn-toggle-status" 
-                                   data-id="' . $charge->id . '" 
+                    $actions .= '<button type="button"
+                                   class="btn btn-sm btn-outline-secondary me-1 btn-toggle-status"
+                                   data-id="' . $charge->id . '"
                                    data-status="' . $charge->status . '"
                                    title="Toggle Status">
                                    <i class="bi ' . $statusIcon . '"></i>
                                </button>';
                 }
-                
+
                 // Delete button
                 if (auth()->user()->can('delete', $charge)) {
-                    $actions .= '<button type="button" 
-                                   class="btn btn-sm btn-danger btn-delete" 
-                                   data-id="' . $charge->id . '" 
+                    $actions .= '<button type="button"
+                                   class="btn btn-sm btn-danger btn-delete"
+                                   data-id="' . $charge->id . '"
                                    data-name="' . htmlspecialchars($charge->charge_name) . '"
                                    title="Delete">
                                    <i class="bi bi-trash"></i>
                                </button>';
                 }
-                
+
                 return $actions ?: '<span class="text-muted">No actions</span>';
             })
             ->rawColumns(['type_badge', 'price_display', 'tax_info', 'status_badge', 'action'])
@@ -204,7 +203,7 @@ class ChargeCatalogController extends Controller implements HasMiddleware
     {
         Gate::authorize('update', $chargeCatalog);
 
-        $charge = $chargeCatalog;
+        $charge = $chargeCatalog->load('jobType');
 
         return view('admin.charge-catalog.edit', compact('charge'));
     }
@@ -286,5 +285,30 @@ class ChargeCatalogController extends Controller implements HasMiddleware
         $charges = $this->chargeService->searchForLineItems($query);
 
         return response()->json($charges);
+    }
+
+    /**
+     * AJAX: Search job types for Select2 dropdown.
+     */
+    public function ajaxJobTypes(Request $request): JsonResponse
+    {
+        $search = $request->get('q', '');
+
+        $jobTypes = JobType::active()
+            ->when($search, function ($query) use ($search) {
+                $query->where('job_title', 'like', "%{$search}%");
+            })
+            ->orderBy('job_title')
+            ->limit(50)
+            ->get(['id', 'job_title']);
+
+        return response()->json([
+            'results' => $jobTypes->map(function ($type) {
+                return [
+                    'id' => $type->id,
+                    'text' => $type->job_title,
+                ];
+            }),
+        ]);
     }
 }
