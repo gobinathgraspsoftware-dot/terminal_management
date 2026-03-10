@@ -73,7 +73,7 @@
                             <i class="bi bi-shield-lock me-2"></i> Roles
                         </a>
                     </li>
-                    <li class="nav-item">
+                    {{-- <li class="nav-item">
                         <a class="nav-link {{ $isPermissionRoute && !str_contains($currentRoute, 'matrix') ? 'active' : '' }}"
                            href="{{ route('admin.permissions.index') }}">
                             <i class="bi bi-key me-2"></i> Permissions
@@ -84,7 +84,7 @@
                            href="{{ route('admin.permissions.matrix') }}">
                             <i class="bi bi-grid-3x3-gap me-2"></i> Permission Matrix
                         </a>
-                    </li>
+                    </li> --}}
                 </ul>
             </div>
 

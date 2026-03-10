@@ -29,14 +29,14 @@
                 </ol>
             </nav>
         </div>
-        <div>
+        {{-- <div>
             <a href="{{ route('admin.permissions.matrix') }}" class="btn btn-outline-primary me-2">
                 <i class="bi bi-grid-3x3-gap me-1"></i> Permission Matrix
             </a>
             <a href="{{ route('admin.roles.create') }}" class="btn btn-primary">
                 <i class="bi bi-plus-lg me-1"></i> Create Role
             </a>
-        </div>
+        </div> --}}
     </div>
 
     <!-- Statistics Cards -->
