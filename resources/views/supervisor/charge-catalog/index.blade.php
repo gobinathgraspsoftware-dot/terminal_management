@@ -1,18 +1,20 @@
 @extends('layouts.app')
 
-@section('title', 'Charge Catalog Reference')
+@section('title', 'Charge Catalog')
 
 @section('content')
 <div class="container-fluid">
     <!-- Page Header -->
-    <div class="mb-4">
-        <h1 class="h3 mb-0">Charge Catalog Reference</h1>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item"><a href="{{ route('supervisor.dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item active">Charge Catalog</li>
-            </ol>
-        </nav>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Charge Catalog</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ route('supervisor.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Charge Catalog</li>
+                </ol>
+            </nav>
+        </div>
     </div>
 
     <!-- Statistics Cards -->
@@ -69,18 +71,14 @@
         <div class="card-header bg-white py-3">
             <div class="row align-items-center">
                 <div class="col">
-                    <h5 class="mb-0">Charge Catalog (Active Only)</h5>
+                    <h5 class="mb-0">Charge Catalog <small class="text-muted">(View Only)</small></h5>
                 </div>
                 <div class="col-auto">
-                    <div class="btn-group btn-group-sm" role="group">
+                    <div class="btn-group btn-group-sm flex-wrap" role="group">
                         <button type="button" class="btn btn-outline-primary active" id="filterAll">All</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="installation">Installation</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="service">Service</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="hardware">Hardware</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="accessory">Accessory</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="labour">Labour</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="transport">Transport</button>
-                        <button type="button" class="btn btn-outline-primary" data-type="other">Other</button>
+                        @foreach($jobTypes as $jobType)
+                        <button type="button" class="btn btn-outline-primary" data-type-id="{{ $jobType->id }}">{{ $jobType->job_title }}</button>
+                        @endforeach
                     </div>
                 </div>
             </div>
@@ -107,42 +105,34 @@
 </div>
 @endsection
 
-@push('styles')
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
-@endpush
-
 @push('scripts')
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-
 <script>
 $(document).ready(function() {
-    let currentType = '';
+    var currentTypeId = '';
 
-    // Initialize DataTable
-    const table = $('#chargesTable').DataTable({
+    var table = $('#chargesTable').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
-            url: '{{ route('supervisor.charge-catalog.datatable') }}',
+            url: '{{ route("supervisor.charge-catalog.datatable") }}',
             data: function(d) {
-                d.charge_type = currentType;
+                d.job_type_id = currentTypeId;
             }
         },
         columns: [
             { data: 'charge_code', name: 'charge_code' },
-            { 
-                data: 'charge_name', 
+            {
+                data: 'charge_name',
                 name: 'charge_name',
                 render: function(data, type, row) {
-                    let html = '<strong>' + data + '</strong>';
+                    var html = '<strong>' + data + '</strong>';
                     if (row.description) {
                         html += '<br><small class="text-muted">' + row.description + '</small>';
                     }
                     return html;
                 }
             },
-            { data: 'type_badge', name: 'charge_type', orderable: false, searchable: false },
+            { data: 'type_badge', name: 'job_type_id', orderable: false, searchable: false },
             { data: 'price_display', name: 'default_price', orderable: false, searchable: false },
             { data: 'tax_info', name: 'tax_rate', orderable: false, searchable: false }
         ],
@@ -153,16 +143,16 @@ $(document).ready(function() {
         }
     });
 
-    // Filter by type
-    $('.btn-group button[data-type]').on('click', function() {
-        currentType = $(this).data('type');
+    // Filter by job type (dynamic buttons)
+    $('.btn-group button[data-type-id]').on('click', function() {
+        currentTypeId = $(this).data('type-id');
         $('.btn-group button').removeClass('active');
         $(this).addClass('active');
         table.ajax.reload();
     });
 
     $('#filterAll').on('click', function() {
-        currentType = '';
+        currentTypeId = '';
         $('.btn-group button').removeClass('active');
         $(this).addClass('active');
         table.ajax.reload();

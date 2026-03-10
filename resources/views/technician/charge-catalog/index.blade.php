@@ -5,17 +5,24 @@
 @section('content')
 <div class="container-fluid">
     <!-- Page Header -->
-    <div class="mb-4">
-        <h1 class="h3 mb-0">Charge Catalog</h1>
-        <p class="text-muted mb-0">Quick reference for standard charges</p>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Charge Catalog</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ route('technician.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Charge Catalog</li>
+                </ol>
+            </nav>
+        </div>
     </div>
 
-    <!-- Quick Stats -->
+    <!-- Statistics -->
     <div class="row mb-4">
         <div class="col-6">
             <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <h2 class="mb-0 text-primary">{{ $stats['total_charges'] }}</h2>
+                    <h4 class="mb-0 text-primary">{{ $stats['total_charges'] }}</h4>
                     <small class="text-muted">Total Charges</small>
                 </div>
             </div>
@@ -23,136 +30,89 @@
         <div class="col-6">
             <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <h2 class="mb-0 text-info">{{ $stats['types'] }}</h2>
+                    <h4 class="mb-0 text-info">{{ $stats['types'] }}</h4>
                     <small class="text-muted">Charge Types</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Search Box -->
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body">
-            <div class="input-group">
-                <span class="input-group-text">
-                    <i class="bi bi-search"></i>
-                </span>
-                <input type="text" 
-                       class="form-control" 
-                       id="searchBox" 
-                       placeholder="Search charges...">
-            </div>
-        </div>
+    <!-- Search -->
+    <div class="mb-3">
+        <input type="text" class="form-control" id="searchCharges" placeholder="Search charges...">
     </div>
 
-    <!-- Charges Grouped by Type -->
-    @foreach($chargesByType as $type => $charges)
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white py-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <span class="badge bg-{{ 
-                        $type == 'installation' ? 'primary' : 
-                        ($type == 'service' ? 'info' : 
-                        ($type == 'hardware' ? 'success' : 
-                        ($type == 'accessory' ? 'warning' : 
-                        ($type == 'labour' ? 'secondary' : 
-                        ($type == 'transport' ? 'dark' : 'light'))))) 
-                    }} me-2">
-                        {{ ucfirst($type) }}
-                    </span>
-                </h5>
-                <span class="badge bg-secondary">{{ $charges->count() }} items</span>
-            </div>
+    <!-- Charges grouped by Job Type -->
+    @forelse($chargesByType as $typeName => $charges)
+    <div class="card border-0 shadow-sm mb-3 charge-group">
+        <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center"
+             data-bs-toggle="collapse" data-bs-target="#type-{{ Str::slug($typeName) }}"
+             role="button" aria-expanded="true">
+            <h6 class="mb-0">
+                <i class="bi bi-briefcase me-1"></i> {{ $typeName }}
+                <span class="badge bg-primary ms-1">{{ $charges->count() }}</span>
+            </h6>
+            <i class="bi bi-chevron-down"></i>
         </div>
-        <div class="list-group list-group-flush">
-            @foreach($charges as $charge)
-            <div class="list-group-item">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <h6 class="mb-1">{{ $charge->charge_name }}</h6>
-                        @if($charge->description)
-                        <p class="mb-1 text-muted small">{{ $charge->description }}</p>
-                        @endif
-                        <small class="text-muted">{{ $charge->charge_code }}</small>
-                        @if($charge->unit)
-                        <small class="text-muted"> • {{ $charge->unit }}</small>
-                        @endif
-                    </div>
-                    <div class="text-end ms-3">
-                        <strong class="text-primary d-block">RM {{ number_format($charge->default_price, 2) }}</strong>
-                        @if($charge->is_taxable)
-                        <small class="text-success">
-                            <i class="bi bi-check-circle-fill"></i> {{ $charge->tax_rate }}% tax
-                        </small>
-                        @else
-                        <small class="text-secondary">No tax</small>
-                        @endif
+        <div class="collapse show" id="type-{{ Str::slug($typeName) }}">
+            <div class="list-group list-group-flush">
+                @foreach($charges as $charge)
+                <div class="list-group-item charge-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>{{ $charge->charge_name }}</strong>
+                            <br><small class="text-muted">{{ $charge->charge_code }}</small>
+                            @if($charge->description)
+                                <br><small class="text-muted">{{ Str::limit($charge->description, 60) }}</small>
+                            @endif
+                        </div>
+                        <div class="text-end">
+                            <strong class="text-primary">RM {{ number_format($charge->default_price, 2) }}</strong>
+                            @if($charge->unit)
+                                <br><small class="text-muted">{{ $charge->unit }}</small>
+                            @endif
+                            @if($charge->is_taxable)
+                                <br><span class="badge bg-success">{{ $charge->tax_rate }}% Tax</span>
+                            @endif
+                        </div>
                     </div>
                 </div>
+                @endforeach
             </div>
-            @endforeach
         </div>
     </div>
-    @endforeach
-
-    @if($chargesByType->isEmpty())
+    @empty
     <div class="card border-0 shadow-sm">
-        <div class="card-body text-center py-5">
-            <i class="bi bi-inbox fs-1 text-muted"></i>
-            <p class="text-muted mt-3">No charges available</p>
+        <div class="card-body text-center text-muted py-5">
+            <i class="bi bi-tag fs-1"></i>
+            <p class="mt-2">No charges available.</p>
         </div>
     </div>
-    @endif
+    @endforelse
 </div>
 @endsection
 
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Simple search functionality
-    $('#searchBox').on('keyup', function() {
-        const searchTerm = $(this).val().toLowerCase();
-        
-        $('.list-group-item').each(function() {
-            const text = $(this).text().toLowerCase();
-            if (text.includes(searchTerm)) {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
+    // Simple client-side search filter
+    $('#searchCharges').on('keyup', function() {
+        var search = $(this).val().toLowerCase();
+        if (search === '') {
+            $('.charge-group').show();
+            $('.charge-item').show();
+            return;
+        }
+        $('.charge-item').each(function() {
+            var text = $(this).text().toLowerCase();
+            $(this).toggle(text.indexOf(search) > -1);
         });
-
-        // Hide/show card headers based on visible items
-        $('.card').each(function() {
-            const visibleItems = $(this).find('.list-group-item:visible').length;
-            if (visibleItems > 0) {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
+        // Hide empty groups
+        $('.charge-group').each(function() {
+            var visible = $(this).find('.charge-item:visible').length;
+            $(this).toggle(visible > 0);
         });
     });
 });
 </script>
-@endpush
-
-@push('styles')
-<style>
-/* Mobile-friendly spacing */
-@media (max-width: 768px) {
-    .container-fluid {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-    
-    .card {
-        margin-bottom: 1rem;
-    }
-    
-    .list-group-item {
-        padding: 1rem 0.75rem;
-    }
-}
-</style>
 @endpush

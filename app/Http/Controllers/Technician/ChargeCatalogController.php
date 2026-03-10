@@ -46,7 +46,7 @@ class ChargeCatalogController extends Controller implements HasMiddleware
     {
         Gate::authorize('view', ChargeCatalog::class);
 
-        // Get active charges grouped by type for easy reference
+        // Get active charges grouped by job type for easy reference
         $chargesByType = $this->chargeService->getGroupedByType();
 
         $stats = [
@@ -58,14 +58,14 @@ class ChargeCatalogController extends Controller implements HasMiddleware
     }
 
     /**
-     * Get charges by type (AJAX).
+     * Get charges by job type (AJAX).
      */
     public function getByType(Request $request): JsonResponse
     {
         Gate::authorize('view', ChargeCatalog::class);
 
-        $type = $request->get('type');
-        $charges = $this->chargeService->getByType($type);
+        $jobTypeId = $request->get('job_type_id');
+        $charges = $this->chargeService->getByType((int) $jobTypeId);
 
         return response()->json([
             'success' => true,

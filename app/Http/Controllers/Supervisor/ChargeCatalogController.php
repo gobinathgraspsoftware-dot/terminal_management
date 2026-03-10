@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Supervisor;
 
 use App\Http\Controllers\Controller;
 use App\Models\ChargeCatalog;
+use App\Models\JobType;
 use App\Services\ChargeCatalogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,8 +48,9 @@ class ChargeCatalogController extends Controller implements HasMiddleware
     {
         Gate::authorize('view', ChargeCatalog::class);
 
-        $charges = ChargeCatalog::where('status', ChargeCatalog::STATUS_ACTIVE)
-            ->orderBy('charge_type')
+        $charges = ChargeCatalog::with('jobType')
+            ->where('status', ChargeCatalog::STATUS_ACTIVE)
+            ->orderBy('job_type_id')
             ->orderBy('charge_name')
             ->get();
 
@@ -58,15 +60,20 @@ class ChargeCatalogController extends Controller implements HasMiddleware
             'taxable_charges' => ChargeCatalog::where('status', ChargeCatalog::STATUS_ACTIVE)
                 ->where('is_taxable', true)->count(),
             'types' => ChargeCatalog::where('status', ChargeCatalog::STATUS_ACTIVE)
-                ->select('charge_type')
+                ->select('job_type_id')
                 ->distinct()
                 ->count(),
         ];
 
-        // Group charges by type for quick reference
-        $chargesByType = $charges->groupBy('charge_type');
+        // Group charges by job type for quick reference
+        $chargesByType = $charges->groupBy(function ($charge) {
+            return $charge->jobType?->job_title ?? 'Unknown';
+        });
 
-        return view('supervisor.charge-catalog.index', compact('charges', 'stats', 'chargesByType'));
+        // Job types for filter
+        $jobTypes = JobType::active()->orderBy('job_title')->get();
+
+        return view('supervisor.charge-catalog.index', compact('charges', 'stats', 'chargesByType', 'jobTypes'));
     }
 
     /**
@@ -76,27 +83,19 @@ class ChargeCatalogController extends Controller implements HasMiddleware
     {
         Gate::authorize('view', ChargeCatalog::class);
 
-        $query = ChargeCatalog::where('status', ChargeCatalog::STATUS_ACTIVE)
+        $query = ChargeCatalog::with('jobType')
+            ->where('status', ChargeCatalog::STATUS_ACTIVE)
             ->select('charge_catalog.*');
 
-        // Filter by charge type if provided
-        if ($request->filled('charge_type')) {
-            $query->where('charge_type', $request->charge_type);
+        // Filter by job type if provided
+        if ($request->filled('job_type_id')) {
+            $query->where('job_type_id', $request->job_type_id);
         }
 
         return DataTables::of($query)
             ->addColumn('type_badge', function ($charge) {
-                $colors = [
-                    'installation' => 'primary',
-                    'service' => 'info',
-                    'hardware' => 'success',
-                    'accessory' => 'warning',
-                    'labour' => 'secondary',
-                    'transport' => 'dark',
-                    'other' => 'light',
-                ];
-                $color = $colors[$charge->charge_type] ?? 'secondary';
-                return '<span class="badge bg-' . $color . '">' . ucfirst($charge->charge_type) . '</span>';
+                $title = $charge->jobType?->job_title ?? 'Unknown';
+                return '<span class="badge bg-primary">' . htmlspecialchars($title) . '</span>';
             })
             ->addColumn('price_display', function ($charge) {
                 return '<strong>RM ' . number_format($charge->default_price, 2) . '</strong>' .
