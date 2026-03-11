@@ -122,6 +122,10 @@ class RolePermissionSeeder extends Seeder
             'view_summary_report_stock_reports',
             'export_stock_reports',
             'print_stock_card_stock_reports',
+
+            // Tickets - Create, edit, assign team, change status, comment
+            'view_tickets', 'create_tickets', 'edit_tickets', 'assign_tickets',
+            'change_status_tickets', 'add_comment_tickets', 'view_team_tickets',
         ];
 
         $supervisorRole->syncPermissions($supervisorPermissions);
@@ -179,6 +183,9 @@ class RolePermissionSeeder extends Seeder
 
             /* Stock Returns */
             'view_stock_returns', 'create_stock_returns', 'edit_stock_returns', 'view_technician_inventory_stock_returns',
+
+            // Tickets - View own, change status (start/complete), comment
+            'view_tickets', 'change_status_tickets', 'add_comment_tickets', 'view_own_tickets',
         ];
 
         $technicianRole->syncPermissions($technicianPermissions);

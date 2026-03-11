@@ -122,6 +122,23 @@
                 </ul>
             </div>
 
+            @php
+                $isTicketRoute = str_contains($currentRoute ?? '', 'admin.tickets');
+            @endphp
+            @can('view_tickets')
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Ticket Management</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isTicketRoute ? 'active' : '' }}"
+                        href="{{ route('admin.tickets.index') }}">
+                            <i class="bi bi-ticket-detailed me-2"></i> Tickets
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            @endcan
+
             <!-- Master Data Section (NEW - Includes Partners) -->
             @php
                 $isPartnerRoute = str_contains($currentRoute ?? '', 'admin.partners');
@@ -589,6 +606,23 @@
                 </ul>
             </div>
 
+            @php
+                $isTicketRoute = str_contains($currentRoute ?? '', 'supervisor.tickets');
+            @endphp
+            @can('view_tickets')
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Ticket Management</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isTicketRoute ? 'active' : '' }}"
+                        href="{{ route('supervisor.tickets.index') }}">
+                            <i class="bi bi-ticket-detailed me-2"></i> Tickets
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            @endcan
+
             <!-- Master Data Section (View Only for Supervisor) -->
             @php
                 $isPartnerRoute = str_contains($currentRoute ?? '', 'supervisor.partners');
@@ -997,6 +1031,23 @@
                     </li>
                 </ul>
             </div>
+
+            @php
+                $isTicketRoute = str_contains($currentRoute ?? '', 'technician.tickets');
+            @endphp
+            @can('view_tickets')
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Ticket Management</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isTicketRoute ? 'active' : '' }}"
+                        href="{{ route('technician.tickets.index') }}">
+                            <i class="bi bi-ticket-detailed me-2"></i> My Tickets
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            @endcan
 
             @php
                 $isPartnerRoute = str_contains($currentRoute ?? '', 'technician.partners');

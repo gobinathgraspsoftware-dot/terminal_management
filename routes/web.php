@@ -88,6 +88,9 @@ use App\Http\Controllers\Admin\GrnReportController as AdminGrnReportController;
 use App\Http\Controllers\Supervisor\GrnReportController as SupervisorGrnReportController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\Admin\JobTypeController as AdminJobTypeController;
+use App\Http\Controllers\Admin\TicketController as AdminTicketController;
+use App\Http\Controllers\Supervisor\TicketController as SupervisorTicketController;
+use App\Http\Controllers\Technician\TicketController as TechnicianTicketController;
 
 /*
 |--------------------------------------------------------------------------
@@ -651,6 +654,24 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/export-receiving-by-model', [AdminGrnReportController::class, 'exportReceivingByModel'])->name('export-receiving-by-model');
     });
 
+    /* Ticket Management Routes */
+    Route::prefix('tickets')->name('tickets.')->group(function () {
+        Route::get('/', [AdminTicketController::class, 'index'])->name('index');
+        Route::get('/datatable', [AdminTicketController::class, 'datatable'])->name('datatable');
+        Route::get('/create', [AdminTicketController::class, 'create'])->name('create');
+        Route::post('/', [AdminTicketController::class, 'store'])->name('store');
+        Route::get('/ajax/vendor-branches', [AdminTicketController::class, 'getVendorBranches'])->name('ajax.vendor-branches');
+        Route::get('/ajax/cities', [AdminTicketController::class, 'getCities'])->name('ajax.cities');
+        Route::get('/ajax/technicians', [AdminTicketController::class, 'getTechnicians'])->name('ajax.technicians');
+        Route::get('/{ticket}', [AdminTicketController::class, 'show'])->name('show');
+        Route::get('/{ticket}/edit', [AdminTicketController::class, 'edit'])->name('edit');
+        Route::put('/{ticket}', [AdminTicketController::class, 'update'])->name('update');
+        Route::delete('/{ticket}', [AdminTicketController::class, 'destroy'])->name('destroy');
+        Route::post('/{ticket}/change-status', [AdminTicketController::class, 'changeStatus'])->name('change-status');
+        Route::post('/{ticket}/assign', [AdminTicketController::class, 'assign'])->name('assign');
+        Route::post('/{ticket}/comment', [AdminTicketController::class, 'addComment'])->name('comment');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -965,6 +986,23 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/export-receiving-by-model', [SupervisorGrnReportController::class, 'exportReceivingByModel'])->name('export-receiving-by-model');
     });
 
+    /* Ticket Management Routes */
+    Route::prefix('tickets')->name('tickets.')->group(function () {
+        Route::get('/', [SupervisorTicketController::class, 'index'])->name('index');
+        Route::get('/datatable', [SupervisorTicketController::class, 'datatable'])->name('datatable');
+        Route::get('/create', [SupervisorTicketController::class, 'create'])->name('create');
+        Route::post('/', [SupervisorTicketController::class, 'store'])->name('store');
+        Route::get('/ajax/vendor-branches', [SupervisorTicketController::class, 'getVendorBranches'])->name('ajax.vendor-branches');
+        Route::get('/ajax/cities', [SupervisorTicketController::class, 'getCities'])->name('ajax.cities');
+        Route::get('/ajax/technicians', [SupervisorTicketController::class, 'getTechnicians'])->name('ajax.technicians');
+        Route::get('/{ticket}', [SupervisorTicketController::class, 'show'])->name('show');
+        Route::get('/{ticket}/edit', [SupervisorTicketController::class, 'edit'])->name('edit');
+        Route::put('/{ticket}', [SupervisorTicketController::class, 'update'])->name('update');
+        Route::post('/{ticket}/change-status', [SupervisorTicketController::class, 'changeStatus'])->name('change-status');
+        Route::post('/{ticket}/assign', [SupervisorTicketController::class, 'assign'])->name('assign');
+        Route::post('/{ticket}/comment', [SupervisorTicketController::class, 'addComment'])->name('comment');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -1163,6 +1201,15 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
     Route::prefix('grns')->name('grns.')->group(function () {
         Route::get('/', [TechnicianGrnController::class, 'index'])->name('index');
         Route::get('/{grn}', [TechnicianGrnController::class, 'show'])->name('show');
+    });
+
+    /* Ticket Management Routes */
+    Route::prefix('tickets')->name('tickets.')->group(function () {
+        Route::get('/', [TechnicianTicketController::class, 'index'])->name('index');
+        Route::get('/datatable', [TechnicianTicketController::class, 'datatable'])->name('datatable');
+        Route::get('/{ticket}', [TechnicianTicketController::class, 'show'])->name('show');
+        Route::post('/{ticket}/change-status', [TechnicianTicketController::class, 'changeStatus'])->name('change-status');
+        Route::post('/{ticket}/comment', [TechnicianTicketController::class, 'addComment'])->name('comment');
     });
 
     /* Claims */
