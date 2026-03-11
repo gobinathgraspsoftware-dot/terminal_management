@@ -74,7 +74,7 @@
                         <select name="job_type_id" id="job_type_id" class="form-select" required>
                             <option value="">Select Job Type</option>
                             @foreach($jobTypes as $jt)
-                            <option value="{{ $jt->id }}">{{ $jt->name }}</option>
+                            <option value="{{ $jt->id }}">{{ $jt->job_title }}</option>
                             @endforeach
                         </select>
                         <div class="invalid-feedback"></div>

@@ -42,7 +42,7 @@ class TicketController extends Controller
                     'ticket_no' => $ticket->ticket_no,
                     'vendor_name' => $ticket->vendor?->vendor_name ?? '-',
                     'branch_name' => $ticket->vendorBranch?->branch_name ?? '-',
-                    'job_type' => $ticket->jobType?->name ?? '-',
+                    'job_type' => $ticket->jobType?->job_title ?? '-',
                     'status' => $ticket->status,
                     'status_badge' => Ticket::getStatusBadge($ticket->status),
                     'status_label' => Ticket::getStatuses()[$ticket->status] ?? $ticket->status,
@@ -74,7 +74,7 @@ class TicketController extends Controller
             ->where('status', 'active')
             ->orderBy('name')
             ->get();
-        $jobTypes = JobType::where('status', 'active')->orderBy('name')->get();
+        $jobTypes = JobType::where('status', 'active')->orderBy('job_title')->get();
 
         return view('supervisor.tickets.create', compact('vendors', 'states', 'technicians', 'jobTypes'));
     }
@@ -131,7 +131,7 @@ class TicketController extends Controller
         $cities = $ticket->state_id ? City::where('state_id', $ticket->state_id)->orderBy('name')->get() : collect();
         $branches = $ticket->vendor_id ? VendorBranch::where('vendor_id', $ticket->vendor_id)->where('status', 'active')->get() : collect();
         $technicians = User::where('supervisor_id', auth()->id())->where('status', 'active')->orderBy('name')->get();
-        $jobTypes = JobType::where('status', 'active')->orderBy('name')->get();
+        $jobTypes = JobType::where('status', 'active')->orderBy('job_title')->get();
 
         return view('supervisor.tickets.edit', compact('ticket', 'vendors', 'states', 'cities', 'branches', 'technicians', 'jobTypes'));
     }

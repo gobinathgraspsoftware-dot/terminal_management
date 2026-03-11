@@ -33,7 +33,7 @@ class TicketController extends Controller
                     'id' => $ticket->id,
                     'ticket_no' => $ticket->ticket_no,
                     'vendor_name' => $ticket->vendor?->vendor_name ?? '-',
-                    'job_type' => $ticket->jobType?->name ?? '-',
+                    'job_type' => $ticket->jobType?->job_title ?? '-',
                     'status' => $ticket->status,
                     'status_badge' => Ticket::getStatusBadge($ticket->status),
                     'status_label' => Ticket::getStatuses()[$ticket->status] ?? $ticket->status,

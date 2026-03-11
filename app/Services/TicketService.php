@@ -101,7 +101,7 @@ class TicketService
             $data['updated_by'] = Auth::id();
 
             // SLA deadline
-            $slaHours = $data['sla_hours'] ?? 24;
+            $slaHours = (int) ($data['sla_hours'] ?? 24);
             $data['sla_hours'] = $slaHours;
             $data['sla_deadline'] = now()->addHours($slaHours);
             $data['sla_status'] = Ticket::SLA_ON_TRACK;

@@ -125,7 +125,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="detail-label">Job Type</div>
-                            <div class="detail-value">{{ $ticket->jobType?->name ?? '-' }}</div>
+                            <div class="detail-value">{{ $ticket->jobType?->job_title ?? '-' }}</div>
                         </div>
                         <div class="col-md-6">
                             <div class="detail-label">Created By</div>
