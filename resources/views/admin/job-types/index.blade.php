@@ -22,6 +22,13 @@
         @endcan
     </div>
 
+    <div class="card bg-info-subtle">
+        <div class="card-body">
+            <i class="bi bi-info-circle me-2"></i>
+            Add a Job Type first. Once created, you can proceed to Charge Catalog Management to configure charges.
+        </div>
+    </div>
+
     <!-- Stats Cards -->
     <div class="row g-3 mb-4">
         <div class="col-md-4">

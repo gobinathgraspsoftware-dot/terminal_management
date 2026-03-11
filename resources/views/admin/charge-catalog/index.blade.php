@@ -24,6 +24,13 @@
         </div>
     </div>
 
+    <div class="card bg-info-subtle">
+        <div class="card-body">
+            <i class="bi bi-info-circle me-2"></i>
+            Add a Job Type first. Once created, you can proceed to Charge Catalog Management to configure charges.
+        </div>
+    </div>
+
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
