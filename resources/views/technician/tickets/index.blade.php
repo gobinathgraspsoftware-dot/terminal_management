@@ -230,7 +230,6 @@
                             <th>Status</th>
                             <th>Priority</th>
                             <th>Supervisor</th>
-                            <th>Assignee</th>
                             <th>SLA Deadline</th>
                             <th>Created</th>
                             <th class="text-center">Actions</th>
@@ -288,12 +287,6 @@ $(document).ready(function() {
             },
             { data: 'supervisor_name' },
             {
-                data: 'technician_name',
-                render: function(data, type, row) {
-                    return data === 'Unassigned' ? '<span class="text-muted fst-italic">Unassigned</span>' : data;
-                }
-            },
-            {
                 data: 'sla_deadline',
                 render: function(data, type, row) {
                     if (!data) return '-';
@@ -312,7 +305,7 @@ $(document).ready(function() {
                 }
             }
         ],
-        order: [[7, 'desc']],
+        order: [[6, 'desc']],
         pageLength: 25,
         language: {
             processing: '<div class="spinner-border text-primary spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>',
