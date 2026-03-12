@@ -192,7 +192,7 @@
                                 <td>
                                     @if($movement->serial_id)
                                         <a href="{{ route('supervisor.stock-reports.stock-card', $movement->serial_id) }}" class="text-decoration-none">
-                                            {{ $movement->serial_no }}
+                                            {{ $movement->serial_no ?? $movement->serial?->serial_no ?? '-' }}
                                         </a>
                                     @else
                                         {{ $movement->serial_no ?? '-' }}

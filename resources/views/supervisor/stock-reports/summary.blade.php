@@ -157,7 +157,7 @@
                     <tbody>
                         @forelse($byDepot->take(15) as $item)
                             <tr>
-                                <td>{{ $item->depot?->depot_name ?? $item->location_name ?? 'Unknown' }}</td>
+                                <td>{{ $item->depot?->depot_name ?? 'Unknown' }}</td>
                                 <td>{{ $item->model?->model_name ?? 'Unknown Model' }}</td>
                                 <td class="text-end">{{ number_format($item->available) }}</td>
                                 <td class="text-end">{{ number_format($item->reserved) }}</td>
@@ -187,7 +187,7 @@
                     <tbody>
                         @foreach($lowStock as $item)
                             <tr class="{{ $item->available == 0 ? 'table-danger' : 'table-warning' }}">
-                                <td>{{ $item->depot?->depot_name ?? $item->location_name ?? 'Unknown' }}</td>
+                                <td>{{ $item->depot?->depot_name ?? 'Unknown' }}</td>
                                 <td>{{ $item->model?->model_name ?? 'Unknown Model' }}</td>
                                 <td class="text-end"><strong class="{{ $item->available == 0 ? 'text-danger' : 'text-warning' }}">{{ number_format($item->available) }}</strong></td>
                                 <td class="text-end">{{ number_format($item->reserved) }}</td>

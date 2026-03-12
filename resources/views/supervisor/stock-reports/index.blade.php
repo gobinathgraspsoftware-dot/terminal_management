@@ -241,7 +241,7 @@
             labels: {!! json_encode($stockByStatus->keys()) !!},
             datasets: [{
                 data: {!! json_encode($stockByStatus->values()) !!},
-                backgroundColor: ['#28a745','#17a2b8','#007bff','#dc3545','#ffc107','#6c757d']
+                backgroundColor: ['#28a745','#17a2b8','#007bff','#dc3545','#ffc107','#6c757d','#343a40','#fd7e14']
             }]
         },
         options: {

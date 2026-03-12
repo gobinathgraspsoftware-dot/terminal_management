@@ -30,11 +30,11 @@ class StockReportController extends Controller
 
     /**
      * Get team technician IDs for the current supervisor.
+     * Uses supervisor_id (NOT team_id which doesn't exist).
      */
     protected function getTeamTechnicianIds(): array
     {
-        $user = auth()->user();
-        return User::where('team_id', $user->team_id)
+        return User::where('supervisor_id', auth()->id())
             ->pluck('id')
             ->toArray();
     }
@@ -44,14 +44,15 @@ class StockReportController extends Controller
      */
     public function index(Request $request)
     {
-        $teamIds = $this->getTeamTechnicianIds();
+        $teamTechIds = $this->getTeamTechnicianIds();
 
+        // Stats scoped to team's serials (technician-held) + all depot serials
         $stats = [
-            'total_serials' => InventorySerial::count(),
-            'in_stock' => InventorySerial::where('current_status', 'in_stock')->count(),
-            'issued' => InventorySerial::whereIn('current_status', ['issued', 'issued_to_tech'])->count(),
-            'installed' => InventorySerial::where('current_status', 'installed')->count(),
-            'faulty' => InventorySerial::where('current_status', 'faulty')->count(),
+            'total_serials'   => InventorySerial::count(),
+            'in_stock'        => InventorySerial::where('current_status', 'in_stock')->count(),
+            'issued'          => InventorySerial::whereIn('current_status', ['issued', 'issued_to_tech'])->count(),
+            'installed'       => InventorySerial::where('current_status', 'installed')->count(),
+            'faulty'          => InventorySerial::where('current_status', 'faulty')->count(),
             'total_movements_today' => StockLedger::whereDate('transaction_date', today())->count(),
             'total_movements_this_month' => StockLedger::whereMonth('transaction_date', now()->month)
                 ->whereYear('transaction_date', now()->year)->count(),
@@ -131,15 +132,15 @@ class StockReportController extends Controller
 
         $summary = [
             'total_movements' => (clone $query)->count(),
-            'total_in' => (clone $query)->where('quantity', '>', 0)->sum('quantity'),
-            'total_out' => (clone $query)->where('quantity', '<', 0)->sum('quantity'),
+            'total_in'        => (clone $query)->where('quantity', '>', 0)->sum('quantity'),
+            'total_out'       => (clone $query)->where('quantity', '<', 0)->sum('quantity'),
         ];
 
         $movements = $query->paginate(50)->appends($filters);
 
         $categories = TerminalCategory::orderBy('category_name')->get();
-        $models = TerminalModel::orderBy('model_name')->get();
-        $depots = Depot::orderBy('depot_name')->get();
+        $models     = TerminalModel::orderBy('model_name')->get();
+        $depots     = Depot::orderBy('depot_name')->get();
 
         return view('supervisor.stock-reports.movement', compact(
             'movements', 'summary', 'filters', 'categories', 'models', 'depots'
@@ -157,11 +158,7 @@ class StockReportController extends Controller
             $stockCardData = $this->stockReportService->getStockCard($serialId);
         }
 
-        $serials = InventorySerial::with('model')
-            ->orderBy('serial_no')
-            ->get();
-
-        return view('supervisor.stock-reports.stock-card', compact('stockCardData', 'serials'));
+        return view('supervisor.stock-reports.stock-card', compact('stockCardData'));
     }
 
     /**
@@ -172,14 +169,14 @@ class StockReportController extends Controller
         $byModel = InventorySerial::select(
             'model_id',
             DB::raw('count(*) as total'),
-            DB::raw('sum(case when current_status = "in_stock" then 1 else 0 end) as in_stock'),
-            DB::raw('sum(case when current_status in ("issued","issued_to_tech") then 1 else 0 end) as issued'),
-            DB::raw('sum(case when current_status = "installed" then 1 else 0 end) as installed'),
-            DB::raw('sum(case when current_status = "faulty" then 1 else 0 end) as faulty')
+            DB::raw("sum(case when current_status = 'in_stock' then 1 else 0 end) as in_stock"),
+            DB::raw("sum(case when current_status in ('issued','issued_to_tech') then 1 else 0 end) as issued"),
+            DB::raw("sum(case when current_status = 'installed' then 1 else 0 end) as installed"),
+            DB::raw("sum(case when current_status = 'faulty' then 1 else 0 end) as faulty")
         )
             ->with('model.category')
             ->groupBy('model_id')
-            ->havingRaw('total > 0')
+            ->havingRaw('count(*) > 0')
             ->orderByDesc('total')
             ->get();
 
@@ -193,7 +190,7 @@ class StockReportController extends Controller
             ->where('location_type', 'depot')
             ->with(['model', 'depot'])
             ->groupBy('location_id', 'location_type', 'model_id')
-            ->havingRaw('total > 0')
+            ->havingRaw('sum(quantity_on_hand) > 0')
             ->orderByDesc('total')
             ->get();
 
@@ -207,17 +204,17 @@ class StockReportController extends Controller
             ->get();
 
         $aging = InventorySerial::select(
-            DB::raw('CASE
-                WHEN grn_date IS NULL THEN "Unknown"
-                WHEN DATEDIFF(NOW(), grn_date) <= 90 THEN "0-3 months"
-                WHEN DATEDIFF(NOW(), grn_date) <= 180 THEN "3-6 months"
-                WHEN DATEDIFF(NOW(), grn_date) <= 365 THEN "6-12 months"
-                ELSE "Over 1 year"
-            END as age_group'),
+            DB::raw("CASE
+                WHEN grn_date IS NULL THEN 'Unknown'
+                WHEN DATEDIFF(NOW(), grn_date) <= 90 THEN '0-3 months'
+                WHEN DATEDIFF(NOW(), grn_date) <= 180 THEN '3-6 months'
+                WHEN DATEDIFF(NOW(), grn_date) <= 365 THEN '6-12 months'
+                ELSE 'Over 1 year'
+            END as age_group"),
             DB::raw('count(*) as count')
         )
             ->groupBy('age_group')
-            ->orderByRaw('FIELD(age_group, "0-3 months", "3-6 months", "6-12 months", "Over 1 year", "Unknown")')
+            ->orderByRaw("FIELD(age_group, '0-3 months', '3-6 months', '6-12 months', 'Over 1 year', 'Unknown')")
             ->get();
 
         $lowStock = StockBalance::select(
@@ -284,7 +281,7 @@ class StockReportController extends Controller
     }
 
     /**
-     * Search serials (AJAX)
+     * Search serials (AJAX for Select2)
      */
     public function searchSerials(Request $request)
     {
@@ -297,8 +294,8 @@ class StockReportController extends Controller
             ->get()
             ->map(function ($serial) {
                 return [
-                    'id' => $serial->id,
-                    'text' => $serial->serial_no . ' - ' . ($serial->model ? $serial->model->model_name : 'Unknown Model'),
+                    'id'   => $serial->id,
+                    'text'  => $serial->serial_no . ' - ' . ($serial->model ? $serial->model->model_name : 'Unknown Model'),
                 ];
             });
 
