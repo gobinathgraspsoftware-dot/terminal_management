@@ -149,6 +149,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/states', [LocationController::class, 'states'])->name('states');
         Route::get('/cities', [LocationController::class, 'cities'])->name('cities');
         Route::get('/supervisors', [LocationController::class, 'supervisors'])->name('supervisors');
+        Route::get('/supervisor-detail', [LocationController::class, 'supervisorDetail'])->name('supervisor-detail');
     });
 
     /* User Management Routes */

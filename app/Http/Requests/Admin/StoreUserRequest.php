@@ -28,10 +28,6 @@ class StoreUserRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:20'],
             'employee_id' => ['nullable', 'string', 'max:50', 'unique:users,employee_id'],
 
-            // State & City — available for ALL roles
-            'state_id' => ['required', 'integer', 'exists:states,id'],
-            'city_id' => ['required', 'integer', 'exists:cities,id'],
-
             // Password
             'password' => ['required', 'string', 'min:8', 'confirmed'],
 
@@ -40,6 +36,13 @@ class StoreUserRequest extends FormRequest
 
             // Status
             'status' => ['required', 'string', Rule::in(['active', 'inactive', 'suspended'])],
+
+            // State & City — required for supervisor and technician
+            'state_id' => ['nullable', 'exists:states,id', 'required_if:role,supervisor', 'required_if:role,technician'],
+            'city_id' => ['nullable', 'exists:cities,id', 'required_if:role,supervisor', 'required_if:role,technician'],
+
+            // Mileage Rate — supervisor sets own rate
+            'mileage_rate' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
 
             // Technician-specific fields
             'has_supervisor' => ['nullable', 'boolean'],
@@ -87,12 +90,12 @@ class StoreUserRequest extends FormRequest
             'role.required' => 'Please select a role for the user.',
             'role.exists' => 'The selected role is invalid.',
             'status.required' => 'Please select a status.',
+            'state_id.required_if' => 'Please select a state for this role.',
+            'city_id.required_if' => 'Please select a city/district for this role.',
+            'mileage_rate.numeric' => 'Mileage rate must be a valid number.',
+            'mileage_rate.min' => 'Mileage rate cannot be negative.',
             'supervisor_id.required_if' => 'Please select a supervisor when "Assign to Supervisor" is enabled.',
             'supervisor_id.exists' => 'The selected supervisor is invalid.',
-            'state_id.required' => 'Please select a state.',
-            'state_id.exists' => 'The selected state is invalid.',
-            'city_id.required' => 'Please select a city.',
-            'city_id.exists' => 'The selected city is invalid.',
             'avatar.image' => 'Avatar must be an image file.',
             'avatar.mimes' => 'Avatar must be a JPG, JPEG, PNG, or GIF file.',
             'avatar.max' => 'Avatar file size must not exceed 2MB.',
@@ -123,6 +126,14 @@ class StoreUserRequest extends FormRequest
             $this->merge([
                 'remove_avatar' => filter_var($this->remove_avatar, FILTER_VALIDATE_BOOLEAN)
             ]);
+        }
+
+        // For technician with supervisor, state_id/city_id will be overridden in UserService
+        // so we don't need to require them from the form; but they are still sent
+
+        // Clean mileage_rate — empty string to null
+        if ($this->has('mileage_rate') && $this->mileage_rate === '') {
+            $this->merge(['mileage_rate' => null]);
         }
     }
 }

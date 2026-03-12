@@ -224,6 +224,11 @@ $(document).ready(function() {
                     html += '<tr><th>Supervisor</th><td>' + (user.supervisor ? user.supervisor.name : 'None') + '</td></tr>';
                     html += '<tr><th>State</th><td>' + stateName + '</td></tr>';
                     html += '<tr><th>City</th><td>' + cityName + '</td></tr>';
+                    var mileageRate = user.mileage_rate ? 'RM ' + parseFloat(user.mileage_rate).toFixed(2) + ' /KM' : '-';
+                    if (user.supervisor && user.supervisor.mileage_rate) {
+                        mileageRate = 'RM ' + parseFloat(user.supervisor.mileage_rate).toFixed(2) + ' /KM <small class="text-muted">(from ' + user.supervisor.name + ')</small>';
+                    }
+                    html += '<tr><th>Mileage Rate</th><td>' + mileageRate + '</td></tr>';
                     html += '<tr><th>Address</th><td>' + (user.address || '-') + '</td></tr>';
                     html += '</table>';
                     html += '</div></div>';

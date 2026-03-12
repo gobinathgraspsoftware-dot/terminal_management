@@ -36,6 +36,7 @@ class User extends Authenticatable
         'coverage_states',
         'skill_tags',
         'default_rate_card_id',
+        'mileage_rate',
         'address',
         'state_id',
         'city_id',
@@ -76,6 +77,7 @@ class User extends Authenticatable
             'coverage_states' => 'array',
             'date_of_birth' => 'date',
             'skill_tags' => 'array',
+            'mileage_rate' => 'decimal:2',
         ];
     }
 
@@ -150,7 +152,6 @@ class User extends Authenticatable
 
     /**
      * Get stock balances for this technician
-     * Used when technician has their own stock depot
      */
     public function stockBalances()
     {
@@ -160,7 +161,6 @@ class User extends Authenticatable
 
     /**
      * Get stock balance for technician's personal depot
-     * Alternative method that's more specific
      */
     public function technicianStockBalances()
     {
@@ -332,11 +332,9 @@ class User extends Authenticatable
     public function getAvatarUrlAttribute(): string
     {
         if ($this->avatar) {
-            // Use Storage::url() which works regardless of symlink
             return \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar);
         }
 
-        // Default avatar based on first letter
         $initial = strtoupper(substr($this->name, 0, 1));
         return "https://ui-avatars.com/api/?name={$initial}&size=200&background=random";
     }
@@ -368,6 +366,20 @@ class User extends Authenticatable
     }
 
     /**
+     * Get effective mileage rate.
+     * For technicians with a supervisor, returns the supervisor's rate.
+     * For supervisors and independent technicians, returns own rate.
+     */
+    public function getEffectiveMileageRateAttribute(): ?string
+    {
+        if ($this->is_technician && $this->supervisor_id) {
+            return $this->supervisor?->mileage_rate;
+        }
+
+        return $this->mileage_rate;
+    }
+
+    /**
      * Helper Methods
      */
 
@@ -378,11 +390,9 @@ class User extends Authenticatable
         }
 
         if ($this->hasRole('supervisor')) {
-            // Can manage own team members
             return $user->supervisor_id === $this->id;
         }
 
-        // Technicians can only view self
         return $this->id === $user->id;
     }
 
@@ -393,12 +403,10 @@ class User extends Authenticatable
         }
 
         if ($this->hasRole('supervisor')) {
-            // Can view jobs where they are supervisor or jobs of their team
             return $job->supervisor_id === $this->id
                 || $this->technicians->contains($job->technician_id);
         }
 
-        // Technician can only view own jobs
         return $job->technician_id === $this->id;
     }
 
@@ -417,7 +425,6 @@ class User extends Authenticatable
             });
         }
 
-        // Technician - only own jobs
         return JobOrder::where('technician_id', $this->id);
     }
 }

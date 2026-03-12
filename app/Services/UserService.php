@@ -21,10 +21,7 @@ class UserService
         }
 
         // DO NOT Hash::make() password here — User model has 'password' => 'hashed' cast
-        // which auto-hashes on create/update. Manual Hash::make() causes DOUBLE hashing.
-
         // DO NOT json_encode() coverage_states/skill_tags — User model has 'array' cast
-        // which auto-handles JSON encoding. Manual json_encode() causes DOUBLE encoding.
 
         // Extract role before creating user
         $role = $data['role'] ?? null;
@@ -35,7 +32,25 @@ class UserService
         unset($data['password_confirmation']);
         unset($data['remove_avatar']);
 
-        // Log what we're creating (debug)
+        // ─── Technician: inherit supervisor's state_id, city_id, mileage_rate ───
+        if ($role === 'technician' && !empty($data['supervisor_id'])) {
+            $supervisor = User::find($data['supervisor_id']);
+            if ($supervisor) {
+                $data['state_id']      = $supervisor->state_id;
+                $data['city_id']       = $supervisor->city_id;
+                $data['mileage_rate']  = $supervisor->mileage_rate;
+                Log::info('UserService::createUser - Technician inherits from supervisor #' . $supervisor->id
+                    . ' → state_id=' . $supervisor->state_id
+                    . ', city_id=' . $supervisor->city_id
+                    . ', mileage_rate=' . $supervisor->mileage_rate);
+            }
+        }
+
+        // ─── Supervisor: ensure mileage_rate is set (may come from form) ───
+        if ($role === 'supervisor' && !isset($data['mileage_rate'])) {
+            $data['mileage_rate'] = null;
+        }
+
         Log::info('UserService::createUser - Data keys: ' . implode(', ', array_keys($data)));
         Log::info('UserService::createUser - state_id: ' . ($data['state_id'] ?? 'NULL') . ', city_id: ' . ($data['city_id'] ?? 'NULL'));
 
@@ -73,7 +88,6 @@ class UserService
         }
 
         // DO NOT Hash::make() password — User model has 'password' => 'hashed' cast
-        // Just remove if empty/not provided
         if (!isset($data['password']) || empty($data['password'])) {
             unset($data['password']);
         }
@@ -89,7 +103,21 @@ class UserService
         unset($data['has_supervisor']);
         unset($data['remove_avatar']);
 
-        // Log what we're updating (debug)
+        // ─── Technician UPDATE: do NOT force-overwrite state/city/mileage from supervisor ───
+        // On update, the admin may have intentionally set different values.
+        // Auto-inheritance only happens on CREATE (see createUser method).
+
+        // ─── If supervisor changes their state/city/mileage, propagate to team ───
+        if ($role === 'supervisor') {
+            $stateChanged   = isset($data['state_id']) && $data['state_id'] != $user->state_id;
+            $cityChanged    = isset($data['city_id']) && $data['city_id'] != $user->city_id;
+            $mileageChanged = isset($data['mileage_rate']) && $data['mileage_rate'] != $user->mileage_rate;
+
+            if ($stateChanged || $cityChanged || $mileageChanged) {
+                $this->propagateSupervisorChanges($user->id, $data);
+            }
+        }
+
         Log::info('UserService::updateUser - User ID: ' . $user->id);
         Log::info('UserService::updateUser - Data keys: ' . implode(', ', array_keys($data)));
         Log::info('UserService::updateUser - state_id: ' . ($data['state_id'] ?? 'NULL') . ', city_id: ' . ($data['city_id'] ?? 'NULL'));
@@ -105,6 +133,29 @@ class UserService
         Log::info('UserService::updateUser - After save - state_id: ' . $user->state_id . ', city_id: ' . $user->city_id);
 
         return $user->fresh(['roles', 'supervisor', 'state', 'city']);
+    }
+
+    /**
+     * Propagate supervisor's state, city, mileage_rate changes to all assigned technicians.
+     */
+    protected function propagateSupervisorChanges(int $supervisorId, array $data): void
+    {
+        $updatePayload = [];
+
+        if (isset($data['state_id'])) {
+            $updatePayload['state_id'] = $data['state_id'];
+        }
+        if (isset($data['city_id'])) {
+            $updatePayload['city_id'] = $data['city_id'];
+        }
+        if (isset($data['mileage_rate'])) {
+            $updatePayload['mileage_rate'] = $data['mileage_rate'];
+        }
+
+        if (!empty($updatePayload)) {
+            $affected = User::where('supervisor_id', $supervisorId)->update($updatePayload);
+            Log::info("UserService::propagateSupervisorChanges - Updated {$affected} technicians under supervisor #{$supervisorId}");
+        }
     }
 
     /**

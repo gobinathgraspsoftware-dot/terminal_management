@@ -197,14 +197,15 @@
                 </div>
             </div>
 
-            @if($user->hasRole('technician'))
+            {{-- Location & Mileage Rate Section (Supervisor & Technician) --}}
+            @if($user->hasRole('supervisor') || $user->hasRole('technician'))
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white">
-                    <h5 class="mb-0"><i class="bi bi-tools me-2"></i>Technician Information</h5>
+                    <h5 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Location & Mileage Rate</h5>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <small class="text-muted d-block">State</small>
                             @if($user->state)
                                 <span class="badge bg-info">{{ $user->state->name }}</span>
@@ -212,14 +213,37 @@
                                 <strong>Not set</strong>
                             @endif
                         </div>
-                        <div class="col-md-6">
-                            <small class="text-muted d-block">City</small>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block">District / City</small>
                             @if($user->city)
                                 <span class="badge bg-info">{{ $user->city->name }} ({{ $user->city->postcode }})</span>
                             @else
                                 <strong>Not set</strong>
                             @endif
                         </div>
+                        <div class="col-md-4">
+                            <small class="text-muted d-block">Mileage Rate</small>
+                            @if($user->hasRole('technician') && $user->supervisor_id)
+                                <strong>RM {{ $user->supervisor?->mileage_rate ? number_format($user->supervisor->mileage_rate, 2) : '0.00' }} /KM</strong>
+                                <br><small class="text-muted"><i class="bi bi-arrow-repeat"></i> Inherited from {{ $user->supervisor->name }}</small>
+                            @elseif($user->mileage_rate)
+                                <strong>RM {{ number_format($user->mileage_rate, 2) }} /KM</strong>
+                            @else
+                                <strong>Not set</strong>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            @if($user->hasRole('technician'))
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-tools me-2"></i>Technician Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
                         <div class="col-md-12">
                             <small class="text-muted d-block">Skill Tags</small>
                             @if($user->skill_tags && count($user->skill_tags) > 0)
@@ -259,6 +283,7 @@
                                     <th>Employee ID</th>
                                     <th>State</th>
                                     <th>City</th>
+                                    <th>Mileage Rate</th>
                                     <th>Status</th>
                                     <th>Action</th>
                                 </tr>
@@ -270,6 +295,7 @@
                                     <td>{{ $member->employee_id }}</td>
                                     <td>{{ $member->state?->name ?? '-' }}</td>
                                     <td>{{ $member->city?->name ?? '-' }}</td>
+                                    <td>{{ $member->mileage_rate ? 'RM ' . number_format($member->mileage_rate, 2) : '-' }}</td>
                                     <td>
                                         <span class="badge bg-{{ $member->status === 'active' ? 'success' : 'warning' }}">
                                             {{ ucfirst($member->status) }}

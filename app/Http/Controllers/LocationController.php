@@ -46,8 +46,6 @@ class LocationController extends Controller
     /**
      * Select2 AJAX: Search cities filtered by state_id
      * GET /ajax/cities?state_id=1&search=&page=1
-     *
-     * Returns postcode as separate field for auto-fill support
      */
     public function cities(Request $request): JsonResponse
     {
@@ -56,7 +54,6 @@ class LocationController extends Controller
         $page    = max(1, (int) $request->get('page', 1));
         $perPage = 20;
 
-        // Return empty when no state selected
         if (!$stateId) {
             return response()->json([
                 'results'    => [],
@@ -91,8 +88,6 @@ class LocationController extends Controller
 
     /**
      * Select2 AJAX: Search supervisors filtered by state_id and/or city_id
-     * Supervisors whose coverage_states JSON includes the selected state name,
-     * OR supervisors who have state_id matching the selected state.
      * GET /ajax/supervisors?state_id=1&city_id=5&search=&page=1
      */
     public function supervisors(Request $request): JsonResponse
@@ -119,15 +114,6 @@ class LocationController extends Controller
             });
         }
 
-        // Additionally filter by city if provided
-        if ($cityId) {
-            // This is optional tighter filtering — supervisors in the same city
-            // We only apply this as an additional preference, not a hard filter,
-            // because supervisors may cover an entire state.
-            // Leave this as a soft filter: do NOT further restrict here.
-            // The state filter is sufficient for matching supervisors.
-        }
-
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -139,15 +125,49 @@ class LocationController extends Controller
         $total   = $query->count();
         $results = $query->skip(($page - 1) * $perPage)
                          ->take($perPage)
-                         ->get(['id', 'name', 'employee_id'])
+                         ->get(['id', 'name', 'employee_id', 'state_id', 'city_id', 'mileage_rate'])
                          ->map(fn ($u) => [
-                             'id'   => $u->id,
-                             'text' => $u->name . ' (' . $u->employee_id . ')',
+                             'id'           => $u->id,
+                             'text'         => $u->name . ' (' . $u->employee_id . ')',
+                             'state_id'     => $u->state_id,
+                             'city_id'      => $u->city_id,
+                             'mileage_rate' => $u->mileage_rate,
                          ]);
 
         return response()->json([
             'results'    => $results,
             'pagination' => ['more' => ($page * $perPage) < $total],
+        ]);
+    }
+
+    /**
+     * AJAX: Get supervisor detail (state, city, mileage_rate)
+     * Used by technician create/edit form to auto-populate inherited fields.
+     * GET /ajax/supervisor-detail?id=5
+     */
+    public function supervisorDetail(Request $request): JsonResponse
+    {
+        $id = $request->get('id');
+
+        if (!$id) {
+            return response()->json(['success' => false, 'message' => 'Supervisor ID required'], 422);
+        }
+
+        $supervisor = User::with(['state', 'city'])
+            ->whereHas('roles', fn ($q) => $q->where('roles.name', 'supervisor'))
+            ->find($id);
+
+        if (!$supervisor) {
+            return response()->json(['success' => false, 'message' => 'Supervisor not found'], 404);
+        }
+
+        return response()->json([
+            'success'      => true,
+            'state_id'     => $supervisor->state_id,
+            'state_name'   => $supervisor->state?->name,
+            'city_id'      => $supervisor->city_id,
+            'city_name'    => $supervisor->city ? $supervisor->city->name . ' (' . $supervisor->city->postcode . ')' : null,
+            'mileage_rate' => $supervisor->mileage_rate,
         ]);
     }
 }

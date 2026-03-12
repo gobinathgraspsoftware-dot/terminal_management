@@ -34,6 +34,14 @@
         <ul class="mb-0" id="errorList"></ul>
     </div>
 
+    @php
+        $isSupervisor = $user->hasRole('supervisor');
+        $isTechnician = $user->hasRole('technician');
+        $hasSupervisor = !is_null($user->supervisor_id);
+        $showLocation = $isSupervisor || $isTechnician;
+        $userSkillTags = $user->skill_tags ? (is_string($user->skill_tags) ? json_decode($user->skill_tags, true) : $user->skill_tags) : [];
+    @endphp
+
     {{-- Edit User Form --}}
     <form id="editUserForm" enctype="multipart/form-data">
         @csrf
@@ -91,28 +99,6 @@
                         <input type="text" name="employee_id" class="form-control" value="{{ $user->employee_id }}" maxlength="50">
                         <div class="form-text">Auto-generated if not provided</div>
                     </div>
-                    {{-- State & City — ALL roles --}}
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">State <span class="text-danger">*</span></label>
-                        <select name="state_id" id="stateSelect" class="form-select" required>
-                            @if($user->state)
-                                <option value="{{ $user->state_id }}" selected>{{ $user->state->name }}</option>
-                            @else
-                                <option value="">Select State</option>
-                            @endif
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">City <span class="text-danger">*</span></label>
-                        <select name="city_id" id="citySelect" class="form-select" required>
-                            @if($user->city)
-                                <option value="{{ $user->city_id }}" selected>{{ $user->city->name }} ({{ $user->city->postcode }})</option>
-                            @else
-                                <option value="">Select City</option>
-                            @endif
-                        </select>
-                        <div class="form-text">Cities will load based on selected state</div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -147,12 +133,65 @@
             </div>
         </div>
 
+        {{-- Location & Mileage Section --}}
+        <div class="card border-0 shadow-sm mb-4 {{ $showLocation ? '' : 'd-none' }}" id="locationSection">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Location & Mileage Rate</h6>
+            </div>
+            <div class="card-body">
+                {{-- Info alert for technician --}}
+                <div class="alert alert-info {{ ($isTechnician && $hasSupervisor) ? '' : 'd-none' }}" id="techLocationInfo">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Location and mileage rate have been <strong>auto-filled</strong> from the assigned supervisor. You may override these values if needed.
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">State <span class="text-danger">*</span></label>
+                        <select name="state_id" id="stateSelect" class="form-select" required>
+                            @if($user->state)
+                                <option value="{{ $user->state_id }}" selected>{{ $user->state->name }}</option>
+                            @else
+                                <option value="">Select State</option>
+                            @endif
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">District / City <span class="text-danger">*</span></label>
+                        <select name="city_id" id="citySelect" class="form-select" required>
+                            @if($user->city)
+                                <option value="{{ $user->city_id }}" selected>{{ $user->city->name }} ({{ $user->city->postcode }})</option>
+                            @else
+                                <option value="">Select City</option>
+                            @endif
+                        </select>
+                        <div class="form-text">Cities will load based on selected state</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Mileage Rate (RM/KM)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input type="number" name="mileage_rate" id="mileageRate" class="form-control"
+                                   step="0.01" min="0" max="99999.99"
+                                   value="{{ $user->mileage_rate }}"
+                                   placeholder="e.g. 0.60">
+                            <span class="input-group-text">per KM</span>
+                        </div>
+                        <div class="form-text" id="mileageHelp">
+                            @if($isSupervisor)
+                                Set the mileage rate for this supervisor and their team
+                            @elseif($isTechnician && $hasSupervisor)
+                                Inherited from supervisor (read-only)
+                            @else
+                                Rate used for mileage claim calculations
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- Technician Information Section --}}
-        @php
-            $isTechnician = $user->hasRole('technician');
-            $hasSupervisor = !is_null($user->supervisor_id);
-            $userSkillTags = $user->skill_tags ? (is_string($user->skill_tags) ? json_decode($user->skill_tags, true) : $user->skill_tags) : [];
-        @endphp
         <div class="card border-0 shadow-sm mb-4 {{ $isTechnician ? '' : 'd-none' }}" id="technicianSection">
             <div class="card-header bg-primary text-white">
                 <h6 class="mb-0"><i class="bi bi-tools me-2"></i>Technician Information</h6>
@@ -168,7 +207,7 @@
                     </div>
                 </div>
 
-                {{-- Supervisor Dropdown (AJAX filtered by state) --}}
+                {{-- Supervisor Dropdown --}}
                 <div class="mb-3" id="supervisorField" style="{{ $hasSupervisor ? '' : 'display:none;' }}">
                     <label class="form-label fw-semibold">Supervisor <span class="text-danger" id="supervisorRequired" style="{{ $hasSupervisor ? '' : 'display:none;' }}">*</span></label>
                     <select name="supervisor_id" id="supervisorSelect" class="form-select">
@@ -178,8 +217,51 @@
                             <option value="">Select Supervisor</option>
                         @endif
                     </select>
-                    <div class="form-text">Supervisors are filtered by selected state</div>
+                    <div class="form-text">When a supervisor is selected, the technician will inherit the supervisor's location and mileage rate</div>
                 </div>
+
+                {{-- Inherited Info Display --}}
+                @if($isTechnician && $hasSupervisor && $user->supervisor)
+                <div id="inheritedInfoPanel">
+                    <div class="alert alert-success mb-3">
+                        <h6 class="alert-heading mb-2"><i class="bi bi-arrow-repeat me-1"></i> Inherited from Supervisor: {{ $user->supervisor->name }}</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">State</small>
+                                <strong id="inheritedState">{{ $user->supervisor->state?->name ?? '-' }}</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">District / City</small>
+                                <strong id="inheritedCity">{{ $user->supervisor->city ? $user->supervisor->city->name . ' (' . $user->supervisor->city->postcode . ')' : '-' }}</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">Mileage Rate</small>
+                                <strong id="inheritedMileage">{{ $user->supervisor->mileage_rate ? 'RM ' . number_format($user->supervisor->mileage_rate, 2) . ' /KM' : 'Not set' }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @else
+                <div class="d-none" id="inheritedInfoPanel">
+                    <div class="alert alert-success mb-3">
+                        <h6 class="alert-heading mb-2"><i class="bi bi-arrow-repeat me-1"></i> Inherited from Supervisor</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">State</small>
+                                <strong id="inheritedState">-</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">District / City</small>
+                                <strong id="inheritedCity">-</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">Mileage Rate</small>
+                                <strong id="inheritedMileage">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
 
                 {{-- Skills --}}
                 <div class="mb-3">
@@ -222,7 +304,7 @@
         {{-- Address Section --}}
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-primary text-white">
-                <h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Address</h6>
+                <h6 class="mb-0"><i class="bi bi-house me-2"></i>Address</h6>
             </div>
             <div class="card-body">
                 <textarea name="address" class="form-control" rows="3" maxlength="500" placeholder="Enter full address">{{ $user->address }}</textarea>
@@ -240,7 +322,7 @@
         </div>
     </form>
 
-    {{-- Change Password Section (SINGLE — outside main form) --}}
+    {{-- Change Password Section --}}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-warning text-dark">
             <h6 class="mb-0"><i class="bi bi-shield-lock me-2"></i>Change Password</h6>
@@ -290,7 +372,7 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // State Select2 (AJAX) — ALL roles
+    // State Select2 (AJAX)
     // =============================================
     $('#stateSelect').select2({
         theme: 'bootstrap-5',
@@ -314,7 +396,7 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // City Select2 (AJAX — dependent on state) — ALL roles
+    // City Select2 (AJAX — dependent on state)
     // =============================================
     $('#citySelect').select2({
         theme: 'bootstrap-5',
@@ -338,7 +420,7 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // Supervisor Select2 (AJAX — technician only, filtered by state)
+    // Supervisor Select2 (AJAX)
     // =============================================
     $('#supervisorSelect').select2({
         theme: 'bootstrap-5',
@@ -350,7 +432,7 @@ $(document).ready(function() {
             dataType: 'json',
             delay: 250,
             data: function(params) {
-                return { state_id: $('#stateSelect').val(), city_id: $('#citySelect').val(), search: params.term, page: params.page || 1 };
+                return { search: params.term, page: params.page || 1 };
             },
             processResults: function(data, params) {
                 params.page = params.page || 1;
@@ -362,47 +444,95 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // Helper: Load supervisors filtered by current state/city
+    // Supervisor selection → auto-populate technician location & mileage
     // =============================================
-    function loadFilteredSupervisors() {
-        var stateId = $('#stateSelect').val();
-        if (!stateId) return;
-        $('#supervisorSelect').val(null).trigger('change');
+    $('#supervisorSelect').on('select2:select', function(e) {
+        var data = e.params.data;
+        fetchSupervisorDetail(data.id);
+    });
+
+    $('#supervisorSelect').on('select2:clear', function() {
+        clearInheritedInfo();
+        enableLocationFields();
+    });
+
+    function fetchSupervisorDetail(supervisorId) {
         $.ajax({
-            url: '{{ route("admin.ajax.supervisors") }}',
+            url: '{{ route("admin.ajax.supervisor-detail") }}',
             dataType: 'json',
-            data: { state_id: stateId, city_id: $('#citySelect').val(), search: '', page: 1 },
-            success: function(data) {
-                $('#supervisorSelect').empty().append('<option value="">Select Supervisor</option>');
-                if (data.results && data.results.length > 0) {
-                    $.each(data.results, function(i, item) {
-                        $('#supervisorSelect').append($('<option>', { value: item.id, text: item.text }));
-                    });
+            data: { id: supervisorId },
+            success: function(resp) {
+                if (resp.success) {
+                    $('#inheritedInfoPanel').removeClass('d-none');
+                    $('#inheritedState').text(resp.state_name || '-');
+                    $('#inheritedCity').text(resp.city_name || '-');
+                    $('#inheritedMileage').text(resp.mileage_rate ? 'RM ' + parseFloat(resp.mileage_rate).toFixed(2) + ' /KM' : 'Not set');
+
+                    if (resp.state_id && resp.state_name) {
+                        var stateOption = new Option(resp.state_name, resp.state_id, true, true);
+                        $('#stateSelect').empty().append(stateOption).trigger('change');
+                    }
+                    if (resp.city_id && resp.city_name) {
+                        var cityOption = new Option(resp.city_name, resp.city_id, true, true);
+                        $('#citySelect').empty().append(cityOption).trigger('change');
+                    }
+                    if (resp.mileage_rate !== null && resp.mileage_rate !== undefined) {
+                        $('#mileageRate').val(parseFloat(resp.mileage_rate).toFixed(2));
+                    } else {
+                        $('#mileageRate').val('');
+                    }
+
+                    disableLocationFields();
                 }
-                $('#supervisorSelect').trigger('change');
             }
         });
     }
 
+    function disableLocationFields() {
+        // State & City remain editable; only mileage is locked for technicians
+        $('#techLocationInfo').removeClass('d-none');
+        if ($('#roleSelect').val() === 'technician') {
+            $('#mileageRate').prop('readonly', true);
+        }
+    }
+
+    function enableLocationFields() {
+        $('#techLocationInfo').addClass('d-none');
+        $('#inheritedInfoPanel').addClass('d-none');
+        // Only supervisor can edit mileage
+        if ($('#roleSelect').val() === 'supervisor') {
+            $('#mileageRate').prop('readonly', false);
+        }
+    }
+
+    function applyMileageReadonly() {
+        var role = $('#roleSelect').val();
+        if (role === 'technician') {
+            $('#mileageRate').prop('readonly', true);
+        } else {
+            $('#mileageRate').prop('readonly', false);
+        }
+    }
+
+    function clearInheritedInfo() {
+        $('#inheritedInfoPanel').addClass('d-none');
+        $('#inheritedState').text('-');
+        $('#inheritedCity').text('-');
+        $('#inheritedMileage').text('-');
+    }
+
     // =============================================
-    // State change → reset City & reload Supervisor if technician
+    // State change → reset City
     // =============================================
     $('#stateSelect').on('change', function() {
-        $('#citySelect').val(null).trigger('change');
-        if ($(this).val()) {
-            $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Search and select city...');
-        } else {
-            $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Select state first...');
-        }
-        if ($('#roleSelect').val() === 'technician' && $('#hasSupervisorToggle').is(':checked')) {
-            loadFilteredSupervisors();
-        }
-    });
-
-    $('#citySelect').on('change', function() {
-        if ($('#roleSelect').val() === 'technician' && $('#hasSupervisorToggle').is(':checked')) {
-            $('#supervisorSelect').val(null).trigger('change');
-            loadFilteredSupervisors();
+        // Only reset city if not disabled (i.e., not inherited from supervisor)
+        if (!$('#stateSelect').prop('disabled')) {
+            $('#citySelect').val(null).trigger('change');
+            if ($(this).val()) {
+                $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Search and select city...');
+            } else {
+                $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Select state first...');
+            }
         }
     });
 
@@ -433,22 +563,49 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // Role change handler — state/city stays, only technician section toggles
+    // Role change handler
     // =============================================
     $('#roleSelect').on('change', function() {
         var role = $(this).val();
-        if (role === 'technician') {
-            $('#technicianSection').removeClass('d-none');
-            $('#bankSection').removeClass('d-none');
-            if ($('#hasSupervisorToggle').is(':checked')) {
-                loadFilteredSupervisors();
-            }
-        } else {
+
+        if (role === 'supervisor') {
+            $('#locationSection').removeClass('d-none');
             $('#technicianSection').addClass('d-none');
             $('#bankSection').addClass('d-none');
-            $('#hasSupervisorToggle').prop('checked', false);
+            enableLocationFields();
+            clearInheritedInfo();
+            $('#mileageHelp').text('Set the mileage rate for this supervisor and their team');
             $('#supervisorSelect').val(null).trigger('change');
             $('#skillTags').val([]).trigger('change');
+            applyMileageReadonly();
+        } else if (role === 'technician') {
+            $('#locationSection').removeClass('d-none');
+            $('#technicianSection').removeClass('d-none');
+            $('#bankSection').removeClass('d-none');
+            $('#mileageHelp').text('Mileage rate is managed by the supervisor (read-only)');
+
+            if ($('#hasSupervisorToggle').is(':checked')) {
+                var supId = $('#supervisorSelect').val();
+                if (supId) {
+                    fetchSupervisorDetail(supId);
+                } else {
+                    enableLocationFields();
+                }
+            } else {
+                enableLocationFields();
+            }
+            applyMileageReadonly();
+        } else {
+            $('#locationSection').addClass('d-none');
+            $('#technicianSection').addClass('d-none');
+            $('#bankSection').addClass('d-none');
+            enableLocationFields();
+            clearInheritedInfo();
+            $('#supervisorSelect').val(null).trigger('change');
+            $('#skillTags').val([]).trigger('change');
+            $('#stateSelect').val(null).trigger('change');
+            $('#citySelect').val(null).trigger('change');
+            $('#mileageRate').val('');
         }
     });
 
@@ -459,11 +616,16 @@ $(document).ready(function() {
         if ($(this).is(':checked')) {
             $('#supervisorField').slideDown();
             $('#supervisorRequired').show();
-            loadFilteredSupervisors();
+            var supId = $('#supervisorSelect').val();
+            if (supId) {
+                fetchSupervisorDetail(supId);
+            }
         } else {
             $('#supervisorField').slideUp();
             $('#supervisorRequired').hide();
             $('#supervisorSelect').val(null).trigger('change');
+            enableLocationFields();
+            clearInheritedInfo();
         }
     });
 
@@ -484,7 +646,7 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // Edit User Form submission — state_id & city_id ALWAYS sent
+    // Edit User Form submission
     // =============================================
     $('#editUserForm').on('submit', function(e) {
         e.preventDefault();
@@ -495,12 +657,18 @@ $(document).ready(function() {
             formData.set('has_supervisor', '0');
         }
 
-        // Remove ONLY technician-specific fields for non-technician roles
-        // state_id and city_id are NEVER removed — they apply to ALL roles
-        if ($('#roleSelect').val() !== 'technician') {
+        var role = $('#roleSelect').val();
+
+        if (role !== 'technician') {
             formData.delete('has_supervisor');
             formData.delete('supervisor_id');
             formData.delete('skill_tags[]');
+        }
+
+        if (role !== 'supervisor' && role !== 'technician') {
+            formData.delete('state_id');
+            formData.delete('city_id');
+            formData.delete('mileage_rate');
         }
 
         $('#submitBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Updating...');
@@ -546,7 +714,7 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // Change Password Form (SINGLE password section)
+    // Change Password Form
     // =============================================
     $('#changePasswordForm').on('submit', function(e) {
         e.preventDefault();
@@ -599,6 +767,11 @@ $(document).ready(function() {
             }
         });
     });
+
+    // =============================================
+    // On page load: lock mileage rate if role is technician
+    // =============================================
+    applyMileageReadonly();
 });
 </script>
 @endpush
