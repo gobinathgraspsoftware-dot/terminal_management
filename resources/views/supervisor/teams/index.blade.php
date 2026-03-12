@@ -69,7 +69,7 @@
 
 <div class="row">
     <div class="col-lg-8">
-        @if(count($teamStats['coverage_states']) > 0)
+        @if(!empty($teamStats['coverage_states']) && is_array($teamStats['coverage_states']) && count($teamStats['coverage_states']) > 0)
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white">
                 <h6 class="mb-0">
@@ -134,24 +134,32 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @if($member->coverage_states && count($member->coverage_states) > 0)
-                                        @foreach(array_slice($member->coverage_states, 0, 2) as $state)
+                                    @php
+                                        $mCoverage = is_array($member->coverage_states) ? $member->coverage_states : (is_string($member->coverage_states) && !empty($member->coverage_states) ? json_decode($member->coverage_states, true) : []);
+                                        if (!is_array($mCoverage)) $mCoverage = [];
+                                    @endphp
+                                    @if(count($mCoverage) > 0)
+                                        @foreach(array_slice($mCoverage, 0, 2) as $state)
                                             <span class="badge bg-light text-dark border me-1 mb-1">{{ $state }}</span>
                                         @endforeach
-                                        @if(count($member->coverage_states) > 2)
-                                            <span class="badge bg-secondary">+{{ count($member->coverage_states) - 2 }}</span>
+                                        @if(count($mCoverage) > 2)
+                                            <span class="badge bg-secondary">+{{ count($mCoverage) - 2 }}</span>
                                         @endif
                                     @else
                                         <span class="text-muted">-</span>
                                     @endif
                                 </td>
                                 <td>
-                                    @if($member->skill_tags && count($member->skill_tags) > 0)
-                                        @foreach(array_slice($member->skill_tags, 0, 2) as $skill)
+                                    @php
+                                        $mSkills = is_array($member->skill_tags) ? $member->skill_tags : (is_string($member->skill_tags) && !empty($member->skill_tags) ? json_decode($member->skill_tags, true) : []);
+                                        if (!is_array($mSkills)) $mSkills = [];
+                                    @endphp
+                                    @if(count($mSkills) > 0)
+                                        @foreach(array_slice($mSkills, 0, 2) as $skill)
                                             <span class="badge bg-info me-1 mb-1">{{ $skill }}</span>
                                         @endforeach
-                                        @if(count($member->skill_tags) > 2)
-                                            <span class="badge bg-dark">+{{ count($member->skill_tags) - 2 }}</span>
+                                        @if(count($mSkills) > 2)
+                                            <span class="badge bg-dark">+{{ count($mSkills) - 2 }}</span>
                                         @endif
                                     @else
                                         <span class="text-muted">-</span>

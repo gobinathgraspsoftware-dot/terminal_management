@@ -62,8 +62,12 @@
                         <small class="text-muted d-block">
                             <i class="bi bi-geo-alt-fill me-1"></i> Coverage Areas
                         </small>
-                        @if($user->coverage_states && count($user->coverage_states) > 0)
-                            @foreach($user->coverage_states as $state)
+                        @php
+                            $uCoverage = is_array($user->coverage_states) ? $user->coverage_states : (is_string($user->coverage_states) && !empty($user->coverage_states) ? json_decode($user->coverage_states, true) : []);
+                            if (!is_array($uCoverage)) $uCoverage = [];
+                        @endphp
+                        @if(count($uCoverage) > 0)
+                            @foreach($uCoverage as $state)
                                 <span class="badge bg-light text-dark border me-1 mb-1">{{ $state }}</span>
                             @endforeach
                         @else
@@ -74,8 +78,12 @@
                         <small class="text-muted d-block">
                             <i class="bi bi-tools me-1"></i> Skills
                         </small>
-                        @if($user->skill_tags && count($user->skill_tags) > 0)
-                            @foreach($user->skill_tags as $skill)
+                        @php
+                            $uSkills = is_array($user->skill_tags) ? $user->skill_tags : (is_string($user->skill_tags) && !empty($user->skill_tags) ? json_decode($user->skill_tags, true) : []);
+                            if (!is_array($uSkills)) $uSkills = [];
+                        @endphp
+                        @if(count($uSkills) > 0)
+                            @foreach($uSkills as $skill)
                                 <span class="badge bg-info me-1 mb-1">{{ $skill }}</span>
                             @endforeach
                         @else

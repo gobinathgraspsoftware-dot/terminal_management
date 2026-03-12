@@ -83,6 +83,14 @@ class TeamService
         $coverageStates = $activeMembers
             ->pluck('coverage_states')
             ->filter()
+            ->map(function ($val) {
+                if (is_array($val)) return $val;
+                if (is_string($val)) {
+                    $decoded = json_decode($val, true);
+                    return is_array($decoded) ? $decoded : [];
+                }
+                return [];
+            })
             ->flatten()
             ->unique()
             ->sort()

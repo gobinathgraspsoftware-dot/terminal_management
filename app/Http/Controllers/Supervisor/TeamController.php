@@ -72,8 +72,14 @@ class TeamController extends Controller implements HasMiddleware
 
         return DataTables::of($query)
             ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . ($user->status == 'active' ? 'success' : 'secondary') . '">' . ucfirst($user->status) . '</span>')
-            ->addColumn('coverage', fn($user) => $user->coverage_states ? implode(', ', $user->coverage_states) : '-')
-            ->addColumn('skills', fn($user) => $user->skill_tags ? implode(', ', array_slice($user->skill_tags, 0, 3)) : '-')
+            ->addColumn('coverage', function($user) {
+                $states = is_array($user->coverage_states) ? $user->coverage_states : (is_string($user->coverage_states) ? json_decode($user->coverage_states, true) : null);
+                return !empty($states) && is_array($states) ? implode(', ', $states) : '-';
+            })
+            ->addColumn('skills', function($user) {
+                $tags = is_array($user->skill_tags) ? $user->skill_tags : (is_string($user->skill_tags) ? json_decode($user->skill_tags, true) : null);
+                return !empty($tags) && is_array($tags) ? implode(', ', array_slice($tags, 0, 3)) : '-';
+            })
             ->addColumn('actions', fn($user) => '<a href="' . route('supervisor.teams.show', $user->id) . '" class="btn btn-sm btn-info"><i class="fas fa-eye"></i> View</a>')
             ->filter(function($query) use ($request) {
                 if ($search = $request->search['value'] ?? null) {
