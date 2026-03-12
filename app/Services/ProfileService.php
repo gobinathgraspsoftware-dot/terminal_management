@@ -243,4 +243,59 @@ class ProfileService
             'avg_session_duration' => round($avgSessionDuration ?? 0),
         ];
     }
+
+    /**
+     * Get avatar URL.
+     */
+    public function getAvatarUrl(?string $avatar): string
+    {
+        if ($avatar) {
+            return asset('storage/' . $avatar);
+        }
+
+        return asset('images/default-avatar.png');
+    }
+
+    /**
+     * Check if profile is complete.
+     */
+    public function isProfileComplete(User $user): bool
+    {
+        $requiredFields = ['name', 'email', 'phone'];
+
+        foreach ($requiredFields as $field) {
+            if (empty($user->$field)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Get profile completion percentage.
+     */
+    public function getProfileCompletionPercentage(User $user): int
+    {
+        $fields = [
+            'name', 'email', 'phone', 'address', 'avatar',
+            'date_of_birth', 'gender', 'emergency_contact_name'
+        ];
+
+        // Add bank details for technicians
+        if ($user->hasRole('technician')) {
+            $fields = array_merge($fields, [
+                'bank_name', 'bank_account_no', 'bank_account_name', 'ifsc_code'
+            ]);
+        }
+
+        $completed = 0;
+        foreach ($fields as $field) {
+            if (!empty($user->$field)) {
+                $completed++;
+            }
+        }
+
+        return round(($completed / count($fields)) * 100);
+    }
 }
