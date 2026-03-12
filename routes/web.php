@@ -91,6 +91,7 @@ use App\Http\Controllers\Admin\JobTypeController as AdminJobTypeController;
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
 use App\Http\Controllers\Supervisor\TicketController as SupervisorTicketController;
 use App\Http\Controllers\Technician\TicketController as TechnicianTicketController;
+use App\Http\Controllers\Admin\VendorTypeController as AdminVendorTypeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -671,6 +672,17 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/{ticket}/change-status', [AdminTicketController::class, 'changeStatus'])->name('change-status');
         Route::post('/{ticket}/assign', [AdminTicketController::class, 'assign'])->name('assign');
         Route::post('/{ticket}/comment', [AdminTicketController::class, 'addComment'])->name('comment');
+    });
+
+    /* Vendor Types */
+    Route::prefix('vendor-types')->name('vendor-types.')->group(function () {
+        Route::get('/', [AdminVendorTypeController::class, 'index'])->name('index');
+        Route::get('/create', [AdminVendorTypeController::class, 'create'])->name('create');
+        Route::post('/', [AdminVendorTypeController::class, 'store'])->name('store');
+        Route::get('/{vendor_type}/edit', [AdminVendorTypeController::class, 'edit'])->name('edit');
+        Route::put('/{vendor_type}', [AdminVendorTypeController::class, 'update'])->name('update');
+        Route::delete('/{vendor_type}', [AdminVendorTypeController::class, 'destroy'])->name('destroy');
+        Route::post('/{vendor_type}/toggle-status', [AdminVendorTypeController::class, 'toggleStatus'])->name('toggle-status');
     });
 
     /* Settings (requires specific permission) */

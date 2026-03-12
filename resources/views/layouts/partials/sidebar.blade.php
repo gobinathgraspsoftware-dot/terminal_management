@@ -151,6 +151,7 @@
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'admin.terminal-models');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'admin.terminal-categories');
                 $isJobTypeRoute = str_contains($currentRoute ?? '', 'admin.job-types');
+                $isVendorTypeRoute = str_contains($currentRoute ?? '', 'admin.vendor-types');
             @endphp
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Master Data</small>
@@ -167,6 +168,14 @@
                             <i class="bi bi-shop me-2"></i> Clients
                         </a>
                     </li> --}}
+                    @can('view_vendor_types')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isVendorTypeRoute ? 'active' : '' }}"
+                        href="{{ route('admin.vendor-types.index') }}">
+                            <i class="bi bi-tags me-2"></i> Vendor Types
+                        </a>
+                    </li>
+                    @endcan
                     <li class="nav-item">
                         <a class="nav-link {{ $isVendorRoute ? 'active' : '' }}"
                            href="{{ route('admin.vendors.index') }}">

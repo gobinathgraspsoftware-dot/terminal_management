@@ -135,9 +135,12 @@ class PermissionSeeder extends Seeder
 
             // Master Data - Job Types
             'job_types' => ['view', 'create', 'edit', 'delete'],
-            
+
             // Tickets Management
             'tickets' => ['view', 'create', 'edit', 'delete', 'assign', 'change_status', 'add_comment', 'view_all', 'view_team', 'view_own'],
+
+            // Master Data - Vendor Types
+            'vendor_types' => ['view', 'create', 'edit', 'delete'],
         ];
 
         // Create permissions

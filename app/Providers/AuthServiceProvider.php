@@ -40,6 +40,8 @@ use App\Policies\TerminalCategoryPolicy;
 use App\Policies\TerminalModelPolicy;
 use App\Policies\VendorPolicy;
 use App\Policies\QuotationPolicy;
+use App\Models\VendorType;
+use App\Policies\VendorTypePolicy;
 
 // Observers
 use App\Observers\InventorySerialObserver;
@@ -102,6 +104,7 @@ class AuthServiceProvider extends ServiceProvider
         Permission::class => PermissionPolicy::class,
         Role::class => RolePolicy::class,
         Quotation::class => QuotationPolicy::class,
+        VendorType::class => VendorTypePolicy::class,
     ];
 
     /**
