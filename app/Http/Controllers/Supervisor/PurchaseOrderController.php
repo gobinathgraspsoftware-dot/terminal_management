@@ -13,8 +13,8 @@ use App\Services\PurchaseOrderPdfService;
 use App\Http\Requests\StorePurchaseOrderRequest;
 use App\Http\Requests\UpdatePurchaseOrderRequest;
 use Illuminate\Http\Request;
-use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Auth;
+use Yajra\DataTables\Facades\DataTables;
 
 class PurchaseOrderController extends Controller
 {
@@ -33,7 +33,6 @@ class PurchaseOrderController extends Controller
             return $this->datatable($request);
         }
 
-        // FIXED: Changed is_active to status = 'active'
         $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
         $statistics = $this->poService->getStatistics(Auth::user());
 
@@ -59,6 +58,12 @@ class PurchaseOrderController extends Controller
                 return '<span class="badge bg-' . $class . '">' . $label . '</span>';
             })
             ->addColumn('total', fn($po) => number_format($po->total_amount, 2))
+            ->addColumn('outstanding', function ($po) {
+                $outstanding = $po->lines->sum(function ($line) {
+                    return $line->quantity_ordered - $line->quantity_received - $line->quantity_cancelled;
+                });
+                return number_format($outstanding);
+            })
             ->addColumn('actions', function ($po) {
                 $actions = '<div class="btn-group">';
                 $actions .= '<a href="' . route('supervisor.purchase-orders.show', $po) . '" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a>';
@@ -75,7 +80,6 @@ class PurchaseOrderController extends Controller
 
     public function create(Request $request)
     {
-        // FIXED: Changed is_active to status = 'active'
         $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
         $depots = Depot::orderBy('depot_name')->get();
         $models = TerminalModel::orderBy('model_name')->get();
@@ -121,7 +125,6 @@ class PurchaseOrderController extends Controller
                 ->with('error', 'Only draft or pending approval POs can be edited');
         }
 
-        // FIXED: Changed is_active to status = 'active'
         $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
         $depots = Depot::orderBy('depot_name')->get();
         $models = TerminalModel::orderBy('model_name')->get();

@@ -27,17 +27,19 @@ class GrnPolicy
             return false;
         }
 
-        // Admin can view all
         if ($user->hasRole('admin')) {
             return true;
         }
 
-        // Supervisor can view team GRNs
+        // Supervisor can view GRNs created by themselves or their team
         if ($user->hasRole('supervisor')) {
-            return $grn->createdBy && $grn->createdBy->team_id === $user->team_id;
+            if ($grn->created_by === $user->id) {
+                return true;
+            }
+            $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
+            return in_array($grn->created_by, $teamIds);
         }
 
-        // Technician can view own GRNs
         if ($user->hasRole('technician')) {
             return $grn->created_by === $user->id;
         }
@@ -62,22 +64,22 @@ class GrnPolicy
             return false;
         }
 
-        // Can only edit draft GRNs
         if ($grn->status !== Grn::STATUS_DRAFT) {
             return false;
         }
 
-        // Admin can edit all draft GRNs
         if ($user->hasRole('admin')) {
             return true;
         }
 
-        // Supervisor can edit team draft GRNs
         if ($user->hasRole('supervisor')) {
-            return $grn->createdBy && $grn->createdBy->team_id === $user->team_id;
+            if ($grn->created_by === $user->id) {
+                return true;
+            }
+            $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
+            return in_array($grn->created_by, $teamIds);
         }
 
-        // Technician can edit own draft GRNs
         if ($user->hasRole('technician')) {
             return $grn->created_by === $user->id;
         }
@@ -94,19 +96,20 @@ class GrnPolicy
             return false;
         }
 
-        // Can only post draft GRNs
         if ($grn->status !== Grn::STATUS_DRAFT) {
             return false;
         }
 
-        // Admin can post all
         if ($user->hasRole('admin')) {
             return true;
         }
 
-        // Supervisor can post team GRNs
         if ($user->hasRole('supervisor')) {
-            return $grn->createdBy && $grn->createdBy->team_id === $user->team_id;
+            if ($grn->created_by === $user->id) {
+                return true;
+            }
+            $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
+            return in_array($grn->created_by, $teamIds);
         }
 
         return false;
@@ -121,12 +124,10 @@ class GrnPolicy
             return false;
         }
 
-        // Can only cancel draft GRNs
         if ($grn->status !== Grn::STATUS_DRAFT) {
             return false;
         }
 
-        // Only admin and supervisor can cancel
         return $user->hasRole(['admin', 'supervisor']);
     }
 

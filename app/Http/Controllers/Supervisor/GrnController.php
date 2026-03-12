@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Supervisor;
 use App\Http\Controllers\Controller;
 use App\Models\Grn;
 use App\Models\Depot;
+use App\Models\User;
 use App\Services\GrnService;
 use App\Services\GrnPdfService;
 use App\Http\Requests\StoreGrnRequest;
@@ -26,20 +27,36 @@ class GrnController extends Controller
     }
 
     /**
-     * Display a listing of team GRNs
+     * Display a listing of team GRNs.
+     * FIXED: Replaced team_id with supervisor_id scoping.
      */
     public function index(Request $request)
     {
         $this->authorize('viewAny', Grn::class);
 
         if ($request->ajax()) {
-            $teamId = auth()->user()->team_id;
+            $supervisorId = auth()->id();
+
+            // Get team member IDs (supervisor + their technicians)
+            $teamUserIds = User::where('supervisor_id', $supervisorId)
+                ->pluck('id')
+                ->push($supervisorId)
+                ->toArray();
 
             $query = Grn::with(['vendor', 'receivingDepot', 'purchaseOrder', 'createdBy'])
                 ->select('grns.*')
-                ->whereHas('createdBy', function ($q) use ($teamId) {
-                    $q->where('team_id', $teamId);
-                });
+                ->whereIn('grns.created_by', $teamUserIds);
+
+            // Apply filters
+            if ($request->filled('status')) {
+                $query->where('grns.status', $request->status);
+            }
+            if ($request->filled('date_from')) {
+                $query->whereDate('grns.grn_date', '>=', $request->date_from);
+            }
+            if ($request->filled('date_to')) {
+                $query->whereDate('grns.grn_date', '<=', $request->date_to);
+            }
 
             return DataTables::of($query)
                 ->addColumn('action', function ($grn) {
@@ -60,14 +77,12 @@ class GrnController extends Controller
                         </button>';
                     }
 
-                    // Print PDF button
                     if (auth()->user()->can('print', $grn)) {
                         $actions .= '<a href="' . route('supervisor.grns.pdf', $grn) . '" class="btn btn-secondary" title="Print PDF" target="_blank">
                             <i class="bi bi-printer"></i>
                         </a>';
                     }
 
-                    // Cancel button (only for draft)
                     if (auth()->user()->can('cancel', $grn) && $grn->status !== 'cancelled') {
                         $actions .= '<button type="button" class="btn btn-danger cancel-grn-btn"
                             data-id="' . $grn->id . '"
@@ -80,73 +95,73 @@ class GrnController extends Controller
                     $actions .= '</div>';
                     return $actions;
                 })
-                ->editColumn('grn_date', function ($grn) {
-                    return $grn->grn_date->format('d M Y');
-                })
-                ->editColumn('status', function ($grn) {
+                ->addColumn('vendor_name', fn($grn) => $grn->vendor->vendor_name ?? 'N/A')
+                ->addColumn('po_no', fn($grn) => $grn->purchaseOrder->po_no ?? 'N/A')
+                ->addColumn('depot_name', fn($grn) => $grn->receivingDepot->depot_name ?? 'N/A')
+                ->addColumn('items_count', fn($grn) => $grn->lines_count ?? $grn->lines()->count())
+                ->addColumn('status_badge', function ($grn) {
                     $badges = [
-                        'draft'     => 'secondary',
-                        'posted'    => 'success',
+                        'draft' => 'secondary',
+                        'posted' => 'success',
                         'cancelled' => 'danger',
                     ];
-                    $badge = $badges[$grn->status] ?? 'secondary';
-                    return '<span class="badge bg-' . $badge . '">' . ucfirst($grn->status) . '</span>';
+                    $class = $badges[$grn->status] ?? 'secondary';
+                    $label = ucfirst($grn->status);
+                    return '<span class="badge bg-' . $class . '">' . $label . '</span>';
                 })
-                ->addColumn('vendor_name', function ($grn) {
-                    return $grn->vendor->vendor_name ?? $grn->vendor->company_name ?? '-';
-                })
-                ->addColumn('depot_name', function ($grn) {
-                    return $grn->receivingDepot->depot_name ?? '-';
-                })
-                ->addColumn('po_no', function ($grn) {
-                    return $grn->purchaseOrder->po_no ?? '-';
-                })
-                ->addColumn('created_by_name', function ($grn) {
-                    return $grn->createdBy->name ?? '-';
-                })
-                ->rawColumns(['action', 'status'])
+                ->addColumn('created_by_name', fn($grn) => $grn->createdBy->name ?? 'N/A')
+                ->rawColumns(['action', 'status_badge'])
                 ->make(true);
         }
 
-        return view('supervisor.grns.index');
+        $depots = Depot::orderBy('depot_name')->get();
+
+        return view('supervisor.grns.index', compact('depots'));
     }
 
     /**
-     * Show the form for creating a new GRN
+     * Show form for creating a new GRN.
      */
-    public function create()
+    public function create(Request $request)
     {
         $this->authorize('create', Grn::class);
 
         $purchaseOrders = $this->grnService->getOutstandingPurchaseOrders();
-        $depots = Depot::where('status', 'active')->orderBy('depot_name')->get();
+        $depots = Depot::orderBy('depot_name')->get();
 
-        return view('supervisor.grns.create', compact('purchaseOrders', 'depots'));
+        $selectedPo = null;
+        if ($request->filled('po_id')) {
+            $selectedPo = $this->grnService->getPurchaseOrderDetails($request->po_id);
+        }
+
+        return view('supervisor.grns.create', compact('purchaseOrders', 'depots', 'selectedPo'));
     }
 
     /**
-     * Store a newly created GRN
+     * Store a newly created GRN.
      */
     public function store(StoreGrnRequest $request)
     {
+        $this->authorize('create', Grn::class);
+
         try {
             $grn = $this->grnService->createGrn($request->validated());
 
             return response()->json([
-                'success'  => true,
-                'message'  => 'GRN created successfully.',
+                'success' => true,
+                'message' => 'GRN created successfully.',
                 'redirect' => route('supervisor.grns.show', $grn),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error creating GRN: ' . $e->getMessage(),
-            ], 500);
+            ], 422);
         }
     }
 
     /**
-     * Display the specified GRN
+     * Display the specified GRN.
      */
     public function show(Grn $grn)
     {
@@ -154,77 +169,30 @@ class GrnController extends Controller
 
         $grn->load([
             'vendor',
+            'purchaseOrder',
             'receivingDepot',
-            'purchaseOrder.lines',
             'lines.model.category',
+            'lines.poLine',
             'lines.serials',
             'createdBy',
-            'postedBy',
         ]);
 
         return view('supervisor.grns.show', compact('grn'));
     }
 
     /**
-     * Get Purchase Order details (AJAX)
-     */
-    public function getPurchaseOrderDetails($poId)
-    {
-        try {
-            $po = $this->grnService->getPurchaseOrderDetails($poId);
-
-            $lines = $po->lines->map(function ($line) {
-                return [
-                    'id'                  => $line->id,
-                    'line_no'             => $line->line_no,
-                    'model_id'            => $line->model_id,
-                    'model_name'          => $line->model->model_name ?? '',
-                    'description'         => $line->description,
-                    'quantity_ordered'    => (float) $line->quantity_ordered,
-                    'quantity_received'   => (float) $line->quantity_received,
-                    'quantity_cancelled'  => (float) $line->quantity_cancelled,
-                    'quantity_outstanding' => (float) $line->quantity_outstanding,
-                    'unit'                => $line->unit,
-                    'unit_price'          => (float) $line->unit_price,
-                    'is_serial_tracked'   => $line->model->is_serial_tracked ?? false,
-                ];
-            });
-
-            return response()->json([
-                'success'        => true,
-                'purchase_order' => [
-                    'id'                 => $po->id,
-                    'po_no'              => $po->po_no,
-                    'po_date'            => $po->po_date->format('Y-m-d'),
-                    'vendor_id'          => $po->vendor_id,
-                    'vendor_name'        => $po->vendor->vendor_name ?? $po->vendor->company_name ?? '',
-                    'receiving_depot_id' => $po->receiving_depot_id,
-                    'depot_name'         => $po->receivingDepot->depot_name ?? '',
-                ],
-                'lines' => $lines,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error loading purchase order: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Post GRN (AJAX) — triggers inventory update + email notification
-     * Same GrnService handles email for both admin and supervisor
+     * Post a GRN (finalize and update inventory).
      */
     public function post(Grn $grn)
     {
         $this->authorize('post', $grn);
 
         try {
-            $grn = $this->grnService->postGrn($grn);
+            $this->grnService->postGrn($grn);
 
             return response()->json([
                 'success' => true,
-                'message' => "GRN {$grn->grn_no} posted successfully. Inventory and stock balances updated.",
+                'message' => 'GRN posted successfully. Inventory has been updated.',
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -235,45 +203,46 @@ class GrnController extends Controller
     }
 
     /**
-     * Validate serial uniqueness (AJAX)
+     * Cancel a GRN.
      */
-    public function validateSerial(Request $request)
+    public function cancel(Grn $grn)
     {
-        $serialNo         = $request->input('serial_no');
-        $excludeGrnLineId = $request->input('exclude_grn_line_id');
+        $this->authorize('cancel', $grn);
 
-        $result = $this->grnService->validateSerialUniqueness($serialNo, $excludeGrnLineId);
+        try {
+            $this->grnService->cancelGrn($grn);
 
-        return response()->json($result);
+            return response()->json([
+                'success' => true,
+                'message' => 'GRN cancelled successfully.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error cancelling GRN: ' . $e->getMessage(),
+            ], 422);
+        }
     }
 
     /**
-     * Stream GRN PDF (view in browser)
+     * Generate PDF for a GRN.
      */
     public function pdf(Grn $grn)
     {
-        $this->authorize('print', $grn);
-
-        try {
-            return $this->pdfService->stream($grn);
-        } catch (\Exception $e) {
-            return redirect()->route('supervisor.grns.show', $grn)
-                ->with('error', 'Error generating PDF: ' . $e->getMessage());
-        }
+        $this->authorize('view', $grn);
+        return $this->pdfService->stream($grn);
     }
 
     /**
-     * Download GRN PDF
+     * Get PO details for GRN creation (AJAX).
      */
-    public function downloadPdf(Grn $grn)
+    public function getPurchaseOrderDetails(Request $request)
     {
-        $this->authorize('print', $grn);
+        $po = $this->grnService->getPurchaseOrderDetails($request->po_id);
 
-        try {
-            return $this->pdfService->download($grn);
-        } catch (\Exception $e) {
-            return redirect()->route('supervisor.grns.show', $grn)
-                ->with('error', 'Error downloading PDF: ' . $e->getMessage());
-        }
+        return response()->json([
+            'success' => true,
+            'data' => $po,
+        ]);
     }
 }
