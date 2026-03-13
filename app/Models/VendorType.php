@@ -26,7 +26,7 @@ class VendorType extends Model
     // ==========================================
 
     /**
-     * Vendors belonging to this type.
+     * Vendors belonging to this type (via vendor_type_id FK).
      */
     public function vendors(): HasMany
     {

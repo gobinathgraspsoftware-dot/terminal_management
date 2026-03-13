@@ -12,7 +12,6 @@ use App\Models\Invoice;
 use App\Services\VendorService;
 use App\Exports\VendorsExport;
 use App\Imports\VendorsImport;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -23,8 +22,6 @@ use Yajra\DataTables\Facades\DataTables;
 
 class VendorController extends Controller
 {
-    use AuthorizesRequests;
-
     protected VendorService $vendorService;
 
     public function __construct(VendorService $vendorService)
@@ -38,9 +35,8 @@ class VendorController extends Controller
     public function index(): View
     {
         $statistics = $this->vendorService->getStatistics();
-        $vendorTypes = VendorType::active()->orderBy('title')->get();
 
-        return view('admin.vendors.index', compact('statistics', 'vendorTypes'));
+        return view('admin.vendors.index', compact('statistics'));
     }
 
     /**
@@ -49,7 +45,7 @@ class VendorController extends Controller
     public function datatable(Request $request): JsonResponse
     {
         $query = Vendor::select('vendors.*')
-            ->with(['createdBy', 'updatedBy', 'vendorType'])
+            ->with(['createdBy', 'updatedBy'])
             ->withCount('purchaseOrders')
             ->withCount('grns')
             ->withCount('branches')
@@ -68,7 +64,7 @@ class VendorController extends Controller
                 }
 
                 $badgeClass = $vendor->status === Vendor::STATUS_ACTIVE ? 'bg-success' : 'bg-secondary';
-                $statusText = ucfirst($vendor->status ?? 'active');
+                $statusText = ucfirst($vendor->status);
 
                 return '<span class="badge ' . $badgeClass . ' status-toggle-badge"
                               data-vendor-id="' . $vendor->id . '"
@@ -78,7 +74,7 @@ class VendorController extends Controller
                         '</span>';
             })
             ->addColumn('vendor_type_badge', function ($vendor) {
-                return $this->getVendorTypeBadge($vendor);
+                return $this->getVendorTypeBadge($vendor->vendor_type);
             })
             ->addColumn('pic_info', function ($vendor) {
                 $html = '<strong>' . e($vendor->pic_name ?? 'N/A') . '</strong>';
@@ -102,7 +98,7 @@ class VendorController extends Controller
                 return '<span class="badge bg-light text-dark">' . $count . ' branch' . ($count !== 1 ? 'es' : '') . '</span>';
             })
             ->addColumn('payment_terms_display', function ($vendor) {
-                return ($vendor->payment_terms ?? 30) . ' days';
+                return $vendor->payment_terms . ' days';
             })
             ->addColumn('purchase_orders_count', function ($vendor) {
                 return $vendor->purchase_orders_count ?? 0;
@@ -142,9 +138,14 @@ class VendorController extends Controller
                     $query->where('status', $request->status);
                 }
 
-                // Filter by vendor_type_id (from VendorType table)
+                // Support both vendor_type (legacy string) and vendor_type_id (new FK)
                 if ($request->filled('vendor_type')) {
-                    $query->where('vendor_type_id', $request->vendor_type);
+                    $typeFilter = $request->vendor_type;
+                    if (is_numeric($typeFilter)) {
+                        $query->where('vendor_type_id', $typeFilter);
+                    } else {
+                        $query->where('vendor_type', $typeFilter);
+                    }
                 }
 
                 if ($request->filled('state')) {
@@ -208,15 +209,21 @@ class VendorController extends Controller
     }
 
     /**
-     * Get vendor type badge - now from VendorType relationship
+     * Get vendor type badge
      */
-    private function getVendorTypeBadge(Vendor $vendor): string
+    private function getVendorTypeBadge(?string $type): string
     {
-        $typeName = $vendor->vendorType?->title ?? ucfirst($vendor->vendor_type ?? 'Unknown');
-        $colors = ['bg-primary', 'bg-info', 'bg-warning', 'bg-success', 'bg-secondary', 'bg-dark'];
-        $colorIndex = $vendor->vendor_type_id ? (($vendor->vendor_type_id - 1) % count($colors)) : 5;
+        if (!$type) {
+            return '<span class="badge bg-dark">Unknown</span>';
+        }
 
-        return '<span class="badge ' . $colors[$colorIndex] . '">' . e($typeName) . '</span>';
+        return match($type) {
+            Vendor::TYPE_SUPPLIER => '<span class="badge bg-primary">Supplier</span>',
+            Vendor::TYPE_SUBCON => '<span class="badge bg-info">Sub-contractor</span>',
+            Vendor::TYPE_COURIER => '<span class="badge bg-warning">Courier</span>',
+            Vendor::TYPE_OTHER => '<span class="badge bg-secondary">Other</span>',
+            default => '<span class="badge bg-dark">Unknown</span>',
+        };
     }
 
     /**
@@ -225,7 +232,7 @@ class VendorController extends Controller
     public function create(): View
     {
         $nextCode = Vendor::generateVendorCode();
-        $vendorTypes = VendorType::active()->orderBy('title')->get();
+        $vendorTypes = $this->getVendorTypes();
 
         return view('admin.vendors.create', compact('nextCode', 'vendorTypes'));
     }
@@ -271,9 +278,9 @@ class VendorController extends Controller
     public function show(Vendor $vendor): View
     {
         $vendor->load([
-            'vendorType',
             'branches.state',
             'branches.city',
+            'vendorType',
             'purchaseOrders' => function ($query) {
                 $query->latest()->limit(10);
             },
@@ -301,7 +308,7 @@ class VendorController extends Controller
     public function edit(Vendor $vendor): View
     {
         $vendor->load(['branches.state', 'branches.city', 'vendorType']);
-        $vendorTypes = VendorType::active()->orderBy('title')->get();
+        $vendorTypes = $this->getVendorTypes();
 
         return view('admin.vendors.edit', compact('vendor', 'vendorTypes'));
     }
@@ -472,38 +479,6 @@ class VendorController extends Controller
     }
 
     /**
-     * Suggest vendor codes based on vendor name (AJAX)
-     */
-    public function suggestCode(Request $request): JsonResponse
-    {
-        $vendorName = $request->get('vendor_name', '');
-        $suggestions = Vendor::suggestVendorCodes($vendorName);
-        $defaultCode = Vendor::generateVendorCode();
-
-        return response()->json([
-            'success' => true,
-            'suggestions' => $suggestions,
-            'default_code' => $defaultCode,
-        ]);
-    }
-
-    /**
-     * Check if vendor code is available (AJAX)
-     */
-    public function checkCode(Request $request): JsonResponse
-    {
-        $code = $request->get('vendor_code', '');
-        $excludeId = $request->get('exclude_id');
-
-        $available = Vendor::isCodeAvailable($code, $excludeId ? (int) $excludeId : null);
-
-        return response()->json([
-            'success' => true,
-            'available' => $available,
-        ]);
-    }
-
-    /**
      * Export vendors to Excel
      */
     public function export(Request $request)
@@ -574,9 +549,8 @@ class VendorController extends Controller
             ->select('id', 'vendor_code', 'vendor_name', 'vendor_type', 'vendor_type_id');
 
         if ($type) {
-            // Support both legacy enum and new FK
             if (is_numeric($type)) {
-                $query->where('vendor_type_id', $type);
+                $query->where('vendor_type_id', (int) $type);
             } else {
                 $query->where('vendor_type', $type);
             }
@@ -597,10 +571,78 @@ class VendorController extends Controller
                 return [
                     'id' => $vendor->id,
                     'text' => "[{$vendor->vendor_code}] {$vendor->vendor_name}",
-                    'vendor_type' => $vendor->vendor_type,
-                    'vendor_type_id' => $vendor->vendor_type_id
+                    'vendor_type' => $vendor->vendor_type
                 ];
             })
+        ]);
+    }
+
+    // ==========================================
+    // VENDOR CODE SUGGESTION ENDPOINTS
+    // ==========================================
+
+    /**
+     * Suggest vendor codes based on vendor name (Gmail-style)
+     * GET /admin/vendors/suggest-code?vendor_name=Maybank
+     */
+    public function suggestCode(Request $request): JsonResponse
+    {
+        $vendorName = $request->get('vendor_name', '');
+        $defaultCode = Vendor::generateVendorCode();
+
+        $suggestions = [];
+        if (!empty(trim($vendorName))) {
+            $suggestions = Vendor::suggestVendorCodes($vendorName);
+        }
+
+        return response()->json([
+            'success' => true,
+            'suggestions' => $suggestions,
+            'default_code' => $defaultCode,
+        ]);
+    }
+
+    /**
+     * Check if a vendor code is available
+     * GET /admin/vendors/check-code?vendor_code=MAY
+     */
+    public function checkCode(Request $request): JsonResponse
+    {
+        $vendorCode = $request->get('vendor_code', '');
+        $excludeId = $request->get('exclude_id');
+
+        $available = Vendor::isCodeAvailable($vendorCode, $excludeId ? (int) $excludeId : null);
+
+        return response()->json([
+            'available' => $available,
+            'vendor_code' => $vendorCode,
+        ]);
+    }
+
+    // ==========================================
+    // PRIVATE HELPERS
+    // ==========================================
+
+    /**
+     * Get vendor types from DB for dropdowns
+     * Falls back to hardcoded array if vendor_types table has no active records
+     */
+    private function getVendorTypes()
+    {
+        $dbTypes = VendorType::where('is_active', true)
+            ->orderBy('title')
+            ->get();
+
+        if ($dbTypes->isNotEmpty()) {
+            return $dbTypes;
+        }
+
+        // Fallback: return as collection-like array for backward compat
+        return collect([
+            (object) ['id' => null, 'title' => 'Supplier'],
+            (object) ['id' => null, 'title' => 'Sub-contractor'],
+            (object) ['id' => null, 'title' => 'Courier'],
+            (object) ['id' => null, 'title' => 'Other'],
         ]);
     }
 }

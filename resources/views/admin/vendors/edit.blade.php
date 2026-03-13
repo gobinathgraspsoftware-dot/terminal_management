@@ -29,23 +29,18 @@
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    {{-- Vendor Name --}}
                     <div class="col-md-6">
                         <label for="vendor_name" class="form-label">Vendor Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="vendor_name" name="vendor_name"
                                value="{{ old('vendor_name', $vendor->vendor_name) }}" required>
                         <div class="invalid-feedback"></div>
                     </div>
-
-                    {{-- Vendor Code — READONLY on edit --}}
                     <div class="col-md-3">
                         <label for="vendor_code" class="form-label">Vendor Code</label>
                         <input type="text" class="form-control bg-light" id="vendor_code"
                                value="{{ $vendor->vendor_code }}" readonly>
                         <small class="text-muted">Vendor code cannot be changed after creation</small>
                     </div>
-
-                    {{-- Vendor Type (from DB) --}}
                     <div class="col-md-3">
                         <label for="vendor_type_id" class="form-label">Vendor Type <span class="text-danger">*</span></label>
                         <select class="form-select" id="vendor_type_id" name="vendor_type_id" required>
@@ -59,22 +54,16 @@
                         </select>
                         <div class="invalid-feedback"></div>
                     </div>
-
-                    {{-- Company Name --}}
                     <div class="col-md-4">
                         <label for="company_name" class="form-label">Company Name</label>
                         <input type="text" class="form-control" id="company_name" name="company_name"
                                value="{{ old('company_name', $vendor->company_name) }}">
                     </div>
-
-                    {{-- Registration No --}}
                     <div class="col-md-4">
                         <label for="registration_no" class="form-label">Registration No</label>
                         <input type="text" class="form-control" id="registration_no" name="registration_no"
                                value="{{ old('registration_no', $vendor->registration_no) }}">
                     </div>
-
-                    {{-- Tax ID --}}
                     <div class="col-md-4">
                         <label for="tax_id" class="form-label">Tax ID</label>
                         <input type="text" class="form-control" id="tax_id" name="tax_id"
@@ -139,7 +128,7 @@
             </div>
         </div>
 
-        {{-- Payment & Status (nullable) --}}
+        {{-- Payment & Status --}}
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0"><i class="bi bi-gear"></i> Payment & Status</h5>
@@ -169,7 +158,7 @@
             </div>
         </div>
 
-        {{-- Branches --}}
+        {{-- Branches (original @foreach server-side flow) --}}
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0"><i class="bi bi-geo-alt"></i> Branches</h5>
@@ -209,24 +198,36 @@
                                 <input type="text" class="form-control" name="branches[{{ $i }}][address]"
                                        value="{{ $branch->address }}">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">State</label>
                                 <select class="form-select branch-state" name="branches[{{ $i }}][state_id]"
                                         data-index="{{ $i }}" data-selected="{{ $branch->state_id }}">
                                     <option value="">-- Select State --</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <label class="form-label">City</label>
                                 <select class="form-select branch-city" name="branches[{{ $i }}][city_id]"
                                         data-index="{{ $i }}" data-selected="{{ $branch->city_id }}">
                                     <option value="">-- Select City --</option>
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-2">
                                 <label class="form-label">Postcode</label>
-                                <input type="text" class="form-control" name="branches[{{ $i }}][postcode]"
-                                       value="{{ $branch->postcode }}">
+                                <input type="text" class="form-control bg-light branch-postcode" name="branches[{{ $i }}][postcode]"
+                                       value="{{ $branch->postcode }}" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Country</label>
+                                <input type="text" class="form-control bg-light" name="branches[{{ $i }}][country]"
+                                       value="{{ $branch->country ?? 'Malaysia' }}" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" name="branches[{{ $i }}][status]">
+                                    <option value="active" {{ ($branch->status ?? 'active') === 'active' ? 'selected' : '' }}>Active</option>
+                                    <option value="inactive" {{ ($branch->status ?? '') === 'inactive' ? 'selected' : '' }}>Inactive</option>
+                                </select>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Contact Person</label>
@@ -263,7 +264,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 $(document).ready(function() {
     let branchIndex = {{ $vendor->branches->count() - 1 }};
@@ -272,9 +273,8 @@ $(document).ready(function() {
     // LOAD EXISTING BRANCH STATES & CITIES
     // ==========================================
 
-    // Load states for all existing branches
     $.ajax({
-        url: '/ajax/states',
+        url: '{{ route("admin.ajax.states") }}',
         type: 'GET',
         data: { search: '' },
         success: function(res) {
@@ -294,14 +294,14 @@ $(document).ready(function() {
                         let citySelected = citySelect.data('selected');
 
                         $.ajax({
-                            url: '/ajax/cities',
+                            url: '{{ route("admin.ajax.cities") }}',
                             type: 'GET',
                             data: { state_id: selected },
                             success: function(cityRes) {
                                 if (cityRes.results) {
                                     cityRes.results.forEach(function(city) {
                                         let isCitySelected = (city.id == citySelected) ? ' selected' : '';
-                                        citySelect.append('<option value="' + city.id + '"' + isCitySelected + '>' + city.text + '</option>');
+                                        citySelect.append('<option value="' + city.id + '" data-postcode="' + (city.postcode || '') + '"' + isCitySelected + '>' + city.text + '</option>');
                                     });
                                 }
                             }
@@ -316,7 +316,6 @@ $(document).ready(function() {
     // BRANCHES MANAGEMENT
     // ==========================================
 
-    // Add branch
     $('#addBranch').on('click', function() {
         branchIndex++;
         let html = getBranchTemplate(branchIndex);
@@ -324,7 +323,6 @@ $(document).ready(function() {
         initBranchState(branchIndex);
     });
 
-    // Remove branch
     $(document).on('click', '.remove-branch', function() {
         if ($('.branch-item').length <= 1) {
             showToast('error', 'At least one branch is required.');
@@ -334,7 +332,6 @@ $(document).ready(function() {
         reindexBranches();
     });
 
-    // Primary toggle
     $(document).on('change', '.branch-primary', function() {
         if ($(this).is(':checked')) {
             $('.branch-primary').not(this).prop('checked', false);
@@ -345,19 +342,21 @@ $(document).ready(function() {
     $(document).on('change', '.branch-state', function() {
         let index = $(this).data('index');
         let stateId = $(this).val();
-        let citySelect = $('[name="branches[' + index + '][city_id]"]');
+        let $branchItem = $(this).closest('.branch-item');
+        let citySelect = $branchItem.find('.branch-city');
 
         citySelect.html('<option value="">-- Select City --</option>');
+        $branchItem.find('.branch-postcode').val('');
 
         if (stateId) {
             $.ajax({
-                url: '/ajax/cities',
+                url: '{{ route("admin.ajax.cities") }}',
                 type: 'GET',
                 data: { state_id: stateId },
                 success: function(res) {
                     if (res.results) {
                         res.results.forEach(function(city) {
-                            citySelect.append('<option value="' + city.id + '">' + city.text + '</option>');
+                            citySelect.append('<option value="' + city.id + '" data-postcode="' + (city.postcode || '') + '">' + city.text + '</option>');
                         });
                     }
                 }
@@ -365,10 +364,16 @@ $(document).ready(function() {
         }
     });
 
+    // City change → auto-fill postcode
+    $(document).on('change', '.branch-city', function() {
+        let postcode = $(this).find('option:selected').data('postcode') || '';
+        $(this).closest('.branch-item').find('.branch-postcode').val(postcode);
+    });
+
     function initBranchState(index) {
         let stateSelect = $('[name="branches[' + index + '][state_id]"]');
         $.ajax({
-            url: '/ajax/states',
+            url: '{{ route("admin.ajax.states") }}',
             type: 'GET',
             data: { search: '' },
             success: function(res) {
@@ -407,21 +412,32 @@ $(document).ready(function() {
                     <label class="form-label">Address</label>
                     <input type="text" class="form-control" name="branches[${index}][address]">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">State</label>
                     <select class="form-select branch-state" name="branches[${index}][state_id]" data-index="${index}">
                         <option value="">-- Select State --</option>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">City</label>
                     <select class="form-select branch-city" name="branches[${index}][city_id]" data-index="${index}">
                         <option value="">-- Select City --</option>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-2">
                     <label class="form-label">Postcode</label>
-                    <input type="text" class="form-control" name="branches[${index}][postcode]">
+                    <input type="text" class="form-control bg-light branch-postcode" name="branches[${index}][postcode]" readonly>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Country</label>
+                    <input type="text" class="form-control bg-light" name="branches[${index}][country]" value="Malaysia" readonly>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" name="branches[${index}][status]">
+                        <option value="active" selected>Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Contact Person</label>
@@ -506,4 +522,4 @@ $(document).ready(function() {
     });
 });
 </script>
-@endsection
+@endpush

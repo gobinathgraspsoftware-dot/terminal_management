@@ -293,22 +293,33 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
 
     /* Vendors Management Routes */
     Route::prefix('vendors')->name('vendors.')->group(function () {
+        // List & DataTable
         Route::get('/', [AdminVendorController::class, 'index'])->name('index');
         Route::get('/datatable', [AdminVendorController::class, 'datatable'])->name('datatable');
+
+        // Create & Store
         Route::get('/create', [AdminVendorController::class, 'create'])->name('create');
         Route::post('/', [AdminVendorController::class, 'store'])->name('store');
+
+        // Export / Import (MUST be before /{vendor})
+        Route::get('/export/excel', [AdminVendorController::class, 'export'])->name('export');
+        Route::post('/import/excel', [AdminVendorController::class, 'import'])->name('import');
+        Route::get('/import/template', [AdminVendorController::class, 'importTemplate'])->name('import-template');
+
+        // API list for dropdowns (MUST be before /{vendor})
+        Route::get('/api/list', [AdminVendorController::class, 'getList'])->name('api.list');
+
+        // Vendor code suggestions (NEW — MUST be before /{vendor})
+        Route::get('/suggest-code', [AdminVendorController::class, 'suggestCode'])->name('suggest-code');
+        Route::get('/check-code', [AdminVendorController::class, 'checkCode'])->name('check-code');
+
+        // Parameterized routes LAST
         Route::get('/{vendor}', [AdminVendorController::class, 'show'])->name('show');
         Route::get('/{vendor}/edit', [AdminVendorController::class, 'edit'])->name('edit');
         Route::put('/{vendor}', [AdminVendorController::class, 'update'])->name('update');
         Route::delete('/{vendor}', [AdminVendorController::class, 'destroy'])->name('destroy');
         Route::post('/{vendor}/restore', [AdminVendorController::class, 'restore'])->name('restore');
         Route::post('/{vendor}/toggle-status', [AdminVendorController::class, 'toggleStatus'])->name('toggle-status');
-        Route::get('/export/excel', [AdminVendorController::class, 'export'])->name('export');
-        Route::post('/import/excel', [AdminVendorController::class, 'import'])->name('import');
-        Route::get('/import/template', [AdminVendorController::class, 'importTemplate'])->name('import-template');
-        Route::get('/api/list', [AdminVendorController::class, 'getList'])->name('api.list');
-        Route::get('/suggest-code', [AdminVendorController::class, 'suggestCode'])->name('suggest-code');
-        Route::get('/check-code', [AdminVendorController::class, 'checkCode'])->name('check-code');
     });
 
     /* Sites Management Routes */

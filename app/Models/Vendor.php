@@ -13,7 +13,6 @@ class Vendor extends Model
     const STATUS_ACTIVE = 'active';
     const STATUS_INACTIVE = 'inactive';
 
-    // Legacy constants kept for backward compatibility
     const TYPE_SUPPLIER = 'supplier';
     const TYPE_SUBCON = 'subcon';
     const TYPE_COURIER = 'courier';
@@ -49,6 +48,7 @@ class Vendor extends Model
     {
         return [
             'payment_terms' => 'integer',
+            'vendor_type_id' => 'integer',
         ];
     }
 
@@ -60,30 +60,27 @@ class Vendor extends Model
             if (empty($vendor->vendor_code)) {
                 $vendor->vendor_code = static::generateVendorCode();
             }
-
-            // Sync legacy vendor_type from vendor_type_id if set
-            if ($vendor->vendor_type_id && empty($vendor->vendor_type)) {
-                $vendorType = VendorType::find($vendor->vendor_type_id);
-                if ($vendorType) {
-                    $vendor->vendor_type = strtolower(str_replace(['-', ' '], '', $vendorType->title));
-                }
-            }
         });
 
-        static::updating(function ($vendor) {
-            // Sync legacy vendor_type from vendor_type_id if changed
-            if ($vendor->isDirty('vendor_type_id') && $vendor->vendor_type_id) {
+        // Auto-sync legacy vendor_type enum from vendor_type_id FK
+        static::saving(function ($vendor) {
+            if ($vendor->vendor_type_id) {
                 $vendorType = VendorType::find($vendor->vendor_type_id);
                 if ($vendorType) {
-                    $vendor->vendor_type = strtolower(str_replace(['-', ' '], '', $vendorType->title));
+                    $slug = strtolower($vendorType->title);
+                    $typeMap = [
+                        'supplier' => self::TYPE_SUPPLIER,
+                        'sub-contractor' => self::TYPE_SUBCON,
+                        'subcontractor' => self::TYPE_SUBCON,
+                        'subcon' => self::TYPE_SUBCON,
+                        'courier' => self::TYPE_COURIER,
+                    ];
+                    $vendor->vendor_type = $typeMap[$slug] ?? self::TYPE_OTHER;
                 }
             }
         });
     }
 
-    /**
-     * Generate next sequential vendor code (fallback)
-     */
     public static function generateVendorCode(): string
     {
         $prefix = 'VND';
@@ -103,121 +100,74 @@ class Vendor extends Model
     }
 
     /**
-     * Suggest vendor codes based on vendor name (Gmail-style suggestions)
-     *
-     * @param string $vendorName
-     * @return array  Array of available code suggestions
+     * Suggest vendor codes based on name (Gmail-style)
+     * Returns up to 5 unique, available codes
      */
-    public static function suggestVendorCodes(string $vendorName): array
+    public static function suggestVendorCodes(string $name): array
     {
-        $vendorName = trim($vendorName);
-        if (empty($vendorName)) {
+        $name = trim($name);
+        if (empty($name)) {
             return [];
         }
 
-        $candidates = [];
-        $words = preg_split('/[\s\-_]+/', strtoupper($vendorName));
-        $words = array_filter($words, fn($w) => strlen($w) > 0);
-        $words = array_values($words);
+        $suggestions = [];
+        $cleanName = strtoupper(preg_replace('/[^a-zA-Z0-9\s]/', '', $name));
+        $words = preg_split('/\s+/', $cleanName);
 
-        // Strategy 1: First 3 chars of name (e.g., MAY for Maybank)
-        if (strlen($vendorName) >= 3) {
-            $candidates[] = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', $vendorName), 0, 3));
+        // Strategy 1: First 3 chars of name
+        if (strlen($cleanName) >= 3) {
+            $suggestions[] = substr(str_replace(' ', '', $cleanName), 0, 3);
         }
 
-        // Strategy 2: First char + next two consonants (e.g., MYB for Maybank)
-        $consonantCode = static::extractConsonantCode($vendorName);
-        if ($consonantCode && !in_array($consonantCode, $candidates)) {
-            $candidates[] = $consonantCode;
+        // Strategy 2: Consonant extraction
+        $consonants = strtoupper(preg_replace('/[AEIOU\s]/i', '', $cleanName));
+        if (strlen($consonants) >= 3) {
+            $suggestions[] = substr($consonants, 0, 3);
         }
 
-        // Strategy 3: First 4 chars (e.g., MAYB)
-        if (strlen($vendorName) >= 4) {
-            $code = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', $vendorName), 0, 4));
-            if (!in_array($code, $candidates)) {
-                $candidates[] = $code;
+        // Strategy 3: First 4 chars
+        if (strlen($cleanName) >= 4) {
+            $suggestions[] = substr(str_replace(' ', '', $cleanName), 0, 4);
+        }
+
+        // Strategy 4: Acronym from words
+        if (count($words) >= 2) {
+            $acronym = '';
+            foreach ($words as $word) {
+                if (!empty($word)) {
+                    $acronym .= $word[0];
+                }
+            }
+            if (strlen($acronym) >= 2) {
+                $suggestions[] = $acronym;
             }
         }
 
-        // Strategy 4: Acronym from words (e.g., MB for May Bank, HLB for Hong Leong Bank)
-        if (count($words) > 1) {
-            $acronym = implode('', array_map(fn($w) => substr($w, 0, 1), $words));
-            if (strlen($acronym) >= 2 && !in_array($acronym, $candidates)) {
-                $candidates[] = $acronym;
-            }
-        }
-
-        // Strategy 5: First 2 chars + sequential number (e.g., MA01)
-        if (strlen($vendorName) >= 2) {
-            $prefix2 = strtoupper(substr(preg_replace('/[^a-zA-Z]/', '', $vendorName), 0, 2));
+        // Strategy 5: 2-char prefix + sequential number
+        $prefix2 = substr(str_replace(' ', '', $cleanName), 0, 2);
+        if (strlen($prefix2) >= 2) {
             for ($i = 1; $i <= 5; $i++) {
-                $code = $prefix2 . str_pad($i, 2, '0', STR_PAD_LEFT);
-                if (!in_array($code, $candidates)) {
-                    $candidates[] = $code;
-                    break;
-                }
+                $suggestions[] = $prefix2 . str_pad($i, 2, '0', STR_PAD_LEFT);
             }
         }
 
-        // Filter out already-used codes
-        if (empty($candidates)) {
-            return [];
-        }
-
-        $existingCodes = static::withTrashed()
-            ->whereIn('vendor_code', $candidates)
-            ->pluck('vendor_code')
-            ->toArray();
-
-        $available = array_values(array_filter($candidates, fn($c) => !in_array($c, $existingCodes)));
-
-        // If all taken, append numbers to first candidate
-        if (empty($available) && !empty($candidates)) {
-            $base = $candidates[0];
-            for ($i = 1; $i <= 10; $i++) {
-                $code = $base . $i;
-                if (!static::withTrashed()->where('vendor_code', $code)->exists()) {
-                    $available[] = $code;
-                    if (count($available) >= 3) break;
-                }
+        // Filter out duplicates and already-used codes
+        $unique = [];
+        foreach ($suggestions as $code) {
+            $code = strtoupper($code);
+            if (!in_array($code, $unique) && static::isCodeAvailable($code)) {
+                $unique[] = $code;
+            }
+            if (count($unique) >= 5) {
+                break;
             }
         }
 
-        return array_slice($available, 0, 5);
+        return $unique;
     }
 
     /**
-     * Extract consonant-based code from name
-     * E.g., "Maybank" → "MYB", "Samsung" → "SMS"
-     */
-    private static function extractConsonantCode(string $name): ?string
-    {
-        $clean = strtoupper(preg_replace('/[^a-zA-Z]/', '', $name));
-        if (strlen($clean) < 2) return null;
-
-        $vowels = ['A', 'E', 'I', 'O', 'U'];
-        $code = $clean[0]; // Always start with first letter
-
-        for ($i = 1; $i < strlen($clean) && strlen($code) < 3; $i++) {
-            if (!in_array($clean[$i], $vowels)) {
-                $code .= $clean[$i];
-            }
-        }
-
-        // If still short, add vowels
-        if (strlen($code) < 3) {
-            for ($i = 1; $i < strlen($clean) && strlen($code) < 3; $i++) {
-                if (in_array($clean[$i], $vowels) && strpos($code, $clean[$i]) === false) {
-                    $code .= $clean[$i];
-                }
-            }
-        }
-
-        return strlen($code) >= 2 ? $code : null;
-    }
-
-    /**
-     * Check if vendor code is available
+     * Check if a vendor code is available
      */
     public static function isCodeAvailable(string $code, ?int $excludeId = null): bool
     {
@@ -229,7 +179,7 @@ class Vendor extends Model
     }
 
     // ==========================================
-    // RELATIONSHIPS
+    // Relationships
     // ==========================================
 
     public function vendorType()
@@ -283,7 +233,7 @@ class Vendor extends Model
     }
 
     // ==========================================
-    // SCOPES
+    // Scopes
     // ==========================================
 
     public function scopeActive($query)
@@ -296,13 +246,13 @@ class Vendor extends Model
         return $query->where('vendor_type', $type);
     }
 
-    public function scopeByTypeId($query, $typeId)
+    public function scopeByTypeId($query, int $typeId)
     {
         return $query->where('vendor_type_id', $typeId);
     }
 
     // ==========================================
-    // ACCESSORS
+    // Accessors
     // ==========================================
 
     public function getFullAddressAttribute(): string
@@ -332,21 +282,5 @@ class Vendor extends Model
             self::STATUS_INACTIVE => '<span class="badge bg-secondary">Inactive</span>',
             default => '<span class="badge bg-warning">Unknown</span>',
         };
-    }
-
-    /**
-     * Get vendor type display name (from FK relationship)
-     */
-    public function getVendorTypeNameAttribute(): string
-    {
-        if ($this->relationLoaded('vendorType') && $this->vendorType) {
-            return $this->vendorType->title;
-        }
-
-        if ($this->vendor_type_id) {
-            return VendorType::find($this->vendor_type_id)?->title ?? ucfirst($this->vendor_type ?? 'Unknown');
-        }
-
-        return ucfirst($this->vendor_type ?? 'Unknown');
     }
 }
