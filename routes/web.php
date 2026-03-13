@@ -307,6 +307,8 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/import/excel', [AdminVendorController::class, 'import'])->name('import');
         Route::get('/import/template', [AdminVendorController::class, 'importTemplate'])->name('import-template');
         Route::get('/api/list', [AdminVendorController::class, 'getList'])->name('api.list');
+        Route::get('/suggest-code', [AdminVendorController::class, 'suggestCode'])->name('suggest-code');
+        Route::get('/check-code', [AdminVendorController::class, 'checkCode'])->name('check-code');
     });
 
     /* Sites Management Routes */

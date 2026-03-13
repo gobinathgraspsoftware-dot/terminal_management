@@ -27,13 +27,11 @@ class VendorType extends Model
 
     /**
      * Vendors belonging to this type.
-     * Note: Currently vendors use a static vendor_type string column.
-     * When migrating to FK, uncomment and adjust.
      */
-    // public function vendors(): HasMany
-    // {
-    //     return $this->hasMany(Vendor::class, 'vendor_type_id');
-    // }
+    public function vendors(): HasMany
+    {
+        return $this->hasMany(Vendor::class, 'vendor_type_id');
+    }
 
     // ==========================================
     // SCOPES

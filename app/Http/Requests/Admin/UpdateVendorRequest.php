@@ -17,15 +17,13 @@ class UpdateVendorRequest extends FormRequest
         $vendorId = $this->route('vendor')->id;
 
         return [
-            // Basic Information
-            'vendor_code' => [
-                'nullable',
-                'string',
-                'max:50',
-                Rule::unique('vendors')->ignore($vendorId)->whereNull('deleted_at')
-            ],
+            // vendor_code is NOT accepted on update — it's readonly
             'vendor_name' => 'required|string|max:255',
-            'vendor_type' => 'required|in:supplier,subcon,courier,other',
+            'vendor_type_id' => [
+                'required',
+                'integer',
+                Rule::exists('vendor_types', 'id')->where('is_active', true),
+            ],
             'company_name' => 'nullable|string|max:255',
             'registration_no' => 'nullable|string|max:100',
             'tax_id' => 'nullable|string|max:100',
@@ -47,12 +45,12 @@ class UpdateVendorRequest extends FormRequest
             'bank_account_no' => 'nullable|string|max:50',
             'bank_account_name' => 'nullable|string|max:100',
 
-            // Payment Terms
-            'payment_terms' => 'required|integer|min:0|max:365',
+            // Payment Terms - nullable
+            'payment_terms' => 'nullable|integer|min:0|max:365',
 
             // Other
             'notes' => 'nullable|string|max:1000',
-            'status' => 'required|in:active,inactive',
+            'status' => 'nullable|in:active,inactive',
 
             // Branches
             'branches' => 'required|array|min:1',
@@ -74,9 +72,8 @@ class UpdateVendorRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'vendor_code' => 'vendor code',
             'vendor_name' => 'vendor name',
-            'vendor_type' => 'vendor type',
+            'vendor_type_id' => 'vendor type',
             'company_name' => 'company name',
             'registration_no' => 'registration number',
             'tax_id' => 'tax ID',
@@ -98,14 +95,12 @@ class UpdateVendorRequest extends FormRequest
     {
         return [
             'vendor_name.required' => 'Vendor name is required.',
-            'vendor_type.required' => 'Please select a vendor type.',
-            'vendor_type.in' => 'Invalid vendor type selected.',
+            'vendor_type_id.required' => 'Please select a vendor type.',
+            'vendor_type_id.exists' => 'The selected vendor type is invalid or inactive.',
             'pic_email.email' => 'Please enter a valid email address.',
-            'payment_terms.required' => 'Payment terms are required.',
             'payment_terms.integer' => 'Payment terms must be a number.',
             'payment_terms.min' => 'Payment terms cannot be negative.',
             'payment_terms.max' => 'Payment terms cannot exceed 365 days.',
-            'status.required' => 'Please select a status.',
             'status.in' => 'Invalid status selected.',
             'branches.required' => 'At least one branch is required.',
             'branches.min' => 'At least one branch is required.',

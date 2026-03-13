@@ -22,30 +22,30 @@ class VendorsExport implements FromCollection, WithHeadings, WithMapping, WithSt
         $this->isTemplate = $isTemplate;
     }
 
-    /**
-     * Get the collection to export
-     */
     public function collection()
     {
-        // If template, return empty collection
         if ($this->isTemplate) {
             return collect([]);
         }
 
-        $query = Vendor::with(['createdBy', 'updatedBy', 'branches']);
+        $query = Vendor::with(['createdBy', 'updatedBy', 'branches', 'vendorType']);
 
-        // Apply filters
         if (!empty($this->filters['status'])) {
             $query->where('status', $this->filters['status']);
         }
 
+        // Support both vendor_type_id (new) and vendor_type (legacy)
         if (!empty($this->filters['vendor_type'])) {
-            $query->where('vendor_type', $this->filters['vendor_type']);
+            if (is_numeric($this->filters['vendor_type'])) {
+                $query->where('vendor_type_id', $this->filters['vendor_type']);
+            } else {
+                $query->where('vendor_type', $this->filters['vendor_type']);
+            }
         }
 
         if (!empty($this->filters['state'])) {
             $query->whereHas('branches', function ($q) {
-                $q->where('state', $this->filters['state']);
+                $q->where('state_id', $this->filters['state']);
             });
         }
 
@@ -61,9 +61,6 @@ class VendorsExport implements FromCollection, WithHeadings, WithMapping, WithSt
         return $query->orderBy('vendor_name')->get();
     }
 
-    /**
-     * Define the headings for the export
-     */
     public function headings(): array
     {
         return [
@@ -90,12 +87,8 @@ class VendorsExport implements FromCollection, WithHeadings, WithMapping, WithSt
         ];
     }
 
-    /**
-     * Map the data for each row
-     */
     public function map($vendor): array
     {
-        // Format branches into a readable string
         $branchesStr = '';
         if ($vendor->branches && $vendor->branches->count() > 0) {
             $branchLines = [];
@@ -116,10 +109,13 @@ class VendorsExport implements FromCollection, WithHeadings, WithMapping, WithSt
             $branchesStr = implode("\n", $branchLines);
         }
 
+        // Use VendorType relationship name, fallback to legacy enum
+        $vendorTypeName = $vendor->vendorType?->title ?? ucfirst($vendor->vendor_type ?? '');
+
         return [
             $vendor->vendor_code,
             $vendor->vendor_name,
-            ucfirst($vendor->vendor_type),
+            $vendorTypeName,
             $vendor->company_name,
             $vendor->registration_no,
             $vendor->tax_id,
@@ -130,7 +126,7 @@ class VendorsExport implements FromCollection, WithHeadings, WithMapping, WithSt
             $vendor->bank_account_no,
             $vendor->bank_account_name,
             $vendor->payment_terms,
-            ucfirst($vendor->status),
+            ucfirst($vendor->status ?? ''),
             $vendor->notes,
             $branchesStr,
             $vendor->created_at ? $vendor->created_at->format('Y-m-d H:i:s') : '',
@@ -140,42 +136,35 @@ class VendorsExport implements FromCollection, WithHeadings, WithMapping, WithSt
         ];
     }
 
-    /**
-     * Define column widths
-     */
     public function columnWidths(): array
     {
         return [
-            'A' => 15,  // Vendor Code
-            'B' => 30,  // Vendor Name
-            'C' => 15,  // Vendor Type
-            'D' => 30,  // Company Name
-            'E' => 20,  // Registration No
-            'F' => 20,  // Tax ID
-            'G' => 25,  // PIC Name
-            'H' => 30,  // PIC Email
-            'I' => 18,  // PIC Phone
-            'J' => 25,  // Bank Name
-            'K' => 20,  // Bank Account No
-            'L' => 25,  // Bank Account Name
-            'M' => 18,  // Payment Terms
-            'N' => 12,  // Status
-            'O' => 40,  // Notes
-            'P' => 80,  // Branches
-            'Q' => 20,  // Created At
-            'R' => 20,  // Created By
-            'S' => 20,  // Updated At
-            'T' => 20,  // Updated By
+            'A' => 15,
+            'B' => 30,
+            'C' => 15,
+            'D' => 30,
+            'E' => 20,
+            'F' => 20,
+            'G' => 25,
+            'H' => 30,
+            'I' => 18,
+            'J' => 25,
+            'K' => 20,
+            'L' => 25,
+            'M' => 18,
+            'N' => 12,
+            'O' => 40,
+            'P' => 80,
+            'Q' => 20,
+            'R' => 20,
+            'S' => 20,
+            'T' => 20,
         ];
     }
 
-    /**
-     * Apply styles to the worksheet
-     */
     public function styles(Worksheet $sheet)
     {
         return [
-            // Style the header row
             1 => [
                 'font' => [
                     'color' => ['rgb' => 'FFFFFF'],

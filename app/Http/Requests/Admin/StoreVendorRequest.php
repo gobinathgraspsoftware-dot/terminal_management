@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\VendorType;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,13 +18,17 @@ class StoreVendorRequest extends FormRequest
         return [
             // Basic Information
             'vendor_code' => [
-                'nullable',
+                'required',
                 'string',
                 'max:50',
                 Rule::unique('vendors')->whereNull('deleted_at')
             ],
             'vendor_name' => 'required|string|max:255',
-            'vendor_type' => 'required|in:supplier,subcon,courier,other',
+            'vendor_type_id' => [
+                'required',
+                'integer',
+                Rule::exists('vendor_types', 'id')->where('is_active', true),
+            ],
             'company_name' => 'nullable|string|max:255',
             'registration_no' => 'nullable|string|max:100',
             'tax_id' => 'nullable|string|max:100',
@@ -45,12 +50,12 @@ class StoreVendorRequest extends FormRequest
             'bank_account_no' => 'nullable|string|max:50',
             'bank_account_name' => 'nullable|string|max:100',
 
-            // Payment Terms
-            'payment_terms' => 'required|integer|min:0|max:365',
+            // Payment Terms - now nullable
+            'payment_terms' => 'nullable|integer|min:0|max:365',
 
             // Other
             'notes' => 'nullable|string|max:1000',
-            'status' => 'required|in:active,inactive',
+            'status' => 'nullable|in:active,inactive',
 
             // Branches (at least one required)
             'branches' => 'required|array|min:1',
@@ -74,7 +79,7 @@ class StoreVendorRequest extends FormRequest
         return [
             'vendor_code' => 'vendor code',
             'vendor_name' => 'vendor name',
-            'vendor_type' => 'vendor type',
+            'vendor_type_id' => 'vendor type',
             'company_name' => 'company name',
             'registration_no' => 'registration number',
             'tax_id' => 'tax ID',
@@ -95,15 +100,15 @@ class StoreVendorRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'vendor_code.required' => 'Vendor code is required.',
+            'vendor_code.unique' => 'This vendor code is already in use.',
             'vendor_name.required' => 'Vendor name is required.',
-            'vendor_type.required' => 'Please select a vendor type.',
-            'vendor_type.in' => 'Invalid vendor type selected.',
+            'vendor_type_id.required' => 'Please select a vendor type.',
+            'vendor_type_id.exists' => 'The selected vendor type is invalid or inactive.',
             'pic_email.email' => 'Please enter a valid email address.',
-            'payment_terms.required' => 'Payment terms are required.',
             'payment_terms.integer' => 'Payment terms must be a number.',
             'payment_terms.min' => 'Payment terms cannot be negative.',
             'payment_terms.max' => 'Payment terms cannot exceed 365 days.',
-            'status.required' => 'Please select a status.',
             'status.in' => 'Invalid status selected.',
             'branches.required' => 'At least one branch is required.',
             'branches.min' => 'At least one branch is required.',
@@ -131,12 +136,6 @@ class StoreVendorRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if (!$this->has('payment_terms') || $this->payment_terms === null) {
-            $this->merge(['payment_terms' => 30]);
-        }
-
-        if (!$this->has('status') || empty($this->status)) {
-            $this->merge(['status' => 'active']);
-        }
+        // Do NOT force defaults — let them stay null if not provided
     }
 }

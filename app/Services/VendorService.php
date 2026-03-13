@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Vendor;
 use App\Models\VendorBranch;
+use App\Models\VendorType;
 use App\Models\PurchaseOrder;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\Auth;
@@ -16,17 +17,30 @@ class VendorService
      */
     public function getStatistics(): array
     {
-        return [
+        $stats = [
             'total' => Vendor::count(),
             'active' => Vendor::where('status', Vendor::STATUS_ACTIVE)->count(),
             'inactive' => Vendor::where('status', Vendor::STATUS_INACTIVE)->count(),
-            'suppliers' => Vendor::where('vendor_type', Vendor::TYPE_SUPPLIER)->count(),
-            'subcontractors' => Vendor::where('vendor_type', Vendor::TYPE_SUBCON)->count(),
-            'couriers' => Vendor::where('vendor_type', Vendor::TYPE_COURIER)->count(),
             'total_purchase_orders' => PurchaseOrder::count(),
             'active_purchase_orders' => PurchaseOrder::whereNotIn('status', ['closed', 'cancelled'])->count(),
             'total_branches' => VendorBranch::count(),
         ];
+
+        // Dynamic type counts from vendor_types table
+        $typeCounts = Vendor::select('vendor_type_id', DB::raw('count(*) as total'))
+            ->whereNotNull('vendor_type_id')
+            ->groupBy('vendor_type_id')
+            ->pluck('total', 'vendor_type_id')
+            ->toArray();
+
+        $stats['type_counts'] = $typeCounts;
+
+        // Legacy counts for backward compatibility
+        $stats['suppliers'] = Vendor::where('vendor_type', Vendor::TYPE_SUPPLIER)->count();
+        $stats['subcontractors'] = Vendor::where('vendor_type', Vendor::TYPE_SUBCON)->count();
+        $stats['couriers'] = Vendor::where('vendor_type', Vendor::TYPE_COURIER)->count();
+
+        return $stats;
     }
 
     /**
@@ -116,7 +130,7 @@ class VendorService
         // Create branches
         $this->syncBranches($vendor, $branches);
 
-        return $vendor->load(['branches.state', 'branches.city']);
+        return $vendor->load(['branches.state', 'branches.city', 'vendorType']);
     }
 
     /**
@@ -134,19 +148,17 @@ class VendorService
         // Sync branches (create/update/delete)
         $this->syncBranches($vendor, $branches);
 
-        return $vendor->fresh(['branches.state', 'branches.city']);
+        return $vendor->fresh(['branches.state', 'branches.city', 'vendorType']);
     }
 
     /**
      * Sync vendor branches
-     * Handles create, update, and delete of branches
      */
     protected function syncBranches(Vendor $vendor, array $branches): void
     {
         $existingIds = $vendor->branches()->pluck('id')->toArray();
         $submittedIds = [];
 
-        // IMPORTANT: Use state_id and city_id (FK columns), NOT state/city text
         $allowedFields = [
             'id', 'branch_name', 'address', 'state_id', 'city_id', 'postcode',
             'country', 'contact_person', 'contact_email', 'contact_phone',
@@ -154,20 +166,16 @@ class VendorService
         ];
 
         foreach ($branches as $index => $branchData) {
-            // Clean up branch data - only allow expected fields
             $branchData = array_intersect_key($branchData, array_flip($allowedFields));
 
-            // Set defaults
             $branchData['country'] = $branchData['country'] ?? 'Malaysia';
             $branchData['status'] = $branchData['status'] ?? 'active';
             $branchData['is_primary'] = !empty($branchData['is_primary']) ? true : false;
 
-            // Ensure state_id and city_id are stored as integers or null
             $branchData['state_id'] = !empty($branchData['state_id']) ? (int) $branchData['state_id'] : null;
             $branchData['city_id'] = !empty($branchData['city_id']) ? (int) $branchData['city_id'] : null;
 
             if (!empty($branchData['id']) && in_array($branchData['id'], $existingIds)) {
-                // Update existing branch
                 $branch = VendorBranch::find($branchData['id']);
                 if ($branch && $branch->vendor_id === $vendor->id) {
                     $updateData = $branchData;
@@ -176,7 +184,6 @@ class VendorService
                     $submittedIds[] = $branch->id;
                 }
             } else {
-                // Create new branch
                 unset($branchData['id']);
                 $branchData['vendor_id'] = $vendor->id;
                 $newBranch = VendorBranch::create($branchData);
@@ -184,7 +191,6 @@ class VendorService
             }
         }
 
-        // Delete branches that were removed from the form
         $toDelete = array_diff($existingIds, $submittedIds);
         if (!empty($toDelete)) {
             VendorBranch::whereIn('id', $toDelete)
@@ -192,7 +198,6 @@ class VendorService
                 ->delete();
         }
 
-        // Ensure only one primary branch
         $this->ensureSinglePrimary($vendor);
     }
 
@@ -204,10 +209,8 @@ class VendorService
         $primaryCount = $vendor->branches()->where('is_primary', true)->count();
 
         if ($primaryCount === 0 && $vendor->branches()->count() > 0) {
-            // Set the first branch as primary
             $vendor->branches()->oldest()->first()->update(['is_primary' => true]);
         } elseif ($primaryCount > 1) {
-            // Keep only the latest primary, reset others
             $latestPrimary = $vendor->branches()->where('is_primary', true)->latest()->first();
             $vendor->branches()
                 ->where('is_primary', true)
@@ -232,12 +235,12 @@ class VendorService
     }
 
     /**
-     * Get vendors by type
+     * Get vendors by type (using vendor_type_id FK)
      */
-    public function getVendorsByType(string $type)
+    public function getVendorsByType(int $typeId)
     {
         return Vendor::active()
-            ->where('vendor_type', $type)
+            ->where('vendor_type_id', $typeId)
             ->orderBy('vendor_name')
             ->get();
     }
