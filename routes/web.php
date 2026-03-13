@@ -92,6 +92,7 @@ use App\Http\Controllers\Admin\TicketController as AdminTicketController;
 use App\Http\Controllers\Supervisor\TicketController as SupervisorTicketController;
 use App\Http\Controllers\Technician\TicketController as TechnicianTicketController;
 use App\Http\Controllers\Admin\VendorTypeController as AdminVendorTypeController;
+use App\Http\Controllers\Supervisor\VendorController as SupervisorVendorController;
 
 /*
 |--------------------------------------------------------------------------
@@ -726,6 +727,15 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/', 'index')->name('index');
         Route::get('/datatable', 'datatable')->name('datatable');
         Route::get('/{user}', 'show')->name('show');
+    });
+
+    /* Vendor Routes (View-Only) */
+    Route::prefix('vendors')->name('vendors.')->group(function () {
+        Route::get('/', [SupervisorVendorController::class, 'index'])->name('index');
+        Route::get('/datatable', [SupervisorVendorController::class, 'datatable'])->name('datatable');
+        Route::get('/export/excel', [SupervisorVendorController::class, 'export'])->name('export');
+        Route::get('/api/list', [SupervisorVendorController::class, 'getList'])->name('api.list');
+        Route::get('/{vendor}', [SupervisorVendorController::class, 'show'])->name('show');
     });
 
     /* Team Management Routes */

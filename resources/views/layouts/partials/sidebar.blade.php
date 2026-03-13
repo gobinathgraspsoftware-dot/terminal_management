@@ -642,6 +642,7 @@
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'supervisor.terminal-models');
                 $isRateCardRoute = str_contains($currentRoute ?? '', 'supervisor.rate-cards');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'supervisor.terminal-categories');
+                $isVendorRoute = str_contains($currentRoute ?? '', 'supervisor.vendors');
             @endphp
             @can('partners.view')
             <div class="nav-section mb-3">
@@ -659,6 +660,14 @@
                             <i class="bi bi-shop me-2"></i> Clients
                         </a>
                     </li> --}}
+                    @can('view_vendors')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isVendorRoute ? 'active' : '' }}"
+                            href="{{ route('supervisor.vendors.index') }}">
+                            <i class="bi bi-truck me-2"></i> Vendors
+                        </a>
+                    </li>
+                    @endcan
                     <li class="nav-item">
                         <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
                            href="{{ route('supervisor.sites.index') }}">
