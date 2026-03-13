@@ -6,15 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\TicketService;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class TicketController extends Controller
 {
+    use AuthorizesRequests;
+
     public function __construct(protected TicketService $ticketService) {}
 
-    public function index()
+    public function index(Request $request)
     {
+        $this->authorize('viewAny', Ticket::class);
         $user = auth()->user();
         $stats = $this->ticketService->getStats($user);
         $slaBreachedTickets = $this->ticketService->getSlaBreachedTickets($user);
@@ -24,6 +28,7 @@ class TicketController extends Controller
 
     public function datatable(Request $request)
     {
+        $this->authorize('viewAny', Ticket::class);
         try {
             $user = auth()->user();
             $result = $this->ticketService->getDatatable($request->all(), $user);
@@ -33,46 +38,38 @@ class TicketController extends Controller
                     'id' => $ticket->id,
                     'ticket_no' => $ticket->ticket_no,
                     'vendor_name' => $ticket->vendor?->vendor_name ?? '-',
+                    'merchant_name' => $ticket->merchant_name ?? '-',
+                    'tid' => $ticket->tid ?? '-',
                     'job_type' => $ticket->jobType?->job_title ?? '-',
                     'status' => $ticket->status,
                     'status_badge' => Ticket::getStatusBadge($ticket->status),
-                    'status_label' => Ticket::getStatuses()[$ticket->status] ?? $ticket->status,
                     'priority' => $ticket->priority,
                     'priority_badge' => Ticket::getPriorityBadge($ticket->priority),
-                    'priority_label' => Ticket::getPriorities()[$ticket->priority] ?? $ticket->priority,
-                    'supervisor_name' => $ticket->supervisor?->name ?? '-',
                     'sla_deadline' => $ticket->sla_deadline?->format('d M Y H:i'),
                     'sla_remaining' => $ticket->sla_remaining,
                     'sla_breached' => $ticket->isSlaBreach(),
+                    'total_claim' => number_format($ticket->total_claim_amount ?? 0, 2),
                     'created_at' => $ticket->created_at->format('d M Y H:i'),
                 ];
             });
 
             return response()->json($result);
         } catch (\Exception $e) {
-            Log::error('Tech Ticket Datatable Error: ' . $e->getMessage());
+            Log::error('Technician Ticket Datatable Error: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to load tickets'], 500);
         }
     }
 
     public function show(Ticket $ticket)
     {
-        $this->authorizeTicket($ticket);
-
+        $this->authorize('view', $ticket);
         $ticket->load([
-            'vendor', 'vendorBranch', 'state', 'city',
+            'vendor', 'vendorBranch', 'state', 'city', 'charge',
             'supervisor', 'technician', 'jobType', 'creator',
-            'comments.user', 'statusHistory.changedBy',
+            'comments.user', 'statusHistory.changedBy', 'statusHistory.proofs', 'proofs',
         ]);
 
-        // Technician can only: start (assigned→in_progress), complete (in_progress→completed)
-        $allowedTransitions = [];
-        if ($ticket->technician_id === auth()->id()) {
-            $all = Ticket::getAllowedTransitions($ticket->status);
-            $techAllowed = [Ticket::STATUS_IN_PROGRESS, Ticket::STATUS_COMPLETED];
-            $allowedTransitions = array_intersect($all, $techAllowed);
-        }
-
+        $allowedTransitions = Ticket::getAllowedTransitions($ticket->status);
         $statuses = Ticket::getStatuses();
 
         return view('technician.tickets.show', compact('ticket', 'allowedTransitions', 'statuses'));
@@ -80,30 +77,55 @@ class TicketController extends Controller
 
     public function changeStatus(Request $request, Ticket $ticket)
     {
-        $this->authorizeTicket($ticket);
-
+        $this->authorize('changeStatus', $ticket);
         $request->validate([
-            'status' => 'required|in:in_progress,completed',
+            'status' => 'required|in:in_progress,scheduled,done_success,done_fail',
             'remarks' => 'nullable|string|max:1000',
+            'reschedule_reason' => 'nullable|required_if:status,scheduled|string|max:1000',
+            'proof_files.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
         ]);
 
         try {
-            $this->ticketService->changeStatus($ticket, $request->status, $request->remarks);
+            $proofFiles = [];
+            if ($request->hasFile('proof_files')) {
+                foreach ($request->file('proof_files') as $proofType => $file) {
+                    $proofFiles[$proofType] = $file;
+                }
+            }
+
+            $this->ticketService->changeStatus($ticket, $request->status, $request->remarks, $request->reschedule_reason, $proofFiles);
             return response()->json(['success' => true, 'message' => 'Ticket status updated successfully.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
     }
 
+    public function updateClaim(Request $request, Ticket $ticket)
+    {
+        $this->authorize('updateClaim', $ticket);
+        $request->validate([
+            'mileage' => 'nullable|numeric|min:0',
+            'mileage_remarks' => 'nullable|string|max:500',
+            'toll' => 'nullable|numeric|min:0',
+            'standby_meal' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            $this->ticketService->updateClaim($ticket, $request->all());
+            return response()->json(['success' => true, 'message' => 'Claim updated successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function addComment(Request $request, Ticket $ticket)
     {
-        $this->authorizeTicket($ticket);
+        $this->authorize('addComment', $ticket);
         $request->validate(['comment' => 'required|string|max:5000']);
 
         try {
             $comment = $this->ticketService->addComment($ticket, $request->comment);
             $comment->load('user');
-
             return response()->json([
                 'success' => true,
                 'message' => 'Comment added.',
@@ -118,14 +140,6 @@ class TicketController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to add comment.'], 500);
-        }
-    }
-
-    protected function authorizeTicket(Ticket $ticket): void
-    {
-        $user = auth()->user();
-        if ($ticket->technician_id !== $user->id && $ticket->created_by !== $user->id) {
-            abort(403, 'You do not have access to this ticket.');
         }
     }
 }

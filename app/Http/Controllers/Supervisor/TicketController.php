@@ -12,16 +12,21 @@ use App\Models\State;
 use App\Models\City;
 use App\Models\User;
 use App\Models\JobType;
+use App\Models\ChargeCatalog;
 use App\Services\TicketService;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class TicketController extends Controller
 {
+    use AuthorizesRequests;
+
     public function __construct(protected TicketService $ticketService) {}
 
-    public function index()
+    public function index(Request $request)
     {
+        $this->authorize('viewAny', Ticket::class);
         $user = auth()->user();
         $stats = $this->ticketService->getStats($user);
         $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
@@ -32,6 +37,7 @@ class TicketController extends Controller
 
     public function datatable(Request $request)
     {
+        $this->authorize('viewAny', Ticket::class);
         try {
             $user = auth()->user();
             $result = $this->ticketService->getDatatable($request->all(), $user);
@@ -40,20 +46,20 @@ class TicketController extends Controller
                 return [
                     'id' => $ticket->id,
                     'ticket_no' => $ticket->ticket_no,
+                    'vendor_ticket_ref_no' => $ticket->vendor_ticket_ref_no ?? '-',
                     'vendor_name' => $ticket->vendor?->vendor_name ?? '-',
-                    'branch_name' => $ticket->vendorBranch?->branch_name ?? '-',
+                    'merchant_name' => $ticket->merchant_name ?? '-',
+                    'tid' => $ticket->tid ?? '-',
                     'job_type' => $ticket->jobType?->job_title ?? '-',
                     'status' => $ticket->status,
                     'status_badge' => Ticket::getStatusBadge($ticket->status),
-                    'status_label' => Ticket::getStatuses()[$ticket->status] ?? $ticket->status,
                     'priority' => $ticket->priority,
                     'priority_badge' => Ticket::getPriorityBadge($ticket->priority),
-                    'priority_label' => Ticket::getPriorities()[$ticket->priority] ?? $ticket->priority,
-                    'supervisor_name' => $ticket->supervisor?->name ?? '-',
                     'technician_name' => $ticket->technician?->name ?? 'Unassigned',
                     'sla_deadline' => $ticket->sla_deadline?->format('d M Y H:i'),
                     'sla_remaining' => $ticket->sla_remaining,
                     'sla_breached' => $ticket->isSlaBreach(),
+                    'total_claim' => number_format($ticket->total_claim_amount ?? 0, 2),
                     'created_at' => $ticket->created_at->format('d M Y H:i'),
                 ];
             });
@@ -67,25 +73,25 @@ class TicketController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Ticket::class);
         $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
         $states = State::orderBy('name')->get();
-        // Team technicians only
-        $technicians = User::where('supervisor_id', auth()->id())
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get();
+        $user = auth()->user();
+        // Only the current supervisor's technicians
+        $technicians = User::where('supervisor_id', $user->id)->where('status', 'active')->orderBy('name')->get();
         $jobTypes = JobType::where('status', 'active')->orderBy('job_title')->get();
+        $charges = ChargeCatalog::where('status', 'active')->orderBy('charge_name')->get();
 
-        return view('supervisor.tickets.create', compact('vendors', 'states', 'technicians', 'jobTypes'));
+        return view('supervisor.tickets.create', compact('vendors', 'states', 'technicians', 'jobTypes', 'charges'));
     }
 
     public function store(StoreTicketRequest $request)
     {
         try {
             $data = $request->validated();
-            $data['supervisor_id'] = auth()->id(); // Force to self
+            // Force supervisor to current user
+            $data['supervisor_id'] = auth()->id();
             $ticket = $this->ticketService->create($data);
-
             return response()->json([
                 'success' => true,
                 'message' => "Ticket {$ticket->ticket_no} created successfully!",
@@ -93,35 +99,30 @@ class TicketController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Supervisor Ticket Create Error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Failed to create ticket.'], 500);
+            return response()->json(['success' => false, 'message' => 'Failed to create ticket: ' . $e->getMessage()], 500);
         }
     }
 
     public function show(Ticket $ticket)
     {
-        $this->authorizeTicket($ticket);
-
+        $this->authorize('view', $ticket);
         $ticket->load([
-            'vendor', 'vendorBranch', 'state', 'city',
+            'vendor', 'vendorBranch', 'state', 'city', 'charge',
             'supervisor', 'technician', 'jobType', 'creator', 'updater',
-            'comments.user', 'statusHistory.changedBy',
+            'comments.user', 'statusHistory.changedBy', 'statusHistory.proofs', 'proofs',
         ]);
 
         $allowedTransitions = Ticket::getAllowedTransitions($ticket->status);
         $statuses = Ticket::getStatuses();
-        $technicians = User::where('supervisor_id', auth()->id())
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get();
+        $technicians = User::where('supervisor_id', auth()->id())->where('status', 'active')->orderBy('name')->get();
 
         return view('supervisor.tickets.show', compact('ticket', 'allowedTransitions', 'statuses', 'technicians'));
     }
 
     public function edit(Ticket $ticket)
     {
-        $this->authorizeTicket($ticket);
-
-        if (in_array($ticket->status, [Ticket::STATUS_COMPLETED, Ticket::STATUS_CLOSED])) {
+        $this->authorize('update', $ticket);
+        if (in_array($ticket->status, [Ticket::STATUS_DONE_SUCCESS, Ticket::STATUS_DONE_FAIL, Ticket::STATUS_CLOSED])) {
             return redirect()->route('supervisor.tickets.show', $ticket->id)
                 ->with('warning', 'Cannot edit a completed or closed ticket.');
         }
@@ -132,19 +133,18 @@ class TicketController extends Controller
         $branches = $ticket->vendor_id ? VendorBranch::where('vendor_id', $ticket->vendor_id)->where('status', 'active')->get() : collect();
         $technicians = User::where('supervisor_id', auth()->id())->where('status', 'active')->orderBy('name')->get();
         $jobTypes = JobType::where('status', 'active')->orderBy('job_title')->get();
+        $charges = ChargeCatalog::where('status', 'active')->orderBy('charge_name')->get();
 
-        return view('supervisor.tickets.edit', compact('ticket', 'vendors', 'states', 'cities', 'branches', 'technicians', 'jobTypes'));
+        return view('supervisor.tickets.edit', compact('ticket', 'vendors', 'states', 'cities', 'branches', 'technicians', 'jobTypes', 'charges'));
     }
 
     public function update(UpdateTicketRequest $request, Ticket $ticket)
     {
-        $this->authorizeTicket($ticket);
-
+        $this->authorize('update', $ticket);
         try {
             $data = $request->validated();
             $data['supervisor_id'] = auth()->id();
             $ticket = $this->ticketService->update($ticket, $data);
-
             return response()->json([
                 'success' => true,
                 'message' => "Ticket {$ticket->ticket_no} updated successfully!",
@@ -158,16 +158,23 @@ class TicketController extends Controller
 
     public function changeStatus(Request $request, Ticket $ticket)
     {
-        $this->authorizeTicket($ticket);
-
+        $this->authorize('changeStatus', $ticket);
         $request->validate([
-            'status' => 'required|in:open,assigned,in_progress,rescheduled,completed,closed',
+            'status' => 'required|in:open,assigned,in_progress,scheduled,done_success,done_fail,closed',
             'remarks' => 'nullable|string|max:1000',
-            'reschedule_reason' => 'nullable|required_if:status,rescheduled|string|max:1000',
+            'reschedule_reason' => 'nullable|required_if:status,scheduled|string|max:1000',
+            'proof_files.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
         ]);
 
         try {
-            $this->ticketService->changeStatus($ticket, $request->status, $request->remarks, $request->reschedule_reason);
+            $proofFiles = [];
+            if ($request->hasFile('proof_files')) {
+                foreach ($request->file('proof_files') as $proofType => $file) {
+                    $proofFiles[$proofType] = $file;
+                }
+            }
+
+            $this->ticketService->changeStatus($ticket, $request->status, $request->remarks, $request->reschedule_reason, $proofFiles);
             return response()->json(['success' => true, 'message' => 'Ticket status updated successfully.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
@@ -176,18 +183,11 @@ class TicketController extends Controller
 
     public function assign(Request $request, Ticket $ticket)
     {
-        $this->authorizeTicket($ticket);
-
+        $this->authorize('assign', $ticket);
         $request->validate([
             'technician_id' => 'required|exists:users,id',
             'remarks' => 'nullable|string|max:1000',
         ]);
-
-        // Ensure technician is in supervisor's team
-        $teamIds = User::where('supervisor_id', auth()->id())->pluck('id')->toArray();
-        if (!in_array($request->technician_id, $teamIds)) {
-            return response()->json(['success' => false, 'message' => 'Technician is not in your team.'], 422);
-        }
 
         try {
             $this->ticketService->assignTechnician($ticket, $request->technician_id, $request->remarks);
@@ -197,15 +197,32 @@ class TicketController extends Controller
         }
     }
 
+    public function updateClaim(Request $request, Ticket $ticket)
+    {
+        $this->authorize('updateClaim', $ticket);
+        $request->validate([
+            'mileage' => 'nullable|numeric|min:0',
+            'mileage_remarks' => 'nullable|string|max:500',
+            'toll' => 'nullable|numeric|min:0',
+            'standby_meal' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            $this->ticketService->updateClaim($ticket, $request->all());
+            return response()->json(['success' => true, 'message' => 'Claim updated successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function addComment(Request $request, Ticket $ticket)
     {
-        $this->authorizeTicket($ticket);
+        $this->authorize('addComment', $ticket);
         $request->validate(['comment' => 'required|string|max:5000']);
 
         try {
             $comment = $this->ticketService->addComment($ticket, $request->comment);
             $comment->load('user');
-
             return response()->json([
                 'success' => true,
                 'message' => 'Comment added.',
@@ -223,42 +240,32 @@ class TicketController extends Controller
         }
     }
 
+    // ── AJAX ──
     public function getVendorBranches(Request $request)
     {
-        $branches = VendorBranch::where('vendor_id', $request->vendor_id)
-            ->where('status', 'active')
-            ->orderBy('branch_name')
-            ->get(['id', 'branch_name', 'state_id', 'city_id']);
-        return response()->json($branches);
+        return response()->json(VendorBranch::where('vendor_id', $request->vendor_id)->where('status', 'active')->orderBy('branch_name')->get(['id', 'branch_name', 'state_id', 'city_id']));
     }
 
     public function getCities(Request $request)
     {
-        $cities = City::where('state_id', $request->state_id)->orderBy('name')->get(['id', 'name']);
-        return response()->json($cities);
+        return response()->json(City::where('state_id', $request->state_id)->orderBy('name')->get(['id', 'name']));
     }
 
     public function getTechnicians(Request $request)
     {
-        $technicians = User::where('supervisor_id', auth()->id())
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get(['id', 'name']);
-        return response()->json($technicians);
+        return response()->json(User::where('supervisor_id', auth()->id())->where('status', 'active')->orderBy('name')->get(['id', 'name']));
     }
 
-    /**
-     * Authorization helper - team scoped
-     */
-    protected function authorizeTicket(Ticket $ticket): void
+    public function getSupervisorMileageRate(Request $request)
     {
-        $user = auth()->user();
-        $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
+        $supervisor = User::find(auth()->id());
+        return response()->json(['mileage_rate' => $supervisor?->mileage_rate ?? 0]);
+    }
 
-        if ($ticket->supervisor_id !== $user->id
-            && !in_array($ticket->technician_id, $teamIds)
-            && $ticket->created_by !== $user->id) {
-            abort(403, 'You do not have access to this ticket.');
-        }
+    public function getCharges(Request $request)
+    {
+        $query = ChargeCatalog::where('status', 'active');
+        if ($request->job_type_id) $query->where('job_type_id', $request->job_type_id);
+        return response()->json($query->orderBy('charge_name')->get(['id', 'charge_name', 'default_price']));
     }
 }

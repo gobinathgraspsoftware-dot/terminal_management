@@ -679,12 +679,15 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/ajax/vendor-branches', [AdminTicketController::class, 'getVendorBranches'])->name('ajax.vendor-branches');
         Route::get('/ajax/cities', [AdminTicketController::class, 'getCities'])->name('ajax.cities');
         Route::get('/ajax/technicians', [AdminTicketController::class, 'getTechnicians'])->name('ajax.technicians');
+        Route::get('/ajax/supervisor-mileage-rate', [AdminTicketController::class, 'getSupervisorMileageRate'])->name('ajax.supervisor-mileage-rate');
+        Route::get('/ajax/charges', [AdminTicketController::class, 'getCharges'])->name('ajax.charges');
         Route::get('/{ticket}', [AdminTicketController::class, 'show'])->name('show');
         Route::get('/{ticket}/edit', [AdminTicketController::class, 'edit'])->name('edit');
         Route::put('/{ticket}', [AdminTicketController::class, 'update'])->name('update');
         Route::delete('/{ticket}', [AdminTicketController::class, 'destroy'])->name('destroy');
         Route::post('/{ticket}/change-status', [AdminTicketController::class, 'changeStatus'])->name('change-status');
         Route::post('/{ticket}/assign', [AdminTicketController::class, 'assign'])->name('assign');
+        Route::post('/{ticket}/update-claim', [AdminTicketController::class, 'updateClaim'])->name('update-claim');
         Route::post('/{ticket}/comment', [AdminTicketController::class, 'addComment'])->name('comment');
     });
 
@@ -1031,11 +1034,14 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/ajax/vendor-branches', [SupervisorTicketController::class, 'getVendorBranches'])->name('ajax.vendor-branches');
         Route::get('/ajax/cities', [SupervisorTicketController::class, 'getCities'])->name('ajax.cities');
         Route::get('/ajax/technicians', [SupervisorTicketController::class, 'getTechnicians'])->name('ajax.technicians');
+        Route::get('/ajax/supervisor-mileage-rate', [SupervisorTicketController::class, 'getSupervisorMileageRate'])->name('ajax.supervisor-mileage-rate');
+        Route::get('/ajax/charges', [SupervisorTicketController::class, 'getCharges'])->name('ajax.charges');
         Route::get('/{ticket}', [SupervisorTicketController::class, 'show'])->name('show');
         Route::get('/{ticket}/edit', [SupervisorTicketController::class, 'edit'])->name('edit');
         Route::put('/{ticket}', [SupervisorTicketController::class, 'update'])->name('update');
         Route::post('/{ticket}/change-status', [SupervisorTicketController::class, 'changeStatus'])->name('change-status');
         Route::post('/{ticket}/assign', [SupervisorTicketController::class, 'assign'])->name('assign');
+        Route::post('/{ticket}/update-claim', [SupervisorTicketController::class, 'updateClaim'])->name('update-claim');
         Route::post('/{ticket}/comment', [SupervisorTicketController::class, 'addComment'])->name('comment');
     });
 
@@ -1245,6 +1251,7 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/datatable', [TechnicianTicketController::class, 'datatable'])->name('datatable');
         Route::get('/{ticket}', [TechnicianTicketController::class, 'show'])->name('show');
         Route::post('/{ticket}/change-status', [TechnicianTicketController::class, 'changeStatus'])->name('change-status');
+        Route::post('/{ticket}/update-claim', [TechnicianTicketController::class, 'updateClaim'])->name('update-claim');
         Route::post('/{ticket}/comment', [TechnicianTicketController::class, 'addComment'])->name('comment');
     });
 

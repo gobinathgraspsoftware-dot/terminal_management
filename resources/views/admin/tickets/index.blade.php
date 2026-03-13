@@ -1,207 +1,113 @@
 @extends('layouts.app')
-
 @section('title', 'Ticket Management')
-
-@push('styles')
-<style>
-    .stat-card {
-        border: none;
-        border-radius: 10px;
-        transition: transform 0.2s, box-shadow 0.2s;
-        cursor: pointer;
-    }
-    .stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-    .stat-card .stat-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.4rem;
-    }
-    .stat-card .stat-count {
-        font-size: 1.8rem;
-        font-weight: 700;
-        line-height: 1;
-    }
-    .sla-alert {
-        border-left: 4px solid #dc3545;
-        background: #fff5f5;
-    }
-    .sla-alert .sla-item {
-        padding: 8px 12px;
-        border-bottom: 1px solid #ffe0e0;
-    }
-    .sla-alert .sla-item:last-child { border-bottom: none; }
-    .filter-section { background: #fff; border-radius: 10px; }
-    .status-filter-btn { border-radius: 20px; font-size: 0.85rem; }
-    .status-filter-btn.active { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-    .sla-breach-badge { animation: pulse 1.5s infinite; }
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.6; }
-    }
-</style>
-@endpush
 
 @section('content')
 <div class="container-fluid">
-    <!-- Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h4 class="mb-1"><i class="bi bi-ticket-detailed me-2"></i>Ticket Management</h4>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item active">Tickets</li>
-                </ol>
-            </nav>
-        </div>
-        @can('create_tickets')
-        <a href="{{ route('admin.tickets.create') }}" class="btn btn-primary">
-            <i class="bi bi-plus-circle me-1"></i> New Ticket
-        </a>
-        @endcan
-    </div>
-
-    <!-- SLA Breach Reminders -->
-    @if($slaBreachedTickets->count() > 0)
-    <div class="card sla-alert mb-4">
-        <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center py-2">
-            <span><i class="bi bi-exclamation-triangle-fill me-2"></i>SLA Breach Alerts ({{ $slaBreachedTickets->count() }})</span>
-            <button class="btn btn-sm btn-outline-light" data-bs-toggle="collapse" data-bs-target="#slaAlerts">
-                <i class="bi bi-chevron-down"></i>
-            </button>
-        </div>
-        <div id="slaAlerts" class="collapse show">
-            <div class="card-body p-0" style="max-height: 200px; overflow-y: auto;">
-                @foreach($slaBreachedTickets as $bt)
-                <div class="sla-item d-flex justify-content-between align-items-center">
-                    <div>
-                        <a href="{{ route('admin.tickets.show', $bt->id) }}" class="fw-bold text-danger text-decoration-none">
-                            {{ $bt->ticket_no }}
-                        </a>
-                        <span class="text-muted ms-2">{{ $bt->vendor?->vendor_name }}</span>
-                        <span class="text-muted ms-2">| {{ $bt->supervisor?->name ?? '-' }}</span>
-                    </div>
-                    <div>
-                        <span class="badge bg-danger sla-breach-badge">
-                            <i class="bi bi-clock me-1"></i>{{ $bt->sla_remaining }}
-                        </span>
-                    </div>
+    {{-- Stats Cards --}}
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <h3 class="mb-0 text-primary">{{ $stats['total'] }}</h3>
+                    <small class="text-muted">Total</small>
                 </div>
-                @endforeach
             </div>
         </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <h3 class="mb-0 text-secondary">{{ $stats['open'] }}</h3>
+                    <small class="text-muted">Open</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <h3 class="mb-0 text-info">{{ $stats['assigned'] }}</h3>
+                    <small class="text-muted">Assigned</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <h3 class="mb-0 text-primary">{{ $stats['in_progress'] }}</h3>
+                    <small class="text-muted">In Progress</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <h3 class="mb-0 text-warning">{{ $stats['scheduled'] }}</h3>
+                    <small class="text-muted">Scheduled</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <h3 class="mb-0 text-success">{{ $stats['done_success'] }}</h3>
+                    <small class="text-muted">Done/Success</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <h3 class="mb-0 text-danger">{{ $stats['done_fail'] }}</h3>
+                    <small class="text-muted">Done/Fail</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <h3 class="mb-0 text-danger">{{ $stats['sla_breached'] }}</h3>
+                    <small class="text-muted">SLA Breached</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- SLA Breach Alert --}}
+    @if($slaBreachedTickets->count() > 0)
+    <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <strong>{{ $slaBreachedTickets->count() }} ticket(s) have breached SLA!</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     @endif
 
-    <!-- Stats Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3 col-xl">
-            <div class="card stat-card" onclick="filterByStatus('')">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center">
-                        <div class="stat-icon bg-light text-dark me-3"><i class="bi bi-collection"></i></div>
-                        <div>
-                            <div class="stat-count">{{ $stats['total'] }}</div>
-                            <small class="text-muted">Total</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    {{-- Filters & Actions --}}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-ticket-detailed me-2"></i>All Tickets</h5>
+            @can('create_tickets')
+            <a href="{{ route('admin.tickets.create') }}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-circle me-1"></i> Create Ticket
+            </a>
+            @endcan
         </div>
-        <div class="col-6 col-md-3 col-xl">
-            <div class="card stat-card" onclick="filterByStatus('open')">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center">
-                        <div class="stat-icon bg-primary bg-opacity-10 text-primary me-3"><i class="bi bi-folder2-open"></i></div>
-                        <div>
-                            <div class="stat-count text-primary">{{ $stats['open'] }}</div>
-                            <small class="text-muted">Open</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3 col-xl">
-            <div class="card stat-card" onclick="filterByStatus('assigned')">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center">
-                        <div class="stat-icon bg-info bg-opacity-10 text-info me-3"><i class="bi bi-person-check"></i></div>
-                        <div>
-                            <div class="stat-count text-info">{{ $stats['assigned'] }}</div>
-                            <small class="text-muted">Assigned</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3 col-xl">
-            <div class="card stat-card" onclick="filterByStatus('in_progress')">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center">
-                        <div class="stat-icon bg-warning bg-opacity-10 text-warning me-3"><i class="bi bi-gear-wide-connected"></i></div>
-                        <div>
-                            <div class="stat-count text-warning">{{ $stats['in_progress'] }}</div>
-                            <small class="text-muted">In Progress</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3 col-xl">
-            <div class="card stat-card" onclick="filterByStatus('completed')">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center">
-                        <div class="stat-icon bg-success bg-opacity-10 text-success me-3"><i class="bi bi-check-circle"></i></div>
-                        <div>
-                            <div class="stat-count text-success">{{ $stats['completed'] }}</div>
-                            <small class="text-muted">Completed</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3 col-xl">
-            <div class="card stat-card" onclick="filterByStatus('')" data-sla="breach">
-                <div class="card-body p-3">
-                    <div class="d-flex align-items-center">
-                        <div class="stat-icon bg-danger bg-opacity-10 text-danger me-3"><i class="bi bi-alarm"></i></div>
-                        <div>
-                            <div class="stat-count text-danger">{{ $stats['sla_breached'] }}</div>
-                            <small class="text-muted">SLA Breach</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Filters & Table -->
-    <div class="card">
-        <div class="card-header filter-section">
-            <div class="row g-2 align-items-end">
+        <div class="card-body">
+            {{-- Filters Row --}}
+            <div class="row g-2 mb-3">
                 <div class="col-md-2">
-                    <label class="form-label small mb-1">Status</label>
-                    <select id="filterStatus" class="form-select form-select-sm">
-                        <option value="">All Statuses</option>
+                    <select id="filter_status" class="form-select form-select-sm">
+                        <option value="">All Status</option>
                         <option value="open">Open</option>
                         <option value="assigned">Assigned</option>
                         <option value="in_progress">In Progress</option>
-                        <option value="rescheduled">Rescheduled</option>
-                        <option value="completed">Completed</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="done_success">Done / Success</option>
+                        <option value="done_fail">Done / Fail</option>
                         <option value="closed">Closed</option>
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label small mb-1">Priority</label>
-                    <select id="filterPriority" class="form-select form-select-sm">
-                        <option value="">All Priorities</option>
+                    <select id="filter_priority" class="form-select form-select-sm">
+                        <option value="">All Priority</option>
                         <option value="low">Low</option>
                         <option value="normal">Normal</option>
                         <option value="high">High</option>
@@ -209,45 +115,44 @@
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label small mb-1">Vendor</label>
-                    <select id="filterVendor" class="form-select form-select-sm">
+                    <select id="filter_vendor" class="form-select form-select-sm">
                         <option value="">All Vendors</option>
-                        @foreach($vendors as $v)
-                        <option value="{{ $v->id }}">{{ $v->vendor_name }}</option>
+                        @foreach($vendors as $vendor)
+                            <option value="{{ $vendor->id }}">{{ $vendor->vendor_name }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label small mb-1">SLA Breach</label>
-                    <select id="filterSla" class="form-select form-select-sm">
-                        <option value="">All</option>
-                        <option value="yes">Breached Only</option>
+                    <select id="filter_supervisor" class="form-select form-select-sm">
+                        <option value="">All Supervisors</option>
+                        @foreach($supervisors as $supervisor)
+                            <option value="{{ $supervisor->id }}">{{ $supervisor->name }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label small mb-1">From</label>
-                    <input type="date" id="filterDateFrom" class="form-control form-control-sm">
+                    <input type="date" id="filter_date_from" class="form-control form-control-sm" placeholder="From">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label small mb-1">To</label>
-                    <input type="date" id="filterDateTo" class="form-control form-control-sm">
+                    <input type="date" id="filter_date_to" class="form-control form-control-sm" placeholder="To">
                 </div>
             </div>
-        </div>
-        <div class="card-body">
+
+            {{-- DataTable --}}
             <div class="table-responsive">
-                <table id="ticketsTable" class="table table-hover table-sm align-middle" style="width:100%">
+                <table id="ticketsTable" class="table table-sm table-hover w-100">
                     <thead class="table-light">
                         <tr>
                             <th>Ticket #</th>
                             <th>Vendor</th>
+                            <th>Merchant</th>
                             <th>Status</th>
                             <th>Priority</th>
                             <th>Supervisor</th>
-                            <th>Assignee</th>
-                            <th>SLA Deadline</th>
+                            <th>Technician</th>
+                            <th>SLA</th>
                             <th>Created</th>
-                            <th class="text-center">Actions</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                 </table>
@@ -259,119 +164,48 @@
 
 @push('scripts')
 <script>
-$(document).ready(function() {
-    // Initialize DataTable
+$(function() {
     var table = $('#ticketsTable').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
             url: '{{ route("admin.tickets.datatable") }}',
             data: function(d) {
-                d.status = $('#filterStatus').val();
-                d.priority = $('#filterPriority').val();
-                d.vendor_id = $('#filterVendor').val();
-                d.sla_breach = $('#filterSla').val();
-                d.date_from = $('#filterDateFrom').val();
-                d.date_to = $('#filterDateTo').val();
-            },
-            error: function(xhr) {
-                if (xhr.status === 401) {
-                    window.location.href = '{{ route("login") }}';
-                }
+                d.status = $('#filter_status').val();
+                d.priority = $('#filter_priority').val();
+                d.vendor_id = $('#filter_vendor').val();
+                d.supervisor_id = $('#filter_supervisor').val();
+                d.date_from = $('#filter_date_from').val();
+                d.date_to = $('#filter_date_to').val();
             }
         },
         columns: [
-            {
-                data: 'ticket_no',
-                render: function(data, type, row) {
-                    var sla = row.sla_breached ? ' <span class="badge bg-danger sla-breach-badge" title="SLA Breached"><i class="bi bi-alarm"></i></span>' : '';
-                    return '<a href="{{ route("admin.tickets.index") }}/' + row.id + '" class="fw-bold text-decoration-none">' + data + '</a>' + sla;
-                }
-            },
-            { data: 'vendor_name' },
-            {
-                data: 'status_label',
-                render: function(data, type, row) {
-                    return '<span class="badge bg-' + row.status_badge + '">' + data + '</span>';
-                }
-            },
-            {
-                data: 'priority_label',
-                render: function(data, type, row) {
-                    return '<span class="badge bg-' + row.priority_badge + '">' + data + '</span>';
-                }
-            },
-            { data: 'supervisor_name' },
-            {
-                data: 'technician_name',
-                render: function(data, type, row) {
-                    return data === 'Unassigned' ? '<span class="text-muted fst-italic">Unassigned</span>' : data;
-                }
-            },
-            {
-                data: 'sla_deadline',
-                render: function(data, type, row) {
-                    if (!data) return '-';
-                    var cls = row.sla_breached ? 'text-danger fw-bold' : '';
-                    return '<span class="' + cls + '">' + data + '</span>' +
-                           (row.sla_remaining ? '<br><small class="' + cls + '">' + row.sla_remaining + '</small>' : '');
-                }
-            },
-            { data: 'created_at' },
-            {
-                data: null,
-                orderable: false,
-                className: 'text-center',
-                render: function(data, type, row) {
-                    var html = '<div class="btn-group btn-group-sm">';
-                    html += '<a href="{{ route("admin.tickets.index") }}/' + row.id + '" class="btn btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>';
-                    @can('edit_tickets')
-                    if (row.status !== 'completed' && row.status !== 'closed') {
-                        html += '<a href="{{ route("admin.tickets.index") }}/' + row.id + '/edit" class="btn btn-outline-warning" title="Edit"><i class="bi bi-pencil"></i></a>';
-                    }
-                    @endcan
-                    @can('delete_tickets')
-                    html += '<button class="btn btn-outline-danger btn-delete" data-id="' + row.id + '" title="Delete"><i class="bi bi-trash"></i></button>';
-                    @endcan
-                    html += '</div>';
-                    return html;
-                }
-            }
+            { data: 'ticket_no', name: 'ticket_no' },
+            { data: 'vendor_name', name: 'vendor_id', searchable: false, orderable: false },
+            { data: 'merchant_name', name: 'merchant_name' },
+            { data: 'status_badge', name: 'status', searchable: false, orderable: false },
+            { data: 'priority_badge', name: 'priority', searchable: false, orderable: false },
+            { data: 'supervisor_name', name: 'supervisor_id', searchable: false, orderable: false },
+            { data: 'technician_name', name: 'technician_id', searchable: false, orderable: false },
+            { data: null, name: 'sla_deadline', render: function(data) {
+                if (data.sla_breached) return '<span class="text-danger fw-bold">' + (data.sla_remaining || 'Breached') + '</span>';
+                return data.sla_remaining || '-';
+            }, searchable: false },
+            { data: 'created_at', name: 'created_at' },
+            { data: null, name: null, orderable: false, searchable: false, render: function(data) {
+                return '<div class="btn-group btn-group-sm">' +
+                    '<a href="{{ url("admin/tickets") }}/' + data.id + '" class="btn btn-outline-primary"><i class="bi bi-eye"></i></a>' +
+                    '<a href="{{ url("admin/tickets") }}/' + data.id + '/edit" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i></a>' +
+                    '</div>';
+            }}
         ],
-        order: [[7, 'desc']],
+        order: [[8, 'desc']],
         pageLength: 25,
-        language: {
-            processing: '<div class="spinner-border text-primary spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>',
-            emptyTable: 'No tickets found',
-        }
+        language: { search: '', searchPlaceholder: 'Search tickets...' }
     });
 
-    // Filter changes
-    $('#filterStatus, #filterPriority, #filterVendor, #filterSla, #filterDateFrom, #filterDateTo').on('change', function() {
-        table.ajax.reload();
-    });
-
-    // Delete handler
-    $(document).on('click', '.btn-delete', function() {
-        var id = $(this).data('id');
-        confirmAction('Delete Ticket?', 'This action cannot be undone.', function() {
-            $.ajax({
-                url: '{{ route("admin.tickets.index") }}/' + id,
-                method: 'DELETE',
-                success: function(res) {
-                    if (res.success) {
-                        showToast(res.message);
-                        table.ajax.reload();
-                    }
-                },
-                error: function() { showToast('Failed to delete ticket.', 'error'); }
-            });
-        });
-    });
+    $('#filter_status, #filter_priority, #filter_vendor, #filter_supervisor').on('change', function() { table.draw(); });
+    $('#filter_date_from, #filter_date_to').on('change', function() { table.draw(); });
 });
-
-function filterByStatus(status) {
-    $('#filterStatus').val(status).trigger('change');
-}
 </script>
 @endpush

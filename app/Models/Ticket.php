@@ -5,33 +5,45 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class Ticket extends Model
 {
     use HasFactory, SoftDeletes;
 
+    // ── Status constants (per document) ──
     const STATUS_OPEN = 'open';
     const STATUS_ASSIGNED = 'assigned';
     const STATUS_IN_PROGRESS = 'in_progress';
-    const STATUS_RESCHEDULED = 'rescheduled';
-    const STATUS_COMPLETED = 'completed';
+    const STATUS_SCHEDULED = 'scheduled';
+    const STATUS_DONE_SUCCESS = 'done_success';
+    const STATUS_DONE_FAIL = 'done_fail';
     const STATUS_CLOSED = 'closed';
 
+    // ── Priority constants ──
     const PRIORITY_LOW = 'low';
     const PRIORITY_NORMAL = 'normal';
     const PRIORITY_HIGH = 'high';
     const PRIORITY_URGENT = 'urgent';
 
+    // ── SLA constants ──
     const SLA_ON_TRACK = 'on_track';
     const SLA_AT_RISK = 'at_risk';
     const SLA_BREACHED = 'breached';
 
     protected $fillable = [
-        'ticket_no', 'vendor_id', 'vendor_branch_id', 'state_id', 'city_id',
-        'supervisor_id', 'technician_id', 'job_type_id', 'status', 'priority',
-        'description', 'sla_hours', 'sla_deadline', 'sla_status',
-        'assigned_at', 'started_at', 'completed_at', 'closed_at',
-        'rescheduled_at', 'reschedule_reason',
+        'ticket_no', 'vendor_ticket_ref_no',
+        'vendor_id', 'vendor_branch_id', 'state_id', 'city_id',
+        'tid', 'merchant_name', 'merchant_address', 'contact_number',
+        'supervisor_id', 'technician_id', 'job_type_id', 'charge_id',
+        'priority', 'description',
+        'sla_hours', 'sla_deadline', 'sla_status',
+        'status',
+        'started_at', 'completed_at', 'closed_at',
+        'assigned_at', 'rescheduled_at', 'reschedule_reason',
+        // Claim fields
+        'mileage', 'mileage_remarks', 'mileage_rate', 'mileage_amount',
+        'toll', 'standby_meal', 'total_claim_amount',
         'created_by', 'updated_by',
     ];
 
@@ -39,28 +51,44 @@ class Ticket extends Model
     {
         return [
             'sla_deadline' => 'datetime',
-            'assigned_at' => 'datetime',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'closed_at' => 'datetime',
+            'assigned_at' => 'datetime',
             'rescheduled_at' => 'datetime',
+            'mileage' => 'decimal:2',
+            'mileage_rate' => 'decimal:2',
+            'mileage_amount' => 'decimal:2',
+            'toll' => 'decimal:2',
+            'standby_meal' => 'decimal:2',
+            'total_claim_amount' => 'decimal:2',
+            'sla_hours' => 'integer',
         ];
     }
 
-    /* ---- Relationships ---- */
-    public function vendor() { return $this->belongsTo(Vendor::class); }
-    public function vendorBranch() { return $this->belongsTo(VendorBranch::class); }
-    public function state() { return $this->belongsTo(State::class); }
-    public function city() { return $this->belongsTo(City::class); }
-    public function supervisor() { return $this->belongsTo(User::class, 'supervisor_id'); }
-    public function technician() { return $this->belongsTo(User::class, 'technician_id'); }
-    public function jobType() { return $this->belongsTo(JobType::class); }
-    public function creator() { return $this->belongsTo(User::class, 'created_by'); }
-    public function updater() { return $this->belongsTo(User::class, 'updated_by'); }
-    public function comments() { return $this->hasMany(TicketComment::class)->orderBy('created_at', 'asc'); }
-    public function statusHistory() { return $this->hasMany(TicketStatusHistory::class)->orderBy('created_at', 'desc'); }
+    // ══════════════════════════════════════
+    // Relationships
+    // ══════════════════════════════════════
 
-    /* ---- Scopes ---- */
+    public function vendor()        { return $this->belongsTo(Vendor::class); }
+    public function vendorBranch()  { return $this->belongsTo(VendorBranch::class); }
+    public function state()         { return $this->belongsTo(State::class); }
+    public function city()          { return $this->belongsTo(City::class); }
+    public function supervisor()    { return $this->belongsTo(User::class, 'supervisor_id'); }
+    public function technician()    { return $this->belongsTo(User::class, 'technician_id'); }
+    public function jobType()       { return $this->belongsTo(JobType::class); }
+    public function charge()        { return $this->belongsTo(ChargeCatalog::class, 'charge_id'); }
+    public function creator()       { return $this->belongsTo(User::class, 'created_by'); }
+    public function updater()       { return $this->belongsTo(User::class, 'updated_by'); }
+
+    public function comments()      { return $this->hasMany(TicketComment::class)->orderBy('created_at', 'desc'); }
+    public function statusHistory()  { return $this->hasMany(TicketStatusHistory::class)->orderBy('created_at', 'desc'); }
+    public function proofs()        { return $this->hasMany(TicketProof::class); }
+
+    // ══════════════════════════════════════
+    // Scopes
+    // ══════════════════════════════════════
+
     public function scopeVisibleTo($query, User $user)
     {
         if ($user->hasRole('admin')) {
@@ -74,98 +102,180 @@ class Ticket extends Model
                   ->orWhere('created_by', $user->id);
             });
         }
-        // technician
-        return $query->where(function ($q) use ($user) {
-            $q->where('technician_id', $user->id)
-              ->orWhere('created_by', $user->id);
-        });
+        return $query->where('technician_id', $user->id);
     }
 
-    public function scopeByStatus($query, $status) { return $query->where('status', $status); }
     public function scopeSlaBreach($query)
     {
         return $query->whereNotNull('sla_deadline')
             ->where('sla_deadline', '<', now())
-            ->whereNotIn('status', [self::STATUS_COMPLETED, self::STATUS_CLOSED, self::STATUS_RESCHEDULED]);
+            ->whereNotIn('status', [self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL, self::STATUS_CLOSED, self::STATUS_SCHEDULED]);
     }
 
-    /* ---- Helpers ---- */
+    // ══════════════════════════════════════
+    // Static helpers
+    // ══════════════════════════════════════
+
     public static function getStatuses(): array
     {
         return [
-            self::STATUS_OPEN => 'Open',
-            self::STATUS_ASSIGNED => 'Assigned',
+            self::STATUS_OPEN        => 'Open',
+            self::STATUS_ASSIGNED    => 'Assigned',
             self::STATUS_IN_PROGRESS => 'In Progress',
-            self::STATUS_RESCHEDULED => 'Rescheduled',
-            self::STATUS_COMPLETED => 'Completed',
-            self::STATUS_CLOSED => 'Closed',
+            self::STATUS_SCHEDULED   => 'Scheduled',
+            self::STATUS_DONE_SUCCESS=> 'Done / Success',
+            self::STATUS_DONE_FAIL   => 'Done / Fail',
+            self::STATUS_CLOSED      => 'Closed',
         ];
-    }
-
-    public static function getStatusBadge(string $status): string
-    {
-        return match ($status) {
-            self::STATUS_OPEN => 'primary',
-            self::STATUS_ASSIGNED => 'info',
-            self::STATUS_IN_PROGRESS => 'warning',
-            self::STATUS_RESCHEDULED => 'secondary',
-            self::STATUS_COMPLETED => 'success',
-            self::STATUS_CLOSED => 'dark',
-            default => 'light',
-        };
     }
 
     public static function getPriorities(): array
     {
         return [
-            self::PRIORITY_LOW => 'Low',
+            self::PRIORITY_LOW    => 'Low',
             self::PRIORITY_NORMAL => 'Normal',
-            self::PRIORITY_HIGH => 'High',
+            self::PRIORITY_HIGH   => 'High',
             self::PRIORITY_URGENT => 'Urgent',
         ];
+    }
+
+    public static function getAllowedTransitions(string $currentStatus): array
+    {
+        return match ($currentStatus) {
+            self::STATUS_OPEN        => [self::STATUS_ASSIGNED, self::STATUS_IN_PROGRESS, self::STATUS_CLOSED],
+            self::STATUS_ASSIGNED    => [self::STATUS_IN_PROGRESS, self::STATUS_SCHEDULED, self::STATUS_CLOSED],
+            self::STATUS_IN_PROGRESS => [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
+            self::STATUS_SCHEDULED   => [self::STATUS_IN_PROGRESS, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
+            self::STATUS_DONE_SUCCESS=> [self::STATUS_CLOSED],
+            self::STATUS_DONE_FAIL   => [self::STATUS_CLOSED, self::STATUS_IN_PROGRESS],
+            self::STATUS_CLOSED      => [],
+            default                  => [],
+        };
+    }
+
+    public static function getStatusBadge(string $status): string
+    {
+        return match ($status) {
+            self::STATUS_OPEN         => '<span class="badge bg-secondary">Open</span>',
+            self::STATUS_ASSIGNED     => '<span class="badge bg-info">Assigned</span>',
+            self::STATUS_IN_PROGRESS  => '<span class="badge bg-primary">In Progress</span>',
+            self::STATUS_SCHEDULED    => '<span class="badge bg-warning text-dark">Scheduled</span>',
+            self::STATUS_DONE_SUCCESS => '<span class="badge bg-success">Done / Success</span>',
+            self::STATUS_DONE_FAIL    => '<span class="badge bg-danger">Done / Fail</span>',
+            self::STATUS_CLOSED       => '<span class="badge bg-dark">Closed</span>',
+            default                   => '<span class="badge bg-light text-dark">' . ucfirst($status) . '</span>',
+        };
     }
 
     public static function getPriorityBadge(string $priority): string
     {
         return match ($priority) {
-            self::PRIORITY_LOW => 'secondary',
-            self::PRIORITY_NORMAL => 'info',
-            self::PRIORITY_HIGH => 'warning',
-            self::PRIORITY_URGENT => 'danger',
-            default => 'light',
+            self::PRIORITY_LOW    => '<span class="badge bg-secondary">Low</span>',
+            self::PRIORITY_NORMAL => '<span class="badge bg-info">Normal</span>',
+            self::PRIORITY_HIGH   => '<span class="badge bg-warning text-dark">High</span>',
+            self::PRIORITY_URGENT => '<span class="badge bg-danger">Urgent</span>',
+            default               => '<span class="badge bg-light text-dark">' . ucfirst($priority) . '</span>',
         };
     }
+
+    // ══════════════════════════════════════
+    // Vendor-based ticket ID generation
+    // ══════════════════════════════════════
+
+    public static function generateVendorTicketNo(int $vendorId): string
+    {
+        $vendor = Vendor::find($vendorId);
+        if (!$vendor) {
+            throw new \Exception('Vendor not found for ticket ID generation.');
+        }
+
+        // Use vendor_code as prefix (e.g. MYB, RHB)
+        $prefix = strtoupper($vendor->vendor_code);
+
+        // Get the next running number for this vendor prefix
+        $lastTicket = static::withTrashed()
+            ->where('ticket_no', 'like', $prefix . '%')
+            ->orderByRaw('CAST(SUBSTRING(ticket_no, ?) AS UNSIGNED) DESC', [strlen($prefix) + 1])
+            ->first();
+
+        $nextNum = 1;
+        if ($lastTicket) {
+            $numPart = substr($lastTicket->ticket_no, strlen($prefix));
+            $nextNum = ((int) $numPart) + 1;
+        }
+
+        return $prefix . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+    }
+
+    // ══════════════════════════════════════
+    // Accessors
+    // ══════════════════════════════════════
 
     public function isSlaBreach(): bool
     {
         if (!$this->sla_deadline) return false;
-        if (in_array($this->status, [self::STATUS_COMPLETED, self::STATUS_CLOSED, self::STATUS_RESCHEDULED])) return false;
-        return now()->greaterThan($this->sla_deadline);
+        if (in_array($this->status, [self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL, self::STATUS_CLOSED, self::STATUS_SCHEDULED])) {
+            return false;
+        }
+        return now()->gt($this->sla_deadline);
     }
 
     public function getSlaRemainingAttribute(): ?string
     {
         if (!$this->sla_deadline) return null;
-        if (in_array($this->status, [self::STATUS_COMPLETED, self::STATUS_CLOSED])) return 'Done';
-        if ($this->status === self::STATUS_RESCHEDULED) return 'Paused';
+        if (in_array($this->status, [self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL, self::STATUS_CLOSED])) {
+            return 'Completed';
+        }
+        if ($this->status === self::STATUS_SCHEDULED) {
+            return 'Rescheduled';
+        }
+        if (now()->gt($this->sla_deadline)) {
+            $diff = now()->diff($this->sla_deadline);
+            return '-' . $diff->h . 'h ' . $diff->i . 'm (Breached)';
+        }
         $diff = now()->diff($this->sla_deadline);
-        $prefix = now()->greaterThan($this->sla_deadline) ? '-' : '';
-        return $prefix . $diff->format('%dd %hh %im');
+        $hours = ($diff->days * 24) + $diff->h;
+        return $hours . 'h ' . $diff->i . 'm';
     }
 
     /**
-     * Allowed transitions per status
+     * Auto-calculate claim totals
      */
-    public static function getAllowedTransitions(string $currentStatus): array
+    public function calculateClaim(): void
     {
-        return match ($currentStatus) {
-            self::STATUS_OPEN => [self::STATUS_ASSIGNED, self::STATUS_CLOSED],
-            self::STATUS_ASSIGNED => [self::STATUS_IN_PROGRESS, self::STATUS_RESCHEDULED, self::STATUS_CLOSED],
-            self::STATUS_IN_PROGRESS => [self::STATUS_COMPLETED, self::STATUS_RESCHEDULED, self::STATUS_CLOSED],
-            self::STATUS_RESCHEDULED => [self::STATUS_OPEN, self::STATUS_ASSIGNED, self::STATUS_CLOSED],
-            self::STATUS_COMPLETED => [self::STATUS_CLOSED],
-            self::STATUS_CLOSED => [],
-            default => [],
+        $this->mileage_amount = ($this->mileage ?? 0) * ($this->mileage_rate ?? 0);
+        $this->total_claim_amount = $this->mileage_amount + ($this->toll ?? 0) + ($this->standby_meal ?? 0);
+    }
+
+    /**
+     * Status requires proof upload?
+     */
+    public static function statusRequiresProof(string $status): bool
+    {
+        return in_array($status, [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL]);
+    }
+
+    /**
+     * What proof types are needed for a given status?
+     */
+    public static function getRequiredProofTypes(string $status): array
+    {
+        return match ($status) {
+            self::STATUS_SCHEDULED    => ['whatsapp_screenshot', 'call_log_screenshot'],
+            self::STATUS_DONE_SUCCESS => ['test_slip'],
+            self::STATUS_DONE_FAIL    => ['service_form'],
+            default                   => [],
         };
+    }
+
+    public static function getProofTypeLabels(): array
+    {
+        return [
+            'whatsapp_screenshot'  => 'WhatsApp Screenshot',
+            'call_log_screenshot'  => 'Call Log Screenshot',
+            'test_slip'            => 'Test Slip Image',
+            'service_form'         => 'Service Form Image',
+            'other'                => 'Other',
+        ];
     }
 }

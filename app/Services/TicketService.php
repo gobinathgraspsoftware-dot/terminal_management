@@ -4,9 +4,10 @@ namespace App\Services;
 
 use App\Models\Ticket;
 use App\Models\TicketComment;
+use App\Models\TicketProof;
 use App\Models\TicketStatusHistory;
-use App\Models\NumberSeries;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -14,52 +15,33 @@ use Illuminate\Support\Facades\Log;
 class TicketService
 {
     /**
-     * Get paginated tickets for DataTable (server-side)
+     * Server-side DataTable data
      */
     public function getDatatable(array $params, $user): array
     {
         $query = Ticket::with(['vendor', 'vendorBranch', 'state', 'city', 'supervisor', 'technician', 'jobType', 'creator'])
             ->visibleTo($user);
 
-        // Status filter
-        if (!empty($params['status'])) {
-            $query->where('status', $params['status']);
-        }
+        if (!empty($params['status']))       $query->where('status', $params['status']);
+        if (!empty($params['priority']))     $query->where('priority', $params['priority']);
+        if (!empty($params['vendor_id']))    $query->where('vendor_id', $params['vendor_id']);
+        if (!empty($params['supervisor_id'])) $query->where('supervisor_id', $params['supervisor_id']);
+        if (!empty($params['date_from']))    $query->whereDate('created_at', '>=', $params['date_from']);
+        if (!empty($params['date_to']))      $query->whereDate('created_at', '<=', $params['date_to']);
 
-        // Priority filter
-        if (!empty($params['priority'])) {
-            $query->where('priority', $params['priority']);
-        }
-
-        // SLA breach filter
         if (!empty($params['sla_breach']) && $params['sla_breach'] === 'yes') {
             $query->slaBreach();
         }
 
-        // Vendor filter
-        if (!empty($params['vendor_id'])) {
-            $query->where('vendor_id', $params['vendor_id']);
-        }
-
-        // Supervisor filter
-        if (!empty($params['supervisor_id'])) {
-            $query->where('supervisor_id', $params['supervisor_id']);
-        }
-
-        // Date range
-        if (!empty($params['date_from'])) {
-            $query->whereDate('created_at', '>=', $params['date_from']);
-        }
-        if (!empty($params['date_to'])) {
-            $query->whereDate('created_at', '<=', $params['date_to']);
-        }
-
-        // Search
         $totalRecords = Ticket::visibleTo($user)->count();
+
         $search = $params['search']['value'] ?? '';
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('ticket_no', 'like', "%{$search}%")
+                  ->orWhere('vendor_ticket_ref_no', 'like', "%{$search}%")
+                  ->orWhere('merchant_name', 'like', "%{$search}%")
+                  ->orWhere('tid', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%")
                   ->orWhereHas('vendor', fn($q2) => $q2->where('vendor_name', 'like', "%{$search}%"))
                   ->orWhereHas('supervisor', fn($q2) => $q2->where('name', 'like', "%{$search}%"))
@@ -69,14 +51,12 @@ class TicketService
 
         $filteredRecords = $query->count();
 
-        // Sorting
         $orderColumn = $params['order'][0]['column'] ?? 0;
         $orderDir = $params['order'][0]['dir'] ?? 'desc';
-        $columns = ['ticket_no', 'vendor_id', 'status', 'priority', 'supervisor_id', 'technician_id', 'sla_deadline', 'created_at'];
+        $columns = ['ticket_no', 'vendor_id', 'merchant_name', 'status', 'priority', 'supervisor_id', 'technician_id', 'sla_deadline', 'created_at'];
         $sortBy = $columns[$orderColumn] ?? 'created_at';
         $query->orderBy($sortBy, $orderDir);
 
-        // Pagination
         $start = $params['start'] ?? 0;
         $length = $params['length'] ?? 25;
         $tickets = $query->skip($start)->take($length)->get();
@@ -90,23 +70,33 @@ class TicketService
     }
 
     /**
-     * Create a new ticket
+     * Create a new ticket with vendor-based ticket ID
      */
     public function create(array $data): Ticket
     {
         return DB::transaction(function () use ($data) {
-            // Generate ticket number
-            $data['ticket_no'] = $this->generateTicketNumber();
+            // Generate vendor-based ticket number
+            $data['ticket_no'] = Ticket::generateVendorTicketNo($data['vendor_id']);
             $data['created_by'] = Auth::id();
             $data['updated_by'] = Auth::id();
 
-            // SLA deadline
+            // SLA
             $slaHours = (int) ($data['sla_hours'] ?? 24);
             $data['sla_hours'] = $slaHours;
             $data['sla_deadline'] = now()->addHours($slaHours);
             $data['sla_status'] = Ticket::SLA_ON_TRACK;
 
-            // Auto-set status based on assignee
+            // Pull mileage_rate from supervisor
+            if (!empty($data['supervisor_id'])) {
+                $supervisor = User::find($data['supervisor_id']);
+                $data['mileage_rate'] = $supervisor?->mileage_rate ?? 0;
+            }
+
+            // Calculate claim
+            $data['mileage_amount'] = ($data['mileage'] ?? 0) * ($data['mileage_rate'] ?? 0);
+            $data['total_claim_amount'] = ($data['mileage_amount'] ?? 0) + ($data['toll'] ?? 0) + ($data['standby_meal'] ?? 0);
+
+            // Auto-set status
             if (!empty($data['technician_id'])) {
                 $data['status'] = Ticket::STATUS_ASSIGNED;
                 $data['assigned_at'] = now();
@@ -116,7 +106,6 @@ class TicketService
 
             $ticket = Ticket::create($data);
 
-            // Log status history
             TicketStatusHistory::create([
                 'ticket_id' => $ticket->id,
                 'from_status' => null,
@@ -131,7 +120,7 @@ class TicketService
     }
 
     /**
-     * Update a ticket
+     * Update ticket
      */
     public function update(Ticket $ticket, array $data): Ticket
     {
@@ -139,7 +128,17 @@ class TicketService
             $oldStatus = $ticket->status;
             $data['updated_by'] = Auth::id();
 
-            // If technician assigned and was open, move to assigned
+            // Recalculate mileage if supervisor changed
+            if (!empty($data['supervisor_id'])) {
+                $supervisor = User::find($data['supervisor_id']);
+                $data['mileage_rate'] = $supervisor?->mileage_rate ?? 0;
+            }
+
+            // Recalculate claim
+            $data['mileage_amount'] = ($data['mileage'] ?? $ticket->mileage ?? 0) * ($data['mileage_rate'] ?? $ticket->mileage_rate ?? 0);
+            $data['total_claim_amount'] = ($data['mileage_amount'] ?? 0) + ($data['toll'] ?? $ticket->toll ?? 0) + ($data['standby_meal'] ?? $ticket->standby_meal ?? 0);
+
+            // Auto-assign status
             if (!empty($data['technician_id']) && !$ticket->technician_id && $ticket->status === Ticket::STATUS_OPEN) {
                 $data['status'] = Ticket::STATUS_ASSIGNED;
                 $data['assigned_at'] = now();
@@ -147,7 +146,6 @@ class TicketService
 
             $ticket->update($data);
 
-            // Log status change if changed
             if ($ticket->status !== $oldStatus) {
                 TicketStatusHistory::create([
                     'ticket_id' => $ticket->id,
@@ -164,46 +162,124 @@ class TicketService
     }
 
     /**
-     * Change ticket status
+     * Change ticket status with proof handling
      */
-    public function changeStatus(Ticket $ticket, string $newStatus, ?string $remarks = null, ?string $rescheduleReason = null): Ticket
+    public function changeStatus(Ticket $ticket, string $newStatus, ?string $remarks = null, ?string $rescheduleReason = null, array $proofFiles = []): Ticket
     {
         $allowed = Ticket::getAllowedTransitions($ticket->status);
         if (!in_array($newStatus, $allowed)) {
             throw new \Exception("Cannot transition from '{$ticket->status}' to '{$newStatus}'");
         }
 
-        return DB::transaction(function () use ($ticket, $newStatus, $remarks, $rescheduleReason) {
+        // Validate proof requirement
+        if (Ticket::statusRequiresProof($newStatus) && empty($proofFiles)) {
+            throw new \Exception("Proof upload is required for status '{$newStatus}'.");
+        }
+
+        return DB::transaction(function () use ($ticket, $newStatus, $remarks, $rescheduleReason, $proofFiles) {
             $oldStatus = $ticket->status;
             $updateData = ['status' => $newStatus, 'updated_by' => Auth::id()];
 
             if ($newStatus === Ticket::STATUS_IN_PROGRESS && !$ticket->started_at) {
                 $updateData['started_at'] = now();
             }
-            if ($newStatus === Ticket::STATUS_COMPLETED) {
+            if (in_array($newStatus, [Ticket::STATUS_DONE_SUCCESS, Ticket::STATUS_DONE_FAIL])) {
                 $updateData['completed_at'] = now();
             }
             if ($newStatus === Ticket::STATUS_CLOSED) {
                 $updateData['closed_at'] = now();
             }
-            if ($newStatus === Ticket::STATUS_RESCHEDULED) {
+            if ($newStatus === Ticket::STATUS_SCHEDULED) {
                 $updateData['rescheduled_at'] = now();
                 $updateData['reschedule_reason'] = $rescheduleReason;
             }
 
             $ticket->update($updateData);
 
-            TicketStatusHistory::create([
+            // Log status history
+            $history = TicketStatusHistory::create([
                 'ticket_id' => $ticket->id,
                 'from_status' => $oldStatus,
                 'to_status' => $newStatus,
                 'changed_by' => Auth::id(),
                 'remarks' => $remarks,
+                'reschedule_reason' => $rescheduleReason,
                 'created_at' => now(),
             ]);
 
+            // Upload proof files
+            $this->uploadProofs($ticket, $history, $proofFiles);
+
             return $ticket->fresh();
         });
+    }
+
+    /**
+     * Upload proof files for a status change
+     */
+    public function uploadProofs(Ticket $ticket, TicketStatusHistory $history, array $proofFiles): void
+    {
+        foreach ($proofFiles as $proofType => $files) {
+            if (!is_array($files)) $files = [$files];
+
+            foreach ($files as $file) {
+                if (!$file instanceof UploadedFile) continue;
+
+                $fileName = $file->getClientOriginalName();
+                $filePath = 'ticket-proofs/' . $ticket->id;
+
+                // cPanel-safe upload
+                $destinationPath = $_SERVER['DOCUMENT_ROOT'] . '/storage/' . $filePath;
+                if (!is_dir($destinationPath)) {
+                    mkdir($destinationPath, 0755, true);
+                }
+                $storedName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $fileName);
+                $file->move($destinationPath, $storedName);
+
+                TicketProof::create([
+                    'ticket_id' => $ticket->id,
+                    'ticket_status_history_id' => $history->id,
+                    'proof_type' => $proofType,
+                    'file_name' => $fileName,
+                    'file_path' => $filePath . '/' . $storedName,
+                    'file_size' => $file->getSize() ?? 0,
+                    'mime_type' => $file->getClientMimeType() ?? null,
+                    'uploaded_by' => Auth::id(),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Update claim fields on ticket
+     */
+    public function updateClaim(Ticket $ticket, array $data): Ticket
+    {
+        // Pull mileage_rate from supervisor
+        $mileageRate = $ticket->mileage_rate;
+        if ($ticket->supervisor_id) {
+            $supervisor = User::find($ticket->supervisor_id);
+            $mileageRate = $supervisor?->mileage_rate ?? 0;
+        }
+
+        $mileage = $data['mileage'] ?? 0;
+        $toll = $data['toll'] ?? 0;
+        $standbyMeal = $data['standby_meal'] ?? 0;
+        $mileageAmount = $mileage * $mileageRate;
+        $totalClaim = $mileageAmount + $toll + $standbyMeal;
+
+        $ticket->update([
+            'mileage' => $mileage,
+            'mileage_remarks' => $data['mileage_remarks'] ?? null,
+            'mileage_rate' => $mileageRate,
+            'mileage_amount' => $mileageAmount,
+            'toll' => $toll,
+            'standby_meal' => $standbyMeal,
+            'total_claim_amount' => $totalClaim,
+            'updated_by' => Auth::id(),
+        ]);
+
+        return $ticket->fresh();
     }
 
     /**
@@ -248,26 +324,27 @@ class TicketService
     }
 
     /**
-     * Get dashboard stats
+     * Dashboard stats
      */
     public function getStats($user): array
     {
         $base = Ticket::visibleTo($user);
 
         return [
-            'total' => (clone $base)->count(),
-            'open' => (clone $base)->where('status', Ticket::STATUS_OPEN)->count(),
-            'assigned' => (clone $base)->where('status', Ticket::STATUS_ASSIGNED)->count(),
-            'in_progress' => (clone $base)->where('status', Ticket::STATUS_IN_PROGRESS)->count(),
-            'rescheduled' => (clone $base)->where('status', Ticket::STATUS_RESCHEDULED)->count(),
-            'completed' => (clone $base)->where('status', Ticket::STATUS_COMPLETED)->count(),
-            'closed' => (clone $base)->where('status', Ticket::STATUS_CLOSED)->count(),
+            'total'        => (clone $base)->count(),
+            'open'         => (clone $base)->where('status', Ticket::STATUS_OPEN)->count(),
+            'assigned'     => (clone $base)->where('status', Ticket::STATUS_ASSIGNED)->count(),
+            'in_progress'  => (clone $base)->where('status', Ticket::STATUS_IN_PROGRESS)->count(),
+            'scheduled'    => (clone $base)->where('status', Ticket::STATUS_SCHEDULED)->count(),
+            'done_success' => (clone $base)->where('status', Ticket::STATUS_DONE_SUCCESS)->count(),
+            'done_fail'    => (clone $base)->where('status', Ticket::STATUS_DONE_FAIL)->count(),
+            'closed'       => (clone $base)->where('status', Ticket::STATUS_CLOSED)->count(),
             'sla_breached' => (clone $base)->slaBreach()->count(),
         ];
     }
 
     /**
-     * Get SLA breached tickets for reminders
+     * SLA breached tickets for reminders (excludes scheduled)
      */
     public function getSlaBreachedTickets($user)
     {
@@ -279,15 +356,16 @@ class TicketService
     }
 
     /**
-     * Update SLA status for all active tickets
+     * Update SLA statuses
      */
     public function updateSlaStatuses(): int
     {
         $count = 0;
         $activeTickets = Ticket::whereNotIn('status', [
-            Ticket::STATUS_COMPLETED,
+            Ticket::STATUS_DONE_SUCCESS,
+            Ticket::STATUS_DONE_FAIL,
             Ticket::STATUS_CLOSED,
-            Ticket::STATUS_RESCHEDULED,
+            Ticket::STATUS_SCHEDULED,
         ])->whereNotNull('sla_deadline')->get();
 
         foreach ($activeTickets as $ticket) {
@@ -305,20 +383,5 @@ class TicketService
         }
 
         return $count;
-    }
-
-    /**
-     * Generate ticket number
-     */
-    protected function generateTicketNumber(): string
-    {
-        try {
-            return NumberSeries::getNextNumber('ticket');
-        } catch (\Exception $e) {
-            // Fallback: TKT-YYYYMMDD-XXXX
-            $today = now()->format('Ymd');
-            $count = Ticket::whereDate('created_at', today())->count() + 1;
-            return 'TKT-' . $today . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
-        }
     }
 }

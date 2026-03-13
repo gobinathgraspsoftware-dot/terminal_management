@@ -74,12 +74,20 @@ class TicketPolicy
                 || in_array($ticket->technician_id, $teamIds);
         }
 
-        // Technician can only start/complete their own
         return $ticket->technician_id === $user->id;
     }
 
     public function addComment(User $user, Ticket $ticket): bool
     {
         return $this->view($user, $ticket);
+    }
+
+    public function updateClaim(User $user, Ticket $ticket): bool
+    {
+        if ($user->hasRole('admin')) return true;
+        if ($user->hasRole('supervisor')) {
+            return $ticket->supervisor_id === $user->id;
+        }
+        return $ticket->technician_id === $user->id;
     }
 }
