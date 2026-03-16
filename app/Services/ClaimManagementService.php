@@ -100,16 +100,22 @@ class ClaimManagementService
         }
 
         foreach ($files as $file) {
-            if (!$file) continue;
-            $fileName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $file->getClientOriginalName());
+            if (!$file || !$file->isValid()) continue;
+
+            // Capture metadata BEFORE move (temp file is deleted after move)
+            $originalName = $file->getClientOriginalName();
+            $fileSize     = $file->getSize();
+            $mimeType     = $file->getClientMimeType();
+
+            $fileName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $originalName);
             $file->move($uploadDir, $fileName);
 
             ClaimAttachment::create([
                 'claim_id'    => $claim->id,
-                'file_name'   => $file->getClientOriginalName(),
+                'file_name'   => $originalName,
                 'file_path'   => 'claim-proofs/' . $claim->id . '/' . $fileName,
-                'file_size'   => $file->getSize() ?? 0,
-                'mime_type'   => $file->getClientMimeType() ?? 'application/octet-stream',
+                'file_size'   => $fileSize ?? 0,
+                'mime_type'   => $mimeType ?? 'application/octet-stream',
                 'description' => 'Claim proof',
                 'uploaded_by' => Auth::id(),
             ]);

@@ -225,7 +225,7 @@ class ClaimManagementController extends Controller
 
         $claimTypes  = Claim::getOtherClaimTypes();
         $technicians = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))
-            ->where('is_active', 1)
+            ->where('status', 'active')
             ->orderBy('name')
             ->get(['id', 'name']);
 
