@@ -182,34 +182,34 @@
                             <i class="bi bi-truck me-2"></i> Vendors
                         </a>
                     </li>
-                    <li class="nav-item">
+                    {{-- <li class="nav-item">
                         <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
                            href="{{ route('admin.sites.index') }}">
                             <i class="bi bi-geo-alt me-2"></i> Sites
                         </a>
-                    </li>
-                    @can('view_depots')
+                    </li> --}}
+                    {{-- @can('view_depots')
                     <li class="nav-item">
                         <a class="nav-link {{ $isDepotRoute ? 'active' : '' }}"
                         href="{{ route('admin.depots.index') }}">
                             <i class="bi bi-building me-2"></i> Depots
                         </a>
                     </li>
-                    @endcan
+                    @endcan --}}
                     <li class="nav-item">
                         <a href="{{ route('admin.charge-catalog.index') }}"
                         class="nav-link {{ $ischargeCatelogRoute ? 'active' : '' }}">
                             <i class="bi bi-tag"></i> Charge Catalog
                         </a>
                     </li>
-                    @can('view_rate_cards')
+                    {{-- @can('view_rate_cards')
                     <li class="nav-item">
                         <a href="{{ route('admin.rate-cards.index') }}"
                         class="nav-link {{ $isRateCardRoute ? 'active' : '' }}">
                             <i class="bi bi-credit-card-2-front"></i> Rate Cards
                         </a>
                     </li>
-                    @endcan
+                    @endcan --}}
                     @can('view_models')
                     <li class="nav-item">
                         <a class="nav-link {{ $isTerminalRoute ? 'active' : '' }}"
@@ -709,28 +709,28 @@
                         </a>
                     </li>
                     @endcan
-                    <li class="nav-item">
+                    {{-- <li class="nav-item">
                         <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
                            href="{{ route('supervisor.sites.index') }}">
                             <i class="bi bi-geo-alt me-2"></i> Sites
                         </a>
-                    </li>
-                    @can('view_rate_cards')
+                    </li> --}}
+                    {{-- @can('view_rate_cards')
                     <li class="nav-item">
                         <a href="{{ route('supervisor.rate-cards.index') }}"
                         class="nav-link {{ $isRateCardRoute ? 'active' : '' }}">
                             <i class="bi bi-credit-card-2-front"></i> Rate Cards
                         </a>
                     </li>
-                    @endcan
-                    @can('view_depots')
+                    @endcan --}}
+                    {{-- @can('view_depots')
                     <li class="nav-item">
                         <a class="nav-link {{ $isDepotRoute ? 'active' : '' }}"
                         href="{{ route('supervisor.depots.index') }}">
                             <i class="bi bi-building me-2"></i> Depots
                         </a>
                     </li>
-                    @endcan
+                    @endcan --}}
                     <li class="nav-item">
                         <a href="{{ route('supervisor.charge-catalog.index') }}"
                         class="nav-link {{ $isChargeCatelogRoute ? 'active' : '' }}">
@@ -1170,14 +1170,14 @@
                         </a>
                     </li>
                     @endcan --}}
-                    @can('view_sites')
+                    {{-- @can('view_sites')
                     <li class="nav-item">
                         <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
                         href="{{ route('technician.sites.index') }}">
                             <i class="bi bi-geo-alt me-2"></i> Sites
                         </a>
                     </li>
-                    @endcan
+                    @endcan --}}
                     @can('view_models')
                     <li class="nav-item">
                         <a class="nav-link {{ $isTerminalRoute ? 'active' : '' }}"
@@ -1187,28 +1187,28 @@
                         </a>
                     </li>
                     @endcan
-                    @can('view_depots')
+                    {{-- @can('view_depots')
                     <li class="nav-item">
                         <a class="nav-link {{ $isDepotRoute ? 'active' : '' }}"
                         href="{{ route('technician.depots.index') }}">
                             <i class="bi bi-building me-2"></i> Depots
                         </a>
                     </li>
-                    @endcan
+                    @endcan --}}
                     <li class="nav-item">
                         <a href="{{ route('technician.charge-catalog.index') }}"
                         class="nav-link {{ $isChargeCatelogRoute ? 'active' : '' }}">
                             <i class="bi bi-tag"></i> Charge Catalog
                         </a>
                     </li>
-                    @can('view_rate_cards')
+                    {{-- @can('view_rate_cards')
                     <li class="nav-item">
                         <a href="{{ route('technician.rate-cards.index') }}"
                         class="nav-link {{ $isRateCardRoute ? 'active' : '' }}">
                             <i class="bi bi-credit-card-2-front"></i> My Commission Rates
                         </a>
                     </li>
-                    @endcan
+                    @endcan --}}
                     @can('view_categories')
                     <li class="nav-item">
                         <a class="nav-link {{ $isCategoryRoute ? 'active' : '' }}"
@@ -1441,11 +1441,11 @@
                             <i class="bi bi-plus-circle me-2"></i> Submit Other Claim
                         </a>
                     </li>
-                    <li class="nav-item">
+                    {{-- <li class="nav-item">
                         <a class="nav-link" href="#">
                             <i class="bi bi-cash-coin me-2"></i> Commission
                         </a>
-                    </li>
+                    </li> --}}
                 </ul>
             </div>
 
@@ -1475,14 +1475,14 @@
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Procurement</small>
                 <ul class="nav flex-column mt-2">
-                    @can('view_purchase_orders')
+                    {{-- @can('view_purchase_orders') --}}
                     <li class="nav-item">
                         <a class="nav-link {{ $isPurchaseOrderRoute ? 'active' : '' }}"
                         href="{{ route('technician.purchase-orders.index') }}">
                             <i class="bi bi-cart-check me-2"></i> My Purchase Orders
                         </a>
                     </li>
-                    @endcan
+                    {{-- @endcan --}}
                     @can('view_grns')
                     <li class="nav-item">
                         <a class="nav-link {{ $isGrnsRoute ? 'active' : '' }}"
@@ -1495,7 +1495,7 @@
             </div>
 
             <!-- Claims & Payouts Section -->
-            <div class="nav-section mb-3">
+            {{-- <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Claims & Payouts</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
@@ -1509,7 +1509,7 @@
                         </a>
                     </li>
                 </ul>
-            </div>
+            </div> --}}
 
             <!-- Profile Section -->
             <div class="nav-section mb-3">
