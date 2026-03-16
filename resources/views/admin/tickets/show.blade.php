@@ -1,3 +1,4 @@
+@php use App\Models\Ticket; @endphp
 @extends('layouts.app')
 @section('title', 'Ticket ' . $ticket->ticket_no)
 
@@ -259,8 +260,6 @@
     </div>
 </div>
 @endsection
-
-@php use App\Models\Ticket; @endphp
 
 @push('scripts')
 <script>

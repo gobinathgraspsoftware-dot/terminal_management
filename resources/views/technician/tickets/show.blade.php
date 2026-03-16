@@ -1,6 +1,6 @@
+@php use App\Models\Ticket; @endphp
 @extends('layouts.app')
 @section('title', 'Ticket ' . $ticket->ticket_no)
-@php use App\Models\Ticket; @endphp
 
 @section('content')
 <div class="container-fluid">
