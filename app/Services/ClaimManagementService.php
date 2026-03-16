@@ -18,29 +18,33 @@ class ClaimManagementService
 
     /**
      * Create a claim from a completed ticket
+     *
+     * @param Ticket $ticket
+     * @param array  $data  Optional overrides (from admin form)
+     * @return Claim
      */
-    public function createTicketClaim(Ticket $ticket): Claim
+    public function createTicketClaim(Ticket $ticket, array $data = []): Claim
     {
-        return DB::transaction(function () use ($ticket) {
+        return DB::transaction(function () use ($ticket, $data) {
             $claimNo = NumberSeries::getNextNumber('ticket_claim');
 
             $claim = Claim::create([
-                'claim_no'             => $claimNo,
-                'claim_category'       => Claim::CATEGORY_TICKET,
-                'ticket_id'            => $ticket->id,
-                'claim_date'           => now()->toDateString(),
-                'technician_id'        => $ticket->technician_id,
-                'description'          => "Ticket claim for #{$ticket->ticket_no} - {$ticket->merchant_name}",
-                'total_mileage_km'     => $ticket->mileage ?? 0,
-                'total_mileage_amount' => $ticket->mileage_amount ?? 0,
-                'total_allowance_amount'=> ($ticket->toll ?? 0) + ($ticket->standby_meal ?? 0),
-                'total_amount'         => $ticket->total_claim_amount ?? 0,
-                'original_amount'      => $ticket->total_claim_amount ?? 0,
-                'remarks'              => $ticket->mileage_remarks,
-                'status'               => Claim::STATUS_SUBMITTED,
-                'submitted_at'         => now(),
-                'submitted_by'         => Auth::id(),
-                'created_by'           => Auth::id(),
+                'claim_no'              => $claimNo,
+                'claim_category'        => Claim::CATEGORY_TICKET,
+                'ticket_id'             => $ticket->id,
+                'claim_date'            => now()->toDateString(),
+                'technician_id'         => $ticket->technician_id,
+                'description'           => "Ticket claim for #{$ticket->ticket_no} - {$ticket->merchant_name}",
+                'total_mileage_km'      => $data['mileage'] ?? $ticket->mileage ?? 0,
+                'total_mileage_amount'  => $data['mileage_amount'] ?? $ticket->mileage_amount ?? 0,
+                'total_allowance_amount'=> ($data['toll'] ?? $ticket->toll ?? 0) + ($data['standby_meal'] ?? $ticket->standby_meal ?? 0),
+                'total_amount'          => $data['total_claim_amount'] ?? $ticket->total_claim_amount ?? 0,
+                'original_amount'       => $data['total_claim_amount'] ?? $ticket->total_claim_amount ?? 0,
+                'remarks'               => $data['remarks'] ?? $ticket->mileage_remarks,
+                'status'                => Claim::STATUS_SUBMITTED,
+                'submitted_at'          => now(),
+                'submitted_by'          => Auth::id(),
+                'created_by'            => Auth::id(),
             ]);
 
             return $claim;
@@ -64,7 +68,7 @@ class ClaimManagementService
                 'claim_category'        => Claim::CATEGORY_OTHER,
                 'ticket_id'             => $data['ticket_id'] ?? null,
                 'claim_date'            => now()->toDateString(),
-                'technician_id'         => Auth::id(),
+                'technician_id'         => $data['technician_id'] ?? Auth::id(),
                 'description'           => $data['description'],
                 'claim_type_label'      => $data['claim_type_label'] ?? 'Other',
                 'total_amount'          => $data['claim_amount'],
@@ -96,6 +100,7 @@ class ClaimManagementService
         }
 
         foreach ($files as $file) {
+            if (!$file) continue;
             $fileName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $file->getClientOriginalName());
             $file->move($uploadDir, $fileName);
 
@@ -103,8 +108,8 @@ class ClaimManagementService
                 'claim_id'    => $claim->id,
                 'file_name'   => $file->getClientOriginalName(),
                 'file_path'   => 'claim-proofs/' . $claim->id . '/' . $fileName,
-                'file_size'   => $file->getSize(),
-                'mime_type'   => $file->getClientMimeType(),
+                'file_size'   => $file->getSize() ?? 0,
+                'mime_type'   => $file->getClientMimeType() ?? 'application/octet-stream',
                 'description' => 'Claim proof',
                 'uploaded_by' => Auth::id(),
             ]);

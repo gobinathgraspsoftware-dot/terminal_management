@@ -23,83 +23,113 @@ class ClaimController extends Controller
         $this->service = $service;
     }
 
-    /**
-     * My Claims & Team Claims listing
-     */
-    public function index()
-    {
-        $this->authorize('viewAny', Claim::class);
-        return view('supervisor.claims.index');
-    }
+    // ══════════════════════════════════════════════
+    // Landing Page (tabbed: Ticket Claims / Other Claims)
+    // ══════════════════════════════════════════════
 
     /**
-     * DataTable AJAX
+     * Claims landing with tabs
      */
-    public function data(Request $request)
+    public function index(Request $request)
     {
         $this->authorize('viewAny', Claim::class);
+
         $user = Auth::user();
-
-        // Combine both categories for supervisor
-        $draw        = (int) $request->input('draw', 1);
-        $start       = (int) $request->input('start', 0);
-        $length      = (int) $request->input('length', 10);
-        $searchValue = $request->input('search.value', '');
-        $orderDir    = $request->input('order.0.dir', 'desc') === 'asc' ? 'asc' : 'desc';
-
         $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
         $teamIds[] = $user->id;
 
-        $query = Claim::with(['technician', 'submitter', 'ticket'])
-            ->where(function ($q) use ($teamIds, $user) {
-                $q->whereIn('technician_id', $teamIds)
-                  ->orWhere('submitted_by', $user->id)
-                  ->orWhere('created_by', $user->id);
-            });
+        $stats = [
+            'ticket_total'     => Claim::ticketClaims()->whereIn('technician_id', $teamIds)->count(),
+            'ticket_submitted' => Claim::ticketClaims()->submitted()->whereIn('technician_id', $teamIds)->count(),
+            'other_total'      => Claim::otherClaims()->where(function ($q) use ($teamIds, $user) {
+                $q->whereIn('technician_id', $teamIds)->orWhere('submitted_by', $user->id);
+            })->count(),
+            'other_submitted'  => Claim::otherClaims()->submitted()->where(function ($q) use ($teamIds, $user) {
+                $q->whereIn('technician_id', $teamIds)->orWhere('submitted_by', $user->id);
+            })->count(),
+        ];
 
-        if ($request->filled('category')) {
-            $query->where('claim_category', $request->input('category'));
-        }
-        if ($request->filled('status')) {
-            $query->where('status', $request->input('status'));
-        }
+        $activeTab = $request->input('tab', 'ticket');
 
-        $recordsTotal = $query->count();
+        return view('supervisor.claims.index', compact('stats', 'activeTab'));
+    }
 
-        if ($searchValue) {
-            $query->where(function ($q) use ($searchValue) {
-                $q->where('claim_no', 'like', "%{$searchValue}%")
-                  ->orWhere('description', 'like', "%{$searchValue}%")
-                  ->orWhereHas('technician', fn($tq) => $tq->where('name', 'like', "%{$searchValue}%"));
-            });
-        }
+    // ══════════════════════════════════════════════
+    // Ticket Claims (View Only)
+    // ══════════════════════════════════════════════
 
-        $recordsFiltered = $query->count();
-        $data = $query->orderBy('submitted_at', $orderDir)->skip($start)->take($length)->get();
+    /**
+     * Ticket Claims listing page
+     */
+    public function ticketClaims()
+    {
+        $this->authorize('viewAny', Claim::class);
+        return view('supervisor.claims.ticket-claims');
+    }
 
-        $rows = $data->map(function ($claim) {
+    /**
+     * DataTable AJAX for ticket claims
+     */
+    public function ticketClaimsData(Request $request)
+    {
+        $this->authorize('viewAny', Claim::class);
+        $result = $this->service->getClaimsDataTable($request, Claim::CATEGORY_TICKET, Auth::user(), 'team');
+
+        $result['data'] = $result['data']->map(function ($claim) {
             return [
-                'id'           => $claim->id,
-                'claim_no'     => $claim->claim_no,
-                'category'     => $claim->claim_category === 'ticket'
-                    ? '<span class="badge bg-info">Ticket</span>'
-                    : '<span class="badge bg-secondary">Other</span>',
-                'ticket_no'    => $claim->ticket->ticket_no ?? '-',
-                'submitted_by' => $claim->submitter->name ?? ($claim->technician->name ?? '-'),
-                'description'  => \Illuminate\Support\Str::limit($claim->description, 40),
-                'total_amount' => number_format((float) $claim->total_amount, 2),
-                'status'       => Claim::getStatusBadge($claim->status),
-                'submitted_at' => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
-                'actions'      => '<a href="' . route('supervisor.claims.show', $claim->id) . '" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>',
+                'id'              => $claim->id,
+                'claim_no'        => $claim->claim_no,
+                'ticket_no'       => $claim->ticket->ticket_no ?? '-',
+                'vendor'          => $claim->ticket->vendor->company_name ?? '-',
+                'merchant_name'   => $claim->ticket->merchant_name ?? '-',
+                'technician'      => $claim->technician->name ?? '-',
+                'total_amount'    => number_format((float) $claim->total_amount, 2),
+                'status'          => Claim::getStatusBadge($claim->status),
+                'submitted_at'    => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
+                'actions'         => '<a href="' . route('supervisor.claims.show', $claim->id) . '" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>',
             ];
         });
 
-        return response()->json([
-            'draw'            => $draw,
-            'recordsTotal'    => $recordsTotal,
-            'recordsFiltered' => $recordsFiltered,
-            'data'            => $rows,
-        ]);
+        return response()->json($result);
+    }
+
+    // ══════════════════════════════════════════════
+    // Other Claims (Create + View)
+    // ══════════════════════════════════════════════
+
+    /**
+     * Other Claims listing page
+     */
+    public function otherClaims()
+    {
+        $this->authorize('viewAny', Claim::class);
+        return view('supervisor.claims.other-claims');
+    }
+
+    /**
+     * DataTable AJAX for other claims
+     */
+    public function otherClaimsData(Request $request)
+    {
+        $this->authorize('viewAny', Claim::class);
+        $result = $this->service->getClaimsDataTable($request, Claim::CATEGORY_OTHER, Auth::user(), 'team');
+
+        $result['data'] = $result['data']->map(function ($claim) {
+            return [
+                'id'              => $claim->id,
+                'claim_no'        => $claim->claim_no,
+                'submitted_by'    => $claim->submitter->name ?? ($claim->technician->name ?? '-'),
+                'claim_type'      => $claim->claim_type_label ?? 'Others',
+                'description'     => \Illuminate\Support\Str::limit($claim->description, 40),
+                'total_amount'    => number_format((float) $claim->total_amount, 2),
+                'status'          => Claim::getStatusBadge($claim->status),
+                'submitted_at'    => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
+                'has_attachments' => $claim->attachments->isNotEmpty() ? '<i class="bi bi-paperclip text-primary"></i>' : '',
+                'actions'         => '<a href="' . route('supervisor.claims.show', $claim->id) . '" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>',
+            ];
+        });
+
+        return response()->json($result);
     }
 
     /**
@@ -134,6 +164,10 @@ class ClaimController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
+
+    // ══════════════════════════════════════════════
+    // Show (View Only)
+    // ══════════════════════════════════════════════
 
     /**
      * Show claim detail (view only)

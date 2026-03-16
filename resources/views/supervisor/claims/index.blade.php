@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'My Claims & Team Claims')
+@section('title', 'My Claims')
 
 @section('content')
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1">Claims</h4>
+            <h4 class="mb-1">My & Team Claims</h4>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('supervisor.dashboard') }}">Dashboard</a></li>
@@ -14,64 +14,134 @@
                 </ol>
             </nav>
         </div>
-        <div>
-            @can('create_claims')
-            <a href="{{ route('supervisor.claims.create') }}" class="btn btn-primary">
-                <i class="bi bi-plus-lg me-1"></i> Submit Other Claim
-            </a>
-            @endcan
-        </div>
     </div>
 
-    <!-- Filters -->
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body py-2">
-            <div class="row g-2 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label mb-1 small">Category</label>
-                    <select id="filter-category" class="form-select form-select-sm">
-                        <option value="">All Categories</option>
-                        <option value="ticket">Ticket Claims</option>
-                        <option value="other">Other Claims</option>
-                    </select>
+    {{-- Stats Cards --}}
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-info fs-3 fw-bold">{{ $stats['ticket_total'] ?? 0 }}</div>
+                    <small class="text-muted">Ticket Claims</small>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label mb-1 small">Status</label>
-                    <select id="filter-status" class="form-select form-select-sm">
-                        <option value="">All Statuses</option>
-                        @foreach(\App\Models\Claim::getStatuses() as $key => $label)
-                            <option value="{{ $key }}">{{ $label }}</option>
-                        @endforeach
-                    </select>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-warning fs-3 fw-bold">{{ $stats['ticket_submitted'] ?? 0 }}</div>
+                    <small class="text-muted">Ticket Pending</small>
                 </div>
-                <div class="col-md-2">
-                    <button id="btn-reset" class="btn btn-sm btn-outline-secondary w-100">
-                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
-                    </button>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-secondary fs-3 fw-bold">{{ $stats['other_total'] ?? 0 }}</div>
+                    <small class="text-muted">Other Claims</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-warning fs-3 fw-bold">{{ $stats['other_submitted'] ?? 0 }}</div>
+                    <small class="text-muted">Other Pending</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- DataTable -->
+    {{-- Tabs --}}
     <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {{ $activeTab === 'ticket' ? 'active' : '' }}" id="ticket-tab" data-bs-toggle="tab"
+                            data-bs-target="#ticket-claims-pane" type="button" role="tab">
+                        <i class="bi bi-ticket-detailed me-1"></i> Ticket Claims
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {{ $activeTab === 'other' ? 'active' : '' }}" id="other-tab" data-bs-toggle="tab"
+                            data-bs-target="#other-claims-pane" type="button" role="tab">
+                        <i class="bi bi-file-earmark-text me-1"></i> Other Claims
+                    </button>
+                </li>
+            </ul>
+        </div>
         <div class="card-body">
-            <div class="table-responsive">
-                <table id="claims-table" class="table table-hover table-sm align-middle w-100">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Claim ID</th>
-                            <th>Category</th>
-                            <th>Ticket</th>
-                            <th>Submitted By</th>
-                            <th>Description</th>
-                            <th class="text-end">Amount (RM)</th>
-                            <th>Status</th>
-                            <th>Submitted</th>
-                            <th class="text-center">Actions</th>
-                        </tr>
-                    </thead>
-                </table>
+            <div class="tab-content">
+                {{-- Ticket Claims Tab --}}
+                <div class="tab-pane fade {{ $activeTab === 'ticket' ? 'show active' : '' }}" id="ticket-claims-pane" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <select id="ticket-status-filter" class="form-select form-select-sm" style="width:180px;">
+                                <option value="">All Statuses</option>
+                                <option value="submitted">Submitted</option>
+                                <option value="verified">Verified</option>
+                                <option value="non_claimable">Non-Claimable</option>
+                                <option value="pending_payment">Pending Payment</option>
+                                <option value="paid">Paid</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="ticket-claims-table" class="table table-hover table-sm align-middle w-100">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Claim No</th>
+                                    <th>Ticket No</th>
+                                    <th>Vendor</th>
+                                    <th>Merchant</th>
+                                    <th>Technician</th>
+                                    <th>Amount (RM)</th>
+                                    <th>Status</th>
+                                    <th>Submitted</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {{-- Other Claims Tab --}}
+                <div class="tab-pane fade {{ $activeTab === 'other' ? 'show active' : '' }}" id="other-claims-pane" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <select id="other-status-filter" class="form-select form-select-sm" style="width:180px;">
+                                <option value="">All Statuses</option>
+                                <option value="submitted">Submitted</option>
+                                <option value="verified">Verified</option>
+                                <option value="non_claimable">Non-Claimable</option>
+                                <option value="pending_payment">Pending Payment</option>
+                                <option value="paid">Paid</option>
+                            </select>
+                        </div>
+                        <a href="{{ route('supervisor.claims.create') }}" class="btn btn-sm btn-primary">
+                            <i class="bi bi-plus-circle me-1"></i> Submit Other Claim
+                        </a>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="other-claims-table" class="table table-hover table-sm align-middle w-100">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Claim No</th>
+                                    <th>Submitted By</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                    <th>Amount (RM)</th>
+                                    <th>Status</th>
+                                    <th>Submitted</th>
+                                    <th><i class="bi bi-paperclip"></i></th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -81,35 +151,69 @@
 @push('scripts')
 <script>
 $(function() {
-    var table = $('#claims-table').DataTable({
+    // ═══ Ticket Claims DataTable ═══
+    var ticketTable = $('#ticket-claims-table').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
-            url: '{{ route("supervisor.claims.data") }}',
+            url: '{{ route("supervisor.claims.ticket-claims-data") }}',
             data: function(d) {
-                d.category = $('#filter-category').val();
-                d.status   = $('#filter-status').val();
+                d.status = $('#ticket-status-filter').val();
             }
         },
         columns: [
             { data: 'claim_no' },
-            { data: 'category', orderable: false },
             { data: 'ticket_no' },
-            { data: 'submitted_by' },
-            { data: 'description' },
+            { data: 'vendor' },
+            { data: 'merchant_name' },
+            { data: 'technician' },
             { data: 'total_amount', className: 'text-end' },
-            { data: 'status', orderable: false },
+            { data: 'status', className: 'text-center' },
             { data: 'submitted_at' },
             { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
         ],
         order: [[7, 'desc']],
-        pageLength: 25
+        pageLength: 10,
+        language: { emptyTable: 'No ticket claims found.' }
     });
 
-    $('#filter-category, #filter-status').on('change', function() { table.ajax.reload(); });
-    $('#btn-reset').on('click', function() {
-        $('#filter-category, #filter-status').val('');
-        table.ajax.reload();
+    $('#ticket-status-filter').on('change', function() { ticketTable.ajax.reload(); });
+
+    // ═══ Other Claims DataTable ═══
+    var otherTable = $('#other-claims-table').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: '{{ route("supervisor.claims.other-claims-data") }}',
+            data: function(d) {
+                d.status = $('#other-status-filter').val();
+            }
+        },
+        columns: [
+            { data: 'claim_no' },
+            { data: 'submitted_by' },
+            { data: 'claim_type' },
+            { data: 'description' },
+            { data: 'total_amount', className: 'text-end' },
+            { data: 'status', className: 'text-center' },
+            { data: 'submitted_at' },
+            { data: 'has_attachments', className: 'text-center', orderable: false, searchable: false },
+            { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
+        ],
+        order: [[6, 'desc']],
+        pageLength: 10,
+        language: { emptyTable: 'No other claims found.' }
+    });
+
+    $('#other-status-filter').on('change', function() { otherTable.ajax.reload(); });
+
+    // Initialize the active tab's table on tab show
+    $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
+        if ($(e.target).attr('id') === 'ticket-tab') {
+            ticketTable.columns.adjust().draw(false);
+        } else {
+            otherTable.columns.adjust().draw(false);
+        }
     });
 });
 </script>

@@ -707,24 +707,31 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
 
     /* Claim Management */
     Route::prefix('claims')->name('claims.')->group(function () {
-        // Listing pages
+        // Landing
         Route::get('/', [AdminClaimController::class, 'index'])->name('index');
-        Route::get('/ticket-claims', [AdminClaimController::class, 'ticketClaims'])->name('ticket-claims');
-        Route::get('/other-claims', [AdminClaimController::class, 'otherClaims'])->name('other-claims');
 
-        // DataTable AJAX endpoints (MUST come before /{claim})
-        Route::get('/ajax/ticket-claims-data', [AdminClaimController::class, 'ticketClaimsData'])->name('ticket-claims-data');
-        Route::get('/ajax/other-claims-data', [AdminClaimController::class, 'otherClaimsData'])->name('other-claims-data');
-
-        // Export
+        // Export (before parameterized routes)
         Route::get('/export', [AdminClaimController::class, 'export'])->name('export');
+
+        // Ticket Claims
+        Route::get('/ticket-claims', [AdminClaimController::class, 'ticketClaims'])->name('ticket-claims');
+        Route::get('/create-ticket-claim', [AdminClaimController::class, 'createTicketClaim'])->name('create-ticket-claim');
+        Route::post('/store-ticket-claim', [AdminClaimController::class, 'storeTicketClaim'])->name('store-ticket-claim');
+        Route::get('/ajax/ticket-claims-data', [AdminClaimController::class, 'ticketClaimsData'])->name('ticket-claims-data');
+        Route::get('/ajax/ticket-details/{ticket}', [AdminClaimController::class, 'getTicketDetails'])->name('ticket-details');
+
+        // Other Claims
+        Route::get('/other-claims', [AdminClaimController::class, 'otherClaims'])->name('other-claims');
+        Route::get('/create-other-claim', [AdminClaimController::class, 'createOtherClaim'])->name('create-other-claim');
+        Route::post('/store-other-claim', [AdminClaimController::class, 'storeOtherClaim'])->name('store-other-claim');
+        Route::get('/ajax/other-claims-data', [AdminClaimController::class, 'otherClaimsData'])->name('other-claims-data');
 
         // Bulk Payment
         Route::get('/bulk-payment', [AdminClaimController::class, 'bulkPayment'])->name('bulk-payment');
         Route::post('/bulk-payment/process', [AdminClaimController::class, 'processBulkPayment'])->name('process-bulk-payment');
         Route::post('/bulk-payment/mark-paid', [AdminClaimController::class, 'markPaid'])->name('mark-paid');
 
-        // Claim detail & actions (parameterized - MUST come last)
+        // Show / Verify / Non-Claimable / Update Amount (parameterized - MUST be last)
         Route::get('/{claim}', [AdminClaimController::class, 'show'])->name('show');
         Route::post('/{claim}/verify', [AdminClaimController::class, 'verify'])->name('verify');
         Route::post('/{claim}/non-claimable', [AdminClaimController::class, 'markNonClaimable'])->name('non-claimable');
@@ -1076,10 +1083,20 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
 
     /* Claim management */
     Route::prefix('claims')->name('claims.')->group(function () {
+        // Landing (tabbed index)
         Route::get('/', [SupervisorClaimController::class, 'index'])->name('index');
-        Route::get('/ajax/data', [SupervisorClaimController::class, 'data'])->name('data');
+
+        // Ticket Claims (view-only)
+        Route::get('/ticket-claims', [SupervisorClaimController::class, 'ticketClaims'])->name('ticket-claims');
+        Route::get('/ajax/ticket-claims-data', [SupervisorClaimController::class, 'ticketClaimsData'])->name('ticket-claims-data');
+
+        // Other Claims (create + view)
+        Route::get('/other-claims', [SupervisorClaimController::class, 'otherClaims'])->name('other-claims');
+        Route::get('/ajax/other-claims-data', [SupervisorClaimController::class, 'otherClaimsData'])->name('other-claims-data');
         Route::get('/create', [SupervisorClaimController::class, 'create'])->name('create');
-        Route::post('/', [SupervisorClaimController::class, 'store'])->name('store');
+        Route::post('/store', [SupervisorClaimController::class, 'store'])->name('store');
+
+        // Show (parameterized - MUST be last)
         Route::get('/{claim}', [SupervisorClaimController::class, 'show'])->name('show');
     });
 
@@ -1295,10 +1312,20 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
 
     /* claim management */
     Route::prefix('claims')->name('claims.')->group(function () {
+        // Landing (tabbed index)
         Route::get('/', [TechnicianClaimController::class, 'index'])->name('index');
-        Route::get('/ajax/data', [TechnicianClaimController::class, 'data'])->name('data');
+
+        // Ticket Claims (view-only)
+        Route::get('/ticket-claims', [TechnicianClaimController::class, 'ticketClaims'])->name('ticket-claims');
+        Route::get('/ajax/ticket-claims-data', [TechnicianClaimController::class, 'ticketClaimsData'])->name('ticket-claims-data');
+
+        // Other Claims (create + view)
+        Route::get('/other-claims', [TechnicianClaimController::class, 'otherClaims'])->name('other-claims');
+        Route::get('/ajax/other-claims-data', [TechnicianClaimController::class, 'otherClaimsData'])->name('other-claims-data');
         Route::get('/create', [TechnicianClaimController::class, 'create'])->name('create');
-        Route::post('/', [TechnicianClaimController::class, 'store'])->name('store');
+        Route::post('/store', [TechnicianClaimController::class, 'store'])->name('store');
+
+        // Show (parameterized - MUST be last)
         Route::get('/{claim}', [TechnicianClaimController::class, 'show'])->name('show');
     });
 

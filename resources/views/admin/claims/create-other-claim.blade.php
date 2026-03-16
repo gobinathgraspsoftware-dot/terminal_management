@@ -1,17 +1,18 @@
 @extends('layouts.app')
 
-@section('title', 'Submit Other Claim')
+@section('title', 'Create Other Claim')
 
 @section('content')
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1">Submit Other Claim</h4>
+            <h4 class="mb-1">Create Other Claim</h4>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ route('supervisor.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('supervisor.claims.index') }}">Claims</a></li>
-                    <li class="breadcrumb-item active">Submit Other Claim</li>
+                    <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('admin.claims.index') }}">Claim Management</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('admin.claims.other-claims') }}">Other Claims</a></li>
+                    <li class="breadcrumb-item active">Create</li>
                 </ol>
             </nav>
         </div>
@@ -41,6 +42,15 @@
                                 <input type="number" name="claim_amount" class="form-control" step="0.01" min="0.01" required placeholder="0.00">
                             </div>
                             <div class="col-md-6">
+                                <label class="form-label">Technician <span class="text-danger">*</span></label>
+                                <select name="technician_id" class="form-select select2-technician" required>
+                                    <option value="">-- Select Technician --</option>
+                                    @foreach($technicians as $tech)
+                                        <option value="{{ $tech->id }}">{{ $tech->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6">
                                 <label class="form-label">Linked Ticket (Optional)</label>
                                 <select name="ticket_id" class="form-select select2-ticket">
                                     <option value="">-- No Ticket --</option>
@@ -66,9 +76,9 @@
 
                         <hr>
                         <div class="d-flex justify-content-end gap-2">
-                            <a href="{{ route('supervisor.claims.index', ['tab' => 'other']) }}" class="btn btn-secondary">Cancel</a>
+                            <a href="{{ route('admin.claims.other-claims') }}" class="btn btn-secondary">Cancel</a>
                             <button type="submit" class="btn btn-primary" id="btn-submit">
-                                <i class="bi bi-check-circle me-1"></i> Submit Claim
+                                <i class="bi bi-check-circle me-1"></i> Create Other Claim
                             </button>
                         </div>
                     </form>
@@ -83,10 +93,10 @@
                 </div>
                 <div class="card-body">
                     <ol class="mb-0 ps-3">
-                        <li class="mb-2">Select a claim type (e.g., courier, parking, toll).</li>
-                        <li class="mb-2">Enter the claim amount and describe the expense.</li>
-                        <li class="mb-2">Optionally link to a completed ticket.</li>
-                        <li class="mb-0">Attach proof documents (receipts, invoices).</li>
+                        <li class="mb-2">Select a claim type and assign a technician.</li>
+                        <li class="mb-2">Enter the claim amount and description.</li>
+                        <li class="mb-2">Optionally link to a ticket and attach proof documents.</li>
+                        <li class="mb-0">Claim will be submitted for verification immediately.</li>
                     </ol>
                 </div>
             </div>
@@ -99,15 +109,16 @@
 <script>
 $(function() {
     $('.select2-ticket').select2({ theme: 'bootstrap-5', width: '100%', allowClear: true });
+    $('.select2-technician').select2({ theme: 'bootstrap-5', width: '100%', allowClear: true });
 
     $('#claim-form').on('submit', function(e) {
         e.preventDefault();
         var formData = new FormData(this);
         var $btn = $('#btn-submit');
-        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Submitting...');
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Creating...');
 
         $.ajax({
-            url: '{{ route("supervisor.claims.store") }}',
+            url: '{{ route("admin.claims.store-other-claim") }}',
             method: 'POST',
             data: formData,
             processData: false,
@@ -115,10 +126,10 @@ $(function() {
             success: function(res) {
                 if (res.success) {
                     showToast(res.message, 'success');
-                    setTimeout(function() { window.location.href = '{{ route("supervisor.claims.index", ["tab" => "other"]) }}'; }, 1500);
+                    setTimeout(function() { window.location.href = '{{ route("admin.claims.other-claims") }}'; }, 1500);
                 } else {
                     showToast(res.message || 'Error occurred.', 'error');
-                    $btn.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i> Submit Claim');
+                    $btn.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i> Create Other Claim');
                 }
             },
             error: function(xhr) {
@@ -128,7 +139,7 @@ $(function() {
                 } else {
                     showToast(xhr.responseJSON?.message || 'Error occurred.', 'error');
                 }
-                $btn.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i> Submit Claim');
+                $btn.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i> Create Other Claim');
             }
         });
     });

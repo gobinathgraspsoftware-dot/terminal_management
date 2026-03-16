@@ -8,6 +8,7 @@ use App\Http\Requests\StoreOtherClaimRequest;
 use App\Http\Requests\VerifyClaimRequest;
 use App\Models\Claim;
 use App\Models\Ticket;
+use App\Models\User;
 use App\Services\ClaimManagementService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
@@ -23,6 +24,10 @@ class ClaimManagementController extends Controller
     {
         $this->service = $service;
     }
+
+    // ══════════════════════════════════════════════
+    // Landing Page
+    // ══════════════════════════════════════════════
 
     /**
      * Claim Management landing page (choose category)
@@ -42,6 +47,10 @@ class ClaimManagementController extends Controller
         return view('admin.claims.index', compact('stats'));
     }
 
+    // ══════════════════════════════════════════════
+    // Ticket Claims
+    // ══════════════════════════════════════════════
+
     /**
      * Ticket Claims listing
      */
@@ -49,15 +58,6 @@ class ClaimManagementController extends Controller
     {
         $this->authorize('viewAny', Claim::class);
         return view('admin.claims.ticket-claims');
-    }
-
-    /**
-     * Other Claims listing
-     */
-    public function otherClaims()
-    {
-        $this->authorize('viewAny', Claim::class);
-        return view('admin.claims.other-claims');
     }
 
     /**
@@ -88,6 +88,100 @@ class ClaimManagementController extends Controller
     }
 
     /**
+     * Create Ticket Claim form - select from completed tickets
+     */
+    public function createTicketClaim()
+    {
+        $this->authorize('create', Claim::class);
+
+        // Get completed tickets that don't already have a ticket claim
+        $existingTicketIds = Claim::ticketClaims()->whereNotNull('ticket_id')->pluck('ticket_id')->toArray();
+
+        $tickets = Ticket::whereIn('status', [
+                Ticket::STATUS_DONE_SUCCESS,
+                Ticket::STATUS_DONE_FAIL,
+                Ticket::STATUS_CLOSED,
+            ])
+            ->whereNotIn('id', $existingTicketIds)
+            ->with(['vendor', 'supervisor', 'technician', 'jobType'])
+            ->orderBy('completed_at', 'desc')
+            ->get();
+
+        return view('admin.claims.create-ticket-claim', compact('tickets'));
+    }
+
+    /**
+     * Get ticket details via AJAX
+     */
+    public function getTicketDetails(Ticket $ticket)
+    {
+        $ticket->load(['vendor', 'supervisor', 'technician', 'jobType']);
+
+        return response()->json([
+            'success'          => true,
+            'ticket_no'        => $ticket->ticket_no,
+            'vendor'           => $ticket->vendor->company_name ?? '-',
+            'merchant_name'    => $ticket->merchant_name ?? '-',
+            'supervisor'       => $ticket->supervisor->name ?? '-',
+            'technician'       => $ticket->technician->name ?? '-',
+            'technician_id'    => $ticket->technician_id,
+            'job_type'         => $ticket->jobType->name ?? '-',
+            'mileage'          => $ticket->mileage ?? 0,
+            'mileage_amount'   => $ticket->mileage_amount ?? 0,
+            'toll'             => $ticket->toll ?? 0,
+            'standby_meal'     => $ticket->standby_meal ?? 0,
+            'total_claim'      => $ticket->total_claim_amount ?? 0,
+            'mileage_remarks'  => $ticket->mileage_remarks ?? '',
+        ]);
+    }
+
+    /**
+     * Store Ticket Claim
+     */
+    public function storeTicketClaim(Request $request)
+    {
+        $this->authorize('create', Claim::class);
+
+        $request->validate([
+            'ticket_id'          => 'required|integer|exists:tickets,id',
+            'total_claim_amount' => 'required|numeric|min:0',
+            'mileage'            => 'nullable|numeric|min:0',
+            'mileage_amount'     => 'nullable|numeric|min:0',
+            'toll'               => 'nullable|numeric|min:0',
+            'standby_meal'       => 'nullable|numeric|min:0',
+            'remarks'            => 'nullable|string|max:2000',
+        ]);
+
+        try {
+            $ticket = Ticket::findOrFail($request->input('ticket_id'));
+
+            // Check duplicate
+            $exists = Claim::ticketClaims()->where('ticket_id', $ticket->id)->exists();
+            if ($exists) {
+                return response()->json(['success' => false, 'message' => 'A ticket claim already exists for this ticket.'], 422);
+            }
+
+            $claim = $this->service->createTicketClaim($ticket, $request->all());
+            return response()->json(['success' => true, 'message' => "Ticket Claim {$claim->claim_no} created successfully."]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    // Other Claims
+    // ══════════════════════════════════════════════
+
+    /**
+     * Other Claims listing
+     */
+    public function otherClaims()
+    {
+        $this->authorize('viewAny', Claim::class);
+        return view('admin.claims.other-claims');
+    }
+
+    /**
      * DataTable AJAX for other claims
      */
     public function otherClaimsData(Request $request)
@@ -113,6 +207,50 @@ class ClaimManagementController extends Controller
 
         return response()->json($result);
     }
+
+    /**
+     * Create Other Claim form
+     */
+    public function createOtherClaim()
+    {
+        $this->authorize('create', Claim::class);
+
+        $tickets = Ticket::whereIn('status', [
+                Ticket::STATUS_DONE_SUCCESS,
+                Ticket::STATUS_DONE_FAIL,
+                Ticket::STATUS_CLOSED,
+            ])
+            ->orderBy('ticket_no', 'desc')
+            ->get(['id', 'ticket_no', 'merchant_name']);
+
+        $claimTypes  = Claim::getOtherClaimTypes();
+        $technicians = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))
+            ->where('is_active', 1)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('admin.claims.create-other-claim', compact('tickets', 'claimTypes', 'technicians'));
+    }
+
+    /**
+     * Store Other Claim
+     */
+    public function storeOtherClaim(StoreOtherClaimRequest $request)
+    {
+        $this->authorize('create', Claim::class);
+
+        try {
+            $files = $request->file('attachments', []);
+            $claim = $this->service->createOtherClaim($request->validated(), is_array($files) ? $files : [$files]);
+            return response()->json(['success' => true, 'message' => "Other Claim {$claim->claim_no} created successfully."]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    // Show / Verify / Actions
+    // ══════════════════════════════════════════════
 
     /**
      * Show claim detail (both categories)
@@ -186,6 +324,10 @@ class ClaimManagementController extends Controller
         }
     }
 
+    // ══════════════════════════════════════════════
+    // Bulk Payment
+    // ══════════════════════════════════════════════
+
     /**
      * Bulk Payment page
      */
@@ -243,6 +385,10 @@ class ClaimManagementController extends Controller
         }
     }
 
+    // ══════════════════════════════════════════════
+    // Export
+    // ══════════════════════════════════════════════
+
     /**
      * Export claims
      */
@@ -258,6 +404,10 @@ class ClaimManagementController extends Controller
             'claims_' . $category . '_' . now()->format('Ymd_His') . '.xlsx'
         );
     }
+
+    // ══════════════════════════════════════════════
+    // Helpers
+    // ══════════════════════════════════════════════
 
     /**
      * Generate action buttons for DataTable

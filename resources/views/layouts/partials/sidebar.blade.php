@@ -533,21 +533,21 @@
             </div>
 
             <!-- Claim Management Section -->
-            @canany(['view_all_claims', 'verify_claims', 'bulk_pay_claims'])
+            @canany(['view_all_claims', 'view_claims', 'verify_claims', 'bulk_pay_claims'])
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Claim Management</small>
                 <ul class="nav flex-column mt-2">
                     @can('view_all_claims')
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.claims.index') ? 'active' : '' }}"
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.claims.index') && !str_contains($currentRoute, 'admin.claims.ticket') && !str_contains($currentRoute, 'admin.claims.other') && !str_contains($currentRoute, 'admin.claims.bulk') ? 'active' : '' }}"
                            href="{{ route('admin.claims.index') }}">
-                            <i class="bi bi-folder2-open me-2"></i> Claim Management
+                            <i class="bi bi-folder2-open me-2"></i> Overview
                         </a>
                     </li>
                     @endcan
                     @can('view_all_claims')
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.claims.ticket-claims') ? 'active' : '' }}"
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.claims.ticket-claims') || str_contains($currentRoute, 'admin.claims.create-ticket-claim') ? 'active' : '' }}"
                            href="{{ route('admin.claims.ticket-claims') }}">
                             <i class="bi bi-ticket-detailed me-2"></i> Ticket Claims
                         </a>
@@ -555,7 +555,7 @@
                     @endcan
                     @can('view_all_claims')
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.claims.other-claims') ? 'active' : '' }}"
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.claims.other-claims') || str_contains($currentRoute, 'admin.claims.create-other-claim') ? 'active' : '' }}"
                            href="{{ route('admin.claims.other-claims') }}">
                             <i class="bi bi-file-earmark-text me-2"></i> Other Claims
                         </a>
@@ -987,19 +987,29 @@
                 <small class="text-muted text-uppercase fw-bold px-3">Claims</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.claims.index') ? 'active' : '' }}"
+                        <a class="nav-link {{ $currentRoute === 'supervisor.claims.index' ? 'active' : '' }}"
                            href="{{ route('supervisor.claims.index') }}">
-                            <i class="bi bi-file-earmark-text me-2"></i> My & Team Claims
+                            <i class="bi bi-folder2-open me-2"></i> Claims Overview
                         </a>
                     </li>
-                    {{-- @can('create_claims') --}}
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.claims.ticket-claims') ? 'active' : '' }}"
+                           href="{{ route('supervisor.claims.ticket-claims') }}">
+                            <i class="bi bi-ticket-detailed me-2"></i> Ticket Claims
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.claims.other-claims') ? 'active' : '' }}"
+                           href="{{ route('supervisor.claims.other-claims') }}">
+                            <i class="bi bi-file-earmark-text me-2"></i> Other Claims
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link {{ str_contains($currentRoute, 'supervisor.claims.create') ? 'active' : '' }}"
                            href="{{ route('supervisor.claims.create') }}">
                             <i class="bi bi-plus-circle me-2"></i> Submit Other Claim
                         </a>
                     </li>
-                    {{-- @endcan --}}
                 </ul>
             </div>
             @endcanany
@@ -1407,22 +1417,30 @@
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Claims & Payouts</small>
                 <ul class="nav flex-column mt-2">
-                    {{-- @canany(['view_own_claims', 'view_claims']) --}}
                     <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'technician.claims.index') ? 'active' : '' }}"
+                        <a class="nav-link {{ $currentRoute === 'technician.claims.index' ? 'active' : '' }}"
                            href="{{ route('technician.claims.index') }}">
-                            <i class="bi bi-file-earmark-text me-2"></i> My Claims
+                            <i class="bi bi-folder2-open me-2"></i> Claims Overview
                         </a>
                     </li>
-                    {{-- @endcanany --}}
-                    {{-- @can('create_claims') --}}
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.claims.ticket-claims') ? 'active' : '' }}"
+                           href="{{ route('technician.claims.ticket-claims') }}">
+                            <i class="bi bi-ticket-detailed me-2"></i> Ticket Claims
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.claims.other-claims') ? 'active' : '' }}"
+                           href="{{ route('technician.claims.other-claims') }}">
+                            <i class="bi bi-file-earmark-text me-2"></i> Other Claims
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link {{ str_contains($currentRoute, 'technician.claims.create') ? 'active' : '' }}"
                            href="{{ route('technician.claims.create') }}">
                             <i class="bi bi-plus-circle me-2"></i> Submit Other Claim
                         </a>
                     </li>
-                    {{-- @endcan --}}
                     <li class="nav-item">
                         <a class="nav-link" href="#">
                             <i class="bi bi-cash-coin me-2"></i> Commission
