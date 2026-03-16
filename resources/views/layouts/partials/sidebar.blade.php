@@ -532,6 +532,47 @@
                 </ul>
             </div>
 
+            <!-- Claim Management Section -->
+            @canany(['view_all_claims', 'verify_claims', 'bulk_pay_claims'])
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Claim Management</small>
+                <ul class="nav flex-column mt-2">
+                    @can('view_all_claims')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.claims.index') ? 'active' : '' }}"
+                           href="{{ route('admin.claims.index') }}">
+                            <i class="bi bi-folder2-open me-2"></i> Claim Management
+                        </a>
+                    </li>
+                    @endcan
+                    @can('view_all_claims')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.claims.ticket-claims') ? 'active' : '' }}"
+                           href="{{ route('admin.claims.ticket-claims') }}">
+                            <i class="bi bi-ticket-detailed me-2"></i> Ticket Claims
+                        </a>
+                    </li>
+                    @endcan
+                    @can('view_all_claims')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.claims.other-claims') ? 'active' : '' }}"
+                           href="{{ route('admin.claims.other-claims') }}">
+                            <i class="bi bi-file-earmark-text me-2"></i> Other Claims
+                        </a>
+                    </li>
+                    @endcan
+                    @can('bulk_pay_claims')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.claims.bulk-payment') ? 'active' : '' }}"
+                           href="{{ route('admin.claims.bulk-payment') }}">
+                            <i class="bi bi-cash-stack me-2"></i> Bulk Payment
+                        </a>
+                    </li>
+                    @endcan
+                </ul>
+            </div>
+            @endcanany
+
             <!-- Profile Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
@@ -940,6 +981,29 @@
                 </ul>
             </div>
 
+            <!-- Claims Section -->
+            @canany(['view_claims', 'view_team_claims', 'create_claims'])
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Claims</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.claims.index') ? 'active' : '' }}"
+                           href="{{ route('supervisor.claims.index') }}">
+                            <i class="bi bi-file-earmark-text me-2"></i> My & Team Claims
+                        </a>
+                    </li>
+                    {{-- @can('create_claims') --}}
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.claims.create') ? 'active' : '' }}"
+                           href="{{ route('supervisor.claims.create') }}">
+                            <i class="bi bi-plus-circle me-2"></i> Submit Other Claim
+                        </a>
+                    </li>
+                    {{-- @endcan --}}
+                </ul>
+            </div>
+            @endcanany
+
             <!-- Quotations Section -->
             @php
                 $isQuotationRoute = str_contains($currentRoute ?? '', 'supervisor.quotations');
@@ -1334,6 +1398,34 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#">
                             <i class="bi bi-arrow-down-circle me-2"></i> Stock Request
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Claims & Payouts Section -->
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Claims & Payouts</small>
+                <ul class="nav flex-column mt-2">
+                    {{-- @canany(['view_own_claims', 'view_claims']) --}}
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.claims.index') ? 'active' : '' }}"
+                           href="{{ route('technician.claims.index') }}">
+                            <i class="bi bi-file-earmark-text me-2"></i> My Claims
+                        </a>
+                    </li>
+                    {{-- @endcanany --}}
+                    {{-- @can('create_claims') --}}
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.claims.create') ? 'active' : '' }}"
+                           href="{{ route('technician.claims.create') }}">
+                            <i class="bi bi-plus-circle me-2"></i> Submit Other Claim
+                        </a>
+                    </li>
+                    {{-- @endcan --}}
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="bi bi-cash-coin me-2"></i> Commission
                         </a>
                     </li>
                 </ul>

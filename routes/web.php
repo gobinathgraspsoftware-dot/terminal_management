@@ -93,6 +93,9 @@ use App\Http\Controllers\Supervisor\TicketController as SupervisorTicketControll
 use App\Http\Controllers\Technician\TicketController as TechnicianTicketController;
 use App\Http\Controllers\Admin\VendorTypeController as AdminVendorTypeController;
 use App\Http\Controllers\Supervisor\VendorController as SupervisorVendorController;
+use App\Http\Controllers\Admin\ClaimManagementController as AdminClaimController;
+use App\Http\Controllers\Supervisor\ClaimController as SupervisorClaimController;
+use App\Http\Controllers\Technician\ClaimController as TechnicianClaimController;
 
 /*
 |--------------------------------------------------------------------------
@@ -702,6 +705,32 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/{vendor_type}/toggle-status', [AdminVendorTypeController::class, 'toggleStatus'])->name('toggle-status');
     });
 
+    /* Claim Management */
+    Route::prefix('claims')->name('claims.')->group(function () {
+        // Listing pages
+        Route::get('/', [AdminClaimController::class, 'index'])->name('index');
+        Route::get('/ticket-claims', [AdminClaimController::class, 'ticketClaims'])->name('ticket-claims');
+        Route::get('/other-claims', [AdminClaimController::class, 'otherClaims'])->name('other-claims');
+
+        // DataTable AJAX endpoints (MUST come before /{claim})
+        Route::get('/ajax/ticket-claims-data', [AdminClaimController::class, 'ticketClaimsData'])->name('ticket-claims-data');
+        Route::get('/ajax/other-claims-data', [AdminClaimController::class, 'otherClaimsData'])->name('other-claims-data');
+
+        // Export
+        Route::get('/export', [AdminClaimController::class, 'export'])->name('export');
+
+        // Bulk Payment
+        Route::get('/bulk-payment', [AdminClaimController::class, 'bulkPayment'])->name('bulk-payment');
+        Route::post('/bulk-payment/process', [AdminClaimController::class, 'processBulkPayment'])->name('process-bulk-payment');
+        Route::post('/bulk-payment/mark-paid', [AdminClaimController::class, 'markPaid'])->name('mark-paid');
+
+        // Claim detail & actions (parameterized - MUST come last)
+        Route::get('/{claim}', [AdminClaimController::class, 'show'])->name('show');
+        Route::post('/{claim}/verify', [AdminClaimController::class, 'verify'])->name('verify');
+        Route::post('/{claim}/non-claimable', [AdminClaimController::class, 'markNonClaimable'])->name('non-claimable');
+        Route::post('/{claim}/update-amount', [AdminClaimController::class, 'updateAmount'])->name('update-amount');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -1045,6 +1074,15 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::post('/{ticket}/comment', [SupervisorTicketController::class, 'addComment'])->name('comment');
     });
 
+    /* Claim management */
+    Route::prefix('claims')->name('claims.')->group(function () {
+        Route::get('/', [SupervisorClaimController::class, 'index'])->name('index');
+        Route::get('/ajax/data', [SupervisorClaimController::class, 'data'])->name('data');
+        Route::get('/create', [SupervisorClaimController::class, 'create'])->name('create');
+        Route::post('/', [SupervisorClaimController::class, 'store'])->name('store');
+        Route::get('/{claim}', [SupervisorClaimController::class, 'show'])->name('show');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -1253,6 +1291,15 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::post('/{ticket}/change-status', [TechnicianTicketController::class, 'changeStatus'])->name('change-status');
         Route::post('/{ticket}/update-claim', [TechnicianTicketController::class, 'updateClaim'])->name('update-claim');
         Route::post('/{ticket}/comment', [TechnicianTicketController::class, 'addComment'])->name('comment');
+    });
+
+    /* claim management */
+    Route::prefix('claims')->name('claims.')->group(function () {
+        Route::get('/', [TechnicianClaimController::class, 'index'])->name('index');
+        Route::get('/ajax/data', [TechnicianClaimController::class, 'data'])->name('data');
+        Route::get('/create', [TechnicianClaimController::class, 'create'])->name('create');
+        Route::post('/', [TechnicianClaimController::class, 'store'])->name('store');
+        Route::get('/{claim}', [TechnicianClaimController::class, 'show'])->name('show');
     });
 
     /* Claims */
