@@ -22,7 +22,6 @@ use App\Models\Vendor;
 use App\Models\Quotation;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-use App\Models\Claim;
 
 // Policies
 use App\Policies\PermissionPolicy;
@@ -43,7 +42,8 @@ use App\Policies\VendorPolicy;
 use App\Policies\QuotationPolicy;
 use App\Models\VendorType;
 use App\Policies\VendorTypePolicy;
-use App\Policies\ClaimManagementPolicy;
+use App\Models\Claim;
+use App\Policies\ClaimPolicy;
 
 // Observers
 use App\Observers\InventorySerialObserver;
@@ -107,7 +107,7 @@ class AuthServiceProvider extends ServiceProvider
         Role::class => RolePolicy::class,
         Quotation::class => QuotationPolicy::class,
         VendorType::class => VendorTypePolicy::class,
-        Claim::class => ClaimManagementPolicy::class,
+        Claim::class => ClaimPolicy::class,
     ];
 
     /**
