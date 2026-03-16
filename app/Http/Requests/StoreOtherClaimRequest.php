@@ -16,6 +16,7 @@ class StoreOtherClaimRequest extends FormRequest
     {
         return [
             'claim_type_label' => 'required|string|max:100',
+            'technician_id'    => 'required|integer|exists:users,id',
             'description'      => 'required|string|max:2000',
             'claim_amount'     => 'required|numeric|min:0.01',
             'ticket_id'        => 'nullable|integer|exists:tickets,id',
@@ -29,6 +30,7 @@ class StoreOtherClaimRequest extends FormRequest
     {
         return [
             'claim_type_label.required' => 'Please select a claim type.',
+            'technician_id.required'    => 'Please select a technician.',
             'description.required'      => 'Please enter a description.',
             'claim_amount.required'     => 'Please enter the claim amount.',
             'claim_amount.min'          => 'Claim amount must be at least RM 0.01.',
