@@ -15,20 +15,41 @@
                 </ol>
             </nav>
         </div>
+        <div class="d-flex gap-2">
+            @can('create_claims')
+            <a href="{{ route('supervisor.claims.create-ticket-claim') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> Create Ticket Claim
+            </a>
+            @endcan
+        </div>
     </div>
 
-    <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <h6 class="mb-0"><i class="bi bi-ticket-detailed me-1"></i> My & Team Ticket Claims</h6>
-            <select id="status-filter" class="form-select form-select-sm" style="width:180px;">
-                <option value="">All Statuses</option>
-                <option value="submitted">Submitted</option>
-                <option value="verified">Verified</option>
-                <option value="non_claimable">Non-Claimable</option>
-                <option value="pending_payment">Pending Payment</option>
-                <option value="paid">Paid</option>
-            </select>
+    <!-- Filters -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label mb-1 small">Status</label>
+                    <select id="filter-status" class="form-select form-select-sm">
+                        <option value="">All Statuses</option>
+                        <option value="submitted">Submitted</option>
+                        <option value="verified">Verified</option>
+                        <option value="non_claimable">Non-Claimable</option>
+                        <option value="pending_payment">Pending Payment</option>
+                        <option value="paid">Paid</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button id="btn-reset-filters" class="btn btn-sm btn-outline-secondary w-100">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                    </button>
+                </div>
+            </div>
         </div>
+    </div>
+
+    <!-- DataTable -->
+    <div class="card border-0 shadow-sm">
         <div class="card-body">
             <div class="table-responsive">
                 <table id="ticket-claims-table" class="table table-hover table-sm align-middle w-100">
@@ -61,9 +82,7 @@ $(function() {
         serverSide: true,
         ajax: {
             url: '{{ route("supervisor.claims.ticket-claims-data") }}',
-            data: function(d) {
-                d.status = $('#status-filter').val();
-            }
+            data: function(d) { d.status = $('#filter-status').val(); }
         },
         columns: [
             { data: 'claim_no' },
@@ -81,7 +100,11 @@ $(function() {
         language: { emptyTable: 'No ticket claims found.' }
     });
 
-    $('#status-filter').on('change', function() { table.ajax.reload(); });
+    $('#filter-status').on('change', function() { table.ajax.reload(); });
+    $('#btn-reset-filters').on('click', function() {
+        $('#filter-status').val('');
+        table.ajax.reload();
+    });
 });
 </script>
 @endpush

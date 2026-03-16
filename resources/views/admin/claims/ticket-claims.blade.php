@@ -16,6 +16,11 @@
             </nav>
         </div>
         <div class="d-flex gap-2">
+            @can('create_claims')
+            <a href="{{ route('admin.claims.create-ticket-claim') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> Create Ticket Claim
+            </a>
+            @endcan
             @can('export_claims')
             <a href="{{ route('admin.claims.export', ['category' => 'ticket']) }}" class="btn btn-outline-success">
                 <i class="bi bi-download me-1"></i> Export
@@ -37,9 +42,11 @@
                     <label class="form-label mb-1 small">Status</label>
                     <select id="filter-status" class="form-select form-select-sm">
                         <option value="">All Statuses</option>
-                        @foreach(\App\Models\Claim::getStatuses() as $key => $label)
-                            <option value="{{ $key }}">{{ $label }}</option>
-                        @endforeach
+                        <option value="submitted">Submitted</option>
+                        <option value="verified">Verified</option>
+                        <option value="non_claimable">Non-Claimable</option>
+                        <option value="pending_payment">Pending Payment</option>
+                        <option value="paid">Paid</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -58,18 +65,19 @@
                 <table id="ticket-claims-table" class="table table-hover table-sm align-middle w-100">
                     <thead class="table-light">
                         <tr>
-                            <th>Claim ID</th>
-                            <th>Ticket ID</th>
+                            <th>Claim No</th>
+                            <th>Ticket No</th>
                             <th>Vendor</th>
                             <th>Merchant</th>
                             <th>Supervisor</th>
                             <th>Technician</th>
-                            <th class="text-end">Amount (RM)</th>
+                            <th>Amount (RM)</th>
                             <th>Status</th>
                             <th>Submitted</th>
-                            <th class="text-center">Actions</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
+                    <tbody></tbody>
                 </table>
             </div>
         </div>
@@ -90,19 +98,19 @@ $(function() {
             }
         },
         columns: [
-            { data: 'claim_no', name: 'claim_no' },
-            { data: 'ticket_no', name: 'ticket_no' },
-            { data: 'vendor', name: 'vendor' },
-            { data: 'merchant_name', name: 'merchant_name' },
-            { data: 'supervisor', name: 'supervisor' },
-            { data: 'technician', name: 'technician' },
-            { data: 'total_amount', name: 'total_amount', className: 'text-end' },
-            { data: 'status', name: 'status', orderable: false },
-            { data: 'submitted_at', name: 'submitted_at' },
-            { data: 'actions', name: 'actions', orderable: false, searchable: false, className: 'text-center' }
+            { data: 'claim_no' },
+            { data: 'ticket_no' },
+            { data: 'vendor' },
+            { data: 'merchant_name' },
+            { data: 'supervisor' },
+            { data: 'technician' },
+            { data: 'total_amount', className: 'text-end' },
+            { data: 'status', className: 'text-center' },
+            { data: 'submitted_at' },
+            { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
         ],
         order: [[8, 'desc']],
-        pageLength: 25,
+        pageLength: 10,
         language: { emptyTable: 'No ticket claims found.' }
     });
 

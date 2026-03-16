@@ -14,22 +14,15 @@
                 </ol>
             </nav>
         </div>
-        <div>
-            @can('bulk_pay_claims')
-            <a href="{{ route('admin.claims.bulk-payment') }}" class="btn btn-success">
-                <i class="bi bi-cash-stack me-1"></i> Bulk Payment
-            </a>
-            @endcan
-        </div>
     </div>
 
-    <!-- Summary Cards -->
+    <!-- Stats -->
     <div class="row g-3 mb-4">
         <div class="col-md-3">
             <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
                     <div class="text-info fs-2 fw-bold">{{ $stats['ticket_submitted'] + $stats['other_submitted'] }}</div>
-                    <small class="text-muted">Pending Review</small>
+                    <small class="text-muted">Submitted</small>
                 </div>
             </div>
         </div>

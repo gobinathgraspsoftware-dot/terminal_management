@@ -16,6 +16,11 @@
             </nav>
         </div>
         <div class="d-flex gap-2">
+            @can('create_claims')
+            <a href="{{ route('admin.claims.create-other-claim') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> Create Other Claim
+            </a>
+            @endcan
             @can('export_claims')
             <a href="{{ route('admin.claims.export', ['category' => 'other']) }}" class="btn btn-outline-success">
                 <i class="bi bi-download me-1"></i> Export
@@ -37,9 +42,11 @@
                     <label class="form-label mb-1 small">Status</label>
                     <select id="filter-status" class="form-select form-select-sm">
                         <option value="">All Statuses</option>
-                        @foreach(\App\Models\Claim::getStatuses() as $key => $label)
-                            <option value="{{ $key }}">{{ $label }}</option>
-                        @endforeach
+                        <option value="submitted">Submitted</option>
+                        <option value="verified">Verified</option>
+                        <option value="non_claimable">Non-Claimable</option>
+                        <option value="pending_payment">Pending Payment</option>
+                        <option value="paid">Paid</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -58,18 +65,19 @@
                 <table id="other-claims-table" class="table table-hover table-sm align-middle w-100">
                     <thead class="table-light">
                         <tr>
-                            <th>Claim ID</th>
+                            <th>Claim No</th>
                             <th>Submitted By</th>
                             <th>Claim Type</th>
                             <th>Description</th>
-                            <th class="text-end">Amount (RM)</th>
+                            <th>Amount (RM)</th>
                             <th>Status</th>
-                            <th>Ticket ID</th>
+                            <th>Ticket No</th>
                             <th>Submitted</th>
-                            <th class="text-center"><i class="bi bi-paperclip"></i></th>
-                            <th class="text-center">Actions</th>
+                            <th><i class="bi bi-paperclip"></i></th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
+                    <tbody></tbody>
                 </table>
             </div>
         </div>
@@ -90,19 +98,19 @@ $(function() {
             }
         },
         columns: [
-            { data: 'claim_no', name: 'claim_no' },
-            { data: 'submitted_by', name: 'submitted_by' },
-            { data: 'claim_type', name: 'claim_type' },
-            { data: 'description', name: 'description' },
-            { data: 'total_amount', name: 'total_amount', className: 'text-end' },
-            { data: 'status', name: 'status', orderable: false },
-            { data: 'ticket_no', name: 'ticket_no' },
-            { data: 'submitted_at', name: 'submitted_at' },
-            { data: 'has_attachments', name: 'has_attachments', orderable: false, searchable: false, className: 'text-center' },
-            { data: 'actions', name: 'actions', orderable: false, searchable: false, className: 'text-center' }
+            { data: 'claim_no' },
+            { data: 'submitted_by' },
+            { data: 'claim_type' },
+            { data: 'description' },
+            { data: 'total_amount', className: 'text-end' },
+            { data: 'status', className: 'text-center' },
+            { data: 'ticket_no' },
+            { data: 'submitted_at' },
+            { data: 'has_attachments', className: 'text-center', orderable: false, searchable: false },
+            { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
         ],
         order: [[7, 'desc']],
-        pageLength: 25,
+        pageLength: 10,
         language: { emptyTable: 'No other claims found.' }
     });
 

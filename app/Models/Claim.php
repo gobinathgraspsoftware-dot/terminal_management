@@ -13,7 +13,7 @@ class Claim extends Model
     const CATEGORY_TICKET = 'ticket';
     const CATEGORY_OTHER  = 'other';
 
-    // ── Status constants (new workflow) ──
+    // ── Status constants ──
     const STATUS_DRAFT           = 'draft';
     const STATUS_SUBMITTED       = 'submitted';
     const STATUS_VERIFIED        = 'verified';
@@ -23,16 +23,19 @@ class Claim extends Model
     const STATUS_CANCELLED       = 'cancelled';
 
     protected $fillable = [
-        'claim_no', 'claim_category', 'ticket_id', 'description', 'claim_type_label',
-        'claim_date', 'technician_id', 'claim_period_from', 'claim_period_to',
+        'claim_no', 'claim_category', 'claim_date', 'ticket_id',
+        'technician_id', 'claim_period_from', 'claim_period_to',
+        'description', 'claim_type_label',
         'total_mileage_km', 'total_mileage_amount', 'total_allowance_amount',
         'total_amount', 'original_amount',
-        'remarks', 'admin_remarks', 'status',
+        'remarks', 'admin_remarks',
+        'status',
         'submitted_at', 'submitted_by',
         'verified_at', 'verified_by',
         'approved_at', 'approved_by',
-        'rejected_at', 'rejected_by', 'rejection_reason',
-        'paid_at', 'paid_by', 'payout_batch_id',
+        'rejected_at', 'rejected_by',
+        'paid_at', 'paid_by',
+        'payout_batch_id',
         'created_by', 'updated_by',
     ];
 
@@ -105,7 +108,7 @@ class Claim extends Model
     }
 
     // ══════════════════════════════════════
-    // Static helpers
+    // Helpers
     // ══════════════════════════════════════
 
     public static function getStatuses(): array
@@ -124,14 +127,14 @@ class Claim extends Model
     public static function getStatusBadge(string $status): string
     {
         return match ($status) {
-            self::STATUS_DRAFT           => '<span class="badge bg-secondary">Draft</span>',
+            self::STATUS_DRAFT           => '<span class="badge bg-light text-dark">Draft</span>',
             self::STATUS_SUBMITTED       => '<span class="badge bg-info">Submitted</span>',
             self::STATUS_VERIFIED        => '<span class="badge bg-success">Verified</span>',
             self::STATUS_NON_CLAIMABLE   => '<span class="badge bg-danger">Non-Claimable</span>',
             self::STATUS_PENDING_PAYMENT => '<span class="badge bg-warning text-dark">Pending Payment</span>',
             self::STATUS_PAID            => '<span class="badge bg-primary">Paid</span>',
-            self::STATUS_CANCELLED       => '<span class="badge bg-dark">Cancelled</span>',
-            default                      => '<span class="badge bg-light text-dark">' . ucfirst(str_replace('_', ' ', $status)) . '</span>',
+            self::STATUS_CANCELLED       => '<span class="badge bg-secondary">Cancelled</span>',
+            default                      => '<span class="badge bg-secondary">' . ucfirst(str_replace('_', ' ', $status)) . '</span>',
         };
     }
 
@@ -158,25 +161,16 @@ class Claim extends Model
         ];
     }
 
-    /**
-     * Check if claim can be verified by admin
-     */
     public function canBeVerified(): bool
     {
         return $this->status === self::STATUS_SUBMITTED;
     }
 
-    /**
-     * Check if claim can be processed for payment
-     */
     public function canBeProcessedForPayment(): bool
     {
         return $this->status === self::STATUS_VERIFIED;
     }
 
-    /**
-     * Check if claim is editable
-     */
     public function isEditable(): bool
     {
         return in_array($this->status, [self::STATUS_DRAFT, self::STATUS_SUBMITTED]);
