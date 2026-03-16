@@ -9,12 +9,12 @@ class ClaimPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can('view_claims');
+        return $user->canAny(['view_claims', 'view_all_claims', 'view_team_claims', 'view_own_claims']);
     }
 
     public function view(User $user, Claim $claim): bool
     {
-        if (!$user->can('view_claims')) return false;
+        if (!$user->canAny(['view_claims', 'view_all_claims', 'view_team_claims', 'view_own_claims'])) return false;
         if ($user->hasRole('admin')) return true;
 
         if ($user->hasRole('supervisor')) {
@@ -47,13 +47,13 @@ class ClaimPolicy
     public function verify(User $user, Claim $claim): bool
     {
         if ($user->hasRole('admin')) return true;
-        return $user->can('verify_claims');
+        return $user->canAny(['verify_claims', 'approve_claims']);
     }
 
     public function bulkPay(User $user): bool
     {
         if ($user->hasRole('admin')) return true;
-        return $user->can('bulk_pay_claims');
+        return $user->canAny(['bulk_pay_claims', 'mark_paid_claims']);
     }
 
     public function export(User $user): bool

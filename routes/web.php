@@ -1334,11 +1334,6 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         // Show (parameterized - MUST be last)
         Route::get('/{claim}', [TechnicianClaimController::class, 'show'])->name('show');
     });
-
-    /* Claims */
-    Route::get('/claims', function () {
-        return 'My Claims - Technician Only';
-    })->name('claims.index');
 });
 
 // =====================================================

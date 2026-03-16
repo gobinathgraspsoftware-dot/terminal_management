@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreOtherClaimRequest;
 use App\Models\Claim;
 use App\Models\Ticket;
+use App\Models\User;
 use App\Services\ClaimManagementService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
@@ -30,16 +31,16 @@ class ClaimController extends Controller
     {
         $this->authorize('viewAny', Claim::class);
 
-        $userId = Auth::id();
+        $user = Auth::user();
 
         $stats = [
-            'ticket_total'     => Claim::ticketClaims()->where('technician_id', $userId)->count(),
-            'ticket_submitted' => Claim::ticketClaims()->submitted()->where('technician_id', $userId)->count(),
-            'other_total'      => Claim::otherClaims()->where(function ($q) use ($userId) {
-                $q->where('technician_id', $userId)->orWhere('submitted_by', $userId);
+            'ticket_total'     => Claim::ticketClaims()->where('technician_id', $user->id)->count(),
+            'ticket_submitted' => Claim::ticketClaims()->submitted()->where('technician_id', $user->id)->count(),
+            'other_total'      => Claim::otherClaims()->where(function ($q) use ($user) {
+                $q->where('technician_id', $user->id)->orWhere('submitted_by', $user->id);
             })->count(),
-            'other_submitted'  => Claim::otherClaims()->submitted()->where(function ($q) use ($userId) {
-                $q->where('technician_id', $userId)->orWhere('submitted_by', $userId);
+            'other_submitted'  => Claim::otherClaims()->submitted()->where(function ($q) use ($user) {
+                $q->where('technician_id', $user->id)->orWhere('submitted_by', $user->id);
             })->count(),
         ];
 
@@ -49,7 +50,7 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Ticket Claims (Create + View)
+    // Ticket Claims
     // ══════════════════════════════════════════════
 
     public function ticketClaims()
@@ -81,13 +82,13 @@ class ClaimController extends Controller
     }
 
     /**
-     * Create Ticket Claim form — only own completed tickets
+     * Create Ticket Claim form — own completed tickets only
      */
     public function createTicketClaim()
     {
         $this->authorize('create', Claim::class);
 
-        $userId = Auth::id();
+        $user = Auth::user();
 
         $existingTicketIds = Claim::ticketClaims()->whereNotNull('ticket_id')->pluck('ticket_id')->toArray();
 
@@ -96,7 +97,7 @@ class ClaimController extends Controller
                 Ticket::STATUS_DONE_FAIL,
                 Ticket::STATUS_CLOSED,
             ])
-            ->where('technician_id', $userId)
+            ->where('technician_id', $user->id)
             ->whereNotIn('id', $existingTicketIds)
             ->with(['vendor', 'supervisor', 'technician', 'jobType'])
             ->orderBy('completed_at', 'desc')
@@ -110,11 +111,6 @@ class ClaimController extends Controller
      */
     public function getTicketDetails(Ticket $ticket)
     {
-        // Ensure technician can only view own tickets
-        if ($ticket->technician_id !== Auth::id()) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized.'], 403);
-        }
-
         $ticket->load(['vendor', 'supervisor', 'technician', 'jobType']);
 
         return response()->json([
@@ -153,12 +149,8 @@ class ClaimController extends Controller
         ]);
 
         try {
-            $ticket = Ticket::findOrFail($request->input('ticket_id'));
-
-            // Ensure own ticket only
-            if ($ticket->technician_id !== Auth::id()) {
-                return response()->json(['success' => false, 'message' => 'You can only create claims for your own tickets.'], 403);
-            }
+            $ticket = Ticket::where('technician_id', Auth::id())
+                ->findOrFail($request->input('ticket_id'));
 
             $exists = Claim::ticketClaims()->where('ticket_id', $ticket->id)->exists();
             if ($exists) {
@@ -173,7 +165,7 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Other Claims (Create + View)
+    // Other Claims
     // ══════════════════════════════════════════════
 
     public function otherClaims()
@@ -204,11 +196,16 @@ class ClaimController extends Controller
         return response()->json($result);
     }
 
+    /**
+     * Create Other Claim form
+     */
     public function create()
     {
         $this->authorize('create', Claim::class);
 
-        $tickets = Ticket::where('technician_id', Auth::id())
+        $user = Auth::user();
+
+        $tickets = Ticket::where('technician_id', $user->id)
             ->whereIn('status', [Ticket::STATUS_DONE_SUCCESS, Ticket::STATUS_DONE_FAIL, Ticket::STATUS_CLOSED])
             ->orderBy('ticket_no', 'desc')
             ->get(['id', 'ticket_no', 'merchant_name']);
@@ -218,13 +215,30 @@ class ClaimController extends Controller
         return view('technician.claims.create', compact('tickets', 'claimTypes'));
     }
 
-    public function store(StoreOtherClaimRequest $request)
+    /**
+     * Store Other Claim
+     */
+    public function store(Request $request)
     {
         $this->authorize('create', Claim::class);
 
+        $request->validate([
+            'claim_type_label' => 'required|string|max:100',
+            'description'      => 'required|string|max:2000',
+            'claim_amount'     => 'required|numeric|min:0.01',
+            'ticket_id'        => 'nullable|integer|exists:tickets,id',
+            'remarks'          => 'nullable|string|max:2000',
+            'attachments'      => 'nullable|array|max:5',
+            'attachments.*'    => 'file|mimes:pdf,png,jpg,jpeg|max:5120',
+        ]);
+
         try {
+            // Force technician_id to self
+            $data = $request->all();
+            $data['technician_id'] = Auth::id();
+
             $files = $request->file('attachments', []);
-            $claim = $this->service->createOtherClaim($request->validated(), is_array($files) ? $files : [$files]);
+            $claim = $this->service->createOtherClaim($data, is_array($files) ? $files : [$files]);
             return response()->json(['success' => true, 'message' => "Claim {$claim->claim_no} submitted successfully."]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
@@ -232,7 +246,7 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Show (View Only)
+    // Show
     // ══════════════════════════════════════════════
 
     public function show(Claim $claim)

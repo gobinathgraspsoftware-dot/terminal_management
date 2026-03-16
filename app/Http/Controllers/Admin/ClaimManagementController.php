@@ -337,7 +337,9 @@ class ClaimManagementController extends Controller
 
         $category = $request->input('category', 'all');
 
-        $query = Claim::verified()->with(['technician', 'submitter', 'ticket']);
+        // Load both verified AND pending_payment claims
+        $query = Claim::whereIn('status', [Claim::STATUS_VERIFIED, Claim::STATUS_PENDING_PAYMENT])
+            ->with(['technician', 'submitter', 'ticket']);
 
         if ($category === 'ticket') {
             $query->ticketClaims();

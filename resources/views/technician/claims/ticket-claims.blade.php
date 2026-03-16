@@ -6,54 +6,25 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1">My Ticket Claims</h4>
+            <h4 class="mb-1"><i class="bi bi-ticket-detailed me-2"></i>My Ticket Claims</h4>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('technician.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('technician.claims.index') }}">My Claims</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('technician.claims.index') }}">Claims</a></li>
                     <li class="breadcrumb-item active">Ticket Claims</li>
                 </ol>
             </nav>
         </div>
-        <div class="d-flex gap-2">
-            @can('create_claims')
-            <a href="{{ route('technician.claims.create-ticket-claim') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i> Create Ticket Claim
-            </a>
-            @endcan
-        </div>
+        <a href="{{ route('technician.claims.create-ticket-claim') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-1"></i> New Ticket Claim
+        </a>
     </div>
 
-    <!-- Filters -->
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body py-2">
-            <div class="row g-2 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label mb-1 small">Status</label>
-                    <select id="filter-status" class="form-select form-select-sm">
-                        <option value="">All Statuses</option>
-                        <option value="submitted">Submitted</option>
-                        <option value="verified">Verified</option>
-                        <option value="non_claimable">Non-Claimable</option>
-                        <option value="pending_payment">Pending Payment</option>
-                        <option value="paid">Paid</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <button id="btn-reset-filters" class="btn btn-sm btn-outline-secondary w-100">
-                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- DataTable -->
-    <div class="card border-0 shadow-sm">
+    <div class="card">
         <div class="card-body">
             <div class="table-responsive">
-                <table id="ticket-claims-table" class="table table-hover table-sm align-middle w-100">
-                    <thead class="table-light">
+                <table id="ticketClaimsTable" class="table table-striped table-hover" style="width:100%">
+                    <thead>
                         <tr>
                             <th>Claim No</th>
                             <th>Ticket No</th>
@@ -76,32 +47,22 @@
 @push('scripts')
 <script>
 $(function() {
-    var table = $('#ticket-claims-table').DataTable({
+    $('#ticketClaimsTable').DataTable({
         processing: true,
         serverSide: true,
-        ajax: {
-            url: '{{ route("technician.claims.ticket-claims-data") }}',
-            data: function(d) { d.status = $('#filter-status').val(); }
-        },
+        ajax: '{{ route("technician.claims.ticket-claims-data") }}',
         columns: [
             { data: 'claim_no' },
             { data: 'ticket_no' },
             { data: 'vendor' },
             { data: 'merchant_name' },
             { data: 'total_amount', className: 'text-end' },
-            { data: 'status', className: 'text-center' },
+            { data: 'status', orderable: false },
             { data: 'submitted_at' },
-            { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
+            { data: 'actions', orderable: false, searchable: false },
         ],
         order: [[6, 'desc']],
-        pageLength: 10,
-        language: { emptyTable: 'No ticket claims found.' }
-    });
-
-    $('#filter-status').on('change', function() { table.ajax.reload(); });
-    $('#btn-reset-filters').on('click', function() {
-        $('#filter-status').val('');
-        table.ajax.reload();
+        responsive: true,
     });
 });
 </script>
