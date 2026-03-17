@@ -79,10 +79,11 @@ class TicketController extends Controller
         $this->authorize('create', Ticket::class);
         $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
         $states = State::orderBy('name')->get();
+        $supervisors = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))->where('status', 'active')->orderBy('name')->get();
         $jobTypes = JobType::where('status', 'active')->orderBy('job_title')->get();
         $charges = ChargeCatalog::where('status', 'active')->orderBy('charge_name')->get();
 
-        return view('admin.tickets.create', compact('vendors', 'states', 'jobTypes', 'charges'));
+        return view('admin.tickets.create', compact('vendors', 'states', 'supervisors', 'jobTypes', 'charges'));
     }
 
     public function store(StoreTicketRequest $request)

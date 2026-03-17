@@ -5,101 +5,112 @@
 
 @section('content')
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="page-header d-flex justify-content-between align-items-center">
         <div>
-            <h4 class="mb-1">
+            <h1 class="mb-1">
                 <i class="bi bi-ticket-detailed me-2"></i>{{ $ticket->ticket_no }}
                 {!! Ticket::getStatusBadge($ticket->status) !!}
                 {!! Ticket::getPriorityBadge($ticket->priority) !!}
                 @if($ticket->isSlaBreach()) <span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>SLA BREACHED</span> @endif
-            </h4>
+            </h1>
             <small class="text-muted">Created {{ $ticket->created_at->format('d M Y H:i') }}</small>
         </div>
-        <a href="{{ route('technician.tickets.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+        <a href="{{ route('technician.tickets.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back to Tickets</a>
     </div>
 
     <div class="row g-4">
         <div class="col-lg-8">
-            {{-- Details --}}
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Ticket Details</h6></div>
+            <div class="card">
                 <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-4"><strong>Vendor:</strong><br>{{ $ticket->vendor?->vendor_name ?? '-' }}</div>
-                        <div class="col-md-4"><strong>Branch:</strong><br>{{ $ticket->vendorBranch?->branch_name ?? '-' }}</div>
-                        <div class="col-md-4"><strong>Job Type:</strong><br>{{ $ticket->jobType?->job_title ?? '-' }}</div>
-                        <div class="col-md-4"><strong>TID:</strong><br>{{ $ticket->tid ?? '-' }}</div>
-                        <div class="col-md-4"><strong>Merchant:</strong><br>{{ $ticket->merchant_name ?? '-' }}</div>
-                        <div class="col-md-4"><strong>Contact:</strong><br>{{ $ticket->contact_number ?? '-' }}</div>
-                        <div class="col-md-6"><strong>State:</strong><br>{{ $ticket->state?->name ?? '-' }}</div>
-                        <div class="col-md-6"><strong>District:</strong><br>{{ $ticket->city?->name ?? '-' }}</div>
-                        <div class="col-12"><strong>Address:</strong><br>{{ $ticket->merchant_address ?? '-' }}</div>
-                        <div class="col-12"><strong>Description:</strong><br>{{ $ticket->description }}</div>
+                    <div class="alert fw-bold mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px;">
+                        <i class="bi bi-info-circle me-2"></i>Ticket Information
                     </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4"><label class="form-label text-muted small">Vendor</label><div class="fw-semibold">{{ $ticket->vendor?->vendor_name ?? '-' }}</div></div>
+                        <div class="col-md-4"><label class="form-label text-muted small">Branch</label><div class="fw-semibold">{{ $ticket->vendorBranch?->branch_name ?? '-' }}</div></div>
+                        <div class="col-md-4"><label class="form-label text-muted small">Job Type</label><div class="fw-semibold">{{ $ticket->jobType?->job_title ?? '-' }}</div></div>
+                        <div class="col-md-4"><label class="form-label text-muted small">State</label><div class="fw-semibold">{{ $ticket->state?->name ?? '-' }}</div></div>
+                        <div class="col-md-4"><label class="form-label text-muted small">District</label><div class="fw-semibold">{{ $ticket->city?->name ?? '-' }}</div></div>
+                        <div class="col-md-4"><label class="form-label text-muted small">Supervisor</label><div class="fw-semibold">{{ $ticket->supervisor?->name ?? '-' }}</div></div>
+                    </div>
+
+                    <div class="alert fw-bold mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px;">
+                        <i class="bi bi-shop me-2"></i>Merchant Details
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4"><label class="form-label text-muted small">TID</label><div class="fw-semibold">{{ $ticket->tid ?? '-' }}</div></div>
+                        <div class="col-md-4"><label class="form-label text-muted small">Merchant</label><div class="fw-semibold">{{ $ticket->merchant_name ?? '-' }}</div></div>
+                        <div class="col-md-4"><label class="form-label text-muted small">Contact</label><div class="fw-semibold">{{ $ticket->contact_number ?? '-' }}</div></div>
+                        <div class="col-md-8"><label class="form-label text-muted small">Address</label><div class="fw-semibold">{{ $ticket->merchant_address ?? '-' }}</div></div>
+                    </div>
+
+                    <div class="alert fw-bold mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px;">
+                        <i class="bi bi-clock me-2"></i>SLA
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4"><label class="form-label text-muted small">SLA</label><div class="fw-semibold">{{ $ticket->sla_hours }}h</div></div>
+                        <div class="col-md-4"><label class="form-label text-muted small">Deadline</label><div class="fw-semibold">{{ $ticket->sla_deadline?->format('d M Y H:i') ?? '-' }}</div></div>
+                        <div class="col-md-4"><label class="form-label text-muted small">Remaining</label><div class="fw-semibold">{{ $ticket->sla_remaining ?? '-' }}</div></div>
+                    </div>
+
+                    <div class="alert fw-bold mb-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px;">
+                        <i class="bi bi-card-text me-2"></i>Description
+                    </div>
+                    <p>{{ $ticket->description }}</p>
                 </div>
             </div>
 
-            {{-- SLA --}}
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-clock me-2"></i>SLA</h6></div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-3"><strong>SLA:</strong><br>{{ $ticket->sla_hours }}h</div>
-                        <div class="col-md-3"><strong>Deadline:</strong><br>{{ $ticket->sla_deadline?->format('d M Y H:i') ?? '-' }}</div>
-                        <div class="col-md-3"><strong>Remaining:</strong><br>{{ $ticket->sla_remaining ?? '-' }}</div>
-                        <div class="col-md-3"><strong>Supervisor:</strong><br>{{ $ticket->supervisor?->name ?? '-' }}</div>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Status Update (technician: in_progress, scheduled, done_success, done_fail) --}}
+            {{-- Status Update (technician limited: in_progress, scheduled, done_success, done_fail) --}}
             @if(count($allowedTransitions) > 0)
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-dark text-white"><h6 class="mb-0"><i class="bi bi-arrow-repeat me-2"></i>Update Status</h6></div>
+            <div class="card">
+                <div class="card-header bg-dark text-white"><i class="bi bi-arrow-repeat me-2"></i>Update Status</div>
                 <div class="card-body">
                     <form id="statusForm" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label class="form-label">New Status <span class="text-danger">*</span></label>
-                            <select name="status" id="new_status" class="form-select" required>
-                                <option value="">Select Status</option>
-                                @foreach($allowedTransitions as $ts)
-                                    {{-- Technician can only set: in_progress, scheduled, done_success, done_fail --}}
-                                    @if(in_array($ts, ['in_progress', 'scheduled', 'done_success', 'done_fail']))
-                                        <option value="{{ $ts }}">{{ $statuses[$ts] ?? ucfirst(str_replace('_', ' ', $ts)) }}</option>
-                                    @endif
-                                @endforeach
-                            </select>
-                        </div>
-                        <div id="reschedule_section" class="mb-3" style="display:none;">
-                            <label class="form-label">Reschedule Reason <span class="text-danger">*</span></label>
-                            <textarea name="reschedule_reason" id="reschedule_reason" class="form-control" rows="2"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Remarks</label>
-                            <textarea name="remarks" class="form-control" rows="2" placeholder="Optional remarks"></textarea>
-                        </div>
-                        <div id="proof_section" style="display:none;">
-                            <div class="alert alert-info py-2 mb-3"><i class="bi bi-camera me-1"></i><strong>Proof required.</strong> <span id="proof_help_text"></span></div>
-                            <div id="proof_scheduled" style="display:none;">
-                                <div class="mb-3"><label class="form-label">WhatsApp Screenshot <span class="text-danger">*</span></label><input type="file" name="proof_files[whatsapp_screenshot]" class="form-control" accept="image/*,.pdf"><small class="text-muted">Screenshot of WhatsApp conversation</small></div>
-                                <div class="mb-3"><label class="form-label">Call Log Screenshot <span class="text-danger">*</span></label><input type="file" name="proof_files[call_log_screenshot]" class="form-control" accept="image/*,.pdf"><small class="text-muted">Screenshot of call log</small></div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">New Status <span class="text-danger">*</span></label>
+                                <select name="status" id="new_status" class="form-select" required>
+                                    <option value="">Select Status</option>
+                                    @foreach($allowedTransitions as $ts)
+                                        @if(in_array($ts, ['in_progress', 'scheduled', 'done_success', 'done_fail']))
+                                            <option value="{{ $ts }}">{{ $statuses[$ts] ?? ucfirst(str_replace('_', ' ', $ts)) }}</option>
+                                        @endif
+                                    @endforeach
+                                </select>
                             </div>
-                            <div id="proof_done_success" style="display:none;">
-                                <div class="mb-3"><label class="form-label">Test Slip Image <span class="text-danger">*</span></label><input type="file" name="proof_files[test_slip]" class="form-control" accept="image/*,.pdf"><small class="text-muted">Upload test slip image</small></div>
+                            <div class="col-md-6">
+                                <label class="form-label">Remarks</label>
+                                <input type="text" name="remarks" class="form-control" placeholder="Optional remarks">
                             </div>
-                            <div id="proof_done_fail" style="display:none;">
-                                <div class="mb-3"><label class="form-label">Service Form Image <span class="text-danger">*</span></label><input type="file" name="proof_files[service_form]" class="form-control" accept="image/*,.pdf"><small class="text-muted">Upload service form image</small></div>
+                            <div class="col-12" id="reschedule_section" style="display:none;">
+                                <label class="form-label">Reschedule Reason <span class="text-danger">*</span></label>
+                                <textarea name="reschedule_reason" id="reschedule_reason" class="form-control" rows="2"></textarea>
+                            </div>
+                            <div class="col-12" id="proof_section" style="display:none;">
+                                <div class="alert alert-info py-2 mb-3"><i class="bi bi-camera me-1"></i><span id="proof_help_text"></span> <small class="text-muted">(Optional)</small></div>
+                                <div id="proof_scheduled" style="display:none;">
+                                    <div class="row g-3">
+                                        <div class="col-md-6"><label class="form-label">WhatsApp Screenshot</label><input type="file" name="proof_files[whatsapp_screenshot]" class="form-control" accept="image/*,.pdf"></div>
+                                        <div class="col-md-6"><label class="form-label">Call Log Screenshot</label><input type="file" name="proof_files[call_log_screenshot]" class="form-control" accept="image/*,.pdf"></div>
+                                    </div>
+                                </div>
+                                <div id="proof_done_success" style="display:none;">
+                                    <div class="col-md-6"><label class="form-label">Test Slip Image</label><input type="file" name="proof_files[test_slip]" class="form-control" accept="image/*,.pdf"></div>
+                                </div>
+                                <div id="proof_done_fail" style="display:none;">
+                                    <div class="col-md-6"><label class="form-label">Service Form Image</label><input type="file" name="proof_files[service_form]" class="form-control" accept="image/*,.pdf"></div>
+                                </div>
                             </div>
                         </div>
-                        <button type="submit" id="btnStatusSubmit" class="btn btn-dark"><i class="bi bi-check-circle me-1"></i>Update Status</button>
+                        <div class="mt-3"><button type="submit" id="btnStatusSubmit" class="btn btn-dark"><i class="bi bi-check-circle me-1"></i>Update Status</button></div>
                     </form>
                 </div>
             </div>
             @endif
 
             {{-- Status History --}}
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Status History</h6></div>
+            <div class="card">
+                <div class="card-header"><i class="bi bi-clock-history me-2"></i>Status History</div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-sm table-hover mb-0">
@@ -130,8 +141,8 @@
             </div>
 
             {{-- Comments --}}
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-chat-dots me-2"></i>Comments</h6></div>
+            <div class="card">
+                <div class="card-header"><i class="bi bi-chat-dots me-2"></i>Comments</div>
                 <div class="card-body">
                     <div id="commentsList">
                         @forelse($ticket->comments as $c)
@@ -156,8 +167,8 @@
 
         {{-- Claim --}}
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-cash-coin me-2"></i>Claim</h6></div>
+            <div class="card">
+                <div class="card-header"><i class="bi bi-cash-coin me-2"></i>Claim</div>
                 <div class="card-body">
                     <form id="claimForm">
                         <div class="mb-3"><label class="form-label">Mileage (KM)</label><input type="number" name="mileage" id="claim_mileage" class="form-control" step="0.01" min="0" value="{{ $ticket->mileage ?? 0 }}"></div>
@@ -185,29 +196,21 @@ $(function() {
         var status = $(this).val();
         $('#proof_section, #proof_scheduled, #proof_done_success, #proof_done_fail, #reschedule_section').hide();
         $('#proof_section input[type=file]').val('');
-        if (status === 'scheduled') { $('#reschedule_section, #proof_section, #proof_scheduled').show(); $('#proof_help_text').text('Upload WhatsApp screenshot and Call log screenshot.'); }
-        else if (status === 'done_success') { $('#proof_section, #proof_done_success').show(); $('#proof_help_text').text('Upload Test Slip image.'); }
-        else if (status === 'done_fail') { $('#proof_section, #proof_done_fail').show(); $('#proof_help_text').text('Upload Service Form image.'); }
+        if (status === 'scheduled') { $('#reschedule_section, #proof_section, #proof_scheduled').show(); $('#proof_help_text').text('You may upload WhatsApp screenshot and Call log screenshot.'); }
+        else if (status === 'done_success') { $('#proof_section, #proof_done_success').show(); $('#proof_help_text').text('You may upload Test Slip image.'); }
+        else if (status === 'done_fail') { $('#proof_section, #proof_done_fail').show(); $('#proof_help_text').text('You may upload Service Form image.'); }
     });
 
     $('#statusForm').on('submit', function(e) {
         e.preventDefault();
         var status = $('#new_status').val();
         if (!status) { showToast('Select a status.', 'error'); return; }
-        if (status === 'scheduled') {
-            if (!$('input[name="proof_files[whatsapp_screenshot]"]').val()) { showToast('WhatsApp screenshot required.', 'error'); return; }
-            if (!$('input[name="proof_files[call_log_screenshot]"]').val()) { showToast('Call log screenshot required.', 'error'); return; }
-            if (!$('#reschedule_reason').val().trim()) { showToast('Reschedule reason required.', 'error'); return; }
-        }
-        if (status === 'done_success' && !$('input[name="proof_files[test_slip]"]').val()) { showToast('Test slip required.', 'error'); return; }
-        if (status === 'done_fail' && !$('input[name="proof_files[service_form]"]').val()) { showToast('Service form required.', 'error'); return; }
-
+        if (status === 'scheduled' && !$('#reschedule_reason').val().trim()) { showToast('Reschedule reason is required.', 'error'); return; }
         var fd = new FormData(this);
         var btn = $('#btnStatusSubmit');
         btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>...');
         $.ajax({
-            url: '{{ route("technician.tickets.change-status", $ticket->id) }}',
-            method: 'POST', data: fd, processData: false, contentType: false,
+            url: '{{ route("technician.tickets.change-status", $ticket->id) }}', method: 'POST', data: fd, processData: false, contentType: false,
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
             success: function(res) { if (res.success) { showToast(res.message, 'success'); setTimeout(function() { location.reload(); }, 1000); } else { showToast(res.message, 'error'); btn.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i>Update Status'); } },
             error: function(xhr) { showToast(xhr.responseJSON?.message || 'Error.', 'error'); btn.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i>Update Status'); }
@@ -223,8 +226,7 @@ $(function() {
     $('#claimForm').on('submit', function(e) {
         e.preventDefault();
         $.ajax({
-            url: '{{ route("technician.tickets.update-claim", $ticket->id) }}', method: 'POST',
-            data: $(this).serialize() + '&_token={{ csrf_token() }}',
+            url: '{{ route("technician.tickets.update-claim", $ticket->id) }}', method: 'POST', data: $(this).serialize() + '&_token={{ csrf_token() }}',
             success: function(res) { if (res.success) { showToast(res.message, 'success'); setTimeout(function() { location.reload(); }, 1000); } else showToast(res.message, 'error'); },
             error: function(xhr) { showToast(xhr.responseJSON?.message || 'Error.', 'error'); }
         });
@@ -235,8 +237,7 @@ $(function() {
         var comment = $('#comment_input').val().trim();
         if (!comment) return;
         $.ajax({
-            url: '{{ route("technician.tickets.comment", $ticket->id) }}', method: 'POST',
-            data: { comment: comment, _token: '{{ csrf_token() }}' },
+            url: '{{ route("technician.tickets.comment", $ticket->id) }}', method: 'POST', data: { comment: comment, _token: '{{ csrf_token() }}' },
             success: function(res) {
                 if (res.success) {
                     $('#noComments').remove();

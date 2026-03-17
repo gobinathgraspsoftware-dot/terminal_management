@@ -164,6 +164,7 @@ class TicketService
 
     /**
      * Change ticket status with proof handling
+     * ★ FIX #3: Proof uploads are now OPTIONAL for all statuses
      */
     public function changeStatus(Ticket $ticket, string $newStatus, ?string $remarks = null, ?string $rescheduleReason = null, array $proofFiles = []): Ticket
     {
@@ -172,10 +173,8 @@ class TicketService
             throw new \Exception("Cannot transition from '{$ticket->status}' to '{$newStatus}'");
         }
 
-        // Validate proof requirement
-        if (Ticket::statusRequiresProof($newStatus) && empty($proofFiles)) {
-            throw new \Exception("Proof upload is required for status '{$newStatus}'.");
-        }
+        // ★ REMOVED: Mandatory proof validation
+        // Proofs are now optional — users CAN upload but are not forced to.
 
         return DB::transaction(function () use ($ticket, $newStatus, $remarks, $rescheduleReason, $proofFiles) {
             $oldStatus = $ticket->status;
@@ -208,8 +207,10 @@ class TicketService
                 'created_at' => now(),
             ]);
 
-            // Upload proof files
-            $this->uploadProofs($ticket, $history, $proofFiles);
+            // Upload proof files (if any were provided)
+            if (!empty($proofFiles)) {
+                $this->uploadProofs($ticket, $history, $proofFiles);
+            }
 
             // ── Auto-create Ticket Claim on completion ──
             if (in_array($newStatus, [Ticket::STATUS_DONE_SUCCESS, Ticket::STATUS_DONE_FAIL])) {
@@ -252,7 +253,8 @@ class TicketService
 
     /**
      * Upload proof files for a status change
-     * FIX: Capture file size and mime type BEFORE move() — the temp file is deleted after move.
+     * ★ FIX: Capture file size & mime type BEFORE $file->move() to avoid
+     *   SplFileInfo::getSize() stat failed error (temp file deleted after move)
      */
     public function uploadProofs(Ticket $ticket, TicketStatusHistory $history, array $proofFiles): void
     {
@@ -265,7 +267,7 @@ class TicketService
                 $fileName = $file->getClientOriginalName();
                 $filePath = 'ticket-proofs/' . $ticket->id;
 
-                // ★ Capture size and mime BEFORE moving (temp file is destroyed after move)
+                // ★ Capture BEFORE move — temp file still exists
                 $fileSize = $file->getSize() ?: 0;
                 $mimeType = $file->getClientMimeType() ?: null;
 
@@ -277,6 +279,7 @@ class TicketService
                 $storedName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $fileName);
                 $file->move($destinationPath, $storedName);
 
+                // ★ Use captured values AFTER move — temp file is gone
                 TicketProof::create([
                     'ticket_id' => $ticket->id,
                     'ticket_status_history_id' => $history->id,
