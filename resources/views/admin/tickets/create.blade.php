@@ -1,199 +1,188 @@
+@php use App\Models\Ticket; @endphp
 @extends('layouts.app')
+
 @section('title', 'Create Ticket')
 
 @section('content')
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Create Ticket</h4>
+        <h4 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Create New Ticket</h4>
         <a href="{{ route('admin.tickets.index') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i> Back to Tickets
+            <i class="bi bi-arrow-left me-1"></i>Back to List
         </a>
     </div>
 
     <form id="ticketForm" method="POST" action="{{ route('admin.tickets.store') }}">
         @csrf
+        <div class="row g-4">
+            {{-- Left Column: Ticket Details --}}
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-building me-2"></i>Vendor & Location</h6></div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Vendor <span class="text-danger">*</span></label>
+                                <select name="vendor_id" id="vendor_id" class="form-select" required>
+                                    <option value="">Select Vendor</option>
+                                    @foreach($vendors as $v)
+                                        <option value="{{ $v->id }}">{{ $v->vendor_name }} ({{ $v->vendor_code }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Vendor Ticket Ref No</label>
+                                <input type="text" name="vendor_ticket_ref_no" id="vendor_ticket_ref_no" class="form-control" placeholder="Optional vendor reference">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Branch <span class="text-danger">*</span></label>
+                                <select name="vendor_branch_id" id="vendor_branch_id" class="form-select" required>
+                                    <option value="">Select Vendor First</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">State <span class="text-danger">*</span></label>
+                                <select name="state_id" id="state_id" class="form-select" required>
+                                    <option value="">Select State</option>
+                                    @foreach($states as $st)
+                                        <option value="{{ $st->id }}">{{ $st->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">District <span class="text-danger">*</span></label>
+                                <select name="city_id" id="city_id" class="form-select" required>
+                                    <option value="">Select State First</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-        {{-- Section 1: Ticket Information --}}
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-primary text-white"><i class="bi bi-info-circle me-2"></i>Section 1: Ticket Information</div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label">Vendor <span class="text-danger">*</span></label>
-                        <select name="vendor_id" id="vendor_id" class="form-select" required>
-                            <option value="">Select Vendor</option>
-                            @foreach($vendors as $vendor)
-                                <option value="{{ $vendor->id }}">{{ $vendor->vendor_code }} - {{ $vendor->vendor_name }}</option>
-                            @endforeach
-                        </select>
-                        <div class="invalid-feedback"></div>
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-shop me-2"></i>Merchant Details</h6></div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Terminal ID (TID) <span class="text-danger">*</span></label>
+                                <input type="text" name="tid" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Merchant Name <span class="text-danger">*</span></label>
+                                <input type="text" name="merchant_name" class="form-control" required>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Merchant Address <span class="text-danger">*</span></label>
+                                <textarea name="merchant_address" class="form-control" rows="2" required></textarea>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Contact Number <span class="text-danger">*</span></label>
+                                <input type="text" name="contact_number" class="form-control" required>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Vendor Ticket Ref No <span class="text-danger">*</span></label>
-                        <input type="text" name="vendor_ticket_ref_no" class="form-control" required placeholder="External ticket reference">
-                        <div class="invalid-feedback"></div>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Branch <span class="text-danger">*</span></label>
-                        <select name="vendor_branch_id" id="vendor_branch_id" class="form-select" required>
-                            <option value="">Select Branch</option>
-                        </select>
-                        <div class="invalid-feedback"></div>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">State <span class="text-danger">*</span></label>
-                        <select name="state_id" id="state_id" class="form-select" required>
-                            <option value="">Select State</option>
-                            @foreach($states as $state)
-                                <option value="{{ $state->id }}">{{ $state->name }}</option>
-                            @endforeach
-                        </select>
-                        <div class="invalid-feedback"></div>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">District <span class="text-danger">*</span></label>
-                        <select name="city_id" id="city_id" class="form-select" required>
-                            <option value="">Select District</option>
-                        </select>
-                        <div class="invalid-feedback"></div>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Job Type <span class="text-danger">*</span></label>
-                        <select name="job_type_id" id="job_type_id" class="form-select" required>
-                            <option value="">Select Job Type</option>
-                            @foreach($jobTypes as $jt)
-                                <option value="{{ $jt->id }}">{{ $jt->job_title }}</option>
-                            @endforeach
-                        </select>
-                        <div class="invalid-feedback"></div>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Charge</label>
-                        <select name="charge_id" id="charge_id" class="form-select">
-                            <option value="">Select Charge</option>
-                            @foreach($charges as $c)
-                                <option value="{{ $c->id }}">{{ $c->charge_name }} (RM {{ number_format($c->default_price, 2) }})</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Supervisor <span class="text-danger">*</span></label>
-                        <select name="supervisor_id" id="supervisor_id" class="form-select" required>
-                            <option value="">Select Supervisor</option>
-                            @foreach($supervisors as $sup)
-                                <option value="{{ $sup->id }}" data-mileage-rate="{{ $sup->mileage_rate ?? 0 }}">{{ $sup->name }}</option>
-                            @endforeach
-                        </select>
-                        <div class="invalid-feedback"></div>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Assignee (Technician)</label>
-                        <select name="technician_id" id="technician_id" class="form-select">
-                            <option value="">Select Technician (Optional)</option>
-                            @foreach($technicians as $tech)
-                                <option value="{{ $tech->id }}">{{ $tech->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Priority <span class="text-danger">*</span></label>
-                        <select name="priority" class="form-select" required>
-                            <option value="low">Low</option>
-                            <option value="normal" selected>Normal</option>
-                            <option value="high">High</option>
-                            <option value="urgent">Urgent</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">SLA (Hours) <span class="text-danger">*</span></label>
-                        <input type="number" name="sla_hours" class="form-control" value="24" min="1" max="720" required>
-                        <small class="text-muted">Default: 24 hours</small>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-gear me-2"></i>Job Details</h6></div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Job Type <span class="text-danger">*</span></label>
+                                <select name="job_type_id" id="job_type_id" class="form-select" required>
+                                    <option value="">Select Job Type</option>
+                                    @foreach($jobTypes as $jt)
+                                        <option value="{{ $jt->id }}">{{ $jt->job_title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Charge</label>
+                                <select name="charge_id" id="charge_id" class="form-select">
+                                    <option value="">Select Job Type First</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Priority <span class="text-danger">*</span></label>
+                                <select name="priority" class="form-select" required>
+                                    @foreach(Ticket::getPriorities() as $val => $label)
+                                        <option value="{{ $val }}" {{ $val === 'normal' ? 'selected' : '' }}>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">SLA Hours</label>
+                                <input type="number" name="sla_hours" class="form-control" value="24" min="1" max="720">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Description <span class="text-danger">*</span></label>
+                                <textarea name="description" class="form-control" rows="3" required></textarea>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        {{-- Section 2: Merchant Information --}}
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-success text-white"><i class="bi bi-shop me-2"></i>Section 2: Merchant Information</div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label">TID (Terminal ID) <span class="text-danger">*</span></label>
-                        <input type="text" name="tid" class="form-control" required placeholder="Terminal ID">
-                        <div class="invalid-feedback"></div>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Merchant Name <span class="text-danger">*</span></label>
-                        <input type="text" name="merchant_name" class="form-control" required placeholder="Merchant / Client name">
-                        <div class="invalid-feedback"></div>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Contact Number <span class="text-danger">*</span></label>
-                        <input type="text" name="contact_number" class="form-control" required placeholder="Phone number">
-                        <div class="invalid-feedback"></div>
-                    </div>
-                    <div class="col-md-12">
-                        <label class="form-label">Merchant Address <span class="text-danger">*</span></label>
-                        <textarea name="merchant_address" class="form-control" rows="2" required placeholder="Full address"></textarea>
-                        <div class="invalid-feedback"></div>
+            {{-- Right Column: Assignment & Claims --}}
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-people me-2"></i>Assignment</h6></div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Supervisor <span class="text-danger">*</span></label>
+                            <select name="supervisor_id" id="supervisor_id" class="form-select" required>
+                                <option value="">Select State First</option>
+                            </select>
+                            <small class="text-muted">Filtered by selected State & District</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Technician (Assignee)</label>
+                            <select name="technician_id" id="technician_id" class="form-select">
+                                <option value="">Select Supervisor First</option>
+                            </select>
+                            <small class="text-muted">Leave empty for unassigned ticket</small>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        {{-- Section 3: Ticket Description --}}
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-info text-white"><i class="bi bi-card-text me-2"></i>Section 3: Description</div>
-            <div class="card-body">
-                <textarea name="description" class="form-control" rows="4" required placeholder="Describe the issue or ticket details..."></textarea>
-                <div class="invalid-feedback"></div>
-            </div>
-        </div>
-
-        {{-- Section 5: Claim Section --}}
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-warning text-dark"><i class="bi bi-cash-coin me-2"></i>Section 5: Claim</div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label">Mileage (KM)</label>
-                        <input type="number" name="mileage" id="mileage" class="form-control" step="0.01" min="0" value="0">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Mileage Rate (RM/km)</label>
-                        <input type="text" id="mileage_rate_display" class="form-control" readonly value="0.00">
-                        <small class="text-muted">Auto-filled from supervisor</small>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Mileage Claim (RM)</label>
-                        <input type="text" id="mileage_amount_display" class="form-control fw-bold" readonly value="0.00">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Mileage Remarks</label>
-                        <input type="text" name="mileage_remarks" class="form-control" placeholder="e.g. Shah Alam to merchant">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Toll (RM)</label>
-                        <input type="number" name="toll" id="toll" class="form-control" step="0.01" min="0" value="0">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Standby / Meal (RM)</label>
-                        <input type="number" name="standby_meal" id="standby_meal" class="form-control" step="0.01" min="0" value="0">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold text-primary">Total Claim (RM)</label>
-                        <input type="text" id="total_claim_display" class="form-control fw-bold text-primary" readonly value="0.00">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-cash-coin me-2"></i>Claim Details</h6></div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Mileage (KM)</label>
+                            <input type="number" name="mileage" id="mileage" class="form-control" step="0.01" min="0" value="0">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Mileage Rate (RM/KM)</label>
+                            <input type="text" id="mileage_rate_display" class="form-control" readonly value="0.00">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Mileage Amount (RM)</label>
+                            <input type="text" id="mileage_amount_display" class="form-control" readonly value="0.00">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Mileage Remarks</label>
+                            <input type="text" name="mileage_remarks" class="form-control" placeholder="Optional">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Toll (RM)</label>
+                            <input type="number" name="toll" id="toll" class="form-control" step="0.01" min="0" value="0">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Standby / Meal (RM)</label>
+                            <input type="number" name="standby_meal" id="standby_meal" class="form-control" step="0.01" min="0" value="0">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-success">Total Claim (RM)</label>
+                            <input type="text" id="total_claim_display" class="form-control fw-bold text-success" readonly value="0.00">
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <div class="text-end mb-4">
-            <a href="{{ route('admin.tickets.index') }}" class="btn btn-secondary me-2">Cancel</a>
-            <button type="submit" class="btn btn-primary" id="submitBtn">
-                <i class="bi bi-check-circle me-1"></i> Create Ticket
-            </button>
+                <button type="submit" id="btnSubmit" class="btn btn-primary w-100 mb-2">
+                    <i class="bi bi-check-lg me-1"></i>Create Ticket
+                </button>
+            </div>
         </div>
     </form>
 </div>
@@ -202,74 +191,120 @@
 @push('scripts')
 <script>
 $(function() {
-    // Vendor → Branches
+    var mileageRate = 0;
+    var rolePrefix = 'admin';
+
+    // ── Vendor → Branches ──
     $('#vendor_id').on('change', function() {
         var vendorId = $(this).val();
         $('#vendor_branch_id').html('<option value="">Loading...</option>');
-        if (!vendorId) { $('#vendor_branch_id').html('<option value="">Select Branch</option>'); return; }
-        $.get('{{ route("admin.tickets.ajax.vendor-branches") }}', {vendor_id: vendorId}, function(data) {
-            var html = '<option value="">Select Branch</option>';
-            data.forEach(function(b) { html += '<option value="'+b.id+'">'+b.branch_name+'</option>'; });
-            $('#vendor_branch_id').html(html);
+        if (!vendorId) { $('#vendor_branch_id').html('<option value="">Select Vendor First</option>'); return; }
+        $.get('{{ route("admin.tickets.ajax.vendor-branches") }}', { vendor_id: vendorId }, function(data) {
+            var opts = '<option value="">Select Branch</option>';
+            $.each(data, function(i, b) {
+                opts += '<option value="' + b.id + '" data-state="' + (b.state_id||'') + '" data-city="' + (b.city_id||'') + '">' + b.branch_name + '</option>';
+            });
+            $('#vendor_branch_id').html(opts);
         });
     });
 
-    // State → Cities/Districts
-    $('#state_id').on('change', function() {
+    // ── Branch selected → auto-fill state/city ──
+    $('#vendor_branch_id').on('change', function() {
+        var opt = $(this).find(':selected');
+        var stateId = opt.data('state');
+        var cityId = opt.data('city');
+        if (stateId) {
+            $('#state_id').val(stateId).trigger('change', [cityId]);
+        }
+    });
+
+    // ── State → Cities + Supervisors ──
+    $('#state_id').on('change', function(e, presetCityId) {
         var stateId = $(this).val();
+        // Load cities
         $('#city_id').html('<option value="">Loading...</option>');
-        if (!stateId) { $('#city_id').html('<option value="">Select District</option>'); return; }
-        $.get('{{ route("admin.tickets.ajax.cities") }}', {state_id: stateId}, function(data) {
-            var html = '<option value="">Select District</option>';
-            data.forEach(function(c) { html += '<option value="'+c.id+'">'+c.name+'</option>'; });
-            $('#city_id').html(html);
+        if (!stateId) {
+            $('#city_id').html('<option value="">Select State First</option>');
+            $('#supervisor_id').html('<option value="">Select State First</option>');
+            return;
+        }
+        $.get('{{ route("admin.tickets.ajax.cities") }}', { state_id: stateId }, function(data) {
+            var opts = '<option value="">Select District</option>';
+            $.each(data, function(i, c) { opts += '<option value="' + c.id + '">' + c.name + '</option>'; });
+            $('#city_id').html(opts);
+            if (presetCityId) $('#city_id').val(presetCityId);
         });
+        // Load supervisors by state
+        loadSupervisors(stateId, null);
     });
 
-    // Supervisor → Technicians + Mileage Rate
-    $('#supervisor_id').on('change', function() {
-        var supId = $(this).val();
-        var rate = $(this).find(':selected').data('mileage-rate') || 0;
-        $('#mileage_rate_display').val(parseFloat(rate).toFixed(2));
-        recalcClaim();
-
-        // Load technicians for this supervisor
-        $.get('{{ route("admin.tickets.ajax.technicians") }}', {supervisor_id: supId}, function(data) {
-            var html = '<option value="">Select Technician (Optional)</option>';
-            data.forEach(function(t) { html += '<option value="'+t.id+'">'+t.name+'</option>'; });
-            $('#technician_id').html(html);
-        });
+    // ── City change → reload supervisors with city ──
+    $('#city_id').on('change', function() {
+        var stateId = $('#state_id').val();
+        var cityId = $(this).val();
+        if (stateId) loadSupervisors(stateId, cityId);
     });
 
-    // Job Type → Charges
-    $('#job_type_id').on('change', function() {
-        var jtId = $(this).val();
-        $.get('{{ url("admin/tickets/ajax/charges") }}', {job_type_id: jtId}, function(data) {
-            var html = '<option value="">Select Charge</option>';
-            data.forEach(function(c) { html += '<option value="'+c.id+'">'+c.charge_name+' (RM '+parseFloat(c.default_price).toFixed(2)+')</option>'; });
-            $('#charge_id').html(html);
+    function loadSupervisors(stateId, cityId) {
+        $('#supervisor_id').html('<option value="">Loading...</option>');
+        var params = { state_id: stateId };
+        if (cityId) params.city_id = cityId;
+        $.get('{{ route("admin.tickets.ajax.supervisors") }}', params, function(data) {
+            var opts = '<option value="">Select Supervisor</option>';
+            $.each(data, function(i, s) {
+                opts += '<option value="' + s.id + '" data-mileage-rate="' + (s.mileage_rate||0) + '">' + s.name + '</option>';
+            });
+            $('#supervisor_id').html(opts);
+            $('#technician_id').html('<option value="">Select Supervisor First</option>');
         });
-    });
-
-    // Claim auto-calc
-    function recalcClaim() {
-        var mileage = parseFloat($('#mileage').val()) || 0;
-        var rate = parseFloat($('#mileage_rate_display').val()) || 0;
-        var toll = parseFloat($('#toll').val()) || 0;
-        var meal = parseFloat($('#standby_meal').val()) || 0;
-        var mileageAmt = mileage * rate;
-        var total = mileageAmt + toll + meal;
-        $('#mileage_amount_display').val(mileageAmt.toFixed(2));
-        $('#total_claim_display').val(total.toFixed(2));
     }
 
-    $('#mileage, #toll, #standby_meal').on('input change', recalcClaim);
+    // ── Supervisor → Technicians + Mileage Rate ──
+    $('#supervisor_id').on('change', function() {
+        var supId = $(this).val();
+        var opt = $(this).find(':selected');
+        mileageRate = parseFloat(opt.data('mileage-rate')) || 0;
+        $('#mileage_rate_display').val(mileageRate.toFixed(2));
+        calcClaim();
 
-    // Form submit via AJAX
+        $('#technician_id').html('<option value="">Loading...</option>');
+        if (!supId) { $('#technician_id').html('<option value="">Select Supervisor First</option>'); return; }
+        $.get('{{ route("admin.tickets.ajax.technicians") }}', { supervisor_id: supId }, function(data) {
+            var opts = '<option value="">Unassigned</option>';
+            $.each(data, function(i, t) { opts += '<option value="' + t.id + '">' + t.name + '</option>'; });
+            $('#technician_id').html(opts);
+        });
+    });
+
+    // ── Job Type → Charges ──
+    $('#job_type_id').on('change', function() {
+        var jtId = $(this).val();
+        $('#charge_id').html('<option value="">Loading...</option>');
+        if (!jtId) { $('#charge_id').html('<option value="">Select Job Type First</option>'); return; }
+        $.get('{{ route("admin.tickets.ajax.charges") }}', { job_type_id: jtId }, function(data) {
+            var opts = '<option value="">Select Charge</option>';
+            $.each(data, function(i, c) { opts += '<option value="' + c.id + '">' + c.charge_name + ' (RM ' + parseFloat(c.default_price).toFixed(2) + ')</option>'; });
+            $('#charge_id').html(opts);
+        });
+    });
+
+    // ── Claim Calculation ──
+    $('#mileage, #toll, #standby_meal').on('input', calcClaim);
+
+    function calcClaim() {
+        var km = parseFloat($('#mileage').val()) || 0;
+        var mileageAmt = km * mileageRate;
+        var toll = parseFloat($('#toll').val()) || 0;
+        var meal = parseFloat($('#standby_meal').val()) || 0;
+        $('#mileage_amount_display').val(mileageAmt.toFixed(2));
+        $('#total_claim_display').val((mileageAmt + toll + meal).toFixed(2));
+    }
+
+    // ── Form Submit ──
     $('#ticketForm').on('submit', function(e) {
         e.preventDefault();
-        var $btn = $('#submitBtn');
-        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Creating...');
+        var btn = $('#btnSubmit');
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Creating...');
 
         $.ajax({
             url: $(this).attr('action'),
@@ -279,21 +314,22 @@ $(function() {
                 if (res.success) {
                     showToast(res.message, 'success');
                     setTimeout(function() { window.location.href = res.redirect; }, 1000);
+                } else {
+                    showToast(res.message || 'Error creating ticket.', 'error');
+                    btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>Create Ticket');
                 }
             },
             error: function(xhr) {
-                $btn.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i> Create Ticket');
-                if (xhr.status === 422) {
-                    var errors = xhr.responseJSON?.errors || {};
-                    $('.is-invalid').removeClass('is-invalid');
-                    Object.keys(errors).forEach(function(field) {
-                        var $el = $('[name="'+field+'"]');
-                        $el.addClass('is-invalid');
-                        $el.siblings('.invalid-feedback').text(errors[field][0]);
-                    });
-                } else {
-                    showToast(xhr.responseJSON?.message || 'Failed to create ticket.', 'error');
+                var msg = 'Error creating ticket.';
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.errors) {
+                        msg = Object.values(xhr.responseJSON.errors).flat().join('<br>');
+                    } else if (xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    }
                 }
+                showToast(msg, 'error');
+                btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>Create Ticket');
             }
         });
     });

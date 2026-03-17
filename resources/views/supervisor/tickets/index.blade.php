@@ -1,36 +1,55 @@
+@php use App\Models\Ticket; @endphp
 @extends('layouts.app')
-@section('title', 'Team Tickets')
+
+@section('title', 'Ticket Management')
 
 @section('content')
 <div class="container-fluid">
+    {{-- Stats Cards --}}
     <div class="row g-3 mb-4">
-        @foreach(['total'=>['Total','primary'],'open'=>['Open','secondary'],'assigned'=>['Assigned','info'],'in_progress'=>['In Progress','primary'],'scheduled'=>['Scheduled','warning'],'done_success'=>['Done/Success','success'],'done_fail'=>['Done/Fail','danger'],'sla_breached'=>['SLA Breached','danger']] as $key=>[$label,$color])
         <div class="col-6 col-md-3 col-xl">
-            <div class="card border-0 shadow-sm text-center">
-                <div class="card-body py-3">
-                    <h3 class="mb-0 text-{{ $color }}">{{ $stats[$key] }}</h3>
-                    <small class="text-muted">{{ $label }}</small>
-                </div>
-            </div>
+            <div class="card border-0 shadow-sm h-100"><div class="card-body text-center"><h3 class="fw-bold text-primary mb-0">{{ $stats['total'] }}</h3><small class="text-muted">Total</small></div></div>
         </div>
-        @endforeach
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body text-center"><h3 class="fw-bold text-secondary mb-0">{{ $stats['open'] }}</h3><small class="text-muted">Open</small></div></div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body text-center"><h3 class="fw-bold text-info mb-0">{{ $stats['assigned'] }}</h3><small class="text-muted">Assigned</small></div></div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body text-center"><h3 class="fw-bold text-primary mb-0">{{ $stats['in_progress'] }}</h3><small class="text-muted">In Progress</small></div></div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body text-center"><h3 class="fw-bold text-warning mb-0">{{ $stats['scheduled'] }}</h3><small class="text-muted">Scheduled</small></div></div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body text-center"><h3 class="fw-bold text-success mb-0">{{ $stats['done_success'] }}</h3><small class="text-muted">Done/Success</small></div></div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body text-center"><h3 class="fw-bold text-danger mb-0">{{ $stats['done_fail'] }}</h3><small class="text-muted">Done/Fail</small></div></div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body text-center"><h3 class="fw-bold text-dark mb-0">{{ $stats['closed'] }}</h3><small class="text-muted">Closed</small></div></div>
+        </div>
     </div>
 
-    @if($slaBreachedTickets->count() > 0)
-    <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-        <strong>{{ $slaBreachedTickets->count() }} ticket(s) have breached SLA!</strong>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    @if($slaBreachedTickets->count())
+    <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+        <div>
+            <strong>{{ $slaBreachedTickets->count() }} ticket(s) have breached SLA!</strong>
+            @foreach($slaBreachedTickets->take(5) as $bt)
+                <a href="{{ route('supervisor.tickets.show', $bt->id) }}" class="text-danger fw-bold ms-1">{{ $bt->ticket_no }}</a>{{ !$loop->last ? ',' : '' }}
+            @endforeach
+        </div>
     </div>
     @endif
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="bi bi-ticket-detailed me-2"></i>Team Tickets</h5>
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+            <h5 class="mb-0"><i class="bi bi-ticket-detailed me-2"></i>My Team Tickets</h5>
             @can('create_tickets')
-            <a href="{{ route('supervisor.tickets.create') }}" class="btn btn-primary btn-sm">
-                <i class="bi bi-plus-circle me-1"></i> Create Ticket
-            </a>
+            <a href="{{ route('supervisor.tickets.create') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New Ticket</a>
             @endcan
         </div>
         <div class="card-body">
@@ -38,37 +57,39 @@
                 <div class="col-md-2">
                     <select id="filter_status" class="form-select form-select-sm">
                         <option value="">All Status</option>
-                        @foreach(['open'=>'Open','assigned'=>'Assigned','in_progress'=>'In Progress','scheduled'=>'Scheduled','done_success'=>'Done / Success','done_fail'=>'Done / Fail','closed'=>'Closed'] as $k=>$v)
-                            <option value="{{ $k }}">{{ $v }}</option>
+                        @foreach(Ticket::getStatuses() as $val => $label)
+                            <option value="{{ $val }}">{{ $label }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-2">
                     <select id="filter_priority" class="form-select form-select-sm">
                         <option value="">All Priority</option>
-                        @foreach(['low'=>'Low','normal'=>'Normal','high'=>'High','urgent'=>'Urgent'] as $k=>$v)
-                            <option value="{{ $k }}">{{ $v }}</option>
+                        @foreach(Ticket::getPriorities() as $val => $label)
+                            <option value="{{ $val }}">{{ $label }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-2">
                     <select id="filter_vendor" class="form-select form-select-sm">
                         <option value="">All Vendors</option>
-                        @foreach($vendors as $vendor)
-                            <option value="{{ $vendor->id }}">{{ $vendor->vendor_name }}</option>
+                        @foreach($vendors as $v)
+                            <option value="{{ $v->id }}">{{ $v->vendor_name }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <input type="date" id="filter_date_from" class="form-control form-control-sm">
+                <div class="col-md-2">
+                    <select id="filter_sla" class="form-select form-select-sm">
+                        <option value="">SLA: All</option>
+                        <option value="yes">Breached Only</option>
+                    </select>
                 </div>
-                <div class="col-md-3">
-                    <input type="date" id="filter_date_to" class="form-control form-control-sm">
+                <div class="col-md-2 text-end">
+                    <button type="button" id="btn_reset_filters" class="btn btn-outline-secondary btn-sm w-100"><i class="bi bi-x-circle me-1"></i>Reset</button>
                 </div>
             </div>
-
             <div class="table-responsive">
-                <table id="ticketsTable" class="table table-sm table-hover w-100">
+                <table id="ticketsTable" class="table table-sm table-hover align-middle w-100">
                     <thead class="table-light">
                         <tr>
                             <th>Ticket #</th>
@@ -78,9 +99,8 @@
                             <th>Priority</th>
                             <th>Technician</th>
                             <th>SLA</th>
-                            <th>Claim</th>
                             <th>Created</th>
-                            <th>Actions</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                 </table>
@@ -94,43 +114,42 @@
 <script>
 $(function() {
     var table = $('#ticketsTable').DataTable({
-        processing: true,
-        serverSide: true,
+        processing: true, serverSide: true,
         ajax: {
             url: '{{ route("supervisor.tickets.datatable") }}',
             data: function(d) {
                 d.status = $('#filter_status').val();
                 d.priority = $('#filter_priority').val();
                 d.vendor_id = $('#filter_vendor').val();
-                d.date_from = $('#filter_date_from').val();
-                d.date_to = $('#filter_date_to').val();
+                d.sla_breach = $('#filter_sla').val();
             }
         },
         columns: [
-            { data: 'ticket_no' },
-            { data: 'vendor_name', searchable: false, orderable: false },
-            { data: 'merchant_name' },
-            { data: 'status_badge', searchable: false, orderable: false },
-            { data: 'priority_badge', searchable: false, orderable: false },
-            { data: 'technician_name', searchable: false, orderable: false },
-            { data: null, render: function(d) {
-                if (d.sla_breached) return '<span class="text-danger fw-bold">' + (d.sla_remaining || 'Breached') + '</span>';
-                return d.sla_remaining || '-';
-            }, searchable: false },
-            { data: 'total_claim', searchable: false, orderable: false },
+            { data: 'ticket_no', render: function(data, type, row) {
+                return '<a href="{{ url("supervisor/tickets") }}/' + row.id + '" class="fw-bold text-decoration-none">' + data + '</a>' +
+                       (row.vendor_ticket_ref_no !== '-' ? '<br><small class="text-muted">' + row.vendor_ticket_ref_no + '</small>' : '');
+            }},
+            { data: 'vendor_name' },
+            { data: 'merchant_name', render: function(data, type, row) { return data + (row.tid !== '-' ? '<br><small class="text-muted">TID: ' + row.tid + '</small>' : ''); }},
+            { data: 'status_badge' },
+            { data: 'priority_badge' },
+            { data: 'technician_name' },
+            { data: 'sla_deadline', render: function(data, type, row) {
+                if (!data) return '-';
+                var html = data;
+                if (row.sla_breached) html += '<br><span class="badge bg-danger">BREACHED</span>';
+                else if (row.sla_remaining) html += '<br><small class="text-muted">' + row.sla_remaining + '</small>';
+                return html;
+            }},
             { data: 'created_at' },
-            { data: null, orderable: false, searchable: false, render: function(d) {
-                return '<div class="btn-group btn-group-sm">' +
-                    '<a href="{{ url("supervisor/tickets") }}/' + d.id + '" class="btn btn-outline-primary"><i class="bi bi-eye"></i></a>' +
-                    '<a href="{{ url("supervisor/tickets") }}/' + d.id + '/edit" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i></a>' +
-                    '</div>';
+            { data: null, className: 'text-center', orderable: false, render: function(data, type, row) {
+                return '<a href="{{ url("supervisor/tickets") }}/' + row.id + '" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>';
             }}
         ],
-        order: [[8, 'desc']],
-        pageLength: 25
+        order: [[7, 'desc']], pageLength: 25
     });
-    $('#filter_status, #filter_priority, #filter_vendor').on('change', function() { table.draw(); });
-    $('#filter_date_from, #filter_date_to').on('change', function() { table.draw(); });
+    $('#filter_status, #filter_priority, #filter_vendor, #filter_sla').on('change', function() { table.ajax.reload(); });
+    $('#btn_reset_filters').on('click', function() { $('#filter_status, #filter_priority, #filter_vendor, #filter_sla').val(''); table.ajax.reload(); });
 });
 </script>
 @endpush

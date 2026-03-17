@@ -256,6 +256,30 @@ class TicketController extends Controller
         return response()->json(User::where('supervisor_id', auth()->id())->where('status', 'active')->orderBy('name')->get(['id', 'name']));
     }
 
+    /**
+     * Get supervisors filtered by state_id and/or city_id.
+     */
+    public function getSupervisors(Request $request)
+    {
+        $query = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
+            ->where('status', 'active');
+
+        if ($request->filled('state_id')) {
+            $stateId = $request->state_id;
+            $query->where(function ($q) use ($stateId) {
+                $q->where('state_id', $stateId)
+                  ->orWhereJsonContains('coverage_states', (string) $stateId);
+            });
+        }
+
+        if ($request->filled('city_id')) {
+            $cityId = $request->city_id;
+            $query->orderByRaw('CASE WHEN city_id = ? THEN 0 ELSE 1 END', [$cityId]);
+        }
+
+        return response()->json($query->orderBy('name')->get(['id', 'name', 'state_id', 'city_id', 'mileage_rate']));
+    }
+
     public function getSupervisorMileageRate(Request $request)
     {
         $supervisor = User::find(auth()->id());

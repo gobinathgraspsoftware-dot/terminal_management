@@ -79,12 +79,10 @@ class TicketController extends Controller
         $this->authorize('create', Ticket::class);
         $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
         $states = State::orderBy('name')->get();
-        $supervisors = User::role('supervisor')->where('status', 'active')->orderBy('name')->get();
-        $technicians = User::role('technician')->where('status', 'active')->orderBy('name')->get();
         $jobTypes = JobType::where('status', 'active')->orderBy('job_title')->get();
         $charges = ChargeCatalog::where('status', 'active')->orderBy('charge_name')->get();
 
-        return view('admin.tickets.create', compact('vendors', 'states', 'supervisors', 'technicians', 'jobTypes', 'charges'));
+        return view('admin.tickets.create', compact('vendors', 'states', 'jobTypes', 'charges'));
     }
 
     public function store(StoreTicketRequest $request)
@@ -130,10 +128,23 @@ class TicketController extends Controller
         $states = State::orderBy('name')->get();
         $cities = $ticket->state_id ? City::where('state_id', $ticket->state_id)->orderBy('name')->get() : collect();
         $branches = $ticket->vendor_id ? VendorBranch::where('vendor_id', $ticket->vendor_id)->where('status', 'active')->get() : collect();
-        $supervisors = User::role('supervisor')->where('status', 'active')->orderBy('name')->get();
-        $technicians = User::role('technician')->where('status', 'active')->orderBy('name')->get();
         $jobTypes = JobType::where('status', 'active')->orderBy('job_title')->get();
         $charges = ChargeCatalog::where('status', 'active')->orderBy('charge_name')->get();
+
+        // Load supervisors matching ticket's state/city
+        $supervisorQuery = User::role('supervisor')->where('status', 'active');
+        if ($ticket->state_id) {
+            $supervisorQuery->where(function ($q) use ($ticket) {
+                $q->where('state_id', $ticket->state_id)
+                  ->orWhereJsonContains('coverage_states', (string) $ticket->state_id);
+            });
+        }
+        $supervisors = $supervisorQuery->orderBy('name')->get();
+
+        // Technicians for the selected supervisor
+        $technicians = $ticket->supervisor_id
+            ? User::where('supervisor_id', $ticket->supervisor_id)->where('status', 'active')->orderBy('name')->get()
+            : collect();
 
         return view('admin.tickets.edit', compact('ticket', 'vendors', 'states', 'cities', 'branches', 'supervisors', 'technicians', 'jobTypes', 'charges'));
     }
@@ -282,6 +293,34 @@ class TicketController extends Controller
             $query->where('supervisor_id', $request->supervisor_id);
         }
         return response()->json($query->orderBy('name')->get(['id', 'name']));
+    }
+
+    /**
+     * Get supervisors filtered by state_id and/or city_id.
+     * Matches supervisors whose state_id matches OR whose coverage_states JSON contains the state.
+     */
+    public function getSupervisors(Request $request)
+    {
+        $query = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
+            ->where('status', 'active');
+
+        if ($request->filled('state_id')) {
+            $stateId = $request->state_id;
+            $query->where(function ($q) use ($stateId) {
+                $q->where('state_id', $stateId)
+                  ->orWhereJsonContains('coverage_states', (string) $stateId);
+            });
+        }
+
+        if ($request->filled('city_id')) {
+            // If city_id provided, prefer supervisors matching that city, but still include state-level matches
+            $cityId = $request->city_id;
+            $query->orderByRaw('CASE WHEN city_id = ? THEN 0 ELSE 1 END', [$cityId]);
+        }
+
+        $supervisors = $query->orderBy('name')->get(['id', 'name', 'state_id', 'city_id', 'mileage_rate']);
+
+        return response()->json($supervisors);
     }
 
     public function getSupervisorMileageRate(Request $request)

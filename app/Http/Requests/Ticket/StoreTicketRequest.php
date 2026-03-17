@@ -15,7 +15,7 @@ class StoreTicketRequest extends FormRequest
     {
         return [
             'vendor_id'            => 'required|exists:vendors,id',
-            'vendor_ticket_ref_no' => 'required|string|max:100',
+            'vendor_ticket_ref_no' => 'nullable|string|max:100',
             'vendor_branch_id'     => 'required|exists:vendor_branches,id',
             'state_id'             => 'required|exists:states,id',
             'city_id'              => 'required|exists:cities,id',
@@ -42,7 +42,6 @@ class StoreTicketRequest extends FormRequest
     {
         return [
             'vendor_id.required'            => 'Please select a vendor.',
-            'vendor_ticket_ref_no.required' => 'Vendor ticket reference number is required.',
             'vendor_branch_id.required'     => 'Please select a branch.',
             'state_id.required'             => 'Please select a state.',
             'city_id.required'              => 'Please select a district.',

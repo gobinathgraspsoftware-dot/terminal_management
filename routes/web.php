@@ -684,6 +684,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/ajax/technicians', [AdminTicketController::class, 'getTechnicians'])->name('ajax.technicians');
         Route::get('/ajax/supervisor-mileage-rate', [AdminTicketController::class, 'getSupervisorMileageRate'])->name('ajax.supervisor-mileage-rate');
         Route::get('/ajax/charges', [AdminTicketController::class, 'getCharges'])->name('ajax.charges');
+        Route::get('/ajax/supervisors', [AdminTicketController::class, 'getSupervisors'])->name('ajax.supervisors');
         Route::get('/{ticket}', [AdminTicketController::class, 'show'])->name('show');
         Route::get('/{ticket}/edit', [AdminTicketController::class, 'edit'])->name('edit');
         Route::put('/{ticket}', [AdminTicketController::class, 'update'])->name('update');
@@ -1069,6 +1070,7 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/ajax/technicians', [SupervisorTicketController::class, 'getTechnicians'])->name('ajax.technicians');
         Route::get('/ajax/supervisor-mileage-rate', [SupervisorTicketController::class, 'getSupervisorMileageRate'])->name('ajax.supervisor-mileage-rate');
         Route::get('/ajax/charges', [SupervisorTicketController::class, 'getCharges'])->name('ajax.charges');
+        Route::get('/ajax/supervisors', [AdminTicketController::class, 'getSupervisors'])->name('ajax.supervisors');
         Route::get('/{ticket}', [SupervisorTicketController::class, 'show'])->name('show');
         Route::get('/{ticket}/edit', [SupervisorTicketController::class, 'edit'])->name('edit');
         Route::put('/{ticket}', [SupervisorTicketController::class, 'update'])->name('update');
