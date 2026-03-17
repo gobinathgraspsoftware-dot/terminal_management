@@ -37,21 +37,11 @@ class StoreUserRequest extends FormRequest
             // Status
             'status' => ['required', 'string', Rule::in(['active', 'inactive', 'suspended'])],
 
-            // State & City — required for supervisor and technician
-            'state_id' => ['nullable', 'exists:states,id', 'required_if:role,supervisor', 'required_if:role,technician'],
-            'city_id' => ['nullable', 'exists:cities,id', 'required_if:role,supervisor', 'required_if:role,technician'],
-
-            // Mileage Rate — supervisor sets own rate
-            'mileage_rate' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
-
-            // Technician-specific fields
-            'has_supervisor' => ['nullable', 'boolean'],
-
+            // Technician must always have a supervisor — no independent technician option
             'supervisor_id' => [
                 'nullable',
                 'exists:users,id',
-                'required_if:has_supervisor,1',
-                'required_if:has_supervisor,true',
+                'required_if:role,technician',
             ],
 
             'coverage_states' => ['nullable', 'array'],
@@ -70,6 +60,11 @@ class StoreUserRequest extends FormRequest
             // Avatar
             'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,gif', 'max:2048'],
             'remove_avatar' => ['nullable', 'boolean'],
+
+            // Location & Mileage
+            'state_id' => ['nullable', 'exists:states,id'],
+            'city_id' => ['nullable', 'exists:cities,id'],
+            'mileage_rate' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
         ];
     }
 
@@ -90,11 +85,7 @@ class StoreUserRequest extends FormRequest
             'role.required' => 'Please select a role for the user.',
             'role.exists' => 'The selected role is invalid.',
             'status.required' => 'Please select a status.',
-            'state_id.required_if' => 'Please select a state for this role.',
-            'city_id.required_if' => 'Please select a city/district for this role.',
-            'mileage_rate.numeric' => 'Mileage rate must be a valid number.',
-            'mileage_rate.min' => 'Mileage rate cannot be negative.',
-            'supervisor_id.required_if' => 'Please select a supervisor when "Assign to Supervisor" is enabled.',
+            'supervisor_id.required_if' => 'Please select a supervisor for the technician.',
             'supervisor_id.exists' => 'The selected supervisor is invalid.',
             'avatar.image' => 'Avatar must be an image file.',
             'avatar.mimes' => 'Avatar must be a JPG, JPEG, PNG, or GIF file.',
@@ -107,33 +98,19 @@ class StoreUserRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        // Convert has_supervisor checkbox to boolean
-        if ($this->has('has_supervisor')) {
-            $this->merge([
-                'has_supervisor' => filter_var($this->has_supervisor, FILTER_VALIDATE_BOOLEAN)
-            ]);
-        } else {
-            $this->merge(['has_supervisor' => false]);
-        }
-
-        // If has_supervisor is false OR role is not technician, clear supervisor_id
-        if (!$this->has_supervisor || $this->role !== 'technician') {
+        // If role is not technician, clear supervisor_id
+        if ($this->role !== 'technician') {
             $this->merge(['supervisor_id' => null]);
         }
+
+        // Remove legacy has_supervisor field if present
+        // (no longer used — technician always requires a supervisor)
 
         // Convert remove_avatar to boolean
         if ($this->has('remove_avatar')) {
             $this->merge([
                 'remove_avatar' => filter_var($this->remove_avatar, FILTER_VALIDATE_BOOLEAN)
             ]);
-        }
-
-        // For technician with supervisor, state_id/city_id will be overridden in UserService
-        // so we don't need to require them from the form; but they are still sent
-
-        // Clean mileage_rate — empty string to null
-        if ($this->has('mileage_rate') && $this->mileage_rate === '') {
-            $this->merge(['mileage_rate' => null]);
         }
     }
 }

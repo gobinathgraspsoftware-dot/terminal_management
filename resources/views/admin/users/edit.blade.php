@@ -180,7 +180,7 @@
                         <div class="form-text" id="mileageHelp">
                             @if($isSupervisor)
                                 Set the mileage rate for this supervisor and their team
-                            @elseif($isTechnician && $hasSupervisor)
+                            @elseif($isTechnician)
                                 Inherited from supervisor (read-only)
                             @else
                                 Rate used for mileage claim calculations
@@ -197,27 +197,20 @@
                 <h6 class="mb-0"><i class="bi bi-tools me-2"></i>Technician Information</h6>
             </div>
             <div class="card-body">
-                {{-- Supervisor Toggle --}}
-                <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="hasSupervisorToggle" name="has_supervisor" value="1" {{ $hasSupervisor ? 'checked' : '' }}>
-                        <label class="form-check-label fw-semibold" for="hasSupervisorToggle">
-                            Assign to Supervisor (uncheck for independent technician)
-                        </label>
-                    </div>
-                </div>
-
-                {{-- Supervisor Dropdown --}}
-                <div class="mb-3" id="supervisorField" style="{{ $hasSupervisor ? '' : 'display:none;' }}">
-                    <label class="form-label fw-semibold">Supervisor <span class="text-danger" id="supervisorRequired" style="{{ $hasSupervisor ? '' : 'display:none;' }}">*</span></label>
-                    <select name="supervisor_id" id="supervisorSelect" class="form-select">
+                {{-- Supervisor Dropdown (always visible, mandatory for technician) --}}
+                <div class="mb-3" id="supervisorField">
+                    <label class="form-label fw-semibold">Supervisor <span class="text-danger">*</span></label>
+                    <select name="supervisor_id" id="supervisorSelect" class="form-select" required>
                         @if($user->supervisor)
                             <option value="{{ $user->supervisor_id }}" selected>{{ $user->supervisor->name }} ({{ $user->supervisor->employee_id }})</option>
                         @else
-                            <option value="">Select Supervisor</option>
+                            <option value="">Select State & City first to filter supervisors</option>
                         @endif
                     </select>
-                    <div class="form-text">When a supervisor is selected, the technician will inherit the supervisor's location and mileage rate</div>
+                    <div class="form-text">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Supervisors are filtered based on the selected <strong>State</strong> and <strong>City</strong> above. Change location to see different supervisors.
+                    </div>
                 </div>
 
                 {{-- Inherited Info Display --}}
@@ -365,6 +358,13 @@
 <script>
 $(document).ready(function() {
 
+    // =============================================
+    // Global flag: prevents state/city change handlers
+    // from resetting supervisor while we auto-fill
+    // location from a supervisor selection
+    // =============================================
+    var isFetchingSupervisor = false;
+
     // Initialize basic Select2 (non-AJAX)
     $('.select2').not('#stateSelect, #citySelect, #supervisorSelect').select2({
         theme: 'bootstrap-5',
@@ -420,28 +420,48 @@ $(document).ready(function() {
     });
 
     // =============================================
-    // Supervisor Select2 (AJAX)
+    // Supervisor Select2 (AJAX — filtered by state_id and city_id)
     // =============================================
-    $('#supervisorSelect').select2({
-        theme: 'bootstrap-5',
-        width: '100%',
-        placeholder: 'Search and select supervisor...',
-        allowClear: true,
-        ajax: {
-            url: '{{ route("admin.ajax.supervisors") }}',
-            dataType: 'json',
-            delay: 250,
-            data: function(params) {
-                return { search: params.term, page: params.page || 1 };
+    function initSupervisorSelect2() {
+        // Preserve currently selected value
+        var currentVal = $('#supervisorSelect').val();
+        var currentText = $('#supervisorSelect option:selected').text();
+
+        if ($('#supervisorSelect').hasClass('select2-hidden-accessible')) {
+            $('#supervisorSelect').select2('destroy');
+        }
+
+        $('#supervisorSelect').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: ($('#stateSelect').val() || $('#citySelect').val())
+                ? 'Search and select supervisor...'
+                : 'Select State & City first to filter supervisors',
+            allowClear: true,
+            ajax: {
+                url: '{{ route("admin.ajax.supervisors") }}',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        search: params.term,
+                        page: params.page || 1,
+                        state_id: $('#stateSelect').val(),
+                        city_id: $('#citySelect').val()
+                    };
+                },
+                processResults: function(data, params) {
+                    params.page = params.page || 1;
+                    return { results: data.results, pagination: { more: data.pagination.more } };
+                },
+                cache: true
             },
-            processResults: function(data, params) {
-                params.page = params.page || 1;
-                return { results: data.results, pagination: { more: data.pagination.more } };
-            },
-            cache: true
-        },
-        minimumInputLength: 0
-    });
+            minimumInputLength: 0
+        });
+    }
+
+    // Initialize supervisor Select2
+    initSupervisorSelect2();
 
     // =============================================
     // Supervisor selection → auto-populate technician location & mileage
@@ -457,6 +477,9 @@ $(document).ready(function() {
     });
 
     function fetchSupervisorDetail(supervisorId) {
+        // Set flag BEFORE AJAX so it's ready when change events fire
+        isFetchingSupervisor = true;
+
         $.ajax({
             url: '{{ route("admin.ajax.supervisor-detail") }}',
             dataType: 'json',
@@ -484,12 +507,15 @@ $(document).ready(function() {
 
                     disableLocationFields();
                 }
+            },
+            complete: function() {
+                // Always clear flag when AJAX completes (success or error)
+                isFetchingSupervisor = false;
             }
         });
     }
 
     function disableLocationFields() {
-        // State & City remain editable; only mileage is locked for technicians
         $('#techLocationInfo').removeClass('d-none');
         if ($('#roleSelect').val() === 'technician') {
             $('#mileageRate').prop('readonly', true);
@@ -499,7 +525,6 @@ $(document).ready(function() {
     function enableLocationFields() {
         $('#techLocationInfo').addClass('d-none');
         $('#inheritedInfoPanel').addClass('d-none');
-        // Only supervisor can edit mileage
         if ($('#roleSelect').val() === 'supervisor') {
             $('#mileageRate').prop('readonly', false);
         }
@@ -522,17 +547,39 @@ $(document).ready(function() {
     }
 
     // =============================================
-    // State change → reset City
+    // State change → reset City AND re-init Supervisor filter
     // =============================================
     $('#stateSelect').on('change', function() {
-        // Only reset city if not disabled (i.e., not inherited from supervisor)
-        if (!$('#stateSelect').prop('disabled')) {
-            $('#citySelect').val(null).trigger('change');
-            if ($(this).val()) {
-                $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Search and select city...');
-            } else {
-                $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Select state first...');
-            }
+        if (isFetchingSupervisor) return;
+
+        $('#citySelect').val(null).trigger('change');
+
+        if ($(this).val()) {
+            $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Search and select city...');
+        } else {
+            $('#citySelect').data('select2').$container.find('.select2-selection__placeholder').text('Select state first...');
+        }
+
+        // For technician role: reset & re-init supervisor when state changes
+        if ($('#roleSelect').val() === 'technician') {
+            $('#supervisorSelect').val(null).trigger('change');
+            clearInheritedInfo();
+            enableLocationFields();
+            applyMileageReadonly();
+            initSupervisorSelect2();
+        }
+    });
+
+    // City change → re-init Supervisor filter for technician
+    $('#citySelect').on('change', function() {
+        if (isFetchingSupervisor) return;
+
+        if ($('#roleSelect').val() === 'technician') {
+            $('#supervisorSelect').val(null).trigger('change');
+            clearInheritedInfo();
+            enableLocationFields();
+            applyMileageReadonly();
+            initSupervisorSelect2();
         }
     });
 
@@ -583,18 +630,10 @@ $(document).ready(function() {
             $('#technicianSection').removeClass('d-none');
             $('#bankSection').removeClass('d-none');
             $('#mileageHelp').text('Mileage rate is managed by the supervisor (read-only)');
-
-            if ($('#hasSupervisorToggle').is(':checked')) {
-                var supId = $('#supervisorSelect').val();
-                if (supId) {
-                    fetchSupervisorDetail(supId);
-                } else {
-                    enableLocationFields();
-                }
-            } else {
-                enableLocationFields();
-            }
+            enableLocationFields();
             applyMileageReadonly();
+            // Re-init supervisor dropdown with current state/city filter
+            initSupervisorSelect2();
         } else {
             $('#locationSection').addClass('d-none');
             $('#technicianSection').addClass('d-none');
@@ -606,26 +645,6 @@ $(document).ready(function() {
             $('#stateSelect').val(null).trigger('change');
             $('#citySelect').val(null).trigger('change');
             $('#mileageRate').val('');
-        }
-    });
-
-    // =============================================
-    // Supervisor toggle handler
-    // =============================================
-    $('#hasSupervisorToggle').on('change', function() {
-        if ($(this).is(':checked')) {
-            $('#supervisorField').slideDown();
-            $('#supervisorRequired').show();
-            var supId = $('#supervisorSelect').val();
-            if (supId) {
-                fetchSupervisorDetail(supId);
-            }
-        } else {
-            $('#supervisorField').slideUp();
-            $('#supervisorRequired').hide();
-            $('#supervisorSelect').val(null).trigger('change');
-            enableLocationFields();
-            clearInheritedInfo();
         }
     });
 
@@ -652,19 +671,15 @@ $(document).ready(function() {
         e.preventDefault();
 
         var formData = new FormData(this);
-
-        if (!$('#hasSupervisorToggle').is(':checked')) {
-            formData.set('has_supervisor', '0');
-        }
-
         var role = $('#roleSelect').val();
 
+        // Remove technician-specific fields for non-technician roles
         if (role !== 'technician') {
-            formData.delete('has_supervisor');
             formData.delete('supervisor_id');
             formData.delete('skill_tags[]');
         }
 
+        // Remove location/mileage for admin role
         if (role !== 'supervisor' && role !== 'technician') {
             formData.delete('state_id');
             formData.delete('city_id');
