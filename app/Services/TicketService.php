@@ -252,6 +252,7 @@ class TicketService
 
     /**
      * Upload proof files for a status change
+     * FIX: Capture file size and mime type BEFORE move() — the temp file is deleted after move.
      */
     public function uploadProofs(Ticket $ticket, TicketStatusHistory $history, array $proofFiles): void
     {
@@ -263,6 +264,10 @@ class TicketService
 
                 $fileName = $file->getClientOriginalName();
                 $filePath = 'ticket-proofs/' . $ticket->id;
+
+                // ★ Capture size and mime BEFORE moving (temp file is destroyed after move)
+                $fileSize = $file->getSize() ?: 0;
+                $mimeType = $file->getClientMimeType() ?: null;
 
                 // cPanel-safe upload
                 $destinationPath = $_SERVER['DOCUMENT_ROOT'] . '/storage/' . $filePath;
@@ -278,8 +283,8 @@ class TicketService
                     'proof_type' => $proofType,
                     'file_name' => $fileName,
                     'file_path' => $filePath . '/' . $storedName,
-                    'file_size' => $file->getSize() ?? 0,
-                    'mime_type' => $file->getClientMimeType() ?? null,
+                    'file_size' => $fileSize,
+                    'mime_type' => $mimeType,
                     'uploaded_by' => Auth::id(),
                 ]);
             }
