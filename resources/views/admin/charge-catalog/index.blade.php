@@ -1,24 +1,24 @@
 @extends('layouts.app')
 
-@section('title', 'Charge Catalog Management')
+@section('title', 'Job Catalog Management')
 
 @section('content')
 <div class="container-fluid">
     <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-0">Charge Catalog Management</h1>
+            <h1 class="h3 mb-0">Job Catalog Management</h1>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item active">Charge Catalog</li>
+                    <li class="breadcrumb-item active">Job Catalog</li>
                 </ol>
             </nav>
         </div>
         <div>
             @can('create', App\Models\ChargeCatalog::class)
             <a href="{{ route('admin.charge-catalog.create') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i> Add New Charge
+                <i class="bi bi-plus-circle me-1"></i> Add New Job Catalog
             </a>
             @endcan
         </div>
@@ -27,7 +27,7 @@
     <div class="card bg-info-subtle">
         <div class="card-body">
             <i class="bi bi-info-circle me-2"></i>
-            Add a Job Type first. Once created, you can proceed to Charge Catalog Management to configure charges.
+            Add a Job Type first. Once created, you can proceed to Job Catalog Management to configure Jobs.
         </div>
     </div>
 
@@ -41,7 +41,7 @@
                             <i class="bi bi-tag-fill text-primary fs-2"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h6 class="text-muted mb-1">Total Charges</h6>
+                            <h6 class="text-muted mb-1">Total Jobs</h6>
                             <h3 class="mb-0">{{ $stats['total_charges'] }}</h3>
                         </div>
                     </div>
@@ -56,7 +56,7 @@
                             <i class="bi bi-check-circle-fill text-success fs-2"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h6 class="text-muted mb-1">Active Charges</h6>
+                            <h6 class="text-muted mb-1">Active Jobs</h6>
                             <h3 class="mb-0">{{ $stats['active_charges'] }}</h3>
                         </div>
                     </div>
@@ -86,7 +86,7 @@
                             <i class="bi bi-grid-3x3-gap-fill text-info fs-2"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h6 class="text-muted mb-1">Charge Types</h6>
+                            <h6 class="text-muted mb-1">Job Types</h6>
                             <h3 class="mb-0">{{ $stats['types'] }}</h3>
                         </div>
                     </div>
@@ -100,7 +100,7 @@
         <div class="card-header bg-white py-3">
             <div class="row align-items-center">
                 <div class="col">
-                    <h5 class="mb-0">Charge Catalog</h5>
+                    <h5 class="mb-2">Job Catalog</h5>
                 </div>
                 <div class="col-auto">
                     <div class="btn-group btn-group-sm flex-wrap" role="group">
@@ -118,7 +118,7 @@
                     <thead class="table-light">
                         <tr>
                             <th>Code</th>
-                            <th>Charge Name</th>
+                            <th>Job Name</th>
                             <th>Type</th>
                             <th>Price</th>
                             <th>Tax</th>

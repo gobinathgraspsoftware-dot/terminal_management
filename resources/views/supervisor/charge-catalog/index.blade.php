@@ -1,17 +1,17 @@
 @extends('layouts.app')
 
-@section('title', 'Charge Catalog')
+@section('title', 'Job Catalog')
 
 @section('content')
 <div class="container-fluid">
     <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-0">Charge Catalog</h1>
+            <h1 class="h3 mb-0">Job Catalog</h1>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('supervisor.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item active">Charge Catalog</li>
+                    <li class="breadcrumb-item active">Job Catalog</li>
                 </ol>
             </nav>
         </div>
@@ -27,7 +27,7 @@
                             <i class="bi bi-tag-fill text-primary fs-2"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h6 class="text-muted mb-1">Active Charges</h6>
+                            <h6 class="text-muted mb-1">Active Jobs</h6>
                             <h3 class="mb-0">{{ $stats['total_charges'] }}</h3>
                         </div>
                     </div>
@@ -57,7 +57,7 @@
                             <i class="bi bi-grid-3x3-gap-fill text-info fs-2"></i>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h6 class="text-muted mb-1">Charge Types</h6>
+                            <h6 class="text-muted mb-1">Job Types</h6>
                             <h3 class="mb-0">{{ $stats['types'] }}</h3>
                         </div>
                     </div>
@@ -71,7 +71,7 @@
         <div class="card-header bg-white py-3">
             <div class="row align-items-center">
                 <div class="col">
-                    <h5 class="mb-0">Charge Catalog <small class="text-muted">(View Only)</small></h5>
+                    <h5 class="mb-0">Job Catalog <small class="text-muted">(View Only)</small></h5>
                 </div>
                 <div class="col-auto">
                     <div class="btn-group btn-group-sm flex-wrap" role="group">
@@ -89,7 +89,7 @@
                     <thead class="table-light">
                         <tr>
                             <th>Code</th>
-                            <th>Charge Name</th>
+                            <th>Job Name</th>
                             <th>Type</th>
                             <th>Price</th>
                             <th>Tax</th>

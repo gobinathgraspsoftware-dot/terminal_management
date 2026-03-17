@@ -199,7 +199,7 @@
                     <li class="nav-item">
                         <a href="{{ route('admin.charge-catalog.index') }}"
                         class="nav-link {{ $ischargeCatelogRoute ? 'active' : '' }}">
-                            <i class="bi bi-tag"></i> Charge Catalog
+                            <i class="bi bi-tag"></i> Job Catalog
                         </a>
                     </li>
                     {{-- @can('view_rate_cards')
@@ -734,7 +734,7 @@
                     <li class="nav-item">
                         <a href="{{ route('supervisor.charge-catalog.index') }}"
                         class="nav-link {{ $isChargeCatelogRoute ? 'active' : '' }}">
-                            <i class="bi bi-tag"></i> Charge Catalog
+                            <i class="bi bi-tag"></i> Job Catalog
                         </a>
                     </li>
                     @can('view_models')
@@ -1198,7 +1198,7 @@
                     <li class="nav-item">
                         <a href="{{ route('technician.charge-catalog.index') }}"
                         class="nav-link {{ $isChargeCatelogRoute ? 'active' : '' }}">
-                            <i class="bi bi-tag"></i> Charge Catalog
+                            <i class="bi bi-tag"></i> Job Catalog
                         </a>
                     </li>
                     {{-- @can('view_rate_cards')

@@ -1,17 +1,17 @@
 @extends('layouts.app')
 
-@section('title', 'Charge Catalog')
+@section('title', 'Job Catalog')
 
 @section('content')
 <div class="container-fluid">
     <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-0">Charge Catalog</h1>
+            <h1 class="h3 mb-0">Job Catalog</h1>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('technician.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item active">Charge Catalog</li>
+                    <li class="breadcrumb-item active">Job Catalog</li>
                 </ol>
             </nav>
         </div>
@@ -23,7 +23,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
                     <h4 class="mb-0 text-primary">{{ $stats['total_charges'] }}</h4>
-                    <small class="text-muted">Total Charges</small>
+                    <small class="text-muted">Total Jobs</small>
                 </div>
             </div>
         </div>
@@ -31,7 +31,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
                     <h4 class="mb-0 text-info">{{ $stats['types'] }}</h4>
-                    <small class="text-muted">Charge Types</small>
+                    <small class="text-muted">Job Types</small>
                 </div>
             </div>
         </div>
@@ -85,7 +85,7 @@
     <div class="card border-0 shadow-sm">
         <div class="card-body text-center text-muted py-5">
             <i class="bi bi-tag fs-1"></i>
-            <p class="mt-2">No charges available.</p>
+            <p class="mt-2">No Jobs available.</p>
         </div>
     </div>
     @endforelse

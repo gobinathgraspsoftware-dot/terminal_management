@@ -1,16 +1,16 @@
 @extends('layouts.app')
 
-@section('title', 'Create Charge')
+@section('title', 'Create Job')
 
 @section('content')
 <div class="container-fluid">
     <!-- Page Header -->
     <div class="mb-4">
-        <h1 class="h3 mb-0">Create New Charge</h1>
+        <h1 class="h3 mb-0">Create New Job</h1>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-0">
                 <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item"><a href="{{ route('admin.charge-catalog.index') }}">Charge Catalog</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('admin.charge-catalog.index') }}">Job Catalog</a></li>
                 <li class="breadcrumb-item active">Create</li>
             </ol>
         </nav>
@@ -20,7 +20,7 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white py-3">
-                    <h5 class="mb-0">Charge Information</h5>
+                    <h5 class="mb-0">Job Information</h5>
                 </div>
                 <div class="card-body">
                     <form id="createChargeForm">
@@ -50,7 +50,7 @@
                                    id="charge_name"
                                    name="charge_name"
                                    required
-                                   placeholder="Enter charge name">
+                                   placeholder="Enter Job name">
                             <div class="invalid-feedback"></div>
                         </div>
 
@@ -70,7 +70,7 @@
                                       id="description"
                                       name="description"
                                       rows="3"
-                                      placeholder="Enter charge description"></textarea>
+                                      placeholder="Enter Job description"></textarea>
                             <div class="invalid-feedback"></div>
                         </div>
 
@@ -118,7 +118,7 @@
                                            value="1"
                                            checked>
                                     <label class="form-check-label" for="is_taxable">
-                                        This charge is taxable
+                                        This Job is taxable
                                     </label>
                                 </div>
 
@@ -157,7 +157,7 @@
                                 <i class="bi bi-x-circle me-1"></i> Cancel
                             </a>
                             <button type="submit" class="btn btn-primary" id="submitBtn">
-                                <i class="bi bi-check-circle me-1"></i> Create Charge
+                                <i class="bi bi-check-circle me-1"></i> Create Job
                             </button>
                         </div>
                     </form>
@@ -175,17 +175,17 @@
                     <ul class="list-unstyled mb-0">
                         <li class="mb-2">
                             <i class="bi bi-info-circle text-primary me-2"></i>
-                            <strong>Charge Code:</strong> Auto-generated if left empty (CHG000001 format)
+                            <strong>Job Code:</strong> Auto-generated if left empty (CHG000001 format)
                         </li>
                         <li class="mb-2">
                             <i class="bi bi-info-circle text-primary me-2"></i>
-                            <strong>Charge Types:</strong>
+                            <strong>Job Types:</strong>
                             <ul class="mt-1">
-                                <li>Installation: Terminal setup charges</li>
+                                <li>Installation: Terminal setup Jobs</li>
                                 <li>Service: Maintenance and repair</li>
                                 <li>Hardware: Equipment costs</li>
                                 <li>Accessory: Cables, adapters, etc.</li>
-                                <li>Labour: Technician time charges</li>
+                                <li>Labour: Technician time Jobs</li>
                                 <li>Transport: Travel costs</li>
                             </ul>
                         </li>

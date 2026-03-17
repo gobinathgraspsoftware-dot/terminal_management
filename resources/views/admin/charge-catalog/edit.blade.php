@@ -1,16 +1,16 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Charge')
+@section('title', 'Edit Job')
 
 @section('content')
 <div class="container-fluid">
     <!-- Page Header -->
     <div class="mb-4">
-        <h1 class="h3 mb-0">Edit Charge</h1>
+        <h1 class="h3 mb-0">Edit Job</h1>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-0">
                 <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item"><a href="{{ route('admin.charge-catalog.index') }}">Charge Catalog</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('admin.charge-catalog.index') }}">Job Catalog</a></li>
                 <li class="breadcrumb-item active">Edit</li>
             </ol>
         </nav>
@@ -20,7 +20,7 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white py-3">
-                    <h5 class="mb-0">Charge Information</h5>
+                    <h5 class="mb-0">Job Information</h5>
                 </div>
                 <div class="card-body">
                     <form id="editChargeForm">
@@ -29,14 +29,14 @@
 
                         <!-- Charge Code -->
                         <div class="mb-3">
-                            <label for="charge_code" class="form-label">Charge Code</label>
+                            <label for="charge_code" class="form-label">Job Code</label>
                             <input type="text"
                                    class="form-control"
                                    id="charge_code"
                                    name="charge_code"
                                    value="{{ $charge->charge_code }}"
                                    readonly>
-                            <small class="form-text text-muted">Charge code cannot be changed</small>
+                            <small class="form-text text-muted">Job code cannot be changed</small>
                         </div>
 
                         <!-- Charge Name -->
@@ -72,7 +72,7 @@
                                       id="description"
                                       name="description"
                                       rows="3"
-                                      placeholder="Enter charge description">{{ $charge->description }}</textarea>
+                                      placeholder="Enter Job description">{{ $charge->description }}</textarea>
                             <div class="invalid-feedback"></div>
                         </div>
 
@@ -122,7 +122,7 @@
                                            value="1"
                                            {{ $charge->is_taxable ? 'checked' : '' }}>
                                     <label class="form-check-label" for="is_taxable">
-                                        This charge is taxable
+                                        This Job is taxable
                                     </label>
                                 </div>
 
@@ -161,7 +161,7 @@
                                 <i class="bi bi-x-circle me-1"></i> Cancel
                             </a>
                             <button type="submit" class="btn btn-primary" id="submitBtn">
-                                <i class="bi bi-check-circle me-1"></i> Update Charge
+                                <i class="bi bi-check-circle me-1"></i> Update Job
                             </button>
                         </div>
                     </form>
@@ -173,7 +173,7 @@
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-header bg-white py-3">
-                    <h5 class="mb-0">Charge Details</h5>
+                    <h5 class="mb-0">Job Details</h5>
                 </div>
                 <div class="card-body">
                     <dl class="row mb-0">
@@ -205,7 +205,7 @@
                         </li>
                         <li class="mb-2">
                             <i class="bi bi-info-circle text-primary me-2"></i>
-                            Setting status to "Inactive" will hide this charge from selection
+                            Setting status to "Inactive" will hide this Job from selection
                         </li>
                         <li>
                             <i class="bi bi-info-circle text-primary me-2"></i>
