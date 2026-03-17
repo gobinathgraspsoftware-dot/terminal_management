@@ -19,12 +19,6 @@ use Yajra\DataTables\Facades\DataTables;
 /**
  * Admin TeamController
  *
- * Handles team management for Admin users:
- * - View all teams (supervisors + their technicians)
- * - Assign technicians to supervisors (mandatory)
- * - Bulk assign technicians
- * - View team statistics
- *
  * NOTE: Independent technicians are NOT supported.
  *       All technicians MUST have a supervisor assigned.
  *       Supervisors can operate without technicians.
@@ -35,9 +29,6 @@ class TeamController extends Controller implements HasMiddleware
 {
     protected TeamService $teamService;
 
-    /**
-     * Get the middleware that should be assigned to the controller.
-     */
     public static function middleware(): array
     {
         return [
@@ -63,11 +54,9 @@ class TeamController extends Controller implements HasMiddleware
         $supervisors = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
             ->where('status', 'active')
             ->withCount(['technicians' => fn($q) => $q->where('status', 'active')])
-            ->with(['technicians' => fn($q) => $q->where('status', 'active')->with('roles')])
             ->orderBy('name')
             ->get();
 
-        // Unassigned technicians — these need to be assigned to a supervisor
         $unassignedTechnicians = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))
             ->whereNull('supervisor_id')
             ->where('status', 'active')
@@ -77,50 +66,85 @@ class TeamController extends Controller implements HasMiddleware
     }
 
     /**
-     * DataTable for team members.
+     * DataTable for team members — supports all views.
      */
     public function datatable(Request $request): JsonResponse
     {
         $view = $request->get('view', 'all');
 
-        // For supervisors view - return supervisor data
         if ($view === 'supervisors') {
             return $this->supervisorsDatatable($request);
         }
 
-        // For technicians view - all technicians (all must have supervisor)
-        $query = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))
+        if ($view === 'technicians') {
+            return $this->techniciansDatatable($request);
+        }
+
+        // "all" view — both supervisors and technicians
+        return $this->allTeamsDatatable($request);
+    }
+
+    /**
+     * All teams datatable — supervisors + technicians combined.
+     */
+    protected function allTeamsDatatable(Request $request): JsonResponse
+    {
+        $query = User::whereHas('roles', fn($q) => $q->whereIn('roles.name', ['supervisor', 'technician']))
             ->with(['roles', 'supervisor'])
             ->select('users.*');
 
-        // Filter by supervisor
         if ($request->supervisor_id) {
-            $query->where('supervisor_id', $request->supervisor_id);
-        }
-
-        // Filter unassigned (needs attention)
-        if ($view === 'unassigned') {
-            $query->whereNull('supervisor_id');
+            $query->where(function ($q) use ($request) {
+                $q->where('id', $request->supervisor_id)
+                  ->orWhere('supervisor_id', $request->supervisor_id);
+            });
         }
 
         return DataTables::of($query)
-            ->addColumn('role', fn($user) => '<span class="badge bg-success">Technician</span>')
-            ->addColumn('supervisor_name', fn($user) => $user->supervisor
-                ? '<span class="text-primary">' . e($user->supervisor->name) . '</span>'
-                : '<span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Unassigned</span>')
-            ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . ($user->status == 'active' ? 'success' : 'secondary') . '">' . ucfirst($user->status) . '</span>')
-            ->addColumn('coverage', function($user) {
-                $states = is_array($user->coverage_states) ? $user->coverage_states : (is_string($user->coverage_states) ? json_decode($user->coverage_states, true) : null);
-                return !empty($states) && is_array($states) ? implode(', ', $states) : '-';
+            ->addColumn('avatar', function ($user) {
+                $url = $user->avatar
+                    ? asset('storage/' . $user->avatar)
+                    : 'https://ui-avatars.com/api/?name=' . urlencode(substr($user->name, 0, 1)) . '&size=36&background=random&color=fff';
+                return '<img src="' . $url . '" class="rounded-circle" style="width:36px;height:36px;object-fit:cover;">';
             })
-            ->addColumn('actions', function($user) {
-                $actions = '<div class="d-flex align-items-center gap-1 flex-nowrap">';
-                $actions .= '<a href="' . route('admin.teams.show', $user->id) . '" class="btn btn-sm btn-info" title="View"><i class="bi bi-eye"></i></a>';
-                $actions .= '<button type="button" class="btn btn-sm btn-primary reassign-technician" data-id="' . $user->id . '" data-name="' . e($user->name) . '" data-supervisor="' . ($user->supervisor_id ?? '') . '" title="Reassign"><i class="bi bi-arrow-left-right"></i></button>';
+            ->addColumn('role', function ($user) {
+                $role = $user->roles->first()?->name ?? 'unknown';
+                $badge = $role === 'supervisor' ? 'primary' : 'success';
+                return '<span class="badge bg-' . $badge . '">' . ucfirst($role) . '</span>';
+            })
+            ->addColumn('supervisor_info', function ($user) {
+                if ($user->hasRole('supervisor')) {
+                    $count = $user->technicians()->where('status', 'active')->count();
+                    return '<span class="text-muted">' . $count . ' technician(s)</span>';
+                }
+                if ($user->supervisor) {
+                    return '<span class="text-primary">' . e($user->supervisor->name) . '</span>';
+                }
+                return '<span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Unassigned</span>';
+            })
+            ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . match($user->status) { 'active' => 'success', 'inactive' => 'secondary', 'suspended' => 'danger', default => 'warning' } . '">' . ucfirst($user->status) . '</span>')
+            ->addColumn('coverage', function ($user) {
+                $states = is_array($user->coverage_states) ? $user->coverage_states : (is_string($user->coverage_states) ? json_decode($user->coverage_states, true) : null);
+                if (empty($states) || !is_array($states)) return '<span class="text-muted">-</span>';
+                $html = '';
+                foreach (array_slice($states, 0, 2) as $s) {
+                    $html .= '<span class="badge bg-light text-dark me-1">' . e($s) . '</span>';
+                }
+                if (count($states) > 2) {
+                    $html .= '<span class="badge bg-light text-dark">+' . (count($states) - 2) . '</span>';
+                }
+                return $html;
+            })
+            ->addColumn('actions', function ($user) {
+                $actions = '<div class="d-flex align-items-center justify-content-center gap-1">';
+                $actions .= '<a href="' . route('admin.teams.show', $user->id) . '" class="btn btn-sm btn-outline-info" data-bs-toggle="tooltip" title="View"><i class="bi bi-eye"></i></a>';
+                if ($user->hasRole('technician')) {
+                    $actions .= '<button type="button" class="btn btn-sm btn-outline-primary reassign-technician" data-id="' . $user->id . '" data-name="' . e($user->name) . '" data-supervisor="' . ($user->supervisor_id ?? '') . '" data-bs-toggle="tooltip" title="Reassign"><i class="bi bi-arrow-left-right"></i></button>';
+                }
                 $actions .= '</div>';
                 return $actions;
             })
-            ->filter(function($query) use ($request) {
+            ->filter(function ($query) use ($request) {
                 if ($search = $request->search['value'] ?? null) {
                     $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")
                         ->orWhere('employee_id', 'like', "%{$search}%")
@@ -130,7 +154,7 @@ class TeamController extends Controller implements HasMiddleware
                     $query->where('status', $request->status);
                 }
             })
-            ->rawColumns(['role', 'supervisor_name', 'status_badge', 'actions'])
+            ->rawColumns(['avatar', 'role', 'supervisor_info', 'status_badge', 'coverage', 'actions'])
             ->make(true);
     }
 
@@ -144,29 +168,101 @@ class TeamController extends Controller implements HasMiddleware
             ->select('users.*');
 
         return DataTables::of($query)
-            ->addColumn('role', fn($user) => '<span class="badge bg-primary">Supervisor</span>')
+            ->addColumn('avatar', function ($user) {
+                $url = $user->avatar
+                    ? asset('storage/' . $user->avatar)
+                    : 'https://ui-avatars.com/api/?name=' . urlencode(substr($user->name, 0, 1)) . '&size=36&background=random&color=fff';
+                return '<img src="' . $url . '" class="rounded-circle" style="width:36px;height:36px;object-fit:cover;">';
+            })
             ->addColumn('team_size', fn($user) => '<span class="badge bg-info">' . $user->technicians_count . ' members</span>')
             ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . ($user->status == 'active' ? 'success' : 'secondary') . '">' . ucfirst($user->status) . '</span>')
-            ->addColumn('coverage', function($user) {
+            ->addColumn('coverage', function ($user) {
                 $states = is_array($user->coverage_states) ? $user->coverage_states : (is_string($user->coverage_states) ? json_decode($user->coverage_states, true) : null);
-                return !empty($states) && is_array($states) ? implode(', ', $states) : '-';
+                if (empty($states) || !is_array($states)) return '<span class="text-muted">-</span>';
+                $html = '';
+                foreach (array_slice($states, 0, 2) as $s) {
+                    $html .= '<span class="badge bg-light text-dark me-1">' . e($s) . '</span>';
+                }
+                if (count($states) > 2) {
+                    $html .= '<span class="badge bg-light text-dark">+' . (count($states) - 2) . '</span>';
+                }
+                return $html;
             })
-            ->addColumn('actions', function($user) {
-                $actions = '<div class="d-flex align-items-center gap-1 flex-nowrap">';
-                $actions .= '<a href="' . route('admin.teams.show', $user->id) . '" class="btn btn-sm btn-info" title="View"><i class="bi bi-eye"></i></a>';
-                $actions .= '</div>';
-                return $actions;
+            ->addColumn('actions', function ($user) {
+                return '<div class="d-flex align-items-center justify-content-center gap-1">'
+                    . '<a href="' . route('admin.teams.show', $user->id) . '" class="btn btn-sm btn-outline-info" data-bs-toggle="tooltip" title="View"><i class="bi bi-eye"></i></a>'
+                    . '</div>';
             })
-            ->filter(function($query) use ($request) {
+            ->filter(function ($query) use ($request) {
                 if ($search = $request->search['value'] ?? null) {
                     $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('employee_id', 'like', "%{$search}%"));
+                        ->orWhere('employee_id', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%"));
                 }
                 if ($request->status) {
                     $query->where('status', $request->status);
                 }
             })
-            ->rawColumns(['role', 'team_size', 'status_badge', 'actions'])
+            ->rawColumns(['avatar', 'team_size', 'status_badge', 'coverage', 'actions'])
+            ->make(true);
+    }
+
+    /**
+     * Technicians datatable.
+     */
+    protected function techniciansDatatable(Request $request): JsonResponse
+    {
+        $query = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))
+            ->with(['supervisor'])
+            ->select('users.*');
+
+        if ($request->supervisor_id) {
+            $query->where('supervisor_id', $request->supervisor_id);
+        }
+
+        return DataTables::of($query)
+            ->addColumn('avatar', function ($user) {
+                $url = $user->avatar
+                    ? asset('storage/' . $user->avatar)
+                    : 'https://ui-avatars.com/api/?name=' . urlencode(substr($user->name, 0, 1)) . '&size=36&background=random&color=fff';
+                return '<img src="' . $url . '" class="rounded-circle" style="width:36px;height:36px;object-fit:cover;">';
+            })
+            ->addColumn('supervisor_name', function ($user) {
+                if ($user->supervisor) {
+                    return '<span class="text-primary">' . e($user->supervisor->name) . '</span>';
+                }
+                return '<span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Unassigned</span>';
+            })
+            ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . ($user->status == 'active' ? 'success' : 'secondary') . '">' . ucfirst($user->status) . '</span>')
+            ->addColumn('coverage', function ($user) {
+                $states = is_array($user->coverage_states) ? $user->coverage_states : (is_string($user->coverage_states) ? json_decode($user->coverage_states, true) : null);
+                if (empty($states) || !is_array($states)) return '<span class="text-muted">-</span>';
+                $html = '';
+                foreach (array_slice($states, 0, 2) as $s) {
+                    $html .= '<span class="badge bg-light text-dark me-1">' . e($s) . '</span>';
+                }
+                if (count($states) > 2) {
+                    $html .= '<span class="badge bg-light text-dark">+' . (count($states) - 2) . '</span>';
+                }
+                return $html;
+            })
+            ->addColumn('actions', function ($user) {
+                return '<div class="d-flex align-items-center justify-content-center gap-1">'
+                    . '<a href="' . route('admin.teams.show', $user->id) . '" class="btn btn-sm btn-outline-info" data-bs-toggle="tooltip" title="View"><i class="bi bi-eye"></i></a>'
+                    . '<button type="button" class="btn btn-sm btn-outline-primary reassign-technician" data-id="' . $user->id . '" data-name="' . e($user->name) . '" data-supervisor="' . ($user->supervisor_id ?? '') . '" data-bs-toggle="tooltip" title="Reassign"><i class="bi bi-arrow-left-right"></i></button>'
+                    . '</div>';
+            })
+            ->filter(function ($query) use ($request) {
+                if ($search = $request->search['value'] ?? null) {
+                    $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('employee_id', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%"));
+                }
+                if ($request->status) {
+                    $query->where('status', $request->status);
+                }
+            })
+            ->rawColumns(['avatar', 'supervisor_name', 'status_badge', 'coverage', 'actions'])
             ->make(true);
     }
 
@@ -209,8 +305,7 @@ class TeamController extends Controller implements HasMiddleware
     }
 
     /**
-     * Assign single technician to supervisor.
-     * supervisor_id is REQUIRED — no independent technicians allowed.
+     * Assign single technician to supervisor (supervisor_id REQUIRED).
      */
     public function assign(AssignTechnicianRequest $request): JsonResponse
     {
@@ -237,8 +332,7 @@ class TeamController extends Controller implements HasMiddleware
     }
 
     /**
-     * Bulk assign technicians to supervisor.
-     * supervisor_id is REQUIRED — no independent technicians allowed.
+     * Bulk assign technicians to supervisor (supervisor_id REQUIRED).
      */
     public function bulkAssign(BulkAssignRequest $request): JsonResponse
     {
