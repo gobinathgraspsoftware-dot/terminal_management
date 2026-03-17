@@ -12,21 +12,9 @@ use Illuminate\Support\Facades\DB;
  *
  * Provides team-related business logic for Admin & Supervisor TeamControllers.
  *
- * Methods called by Admin\TeamController:
- *   - getTeamStatistics()
- *   - getMemberStatistics(User)
- *   - getMemberRecentJobs(User)
- *   - getMemberWeeklyPerformance(User)
- *   - getAssignmentHistory(User)
- *   - logTeamChange(User, ?int, ?int, User)
- *   - getSupervisorTeamStats(User)
- *
- * Methods called by Supervisor\TeamController:
- *   - getSupervisorTeamStats(User)
- *   - getTeamPerformance(User)
- *   - getMemberStatistics(User)
- *   - getMemberRecentJobs(User)
- *   - getMemberWeeklyPerformance(User)
+ * NOTE: Independent technicians are NOT supported.
+ *       All technicians MUST have a supervisor assigned.
+ *       Supervisors can operate without technicians (independent supervisors).
  *
  * @package App\Services
  */
@@ -38,14 +26,14 @@ class TeamService
      */
     public function getTeamStatistics(): array
     {
-        $totalSupervisors = User::role('supervisor')->where('status', 'active')->count();
-        $totalTechnicians = User::role('technician')->where('status', 'active')->count();
-        $assignedTechnicians = User::role('technician')->whereNotNull('supervisor_id')->where('status', 'active')->count();
-        $independentTechnicians = User::role('technician')->whereNull('supervisor_id')->where('status', 'active')->count();
+        $totalSupervisors = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))->where('status', 'active')->count();
+        $totalTechnicians = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))->where('status', 'active')->count();
+        $assignedTechnicians = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))->whereNotNull('supervisor_id')->where('status', 'active')->count();
+        $unassignedTechnicians = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))->whereNull('supervisor_id')->where('status', 'active')->count();
 
         $avgTeamSize = $totalSupervisors > 0 ? round($assignedTechnicians / $totalSupervisors, 1) : 0;
 
-        $largestTeam = User::role('supervisor')
+        $largestTeam = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
             ->withCount(['technicians' => fn($q) => $q->where('status', 'active')])
             ->orderByDesc('technicians_count')
             ->first();
@@ -54,7 +42,7 @@ class TeamService
             'total_supervisors' => $totalSupervisors,
             'total_technicians' => $totalTechnicians,
             'assigned_technicians' => $assignedTechnicians,
-            'independent_technicians' => $independentTechnicians,
+            'unassigned_technicians' => $unassignedTechnicians, // Needs attention — must be assigned
             'avg_team_size' => $avgTeamSize,
             'largest_team' => [
                 'supervisor_name' => $largestTeam?->name ?? '-',
@@ -66,10 +54,6 @@ class TeamService
     /**
      * Get supervisor's own team statistics.
      * Used by: Admin\TeamController::stats(), Supervisor\TeamController::index() & stats()
-     *
-     * Returns keys matching supervisor/teams/index.blade.php:
-     *   total_members, active_members, todays_jobs, pending_jobs,
-     *   completed_this_month, sla_compliance, coverage_states
      */
     public function getSupervisorTeamStats(User $supervisor): array
     {
@@ -154,7 +138,7 @@ class TeamService
                 'total'   => $slaTotal,
             ],
             'coverage_states'     => $coverageStates,
-            // Backward-compatible keys used by Admin\TeamController::stats()
+            // Backward-compatible keys
             'members_with_coverage' => $activeMembers->filter(fn($m) => !empty($m->coverage_states))->count(),
             'total_jobs'          => ($todaysJobs + $pendingJobs + $completedThisMonth),
             'completed_jobs'      => $completedThisMonth,
@@ -227,7 +211,6 @@ class TeamService
 
     /**
      * Get recent jobs for a team member.
-     * Used by: Admin\TeamController::show(), Supervisor\TeamController::show()
      */
     public function getMemberRecentJobs(User $user, int $limit = 10)
     {
@@ -249,7 +232,6 @@ class TeamService
                 ->limit($limit)
                 ->get()
                 ->map(function ($job) {
-                    // Normalize field names for the view
                     $job->job_number = $job->job_no ?? $job->job_number ?? '-';
                     $job->client_name = $job->client?->client_name ?? '-';
                     $job->scheduled_date = $job->job_date ?? $job->created_at;
@@ -262,7 +244,6 @@ class TeamService
 
     /**
      * Get weekly performance chart data for a member.
-     * Used by: Admin\TeamController::show(), Supervisor\TeamController::show()
      */
     public function getMemberWeeklyPerformance(User $user): array
     {
@@ -300,7 +281,6 @@ class TeamService
 
     /**
      * Get assignment history for a user from activity_log table.
-     * Used by: Admin\TeamController::show()
      */
     public function getAssignmentHistory(User $user, int $limit = 10): array
     {
@@ -329,12 +309,11 @@ class TeamService
 
     /**
      * Log a team change using Spatie Activity Log.
-     * Used by: Admin\TeamController::assign(), bulkAssign(), remove()
      */
     public function logTeamChange(User $technician, ?int $oldSupervisorId, ?int $newSupervisorId, User $performer): void
     {
-        $oldSupervisor = $oldSupervisorId ? User::find($oldSupervisorId)?->name : 'Independent';
-        $newSupervisor = $newSupervisorId ? User::find($newSupervisorId)?->name : 'Independent';
+        $oldSupervisor = $oldSupervisorId ? User::find($oldSupervisorId)?->name : 'Unassigned';
+        $newSupervisor = $newSupervisorId ? User::find($newSupervisorId)?->name : 'Unassigned';
 
         try {
             activity('team')
@@ -349,17 +328,12 @@ class TeamService
                 ])
                 ->log("Team assignment changed for {$technician->name}: from {$oldSupervisor} to {$newSupervisor}");
         } catch (\Exception $e) {
-            // Activity log package may not be installed
             \Log::warning('Team change logging failed: ' . $e->getMessage());
         }
     }
 
     /**
      * Get team performance data for supervisor dashboard chart.
-     * Used by: Supervisor\TeamController::index() & performance()
-     *
-     * Returns nested under 'jobs_this_week' key to match view expectation:
-     *   $teamPerformance['jobs_this_week']['labels'] / ['data']
      */
     public function getTeamPerformance(User $supervisor): array
     {

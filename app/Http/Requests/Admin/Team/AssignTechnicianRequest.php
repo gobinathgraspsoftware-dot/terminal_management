@@ -7,6 +7,8 @@ use Illuminate\Foundation\Http\FormRequest;
 /**
  * Validates single technician assignment.
  * Used by: Admin\TeamController::assign()
+ *
+ * NOTE: supervisor_id is REQUIRED — all technicians must have a supervisor.
  */
 class AssignTechnicianRequest extends FormRequest
 {
@@ -19,15 +21,8 @@ class AssignTechnicianRequest extends FormRequest
     {
         return [
             'technician_id' => 'required|exists:users,id',
-            'supervisor_id' => 'nullable|exists:users,id',
+            'supervisor_id' => 'required|exists:users,id',
         ];
-    }
-
-    protected function prepareForValidation(): void
-    {
-        if ($this->supervisor_id === '' || $this->supervisor_id === '0') {
-            $this->merge(['supervisor_id' => null]);
-        }
     }
 
     public function messages(): array
@@ -35,6 +30,7 @@ class AssignTechnicianRequest extends FormRequest
         return [
             'technician_id.required' => 'Please select a technician.',
             'technician_id.exists' => 'Selected technician does not exist.',
+            'supervisor_id.required' => 'Please select a supervisor. All technicians must be assigned to a supervisor.',
             'supervisor_id.exists' => 'Selected supervisor does not exist.',
         ];
     }

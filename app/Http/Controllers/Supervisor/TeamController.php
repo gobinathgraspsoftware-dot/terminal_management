@@ -80,7 +80,7 @@ class TeamController extends Controller implements HasMiddleware
                 $tags = is_array($user->skill_tags) ? $user->skill_tags : (is_string($user->skill_tags) ? json_decode($user->skill_tags, true) : null);
                 return !empty($tags) && is_array($tags) ? implode(', ', array_slice($tags, 0, 3)) : '-';
             })
-            ->addColumn('actions', fn($user) => '<a href="' . route('supervisor.teams.show', $user->id) . '" class="btn btn-sm btn-info"><i class="fas fa-eye"></i> View</a>')
+            ->addColumn('actions', fn($user) => '<a href="' . route('supervisor.teams.show', $user->id) . '" class="btn btn-sm btn-info"><i class="bi bi-eye"></i> View</a>')
             ->filter(function($query) use ($request) {
                 if ($search = $request->search['value'] ?? null) {
                     $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")->orWhere('employee_id', 'like', "%{$search}%"));

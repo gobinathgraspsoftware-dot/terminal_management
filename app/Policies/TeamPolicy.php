@@ -7,6 +7,9 @@ use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
  * TeamPolicy - Authorization for team management.
+ *
+ * NOTE: No removeFromTeam policy — technicians cannot be made independent.
+ *       All technicians must have a supervisor.
  */
 class TeamPolicy
 {
@@ -39,11 +42,6 @@ class TeamPolicy
         return $user->hasRole('admin');
     }
 
-    public function removeFromTeam(User $user, User $technician): bool
-    {
-        return $user->hasRole('admin') && $technician->hasRole('technician');
-    }
-
     public function exportTeam(User $user): bool
     {
         return $user->hasRole(['admin', 'supervisor']);
@@ -51,7 +49,7 @@ class TeamPolicy
 
     public function before(User $user, string $ability): ?bool
     {
-        if ($user->hasRole('admin') && $user->can('teams.manage')) return true;
+        if ($user->hasRole('admin') && $user->can('manage_teams')) return true;
         return null;
     }
 }

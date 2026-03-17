@@ -1,248 +1,149 @@
 @extends('layouts.app')
 
-@section('title', 'Team Member - ' . $user->name)
-
-@section('page-header')
-<div class="d-flex justify-content-between align-items-center">
-    <div>
-        <h4 class="mb-1">Team Member Details</h4>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item"><a href="{{ route('supervisor.dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item"><a href="{{ route('supervisor.teams.index') }}">My Team</a></li>
-                <li class="breadcrumb-item active">{{ $user->name }}</li>
-            </ol>
-        </nav>
-    </div>
-    <a href="{{ route('supervisor.teams.index') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Back to Team
-    </a>
-</div>
-@endsection
+@section('title', 'Team Member - ' . $user->name . ' - TMS')
 
 @section('content')
-<div class="row">
-    {{-- Profile Card --}}
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-body text-center">
-                <img src="{{ $user->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode($user->name) . '&background=random&color=fff' }}"
-                    class="rounded-circle mb-3 border border-4 border-primary"
-                    style="width: 120px; height: 120px; object-fit: cover;"
-                    alt="{{ $user->name }}">
-                <h4 class="mb-1">{{ $user->name }}</h4>
-                <p class="text-muted mb-2">{{ $user->employee_id }}</p>
-
-                @php
-                    $statusClass = match($user->status) {
-                        'active' => 'success',
-                        'inactive' => 'secondary',
-                        'suspended' => 'danger',
-                        default => 'secondary'
-                    };
-                @endphp
-                <span class="badge bg-{{ $statusClass }}">{{ ucfirst($user->status) }}</span>
-
-                <hr class="my-3">
-
-                <div class="text-start">
-                    <div class="mb-3">
-                        <small class="text-muted d-block">
-                            <i class="bi bi-envelope-fill me-1"></i> Email
-                        </small>
-                        <span>{{ $user->email }}</span>
-                    </div>
-                    <div class="mb-3">
-                        <small class="text-muted d-block">
-                            <i class="bi bi-telephone-fill me-1"></i> Phone
-                        </small>
-                        <span>{{ $user->phone ?? '-' }}</span>
-                    </div>
-                    <div class="mb-3">
-                        <small class="text-muted d-block">
-                            <i class="bi bi-geo-alt-fill me-1"></i> Coverage Areas
-                        </small>
-                        @php
-                            $uCoverage = is_array($user->coverage_states) ? $user->coverage_states : (is_string($user->coverage_states) && !empty($user->coverage_states) ? json_decode($user->coverage_states, true) : []);
-                            if (!is_array($uCoverage)) $uCoverage = [];
-                        @endphp
-                        @if(count($uCoverage) > 0)
-                            @foreach($uCoverage as $state)
-                                <span class="badge bg-light text-dark border me-1 mb-1">{{ $state }}</span>
-                            @endforeach
-                        @else
-                            <span class="text-muted">Not assigned</span>
-                        @endif
-                    </div>
-                    <div>
-                        <small class="text-muted d-block">
-                            <i class="bi bi-tools me-1"></i> Skills
-                        </small>
-                        @php
-                            $uSkills = is_array($user->skill_tags) ? $user->skill_tags : (is_string($user->skill_tags) && !empty($user->skill_tags) ? json_decode($user->skill_tags, true) : []);
-                            if (!is_array($uSkills)) $uSkills = [];
-                        @endphp
-                        @if(count($uSkills) > 0)
-                            @foreach($uSkills as $skill)
-                                <span class="badge bg-info me-1 mb-1">{{ $skill }}</span>
-                            @endforeach
-                        @else
-                            <span class="text-muted">Not tagged</span>
-                        @endif
-                    </div>
-                </div>
-            </div>
-
-            {{-- Quick Contact --}}
-            <div class="card-footer bg-white">
-                <div class="d-flex justify-content-center gap-2">
-                    @if($user->phone)
-                        <a href="tel:{{ $user->phone }}"
-                           class="btn btn-outline-primary btn-sm"
-                           title="Call">
-                            <i class="bi bi-telephone-fill"></i>
-                        </a>
-                        <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $user->phone) }}"
-                            target="_blank"
-                            class="btn btn-outline-success btn-sm"
-                            title="WhatsApp">
-                            <i class="bi bi-whatsapp"></i>
-                        </a>
-                    @endif
-                    <a href="mailto:{{ $user->email }}"
-                       class="btn btn-outline-info btn-sm"
-                       title="Email">
-                        <i class="bi bi-envelope-fill"></i>
-                    </a>
-                </div>
-            </div>
+<div class="container-fluid">
+    {{-- Page Header --}}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">
+                <i class="bi bi-person me-2"></i>{{ $user->name }}
+                <span class="badge bg-success ms-2">Technician</span>
+            </h4>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ route('supervisor.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('supervisor.teams.index') }}">My Team</a></li>
+                    <li class="breadcrumb-item active">{{ $user->name }}</li>
+                </ol>
+            </nav>
         </div>
+        <a href="{{ route('supervisor.teams.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
     </div>
 
-    {{-- Statistics & Performance --}}
-    <div class="col-lg-8">
-        {{-- Stats Cards --}}
-        <div class="row mb-4">
-            <div class="col-md-4 col-6 mb-3">
-                <div class="card h-100 bg-primary bg-opacity-10">
-                    <div class="card-body text-center">
-                        <h3 class="text-primary mb-1">{{ $statistics['total_jobs'] }}</h3>
-                        <small class="text-muted">Total Jobs</small>
-                    </div>
+    <div class="row g-4">
+        {{-- Left Column - Profile --}}
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <img src="{{ $user->avatar_url ?? 'https://ui-avatars.com/api/?name=' . urlencode($user->name) }}"
+                         class="rounded-circle mb-3" style="width: 100px; height: 100px; object-fit: cover;">
+                    <h5>{{ $user->name }}</h5>
+                    <p class="text-muted">{{ $user->employee_id }}</p>
+                    <p>{!! $user->status_badge !!}</p>
                 </div>
-            </div>
-            <div class="col-md-4 col-6 mb-3">
-                <div class="card h-100 bg-success bg-opacity-10">
-                    <div class="card-body text-center">
-                        <h3 class="text-success mb-1">{{ $statistics['completed_jobs'] }}</h3>
-                        <small class="text-muted">Completed</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 col-6 mb-3">
-                <div class="card h-100 bg-warning bg-opacity-10">
-                    <div class="card-body text-center">
-                        <h3 class="text-warning mb-1">{{ $statistics['pending_jobs'] }}</h3>
-                        <small class="text-muted">Pending</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 col-6 mb-3">
-                <div class="card h-100 bg-info bg-opacity-10">
-                    <div class="card-body text-center">
-                        <h3 class="text-info mb-1">{{ $statistics['completed_this_month'] }}</h3>
-                        <small class="text-muted">This Month</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 col-6 mb-3">
-                <div class="card h-100 bg-dark bg-opacity-10">
-                    <div class="card-body text-center">
-                        <h3 class="mb-1">RM {{ $statistics['commission_this_month'] }}</h3>
-                        <small class="text-muted">Commission MTD</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 col-6 mb-3">
-                <div class="card h-100 {{ $statistics['sla_compliance']['rate'] >= 90 ? 'bg-success' : 'bg-danger' }} bg-opacity-10">
-                    <div class="card-body text-center">
-                        <h3 class="{{ $statistics['sla_compliance']['rate'] >= 90 ? 'text-success' : 'text-danger' }} mb-1">
-                            {{ $statistics['sla_compliance']['rate'] }}%
-                        </h3>
-                        <small class="text-muted">SLA Compliance</small>
-                    </div>
-                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">Email</span>
+                        <span>{{ $user->email }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="text-muted">Phone</span>
+                        <span>{{ $user->phone ?? '-' }}</span>
+                    </li>
+                    @if($user->coverage_states)
+                        <li class="list-group-item">
+                            <span class="text-muted d-block mb-1">Coverage</span>
+                            @foreach($user->coverage_states as $state)
+                                <span class="badge bg-light text-dark me-1">{{ $state }}</span>
+                            @endforeach
+                        </li>
+                    @endif
+                    @if($user->skill_tags)
+                        <li class="list-group-item">
+                            <span class="text-muted d-block mb-1">Skills</span>
+                            @foreach($user->skill_tags as $tag)
+                                <span class="badge bg-info text-dark me-1">{{ $tag }}</span>
+                            @endforeach
+                        </li>
+                    @endif
+                </ul>
             </div>
         </div>
 
-        {{-- Weekly Performance Chart --}}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white">
-                <h6 class="mb-0">
-                    <i class="bi bi-bar-chart-fill me-2 text-primary"></i>Weekly Performance
-                </h6>
+        {{-- Right Column --}}
+        <div class="col-md-8">
+            {{-- Stats --}}
+            <div class="row g-3 mb-4">
+                <div class="col-md-3 col-6">
+                    <div class="card border-0 shadow-sm text-center">
+                        <div class="card-body py-3">
+                            <h4 class="mb-0 text-primary">{{ $statistics['total_jobs'] }}</h4>
+                            <small class="text-muted">Total Jobs</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card border-0 shadow-sm text-center">
+                        <div class="card-body py-3">
+                            <h4 class="mb-0 text-success">{{ $statistics['completed_jobs'] }}</h4>
+                            <small class="text-muted">Completed</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card border-0 shadow-sm text-center">
+                        <div class="card-body py-3">
+                            <h4 class="mb-0 text-warning">{{ $statistics['pending_jobs'] }}</h4>
+                            <small class="text-muted">Pending</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card border-0 shadow-sm text-center">
+                        <div class="card-body py-3">
+                            <h4 class="mb-0 text-info">{{ $statistics['sla_compliance']['rate'] }}%</h4>
+                            <small class="text-muted">SLA Rate</small>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <canvas id="weeklyChart" height="100"></canvas>
-            </div>
-        </div>
 
-        {{-- Recent Jobs --}}
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white">
-                <h6 class="mb-0">
-                    <i class="bi bi-clipboard-check me-2 text-info"></i>Recent Jobs
-                </h6>
+            {{-- Performance Chart --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Weekly Performance</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="performanceChart" height="200"></canvas>
+                </div>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Job Number</th>
-                                <th>Client</th>
-                                <th>Type</th>
-                                <th>Status</th>
-                                <th>Date</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($recentJobs ?? [] as $job)
-                            <tr>
-                                <td>
-                                    <span class="fw-medium">{{ $job->job_number }}</span>
-                                </td>
-                                <td>{{ $job->client_name ?? '-' }}</td>
-                                <td>
-                                    <span class="badge bg-secondary">{{ $job->job_type }}</span>
-                                </td>
-                                <td>
-                                    @php
-                                        $statusClass = match($job->status) {
-                                            'completed' => 'success',
-                                            'in_progress' => 'primary',
-                                            'assigned' => 'info',
-                                            'pending_assignment' => 'warning',
-                                            'cancelled' => 'danger',
-                                            default => 'secondary'
-                                        };
-                                    @endphp
-                                    <span class="badge bg-{{ $statusClass }}">
-                                        {{ ucfirst(str_replace('_', ' ', $job->status)) }}
-                                    </span>
-                                </td>
-                                <td>{{ \Carbon\Carbon::parse($job->scheduled_date)->format('d M Y') }}</td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-4">
-                                    <i class="bi bi-clipboard fs-2 mb-2 opacity-50"></i>
-                                    <p class="mb-0">No jobs found</p>
-                                </td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+
+            {{-- Recent Jobs --}}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-briefcase me-2"></i>Recent Jobs</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Job #</th>
+                                    <th>Client</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($recentJobs as $job)
+                                    <tr>
+                                        <td>{{ $job->job_number }}</td>
+                                        <td>{{ $job->client_name }}</td>
+                                        <td>{{ \Carbon\Carbon::parse($job->scheduled_date)->format('d M Y') }}</td>
+                                        <td><span class="badge bg-secondary">{{ ucfirst(str_replace('_', ' ', $job->status)) }}</span></td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">No jobs found</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -251,36 +152,29 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Weekly Performance Chart
-    new Chart(document.getElementById('weeklyChart').getContext('2d'), {
-        type: 'bar',
-        data: {
-            labels: {!! json_encode($chartData['labels'] ?? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) !!},
-            datasets: [{
-                label: 'Jobs Completed',
-                data: {!! json_encode($chartData['data'] ?? [0, 0, 0, 0, 0, 0, 0]) !!},
-                backgroundColor: 'rgba(13, 110, 253, 0.8)',
-                borderColor: 'rgba(13, 110, 253, 1)',
-                borderWidth: 1,
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { stepSize: 1 }
-                }
+    var ctx = document.getElementById('performanceChart');
+    if (ctx) {
+        new Chart(ctx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: {!! json_encode($chartData['labels']) !!},
+                datasets: [{
+                    label: 'Completed Jobs',
+                    data: {!! json_encode($chartData['data']) !!},
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
             },
-            plugins: {
-                legend: { display: false }
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                plugins: { legend: { display: false } }
             }
-        }
-    });
+        });
+    }
 });
 </script>
 @endpush

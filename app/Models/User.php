@@ -22,8 +22,6 @@ class User extends Authenticatable
 
     /**
      * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
      */
     protected $fillable = [
         'employee_id',
@@ -55,8 +53,6 @@ class User extends Authenticatable
 
     /**
      * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
      */
     protected $hidden = [
         'password',
@@ -65,8 +61,6 @@ class User extends Authenticatable
 
     /**
      * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
      */
     protected function casts(): array
     {
@@ -257,7 +251,11 @@ class User extends Authenticatable
         return $query->whereNotNull('supervisor_id');
     }
 
-    public function scopeIndependent($query)
+    /**
+     * Scope: Unassigned technicians (need supervisor assignment)
+     * NOTE: These technicians are in an invalid state and need to be assigned ASAP.
+     */
+    public function scopeUnassigned($query)
     {
         return $query->whereNull('supervisor_id')->role('technician');
     }
@@ -304,11 +302,6 @@ class User extends Authenticatable
     public function getIsAdminAttribute(): bool
     {
         return $this->hasRole('admin');
-    }
-
-    public function getIsIndependentAttribute(): bool
-    {
-        return $this->is_technician && is_null($this->supervisor_id);
     }
 
     public function getTeamMembersAttribute()
@@ -368,7 +361,7 @@ class User extends Authenticatable
     /**
      * Get effective mileage rate.
      * For technicians with a supervisor, returns the supervisor's rate.
-     * For supervisors and independent technicians, returns own rate.
+     * For supervisors, returns own rate.
      */
     public function getEffectiveMileageRateAttribute(): ?string
     {

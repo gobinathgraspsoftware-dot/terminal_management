@@ -213,8 +213,6 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/assign', 'assign')->name('assign');
         Route::post('/bulk-assign', 'bulkAssign')->name('bulk-assign');
         Route::get('/ajax/supervisors', 'supervisorsList')->name('ajax.supervisors');
-        Route::get('/ajax/independent', 'independentList')->name('ajax.independent');
-        Route::post('/{user}/remove', 'remove')->name('remove');
         Route::get('/{user}', 'show')->name('show');
         Route::get('/{user}/stats', 'stats')->name('stats');
 

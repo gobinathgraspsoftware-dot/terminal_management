@@ -16,10 +16,28 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
 
+/**
+ * Admin TeamController
+ *
+ * Handles team management for Admin users:
+ * - View all teams (supervisors + their technicians)
+ * - Assign technicians to supervisors (mandatory)
+ * - Bulk assign technicians
+ * - View team statistics
+ *
+ * NOTE: Independent technicians are NOT supported.
+ *       All technicians MUST have a supervisor assigned.
+ *       Supervisors can operate without technicians.
+ *
+ * @package App\Http\Controllers\Admin
+ */
 class TeamController extends Controller implements HasMiddleware
 {
     protected TeamService $teamService;
 
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
     public static function middleware(): array
     {
         return [
@@ -34,192 +52,121 @@ class TeamController extends Controller implements HasMiddleware
     }
 
     /**
-     * Display admin team management dashboard.
+     * Display team management dashboard.
      */
     public function index(Request $request): View
     {
-        $currentView = $request->query('view', 'all');
-
-        $supervisors = User::role('supervisor')
-            ->withCount(['technicians' => fn($q) => $q->where('status', 'active')])
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get();
-
-        $independentTechnicians = User::role('technician')
-            ->whereNull('supervisor_id')
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get();
-
-        $allTechnicians = User::role('technician')
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get();
+        $view = $request->get('view', 'all');
 
         $statistics = $this->teamService->getTeamStatistics();
 
-        return view('admin.teams.index', compact(
-            'supervisors', 'independentTechnicians', 'allTechnicians', 'statistics', 'currentView'
-        ));
+        $supervisors = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
+            ->where('status', 'active')
+            ->withCount(['technicians' => fn($q) => $q->where('status', 'active')])
+            ->with(['technicians' => fn($q) => $q->where('status', 'active')->with('roles')])
+            ->orderBy('name')
+            ->get();
+
+        // Unassigned technicians — these need to be assigned to a supervisor
+        $unassignedTechnicians = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))
+            ->whereNull('supervisor_id')
+            ->where('status', 'active')
+            ->get();
+
+        return view('admin.teams.index', compact('statistics', 'supervisors', 'unassignedTechnicians', 'view'));
     }
 
     /**
-     * Get datatable data based on view type.
-     *
-     * KEY FIX: Uses whereHas('roles') instead of Spatie's role() scope.
-     * Spatie's role() does a JOIN on roles/model_has_roles tables, creating
-     * ambiguous `name` column (users.name vs roles.name). This causes
-     * "Column 'name' in order clause is ambiguous" SQL errors.
+     * DataTable for team members.
      */
     public function datatable(Request $request): JsonResponse
     {
-        try {
-            $view = $request->get('view', 'all');
+        $view = $request->get('view', 'all');
 
-            if ($view === 'supervisors') {
-                return $this->supervisorsDatatable($request);
-            }
-
-            // Use whereHas instead of role() to avoid JOIN ambiguity
-            $query = User::whereHas('roles', function ($q) {
-                    $q->where('roles.name', 'technician');
-                })
-                ->with(['supervisor:id,name'])
-                ->select('users.*');
-
-            // Apply view-based filtering
-            switch ($view) {
-                case 'technicians':
-                    $query->whereNotNull('users.supervisor_id');
-                    break;
-                case 'independent':
-                    $query->whereNull('users.supervisor_id');
-                    break;
-            }
-
-            return DataTables::of($query)
-                ->addColumn('supervisor_name', function ($user) {
-                    if ($user->supervisor) {
-                        return e($user->supervisor->name);
-                    }
-                    return '<span class="badge bg-warning text-dark">Independent</span>';
-                })
-                ->addColumn('status_badge', function ($user) {
-                    $class = $user->status === 'active' ? 'success' : 'secondary';
-                    return '<span class="badge bg-' . $class . '">' . ucfirst($user->status) . '</span>';
-                })
-                ->addColumn('coverage', function ($user) {
-                    $states = $user->coverage_states;
-                    if (is_string($states)) {
-                        $states = json_decode($states, true);
-                    }
-                    if (is_array($states) && count($states) > 0) {
-                        return e(implode(', ', array_slice($states, 0, 3)));
-                    }
-                    return '-';
-                })
-                ->addColumn('actions', function ($user) {
-                    $html = '<div class="btn-group btn-group-sm">';
-                    $html .= '<a href="' . route('admin.teams.show', $user->id) . '" class="btn btn-info" title="View"><i class="bi bi-eye"></i></a>';
-                    $html .= '<button class="btn btn-primary reassign-btn" data-id="' . $user->id . '" data-name="' . e($user->name) . '" data-supervisor="' . ($user->supervisor_id ?? '') . '" title="Reassign"><i class="bi bi-arrow-left-right"></i></button>';
-                    if ($user->supervisor_id) {
-                        $html .= '<button class="btn btn-warning remove-btn" data-id="' . $user->id . '" data-name="' . e($user->name) . '" title="Remove"><i class="bi bi-person-dash"></i></button>';
-                    }
-                    $html .= '</div>';
-                    return $html;
-                })
-                ->filter(function ($query) use ($request) {
-                    if ($search = $request->input('search.value')) {
-                        $query->where(function ($q) use ($search) {
-                            $q->where('users.name', 'like', "%{$search}%")
-                              ->orWhere('users.employee_id', 'like', "%{$search}%");
-                        });
-                    }
-                    if ($request->filled('supervisor_id')) {
-                        if ($request->supervisor_id === 'independent') {
-                            $query->whereNull('users.supervisor_id');
-                        } else {
-                            $query->where('users.supervisor_id', $request->supervisor_id);
-                        }
-                    }
-                    if ($request->filled('status')) {
-                        $query->where('users.status', $request->status);
-                    }
-                })
-                ->orderColumn('employee_id', fn($query, $order) => $query->orderBy('users.employee_id', $order))
-                ->orderColumn('name', fn($query, $order) => $query->orderBy('users.name', $order))
-                ->orderColumn('status', fn($query, $order) => $query->orderBy('users.status', $order))
-                ->rawColumns(['supervisor_name', 'status_badge', 'actions'])
-                ->make(true);
-
-        } catch (\Exception $e) {
-            \Log::error('Team DataTable Error: ' . $e->getMessage(), [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ]);
-
-            // Return valid DataTable JSON so no browser alert popup
-            return response()->json([
-                'draw' => (int) $request->input('draw', 1),
-                'recordsTotal' => 0,
-                'recordsFiltered' => 0,
-                'data' => [],
-                'error' => config('app.debug') ? $e->getMessage() : 'Failed to load data.',
-            ]);
+        // For supervisors view - return supervisor data
+        if ($view === 'supervisors') {
+            return $this->supervisorsDatatable($request);
         }
+
+        // For technicians view - all technicians (all must have supervisor)
+        $query = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))
+            ->with(['roles', 'supervisor'])
+            ->select('users.*');
+
+        // Filter by supervisor
+        if ($request->supervisor_id) {
+            $query->where('supervisor_id', $request->supervisor_id);
+        }
+
+        // Filter unassigned (needs attention)
+        if ($view === 'unassigned') {
+            $query->whereNull('supervisor_id');
+        }
+
+        return DataTables::of($query)
+            ->addColumn('role', fn($user) => '<span class="badge bg-success">Technician</span>')
+            ->addColumn('supervisor_name', fn($user) => $user->supervisor
+                ? '<span class="text-primary">' . e($user->supervisor->name) . '</span>'
+                : '<span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Unassigned</span>')
+            ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . ($user->status == 'active' ? 'success' : 'secondary') . '">' . ucfirst($user->status) . '</span>')
+            ->addColumn('coverage', function($user) {
+                $states = is_array($user->coverage_states) ? $user->coverage_states : (is_string($user->coverage_states) ? json_decode($user->coverage_states, true) : null);
+                return !empty($states) && is_array($states) ? implode(', ', $states) : '-';
+            })
+            ->addColumn('actions', function($user) {
+                $actions = '<div class="d-flex align-items-center gap-1 flex-nowrap">';
+                $actions .= '<a href="' . route('admin.teams.show', $user->id) . '" class="btn btn-sm btn-info" title="View"><i class="bi bi-eye"></i></a>';
+                $actions .= '<button type="button" class="btn btn-sm btn-primary reassign-technician" data-id="' . $user->id . '" data-name="' . e($user->name) . '" data-supervisor="' . ($user->supervisor_id ?? '') . '" title="Reassign"><i class="bi bi-arrow-left-right"></i></button>';
+                $actions .= '</div>';
+                return $actions;
+            })
+            ->filter(function($query) use ($request) {
+                if ($search = $request->search['value'] ?? null) {
+                    $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('employee_id', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%"));
+                }
+                if ($request->status) {
+                    $query->where('status', $request->status);
+                }
+            })
+            ->rawColumns(['role', 'supervisor_name', 'status_badge', 'actions'])
+            ->make(true);
     }
 
     /**
-     * Get supervisors datatable.
+     * Supervisors datatable.
      */
     protected function supervisorsDatatable(Request $request): JsonResponse
     {
-        $query = User::whereHas('roles', function ($q) {
-                $q->where('roles.name', 'supervisor');
-            })
+        $query = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
             ->withCount(['technicians' => fn($q) => $q->where('status', 'active')])
             ->select('users.*');
 
         return DataTables::of($query)
-            ->addColumn('team_count', function ($user) {
-                return '<span class="badge bg-primary">' . ($user->technicians_count ?? 0) . ' members</span>';
+            ->addColumn('role', fn($user) => '<span class="badge bg-primary">Supervisor</span>')
+            ->addColumn('team_size', fn($user) => '<span class="badge bg-info">' . $user->technicians_count . ' members</span>')
+            ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . ($user->status == 'active' ? 'success' : 'secondary') . '">' . ucfirst($user->status) . '</span>')
+            ->addColumn('coverage', function($user) {
+                $states = is_array($user->coverage_states) ? $user->coverage_states : (is_string($user->coverage_states) ? json_decode($user->coverage_states, true) : null);
+                return !empty($states) && is_array($states) ? implode(', ', $states) : '-';
             })
-            ->addColumn('status_badge', function ($user) {
-                $class = $user->status === 'active' ? 'success' : 'secondary';
-                return '<span class="badge bg-' . $class . '">' . ucfirst($user->status) . '</span>';
+            ->addColumn('actions', function($user) {
+                $actions = '<div class="d-flex align-items-center gap-1 flex-nowrap">';
+                $actions .= '<a href="' . route('admin.teams.show', $user->id) . '" class="btn btn-sm btn-info" title="View"><i class="bi bi-eye"></i></a>';
+                $actions .= '</div>';
+                return $actions;
             })
-            ->addColumn('coverage', function ($user) {
-                $states = $user->coverage_states;
-                if (is_string($states)) {
-                    $states = json_decode($states, true);
+            ->filter(function($query) use ($request) {
+                if ($search = $request->search['value'] ?? null) {
+                    $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('employee_id', 'like', "%{$search}%"));
                 }
-                if (is_array($states) && count($states) > 0) {
-                    return e(implode(', ', array_slice($states, 0, 3)));
-                }
-                return '-';
-            })
-            ->addColumn('actions', function ($user) {
-                $html = '<div class="btn-group btn-group-sm">';
-                $html .= '<a href="' . route('admin.teams.index') . '?supervisor=' . $user->id . '" class="btn btn-info" title="View Team"><i class="bi bi-people"></i></a>';
-                $html .= '<a href="' . route('admin.users.show', $user->id) . '" class="btn btn-secondary" title="Profile"><i class="bi bi-person"></i></a>';
-                $html .= '</div>';
-                return $html;
-            })
-            ->filter(function ($query) use ($request) {
-                if ($search = $request->input('search.value')) {
-                    $query->where(function ($q) use ($search) {
-                        $q->where('users.name', 'like', "%{$search}%")
-                          ->orWhere('users.employee_id', 'like', "%{$search}%");
-                    });
-                }
-                if ($request->filled('status')) {
-                    $query->where('users.status', $request->status);
+                if ($request->status) {
+                    $query->where('status', $request->status);
                 }
             })
-            ->orderColumn('employee_id', fn($query, $order) => $query->orderBy('users.employee_id', $order))
-            ->orderColumn('name', fn($query, $order) => $query->orderBy('users.name', $order))
-            ->rawColumns(['team_count', 'status_badge', 'actions'])
+            ->rawColumns(['role', 'team_size', 'status_badge', 'actions'])
             ->make(true);
     }
 
@@ -228,7 +175,8 @@ class TeamController extends Controller implements HasMiddleware
      */
     public function show(User $user): View|JsonResponse
     {
-        $user->load(['supervisor:id,name', 'roles']);
+        $user->load(['roles', 'supervisor', 'technicians']);
+
         $statistics = $this->teamService->getMemberStatistics($user);
         $recentJobs = $this->teamService->getMemberRecentJobs($user);
         $chartData = $this->teamService->getMemberWeeklyPerformance($user);
@@ -252,12 +200,17 @@ class TeamController extends Controller implements HasMiddleware
             ]);
         }
 
-        $supervisors = User::role('supervisor')->where('status', 'active')->orderBy('name')->get();
+        $supervisors = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+
         return view('admin.teams.show', compact('user', 'statistics', 'recentJobs', 'chartData', 'assignmentHistory', 'supervisors'));
     }
 
     /**
      * Assign single technician to supervisor.
+     * supervisor_id is REQUIRED — no independent technicians allowed.
      */
     public function assign(AssignTechnicianRequest $request): JsonResponse
     {
@@ -272,11 +225,11 @@ class TeamController extends Controller implements HasMiddleware
 
             DB::commit();
 
-            $message = $request->supervisor_id
-                ? "Assigned to " . User::find($request->supervisor_id)->name
-                : "Now independent";
-
-            return response()->json(['success' => true, 'message' => $message]);
+            $supervisorName = User::find($request->supervisor_id)->name;
+            return response()->json([
+                'success' => true,
+                'message' => "{$technician->name} assigned to {$supervisorName}"
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
@@ -285,6 +238,7 @@ class TeamController extends Controller implements HasMiddleware
 
     /**
      * Bulk assign technicians to supervisor.
+     * supervisor_id is REQUIRED — no independent technicians allowed.
      */
     public function bulkAssign(BulkAssignRequest $request): JsonResponse
     {
@@ -304,35 +258,12 @@ class TeamController extends Controller implements HasMiddleware
 
             DB::commit();
 
-            $message = $request->supervisor_id
-                ? "{$count} technician(s) assigned to " . User::find($request->supervisor_id)->name
-                : "{$count} technician(s) now independent";
-
-            return response()->json(['success' => true, 'message' => $message, 'count' => $count]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * Remove technician from team.
-     */
-    public function remove(User $user): JsonResponse
-    {
-        try {
-            if (!$user->hasRole('technician')) {
-                return response()->json(['success' => false, 'message' => 'Not a technician'], 422);
-            }
-
-            $oldSupervisorId = $user->supervisor_id;
-
-            DB::beginTransaction();
-            $user->update(['supervisor_id' => null]);
-            $this->teamService->logTeamChange($user, $oldSupervisorId, null, Auth::user());
-            DB::commit();
-
-            return response()->json(['success' => true, 'message' => "{$user->name} is now independent"]);
+            $supervisorName = User::find($request->supervisor_id)->name;
+            return response()->json([
+                'success' => true,
+                'message' => "{$count} technician(s) assigned to {$supervisorName}",
+                'count' => $count
+            ]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
@@ -356,7 +287,7 @@ class TeamController extends Controller implements HasMiddleware
      */
     public function supervisorsList(Request $request): JsonResponse
     {
-        $query = User::role('supervisor')
+        $query = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
             ->where('status', 'active')
             ->withCount(['technicians' => fn($q) => $q->where('status', 'active')]);
 
@@ -365,19 +296,5 @@ class TeamController extends Controller implements HasMiddleware
         }
 
         return response()->json(['success' => true, 'supervisors' => $query->orderBy('name')->limit(50)->get()]);
-    }
-
-    /**
-     * Get independent technicians list.
-     */
-    public function independentList(Request $request): JsonResponse
-    {
-        $query = User::role('technician')->whereNull('supervisor_id')->where('status', 'active');
-
-        if ($search = $request->search) {
-            $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")->orWhere('employee_id', 'like', "%{$search}%"));
-        }
-
-        return response()->json(['success' => true, 'technicians' => $query->orderBy('name')->limit(50)->get()]);
     }
 }

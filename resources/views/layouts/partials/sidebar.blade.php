@@ -113,12 +113,6 @@
                             <i class="bi bi-person-gear me-2"></i> Technicians
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isTeamRoute && $currentView === 'independent' ? 'active' : '' }}"
-                           href="{{ route('admin.teams.index') }}?view=independent">
-                            <i class="bi bi-person-dash me-2"></i> Independent
-                        </a>
-                    </li>
                 </ul>
             </div>
 
