@@ -14,22 +14,13 @@ use Illuminate\View\View;
 use Yajra\DataTables\Facades\DataTables;
 
 /**
- * Supervisor TeamController
- *
- * Handles team viewing for Supervisor users (READ-ONLY):
- * - View own team members only
- * - View team statistics
- * - View member performance
- *
- * @package App\Http\Controllers\Supervisor
+ * Supervisor TeamController — READ-ONLY team view.
+ * Single consolidated page with DataTable + stats.
  */
 class TeamController extends Controller implements HasMiddleware
 {
     protected TeamService $teamService;
 
-    /**
-     * Get the middleware that should be assigned to the controller.
-     */
     public static function middleware(): array
     {
         return [
@@ -44,52 +35,73 @@ class TeamController extends Controller implements HasMiddleware
     }
 
     /**
-     * Display supervisor's own team dashboard.
+     * My Team — single consolidated page.
      */
     public function index(): View
     {
         $currentUser = Auth::user();
-
-        $teamMembers = User::where('supervisor_id', $currentUser->id)
-            ->with(['roles'])
-            ->orderBy('name')
-            ->get();
-
         $teamStats = $this->teamService->getSupervisorTeamStats($currentUser);
         $teamPerformance = $this->teamService->getTeamPerformance($currentUser);
 
-        return view('supervisor.teams.index', compact('teamMembers', 'teamStats', 'teamPerformance'));
+        return view('supervisor.teams.index', compact('teamStats', 'teamPerformance'));
     }
 
     /**
-     * Get own team datatable.
+     * Server-side DataTable for team members.
      */
     public function datatable(Request $request): JsonResponse
     {
         $currentUser = Auth::user();
 
-        $query = User::where('supervisor_id', $currentUser->id)->select('users.*');
+        $query = User::where('supervisor_id', $currentUser->id)
+            ->select('users.*');
 
         return DataTables::of($query)
-            ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . ($user->status == 'active' ? 'success' : 'secondary') . '">' . ucfirst($user->status) . '</span>')
-            ->addColumn('coverage', function($user) {
+            ->addColumn('avatar', function ($user) {
+                $url = $user->avatar
+                    ? asset('storage/' . $user->avatar)
+                    : 'https://ui-avatars.com/api/?name=' . urlencode(substr($user->name, 0, 1)) . '&size=36&background=random&color=fff';
+                return '<img src="' . $url . '" class="rounded-circle" style="width:36px;height:36px;object-fit:cover;">';
+            })
+            ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . match($user->status) {
+                'active' => 'success', 'inactive' => 'secondary', 'suspended' => 'danger', default => 'warning'
+            } . '">' . ucfirst($user->status) . '</span>')
+            ->addColumn('coverage', function ($user) {
                 $states = is_array($user->coverage_states) ? $user->coverage_states : (is_string($user->coverage_states) ? json_decode($user->coverage_states, true) : null);
-                return !empty($states) && is_array($states) ? implode(', ', $states) : '-';
+                if (empty($states) || !is_array($states)) return '<span class="text-muted">-</span>';
+                $html = '';
+                foreach (array_slice($states, 0, 2) as $s) {
+                    $html .= '<span class="badge bg-light text-dark me-1">' . e($s) . '</span>';
+                }
+                if (count($states) > 2) {
+                    $html .= '<span class="badge bg-light text-dark">+' . (count($states) - 2) . '</span>';
+                }
+                return $html;
             })
-            ->addColumn('skills', function($user) {
+            ->addColumn('skills', function ($user) {
                 $tags = is_array($user->skill_tags) ? $user->skill_tags : (is_string($user->skill_tags) ? json_decode($user->skill_tags, true) : null);
-                return !empty($tags) && is_array($tags) ? implode(', ', array_slice($tags, 0, 3)) : '-';
+                if (empty($tags) || !is_array($tags)) return '<span class="text-muted">-</span>';
+                $html = '';
+                foreach (array_slice($tags, 0, 2) as $t) {
+                    $html .= '<span class="badge bg-info bg-opacity-10 text-info me-1">' . e($t) . '</span>';
+                }
+                if (count($tags) > 2) {
+                    $html .= '<span class="badge bg-info bg-opacity-10 text-info">+' . (count($tags) - 2) . '</span>';
+                }
+                return $html;
             })
-            ->addColumn('actions', fn($user) => '<a href="' . route('supervisor.teams.show', $user->id) . '" class="btn btn-sm btn-info"><i class="bi bi-eye"></i> View</a>')
-            ->filter(function($query) use ($request) {
+            ->addColumn('actions', fn($user) => '<a href="' . route('supervisor.teams.show', $user->id) . '" class="btn btn-sm btn-outline-info" data-bs-toggle="tooltip" title="View Details"><i class="bi bi-eye"></i></a>')
+            ->filter(function ($query) use ($request) {
                 if ($search = $request->search['value'] ?? null) {
-                    $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")->orWhere('employee_id', 'like', "%{$search}%"));
+                    $query->where(fn($q) => $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('employee_id', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%"));
                 }
                 if ($request->status) {
                     $query->where('status', $request->status);
                 }
             })
-            ->rawColumns(['status_badge', 'actions'])
+            ->rawColumns(['avatar', 'status_badge', 'coverage', 'skills', 'actions'])
             ->make(true);
     }
 
@@ -100,7 +112,6 @@ class TeamController extends Controller implements HasMiddleware
     {
         $currentUser = Auth::user();
 
-        // Authorization - only own team members
         if ($user->supervisor_id !== $currentUser->id) {
             if (request()->ajax()) {
                 return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
@@ -134,20 +145,13 @@ class TeamController extends Controller implements HasMiddleware
     }
 
     /**
-     * Get own team statistics.
+     * Team statistics API.
      */
     public function stats(): JsonResponse
     {
-        $currentUser = Auth::user();
-        return response()->json(['success' => true, 'statistics' => $this->teamService->getSupervisorTeamStats($currentUser)]);
-    }
-
-    /**
-     * Get team performance chart data.
-     */
-    public function performance(): JsonResponse
-    {
-        $currentUser = Auth::user();
-        return response()->json(['success' => true, 'performance' => $this->teamService->getTeamPerformance($currentUser)]);
+        return response()->json([
+            'success' => true,
+            'statistics' => $this->teamService->getSupervisorTeamStats(Auth::user())
+        ]);
     }
 }

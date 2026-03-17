@@ -624,7 +624,7 @@
                 <small class="text-muted text-uppercase fw-bold px-3">Team Management</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
-                        <a class="nav-link {{ $isTeamRoute && ($currentView === '' || $currentView === 'all') ? 'active' : '' }}"
+                        <a class="nav-link {{ $isTeamRoute ? 'active' : '' }}"
                            href="{{ route('supervisor.teams.index') }}">
                             <i class="bi bi-people-fill me-2"></i> My Team
                             @php
@@ -633,18 +633,6 @@
                             @if($teamCount > 0)
                                 <span class="badge bg-primary ms-auto">{{ $teamCount }}</span>
                             @endif
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isTeamRoute && $currentView === 'performance' ? 'active' : '' }}"
-                           href="{{ route('supervisor.teams.index') }}?view=performance">
-                            <i class="bi bi-graph-up-arrow me-2"></i> Team Performance
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isTeamRoute && $currentView === 'coverage' ? 'active' : '' }}"
-                           href="{{ route('supervisor.teams.index') }}?view=coverage">
-                            <i class="bi bi-geo-alt me-2"></i> Coverage Areas
                         </a>
                     </li>
                 </ul>
