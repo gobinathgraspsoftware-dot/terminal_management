@@ -17,16 +17,23 @@ class ClaimManagementService
     // ══════════════════════════════════════
 
     /**
-     * Create a claim from a completed ticket
+     * Create a claim from a completed ticket.
+     *
+     * Called automatically by TicketService when a ticket transitions to
+     * done_success or done_fail. Uses ticket data directly — no user form input.
      *
      * @param Ticket $ticket
-     * @param array  $data  Optional overrides (from admin form)
+     * @param array  $data  Optional overrides (legacy — kept for backward compat)
      * @return Claim
      */
     public function createTicketClaim(Ticket $ticket, array $data = []): Claim
     {
         return DB::transaction(function () use ($ticket, $data) {
             $claimNo = NumberSeries::getNextNumber('ticket_claim');
+
+            // Determine who triggered the claim:
+            // If called via HTTP (Auth::id() available) use that, otherwise use ticket's technician
+            $triggeredBy = Auth::id() ?? $ticket->technician_id;
 
             $claim = Claim::create([
                 'claim_no'              => $claimNo,
@@ -43,8 +50,8 @@ class ClaimManagementService
                 'remarks'               => $data['remarks'] ?? $ticket->mileage_remarks,
                 'status'                => Claim::STATUS_SUBMITTED,
                 'submitted_at'          => now(),
-                'submitted_by'          => Auth::id(),
-                'created_by'            => Auth::id(),
+                'submitted_by'          => $triggeredBy,
+                'created_by'            => $triggeredBy,
             ]);
 
             return $claim;

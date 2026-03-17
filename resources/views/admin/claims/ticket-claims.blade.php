@@ -16,11 +16,6 @@
             </nav>
         </div>
         <div class="d-flex gap-2">
-            @can('create_claims')
-            <a href="{{ route('admin.claims.create-ticket-claim') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i> Create Ticket Claim
-            </a>
-            @endcan
             @can('export_claims')
             <a href="{{ route('admin.claims.export', ['category' => 'ticket']) }}" class="btn btn-outline-success">
                 <i class="bi bi-download me-1"></i> Export

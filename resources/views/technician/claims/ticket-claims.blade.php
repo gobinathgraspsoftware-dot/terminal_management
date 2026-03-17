@@ -15,9 +15,6 @@
                 </ol>
             </nav>
         </div>
-        <a href="{{ route('technician.claims.create-ticket-claim') }}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-circle me-1"></i> New Ticket Claim
-        </a>
     </div>
 
     <div class="card">

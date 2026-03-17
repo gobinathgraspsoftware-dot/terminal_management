@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Claim;
 use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\TicketProof;
@@ -210,8 +211,43 @@ class TicketService
             // Upload proof files
             $this->uploadProofs($ticket, $history, $proofFiles);
 
+            // ── Auto-create Ticket Claim on completion ──
+            if (in_array($newStatus, [Ticket::STATUS_DONE_SUCCESS, Ticket::STATUS_DONE_FAIL])) {
+                $this->autoCreateTicketClaim($ticket);
+            }
+
             return $ticket->fresh();
         });
+    }
+
+    /**
+     * Auto-create a ticket claim when ticket is completed (done_success / done_fail).
+     * Only creates if total_claim_amount > 0 and no claim already exists for this ticket.
+     */
+    protected function autoCreateTicketClaim(Ticket $ticket): void
+    {
+        try {
+            // Skip if no claim amount
+            $totalClaim = (float) ($ticket->total_claim_amount ?? 0);
+            if ($totalClaim <= 0) {
+                return;
+            }
+
+            // Skip if a ticket claim already exists for this ticket
+            $exists = Claim::ticketClaims()->where('ticket_id', $ticket->id)->exists();
+            if ($exists) {
+                return;
+            }
+
+            // Use the ClaimManagementService to create the ticket claim
+            $claimService = app(ClaimManagementService::class);
+            $claimService->createTicketClaim($ticket);
+
+            Log::info("Auto-created ticket claim for Ticket #{$ticket->ticket_no}");
+        } catch (\Exception $e) {
+            // Log error but do NOT break the ticket status change
+            Log::error("Failed to auto-create ticket claim for Ticket #{$ticket->ticket_no}: " . $e->getMessage());
+        }
     }
 
     /**
