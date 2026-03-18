@@ -144,13 +144,13 @@
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">State <span class="text-danger">*</span></label>
-                        <select name="state_id" id="stateSelect" class="form-select" required>
+                        <select name="state_id" id="stateSelect" class="form-select">
                             <option value="">Select State</option>
                         </select>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">District / City <span class="text-danger">*</span></label>
-                        <select name="city_id" id="citySelect" class="form-select" required>
+                        <select name="city_id" id="citySelect" class="form-select">
                             <option value="">Select City</option>
                         </select>
                         <div class="form-text">Cities will load based on selected state</div>
@@ -210,7 +210,7 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Supervisor <span class="text-danger">*</span></label>
-                    <select name="supervisor_id" id="supervisorSelect" class="form-select" required>
+                    <select name="supervisor_id" id="supervisorSelect" class="form-select">
                         <option value="">Select State & City first to filter supervisors</option>
                     </select>
                     <div class="form-text">
@@ -397,18 +397,26 @@ $(document).ready(function() {
             enableLocationFields(); clearInheritedInfo(); applyMileageReadonly();
             $('#mileageHelp').text('Set the mileage rate for this supervisor and their team');
             updatePricingInfo();
+            // Toggle required: supervisor needs location, NOT supervisor_id
+            $('#stateSelect, #citySelect').prop('required', true);
+            $('#supervisorSelect').prop('required', false);
         } else if (role === 'technician') {
             $('#supervisorTypeField, #pricingSection').addClass('d-none');
             $('#supervisorTypeSelect').val('');
             $('#locationSection, #technicianSection, #bankSection').removeClass('d-none');
             $('#mileageHelp').text('Mileage rate is managed by the supervisor (read-only)');
             enableLocationFields(); applyMileageReadonly(); initSupervisorSelect2();
+            // Toggle required: technician needs supervisor + location
+            $('#stateSelect, #citySelect').prop('required', true);
+            $('#supervisorSelect').prop('required', true);
         } else {
             $('#supervisorTypeField, #pricingSection, #locationSection, #technicianSection, #bankSection').addClass('d-none');
             $('#supervisorTypeSelect').val('');
             enableLocationFields(); clearInheritedInfo();
             $('#stateSelect, #citySelect').val(null).trigger('change');
             $('#mileageRate').val('');
+            // Toggle required: admin needs none of these
+            $('#stateSelect, #citySelect, #supervisorSelect').prop('required', false);
         }
     });
 

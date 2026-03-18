@@ -126,13 +126,13 @@
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">State <span class="text-danger">*</span></label>
-                        <select name="state_id" id="stateSelect" class="form-select" required>
+                        <select name="state_id" id="stateSelect" class="form-select">
                             @if($user->state)<option value="{{ $user->state_id }}" selected>{{ $user->state->name }}</option>@else<option value="">Select State</option>@endif
                         </select>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">District / City <span class="text-danger">*</span></label>
-                        <select name="city_id" id="citySelect" class="form-select" required>
+                        <select name="city_id" id="citySelect" class="form-select">
                             @if($user->city)<option value="{{ $user->city_id }}" selected>{{ $user->city->name }} ({{ $user->city->postcode }})</option>@else<option value="">Select City</option>@endif
                         </select>
                     </div>
@@ -191,7 +191,7 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Supervisor <span class="text-danger">*</span></label>
-                    <select name="supervisor_id" id="supervisorSelect" class="form-select" required>
+                    <select name="supervisor_id" id="supervisorSelect" class="form-select">
                         @if($user->supervisor)
                             <option value="{{ $user->supervisor_id }}" selected>{{ $user->supervisor->name }} ({{ $user->supervisor->employee_id }})</option>
                         @else
@@ -287,11 +287,16 @@ $(document).ready(function() {
     // If editing a technician, init supervisor select2
     @if($isTechnician)
         initSupervisorSelect2();
+        $('#supervisorSelect').prop('required', true);
+        $('#stateSelect, #citySelect').prop('required', true);
         @if($hasSupervisor)
             $('#stateSelect').prop('disabled', true);
             $('#citySelect').prop('disabled', true);
             $('#mileageRate').prop('readonly', true);
         @endif
+    @elseif($isSupervisor)
+        $('#stateSelect, #citySelect').prop('required', true);
+        $('#supervisorSelect').prop('required', false);
     @endif
 
     // Supervisor selected — inherit
@@ -358,15 +363,20 @@ $(document).ready(function() {
             $('#supervisorTypeField, #locationSection, #pricingSection').removeClass('d-none');
             $('#technicianSection, #bankSection').addClass('d-none');
             enableLocationFields(); clearInheritedInfo(); applyMileageReadonly(); updatePricingInfo();
+            $('#stateSelect, #citySelect').prop('required', true);
+            $('#supervisorSelect').prop('required', false);
         } else if (role === 'technician') {
             $('#supervisorTypeField, #pricingSection').addClass('d-none');
             $('#supervisorTypeSelect').val('');
             $('#locationSection, #technicianSection, #bankSection').removeClass('d-none');
             enableLocationFields(); applyMileageReadonly(); initSupervisorSelect2();
+            $('#stateSelect, #citySelect').prop('required', true);
+            $('#supervisorSelect').prop('required', true);
         } else {
             $('#supervisorTypeField, #pricingSection, #locationSection, #technicianSection, #bankSection').addClass('d-none');
             $('#supervisorTypeSelect').val('');
             enableLocationFields(); clearInheritedInfo();
+            $('#stateSelect, #citySelect, #supervisorSelect').prop('required', false);
         }
     });
 
