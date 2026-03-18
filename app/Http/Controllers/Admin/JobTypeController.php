@@ -70,33 +70,18 @@ class JobTypeController extends Controller implements HasMiddleware
                 $actions = '';
 
                 if (auth()->user()->can('update', $jobType)) {
-                    $actions .= '<a href="' . route('admin.job-types.edit', $jobType->id) . '"
-                                    class="btn btn-sm btn-primary me-1" title="Edit">
-                                    <i class="bi bi-pencil"></i>
-                                </a>';
+                    $actions .= '<a href="' . route('admin.job-types.edit', $jobType->id) . '" class="btn btn-sm btn-primary me-1" title="Edit"><i class="bi bi-pencil"></i></a>';
 
                     $statusIcon = $jobType->status === JobType::STATUS_ACTIVE
                         ? 'bi-toggle-on text-success' : 'bi-toggle-off text-secondary';
-                    $actions .= '<button type="button"
-                                    class="btn btn-sm btn-outline-secondary me-1 btn-toggle-status"
-                                    data-id="' . $jobType->id . '"
-                                    data-status="' . $jobType->status . '"
-                                    title="Toggle Status">
-                                    <i class="bi ' . $statusIcon . '"></i>
-                                </button>';
+                    $actions .= '<button type="button" class="btn btn-sm btn-outline-secondary me-1 btn-toggle-status" data-id="' . $jobType->id . '" data-status="' . $jobType->status . '" title="Toggle Status"><i class="bi ' . $statusIcon . '"></i></button>';
                 }
 
                 if (auth()->user()->can('delete', $jobType)) {
-                    $actions .= '<button type="button"
-                                    class="btn btn-sm btn-danger btn-delete"
-                                    data-id="' . $jobType->id . '"
-                                    data-name="' . htmlspecialchars($jobType->job_title) . '"
-                                    title="Delete">
-                                    <i class="bi bi-trash"></i>
-                                </button>';
+                    $actions .= '<button type="button" class="btn btn-sm btn-danger btn-delete" data-id="' . $jobType->id . '" data-name="' . htmlspecialchars($jobType->job_title) . '" title="Delete"><i class="bi bi-trash"></i></button>';
                 }
 
-                return $actions ?: '<span class="text-muted">No actions</span>';
+                return $actions ? '<div class="d-flex flex-nowrap gap-1">' . $actions . '</div>' : '<span class="text-muted">No actions</span>';
             })
             ->rawColumns(['status_badge', 'action'])
             ->make(true);
