@@ -83,7 +83,7 @@
                         <th>Description</th>
                         <th width="10%">Status</th>
                         <th width="12%">Created</th>
-                        <th width="15%">Actions</th>
+                        <th width="15%" class="text-nowrap">Actions</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -107,7 +107,16 @@ $(document).ready(function() {
             }
         },
         columns: [
-            { data: 'id', name: 'id' },
+            {
+                data: null,
+                name: 'id',
+                orderable: false,
+                searchable: false,
+                className: 'text-center',
+                render: function(data, type, row, meta) {
+                    return meta.row + meta.settings._iDisplayStart + 1;
+                }
+            },
             { data: 'category_name', name: 'category_name' },
             { data: 'slug', name: 'slug', className: 'text-muted' },
             {
@@ -130,7 +139,7 @@ $(document).ready(function() {
                     });
                 }
             },
-            { data: 'action', name: 'action', orderable: false, searchable: false }
+            { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-nowrap' }
         ],
         order: [[0, 'desc']],
         language: {
