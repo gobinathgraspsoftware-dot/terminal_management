@@ -160,38 +160,23 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
 
     /* User Management Routes */
     Route::controller(UserController::class)->prefix('users')->name('users.')->group(function () {
-
-        // Main CRUD Routes
         Route::get('/', 'index')->name('index');
         Route::get('/datatable', 'datatable')->name('datatable');
         Route::get('/create', 'create')->name('create');
         Route::post('/', 'store')->name('store');
+        Route::get('/export', 'export')->name('export');
+        Route::get('/ajax/list', 'getUsersList')->name('ajax.list');
+        Route::post('/bulk/delete', 'bulkDelete')->name('bulk.delete');
         Route::get('/{user}', 'show')->name('show');
         Route::get('/{user}/edit', 'edit')->name('edit');
         Route::put('/{user}', 'update')->name('update');
         Route::delete('/{user}', 'destroy')->name('destroy');
-
-        // Restore Soft-Deleted User
         Route::post('/{id}/restore', 'restore')->name('restore');
-
-        // Password Management
         Route::post('/{user}/change-password', 'changePassword')->name('change-password');
-
-        // Role & Supervisor Assignment
         Route::post('/{user}/assign-role', 'assignRole')->name('assign-role');
         Route::post('/{user}/assign-supervisor', 'assignSupervisor')->name('assign-supervisor');
-
-        // Status Management
         Route::post('/{user}/toggle-status', 'toggleStatus')->name('toggle-status');
-
-        // AJAX Endpoints
-        Route::get('/ajax/list', 'getUsersList')->name('ajax.list');
-
-        // Bulk Operations
-        Route::post('/bulk/delete', 'bulkDelete')->name('bulk.delete');
-
-        // Export
-        Route::get('/export', 'export')->name('export');
+        Route::get('/{user}/pricing', 'getSupervisorPricing')->name('pricing');
     });
 
     /* Profile Management Routes */

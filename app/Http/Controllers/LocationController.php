@@ -122,6 +122,11 @@ class LocationController extends Controller
             });
         }
 
+        // Filter by supervisor_type (internal/external)
+        if ($request->get('type')) {
+            $query->where('supervisor_type', $request->get('type'));
+        }
+
         $total   = $query->count();
         $results = $query->skip(($page - 1) * $perPage)
                          ->take($perPage)

@@ -37,11 +37,22 @@ class StoreUserRequest extends FormRequest
             // Status
             'status' => ['required', 'string', Rule::in(['active', 'inactive', 'suspended'])],
 
-            // Technician must always have a supervisor — no independent technician option
+            // Supervisor Type (only for supervisor role)
+            'supervisor_type' => [
+                'nullable',
+                'string',
+                Rule::in(['internal', 'external']),
+                'required_if:role,supervisor',
+            ],
+
+            // Technician-specific fields
+            'has_supervisor' => ['nullable', 'boolean'],
+
             'supervisor_id' => [
                 'nullable',
                 'exists:users,id',
-                'required_if:role,technician',
+                'required_if:has_supervisor,1',
+                'required_if:has_supervisor,true',
             ],
 
             'coverage_states' => ['nullable', 'array'],
@@ -54,6 +65,11 @@ class StoreUserRequest extends FormRequest
             'bank_account_no' => ['nullable', 'string', 'max:50'],
             'bank_account_name' => ['nullable', 'string', 'max:255'],
 
+            // Location
+            'state_id' => ['nullable', 'exists:states,id'],
+            'city_id' => ['nullable', 'exists:cities,id'],
+            'mileage_rate' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
+
             // Address
             'address' => ['nullable', 'string', 'max:500'],
 
@@ -61,10 +77,10 @@ class StoreUserRequest extends FormRequest
             'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,gif', 'max:2048'],
             'remove_avatar' => ['nullable', 'boolean'],
 
-            // Location & Mileage
-            'state_id' => ['nullable', 'exists:states,id'],
-            'city_id' => ['nullable', 'exists:cities,id'],
-            'mileage_rate' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
+            // Job Pricing (for supervisor role)
+            'job_pricing' => ['nullable', 'array'],
+            'job_pricing.*' => ['nullable', 'array'],
+            'job_pricing.*.*' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
         ];
     }
 
@@ -85,7 +101,9 @@ class StoreUserRequest extends FormRequest
             'role.required' => 'Please select a role for the user.',
             'role.exists' => 'The selected role is invalid.',
             'status.required' => 'Please select a status.',
-            'supervisor_id.required_if' => 'Please select a supervisor for the technician.',
+            'supervisor_type.required_if' => 'Please select a supervisor type (Internal or External).',
+            'supervisor_type.in' => 'Supervisor type must be Internal or External.',
+            'supervisor_id.required_if' => 'Please select a supervisor when "Assign to Supervisor" is enabled.',
             'supervisor_id.exists' => 'The selected supervisor is invalid.',
             'avatar.image' => 'Avatar must be an image file.',
             'avatar.mimes' => 'Avatar must be a JPG, JPEG, PNG, or GIF file.',
@@ -98,13 +116,24 @@ class StoreUserRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        // If role is not technician, clear supervisor_id
-        if ($this->role !== 'technician') {
+        // Convert has_supervisor checkbox to boolean
+        if ($this->has('has_supervisor')) {
+            $this->merge([
+                'has_supervisor' => filter_var($this->has_supervisor, FILTER_VALIDATE_BOOLEAN)
+            ]);
+        } else {
+            $this->merge(['has_supervisor' => false]);
+        }
+
+        // If has_supervisor is false OR role is not technician, clear supervisor_id
+        if (!$this->has_supervisor || $this->role !== 'technician') {
             $this->merge(['supervisor_id' => null]);
         }
 
-        // Remove legacy has_supervisor field if present
-        // (no longer used — technician always requires a supervisor)
+        // Clear supervisor_type if not supervisor role
+        if ($this->role !== 'supervisor') {
+            $this->merge(['supervisor_type' => null]);
+        }
 
         // Convert remove_avatar to boolean
         if ($this->has('remove_avatar')) {

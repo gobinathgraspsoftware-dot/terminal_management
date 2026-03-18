@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Models\SupervisorJobPricing;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -31,6 +32,15 @@ class UserService
         unset($data['has_supervisor']);
         unset($data['password_confirmation']);
         unset($data['remove_avatar']);
+        unset($data['job_pricing']); // Handled separately in controller
+
+        // Clear supervisor_type if not supervisor role
+        if ($role !== 'supervisor') {
+            $data['supervisor_type'] = null;
+        }
+
+        // External supervisor cannot have technicians — clear supervisor_id for safety
+        // (External supervisors should not appear in technician's supervisor dropdown)
 
         Log::info('UserService::createUser - Data keys: ' . implode(', ', array_keys($data)));
         Log::info('UserService::createUser - state_id: ' . ($data['state_id'] ?? 'NULL') . ', city_id: ' . ($data['city_id'] ?? 'NULL'));
@@ -83,6 +93,23 @@ class UserService
         // Remove non-fillable fields
         unset($data['has_supervisor']);
         unset($data['remove_avatar']);
+        unset($data['job_pricing']); // Handled separately in controller
+
+        // Clear supervisor_type if not supervisor role
+        if ($role !== 'supervisor') {
+            $data['supervisor_type'] = null;
+        }
+
+        // If changing from internal to external, detach all technicians
+        if (
+            $role === 'supervisor'
+            && isset($data['supervisor_type'])
+            && $data['supervisor_type'] === 'external'
+            && $user->isInternalSupervisor()
+        ) {
+            User::where('supervisor_id', $user->id)->update(['supervisor_id' => null]);
+            Log::info("UserService::updateUser - Detached all technicians from supervisor #{$user->id} (changed to external)");
+        }
 
         Log::info('UserService::updateUser - User ID: ' . $user->id);
         Log::info('UserService::updateUser - Data keys: ' . implode(', ', array_keys($data)));
@@ -99,6 +126,48 @@ class UserService
         Log::info('UserService::updateUser - After save - state_id: ' . $user->state_id . ', city_id: ' . $user->city_id);
 
         return $user->fresh(['roles', 'supervisor', 'state', 'city']);
+    }
+
+    /**
+     * Save supervisor job pricing (upsert pattern).
+     * Receives array of [category_id][type_id] => price
+     *
+     * @param User  $user
+     * @param array $pricingData  e.g. ['1' => ['1' => '50.00', '2' => '30.00'], '2' => ['1' => '40.00']]
+     */
+    public function saveSupervisorJobPricing(User $user, array $pricingData): void
+    {
+        // Delete existing pricing for this supervisor
+        SupervisorJobPricing::where('supervisor_id', $user->id)->delete();
+
+        $rows = [];
+        $now = now();
+
+        foreach ($pricingData as $categoryId => $types) {
+            if (!is_array($types)) {
+                continue;
+            }
+            foreach ($types as $typeId => $price) {
+                $priceValue = (float) $price;
+                if ($priceValue <= 0) {
+                    continue; // Skip zero/empty prices
+                }
+                $rows[] = [
+                    'supervisor_id'   => $user->id,
+                    'job_category_id' => (int) $categoryId,
+                    'job_type_id'     => (int) $typeId,
+                    'price'           => $priceValue,
+                    'created_at'      => $now,
+                    'updated_at'      => $now,
+                ];
+            }
+        }
+
+        if (!empty($rows)) {
+            SupervisorJobPricing::insert($rows);
+        }
+
+        Log::info("UserService::saveSupervisorJobPricing - Saved " . count($rows) . " pricing entries for supervisor #{$user->id}");
     }
 
     /**
@@ -131,128 +200,37 @@ class UserService
     /**
      * Generate unique employee ID
      */
-    public function generateEmployeeId(): string
+    public function generateEmployeeId(string $prefix = 'EMP'): string
     {
-        $year = date('Y');
-        $prefix = "EMP{$year}";
-
-        $lastUser = User::where('employee_id', 'like', "{$prefix}%")
-                        ->orderBy('employee_id', 'desc')
-                        ->first();
+        $lastUser = User::withTrashed()
+            ->where('employee_id', 'like', $prefix . '%')
+            ->orderBy('id', 'desc')
+            ->first();
 
         if ($lastUser) {
-            $lastNumber = (int) substr($lastUser->employee_id, -4);
-            $newNumber = str_pad($lastNumber + 1, 4, '0', STR_PAD_LEFT);
+            $lastNumber = (int) substr($lastUser->employee_id, strlen($prefix));
+            $newNumber = $lastNumber + 1;
         } else {
-            $newNumber = '0001';
+            $newNumber = 1;
         }
 
-        return $prefix . $newNumber;
+        return $prefix . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
     }
 
     /**
-     * Get users by role with team scoping
+     * Get statistics for user management dashboard
      */
-    public function getUsersByRole(string $role, ?User $currentUser = null): \Illuminate\Database\Eloquent\Collection
-    {
-        $query = User::role($role)->where('status', 'active');
-
-        if ($currentUser && $currentUser->hasRole('supervisor')) {
-            $query->where(function($q) use ($currentUser) {
-                $q->where('supervisor_id', $currentUser->id)
-                  ->orWhere('id', $currentUser->id);
-            });
-        }
-
-        return $query->get();
-    }
-
-    /**
-     * Get technicians under a supervisor
-     */
-    public function getSupervisorTeam(User $supervisor): \Illuminate\Database\Eloquent\Collection
-    {
-        return User::where('supervisor_id', $supervisor->id)
-            ->where('status', 'active')
-            ->with('roles')
-            ->get();
-    }
-
-    /**
-     * Check if user can be assigned as supervisor
-     */
-    public function canBeAssignedAsSupervisor(User $user): bool
-    {
-        return $user->hasRole('supervisor') && $user->status === 'active';
-    }
-
-    /**
-     * Validate team scoping access
-     */
-    public function canAccessUser(User $currentUser, User $targetUser): bool
-    {
-        if ($currentUser->hasRole('admin')) {
-            return true;
-        }
-
-        if ($currentUser->hasRole('supervisor')) {
-            return $targetUser->id === $currentUser->id
-                || $targetUser->supervisor_id === $currentUser->id;
-        }
-
-        if ($currentUser->hasRole('technician')) {
-            return $targetUser->id === $currentUser->id;
-        }
-
-        return false;
-    }
-
-    /**
-     * Get user statistics
-     */
-    public function getUserStatistics(): array
+    public function getStatistics(): array
     {
         return [
-            'total_users' => User::count(),
-            'active_users' => User::where('status', 'active')->count(),
-            'inactive_users' => User::where('status', 'inactive')->count(),
-            'suspended_users' => User::where('status', 'suspended')->count(),
-            'admins' => User::role('admin')->count(),
-            'supervisors' => User::role('supervisor')->count(),
-            'technicians' => User::role('technician')->count(),
-            'users_with_supervisor' => User::whereNotNull('supervisor_id')->count(),
-            'unassigned_technicians' => User::role('technician')
-                ->whereNull('supervisor_id')
-                ->count(),
+            'total' => User::count(),
+            'active' => User::where('status', 'active')->count(),
+            'inactive' => User::where('status', 'inactive')->count(),
+            'suspended' => User::where('status', 'suspended')->count(),
+            'supervisors_internal' => User::whereHas('roles', fn ($q) => $q->where('roles.name', 'supervisor'))
+                ->where('supervisor_type', 'internal')->count(),
+            'supervisors_external' => User::whereHas('roles', fn ($q) => $q->where('roles.name', 'supervisor'))
+                ->where('supervisor_type', 'external')->count(),
         ];
-    }
-
-    /**
-     * Get supervisor statistics
-     */
-    public function getSupervisorStatistics(User $supervisor): array
-    {
-        $teamMembers = $this->getSupervisorTeam($supervisor);
-
-        return [
-            'total_team_members' => $teamMembers->count(),
-            'active_team_members' => $teamMembers->where('status', 'active')->count(),
-            'team_with_coverage' => $teamMembers->filter(function($member) {
-                return !empty($member->coverage_states);
-            })->count(),
-        ];
-    }
-
-    /**
-     * Change user password
-     */
-    public function changePassword(User $user, string $newPassword): User
-    {
-        // DO NOT Hash::make() — User model 'password' => 'hashed' cast handles it
-        $user->update([
-            'password' => $newPassword,
-        ]);
-
-        return $user;
     }
 }

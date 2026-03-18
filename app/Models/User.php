@@ -20,6 +20,9 @@ class User extends Authenticatable
     const STATUS_INACTIVE = 'inactive';
     const STATUS_SUSPENDED = 'suspended';
 
+    const SUPERVISOR_TYPE_INTERNAL = 'internal';
+    const SUPERVISOR_TYPE_EXTERNAL = 'external';
+
     /**
      * The attributes that are mass assignable.
      */
@@ -31,6 +34,7 @@ class User extends Authenticatable
         'phone',
         'avatar',
         'supervisor_id',
+        'supervisor_type',
         'coverage_states',
         'skill_tags',
         'default_rate_card_id',
@@ -154,12 +158,67 @@ class User extends Authenticatable
     }
 
     /**
+     * Supervisor job pricing - prices mapped per job_category + job_type.
+     * For internal supervisors: pricing reflects to their technicians.
+     * For external supervisors: pricing reflects to the supervisor itself.
+     */
+    public function supervisorJobPricings()
+    {
+        return $this->hasMany(\App\Models\SupervisorJobPricing::class, 'supervisor_id');
+    }
+
+    /**
      * Get stock balance for technician's personal depot
      */
     public function technicianStockBalances()
     {
         return $this->hasMany(StockBalance::class, 'location_id')
             ->where('location_type', 'technician');
+    }
+
+    /**
+     * Check if this supervisor is internal (has technician team).
+     */
+    public function isInternalSupervisor(): bool
+    {
+        return $this->hasRole('supervisor') && $this->supervisor_type === self::SUPERVISOR_TYPE_INTERNAL;
+    }
+
+    /**
+     * Check if this supervisor is external (no technician team).
+     */
+    public function isExternalSupervisor(): bool
+    {
+        return $this->hasRole('supervisor') && $this->supervisor_type === self::SUPERVISOR_TYPE_EXTERNAL;
+    }
+
+    /**
+     * Get the effective job pricing for a given category + type.
+     * - If user is a technician with internal supervisor: uses supervisor pricing.
+     * - If user is an external supervisor: uses own pricing.
+     * - If user is an internal supervisor: uses own pricing (reflected to technicians).
+     */
+    public function getJobPrice(int $jobCategoryId, int $jobTypeId): ?float
+    {
+        // Technician: inherit from supervisor
+        if ($this->hasRole('technician') && $this->supervisor_id) {
+            $pricing = \App\Models\SupervisorJobPricing::where('supervisor_id', $this->supervisor_id)
+                ->where('job_category_id', $jobCategoryId)
+                ->where('job_type_id', $jobTypeId)
+                ->first();
+            return $pricing ? (float) $pricing->price : null;
+        }
+
+        // Supervisor (internal or external): own pricing
+        if ($this->hasRole('supervisor')) {
+            $pricing = \App\Models\SupervisorJobPricing::where('supervisor_id', $this->id)
+                ->where('job_category_id', $jobCategoryId)
+                ->where('job_type_id', $jobTypeId)
+                ->first();
+            return $pricing ? (float) $pricing->price : null;
+        }
+
+        return null;
     }
 
     /**

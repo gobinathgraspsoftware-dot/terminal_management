@@ -20,25 +20,31 @@ class JobCategory extends Model
         'status',
     ];
 
-    /**
-     * Get job orders belonging to this category.
-     */
-    public function jobOrders()
-    {
-        return $this->hasMany(JobOrder::class);
-    }
+    // =========================================================
+    // Relationships
+    // =========================================================
 
     /**
-     * Scope: Active only.
+     * Supervisor job pricing entries for this category.
      */
+    public function supervisorJobPricings()
+    {
+        return $this->hasMany(SupervisorJobPricing::class, 'job_category_id');
+    }
+
+    // =========================================================
+    // Scopes
+    // =========================================================
+
     public function scopeActive($query)
     {
         return $query->where('status', self::STATUS_ACTIVE);
     }
 
-    /**
-     * Check if job category is active.
-     */
+    // =========================================================
+    // Helpers
+    // =========================================================
+
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
