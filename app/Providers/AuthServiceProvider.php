@@ -44,6 +44,10 @@ use App\Models\VendorType;
 use App\Policies\VendorTypePolicy;
 use App\Models\Claim;
 use App\Policies\ClaimPolicy;
+use App\Models\JobCategory;
+use App\Models\JobType;
+use App\Policies\JobCategoryPolicy;
+use App\Policies\JobTypePolicy;
 
 // Observers
 use App\Observers\InventorySerialObserver;
@@ -108,6 +112,8 @@ class AuthServiceProvider extends ServiceProvider
         Quotation::class => QuotationPolicy::class,
         VendorType::class => VendorTypePolicy::class,
         Claim::class => ClaimPolicy::class,
+        JobType::class => JobTypePolicy::class,
+        JobCategory::class => JobCategoryPolicy::class,
     ];
 
     /**

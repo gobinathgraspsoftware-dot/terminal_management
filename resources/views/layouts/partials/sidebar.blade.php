@@ -146,6 +146,7 @@
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'admin.terminal-categories');
                 $isJobTypeRoute = str_contains($currentRoute ?? '', 'admin.job-types');
                 $isVendorTypeRoute = str_contains($currentRoute ?? '', 'admin.vendor-types');
+                $isJobCategoryRoute = str_contains($currentRoute ?? '', 'admin.job-categories');
             @endphp
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Master Data</small>
@@ -227,6 +228,14 @@
                         <a class="nav-link {{ $isJobTypeRoute ? 'active' : '' }}"
                         href="{{ route('admin.job-types.index') }}">
                             <i class="bi bi-briefcase me-2"></i> Job Types
+                        </a>
+                    </li>
+                    @endcan
+                    @can('view_job_categories')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isJobCategoryRoute ? 'active' : '' }}"
+                        href="{{ route('admin.job-categories.index') }}">
+                            <i class="bi bi-folder me-2"></i> Job Categories
                         </a>
                     </li>
                     @endcan

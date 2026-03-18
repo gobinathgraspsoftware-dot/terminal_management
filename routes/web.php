@@ -96,6 +96,7 @@ use App\Http\Controllers\Supervisor\VendorController as SupervisorVendorControll
 use App\Http\Controllers\Admin\ClaimManagementController as AdminClaimController;
 use App\Http\Controllers\Supervisor\ClaimController as SupervisorClaimController;
 use App\Http\Controllers\Technician\ClaimController as TechnicianClaimController;
+use App\Http\Controllers\Admin\JobCategoryController as AdminJobCategoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -412,6 +413,18 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/{job_type}/edit', [AdminJobTypeController::class, 'edit'])->name('edit');
         Route::put('/{job_type}', [AdminJobTypeController::class, 'update'])->name('update');
         Route::delete('/{job_type}', [AdminJobTypeController::class, 'destroy'])->name('destroy');
+    });
+
+    /* Job Categories */
+    Route::prefix('job-categories')->name('job-categories.')->group(function () {
+        Route::get('/datatable', [AdminJobCategoryController::class, 'datatable'])->name('datatable');
+        Route::patch('/{job_category}/toggle-status', [AdminJobCategoryController::class, 'toggleStatus'])->name('toggle-status');
+        Route::get('/', [AdminJobCategoryController::class, 'index'])->name('index');
+        Route::get('/create', [AdminJobCategoryController::class, 'create'])->name('create');
+        Route::post('/', [AdminJobCategoryController::class, 'store'])->name('store');
+        Route::get('/{job_category}/edit', [AdminJobCategoryController::class, 'edit'])->name('edit');
+        Route::put('/{job_category}', [AdminJobCategoryController::class, 'update'])->name('update');
+        Route::delete('/{job_category}', [AdminJobCategoryController::class, 'destroy'])->name('destroy');
     });
 
     /* Depots Routes */
