@@ -70,7 +70,7 @@
                             </div>
                             <div class="col-md-4"><label class="form-label">Price (RM)</label>
                                 <input type="text" name="price" id="price_display" class="form-control bg-light" readonly placeholder="0.00">
-                                <small class="text-muted">From pricing (Category + Type)</small>
+                                <div id="priceHint"><small class="text-muted">From pricing (Category + Type)</small></div>
                             </div>
                             <div class="col-md-6 device-field" id="terminalIdGroup" style="display:none;">
                                 <label class="form-label">Terminal ID <span class="text-danger terminal-required-star" style="display:none;">*</span></label>
@@ -194,9 +194,33 @@ $(function() {
 
     function refreshPrice() {
         let catId = $('#job_category_id').val(), typeId = $('#job_type_id').val();
-        if (!catId || !typeId) { $('#price_display').val('0.00'); return; }
-        $.get(baseUrl + '/ajax/price', { job_category_id: catId, job_type_id: typeId }, function(data) {
-            $('#price_display').val(parseFloat(data.price || 0).toFixed(2));
+        if (!catId || !typeId) {
+            $('#price_display').val('0.00').removeClass('text-success fw-bold');
+            let missing = [];
+            if (!catId) missing.push('Category');
+            if (!typeId) missing.push('Type');
+            $('#priceHint').html('<small class="text-muted">Select ' + missing.join(' & ') + ' to get price</small>');
+            return;
+        }
+        $('#priceHint').html('<small class="text-info"><i class="bi bi-hourglass-split me-1"></i>Fetching...</small>');
+        $.ajax({
+            url: baseUrl + '/ajax/price',
+            data: { job_category_id: catId, job_type_id: typeId },
+            success: function(data) {
+                let price = parseFloat(data.price || 0);
+                $('#price_display').val(price.toFixed(2));
+                if (price > 0) {
+                    $('#price_display').addClass('text-success fw-bold').removeClass('text-danger');
+                    $('#priceHint').html('<small class="text-success"><i class="bi bi-check-circle me-1"></i>Price loaded</small>');
+                } else {
+                    $('#price_display').removeClass('text-success fw-bold');
+                    $('#priceHint').html('<small class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>No pricing configured</small>');
+                }
+            },
+            error: function(xhr) {
+                console.error('Price fetch failed:', xhr.status);
+                $('#priceHint').html('<small class="text-danger"><i class="bi bi-x-circle me-1"></i>Price fetch failed</small>');
+            }
         });
     }
 

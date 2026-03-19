@@ -16,8 +16,8 @@
         <div>
             <h4 class="mb-1"><i class="bi bi-ticket-detailed me-2"></i>{{ $ticket->ticket_no }}</h4>
             <div class="d-flex gap-2 align-items-center flex-wrap">
-                {!! Ticket::getStatusBadge($ticket->status) !!}
-                {!! Ticket::getPriorityBadge($ticket->priority) !!}
+                {!! \App\Models\Ticket::getStatusBadge($ticket->status) !!}
+                {!! \App\Models\Ticket::getPriorityBadge($ticket->priority) !!}
                 @if($ticket->isSlaBreach())
                 <span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>SLA Breached</span>
                 @endif
@@ -250,8 +250,8 @@
                             <tbody>
                                 @foreach($ticket->statusHistory as $h)
                                 <tr>
-                                    <td>{!! $h->from_status ? Ticket::getStatusBadge($h->from_status) : '-' !!}</td>
-                                    <td>{!! Ticket::getStatusBadge($h->to_status) !!}</td>
+                                    <td>{!! $h->from_status ? \App\Models\Ticket::getStatusBadge($h->from_status) : '-' !!}</td>
+                                    <td>{!! \App\Models\Ticket::getStatusBadge($h->to_status) !!}</td>
                                     <td>{{ $h->changedBy?->name ?? '-' }}</td>
                                     <td>{{ $h->remarks ?? '-' }}</td>
                                     <td>{{ $h->created_at->format('d M Y H:i') }}</td>

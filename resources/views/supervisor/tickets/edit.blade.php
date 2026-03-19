@@ -62,7 +62,7 @@
                                     <option value="">Select</option>
                                     @foreach($jobTypes as $jt)<option value="{{ $jt->id }}" data-slug="{{ $jt->slug }}" {{ $ticket->job_type_id == $jt->id ? 'selected' : '' }}>{{ $jt->job_title }}</option>@endforeach
                                 </select></div>
-                            <div class="col-md-4"><label class="form-label">Price (RM)</label><input type="text" name="price" id="price_display" class="form-control bg-light" readonly value="{{ number_format($ticket->price, 2) }}"></div>
+                            <div class="col-md-4"><label class="form-label">Price (RM)</label><input type="text" name="price" id="price_display" class="form-control bg-light" readonly value="{{ number_format($ticket->price, 2) }}"><div id="priceHint"></div></div>
                             <div class="col-md-6 device-field" id="terminalIdGroup"><label class="form-label">Terminal ID</label><input type="text" name="terminal_id" class="form-control" value="{{ $ticket->terminal_id }}"></div>
                             <div class="col-md-6 device-field" id="routerIdGroup"><label class="form-label">Router ID</label><input type="text" name="router_id" class="form-control" value="{{ $ticket->router_id }}"></div>
                             <div class="col-md-6 device-field" id="oldTerminalIdGroup"><label class="form-label">Old Terminal ID</label><input type="text" name="old_terminal_id" class="form-control" value="{{ $ticket->old_terminal_id }}"></div>
@@ -157,9 +157,25 @@ $(function() {
 
     function refreshPrice() {
         let catId = $('#job_category_id').val(), typeId = $('#job_type_id').val();
-        if (!catId || !typeId) return;
-        $.get(baseUrl + '/ajax/price', { job_category_id: catId, job_type_id: typeId }, function(data) {
-            $('#price_display').val(parseFloat(data.price || 0).toFixed(2));
+        if (!catId || !typeId) { $('#priceHint').html('<small class="text-muted">Select category & type</small>'); return; }
+        $('#priceHint').html('<small class="text-info"><i class="bi bi-hourglass-split me-1"></i>Fetching...</small>');
+        $.ajax({
+            url: baseUrl + '/ajax/price',
+            data: { job_category_id: catId, job_type_id: typeId },
+            success: function(data) {
+                let price = parseFloat(data.price || 0);
+                $('#price_display').val(price.toFixed(2));
+                if (price > 0) {
+                    $('#price_display').addClass('text-success fw-bold').removeClass('text-danger');
+                    $('#priceHint').html('<small class="text-success"><i class="bi bi-check-circle me-1"></i>Price loaded</small>');
+                } else {
+                    $('#priceHint').html('<small class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>No pricing configured</small>');
+                }
+            },
+            error: function(xhr) {
+                console.error('Price fetch failed:', xhr.status);
+                $('#priceHint').html('<small class="text-danger"><i class="bi bi-x-circle me-1"></i>Price fetch failed</small>');
+            }
         });
     }
 

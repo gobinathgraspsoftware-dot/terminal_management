@@ -121,7 +121,7 @@
                             <div class="col-md-4">
                                 <label class="form-label">Price (RM)</label>
                                 <input type="text" name="price" id="price_display" class="form-control bg-light" readonly placeholder="0.00">
-                                <small class="text-muted">From supervisor pricing (Category + Type)</small>
+                                <div id="priceHint"><small class="text-muted">From supervisor pricing (Category + Type)</small></div>
                             </div>
 
                             {{-- Dynamic Device ID Fields --}}
@@ -413,12 +413,40 @@ $(function() {
         let svId = $('#supervisor_id').val();
         let catId = $('#job_category_id').val();
         let typeId = $('#job_type_id').val();
-        if (!svId || !catId || !typeId) { $('#price_display').val('0.00'); return; }
 
-        $.get(baseUrl + '/ajax/price', {
-            supervisor_id: svId, job_category_id: catId, job_type_id: typeId
-        }, function(data) {
-            $('#price_display').val(parseFloat(data.price || 0).toFixed(2));
+        // Show hint when not all values selected
+        if (!svId || !catId || !typeId) {
+            $('#price_display').val('0.00').removeClass('text-success text-danger fw-bold');
+            let missing = [];
+            if (!svId) missing.push('Supervisor');
+            if (!catId) missing.push('Category');
+            if (!typeId) missing.push('Type');
+            $('#priceHint').html('<small class="text-muted">Select ' + missing.join(', ') + ' to get price</small>').show();
+            return;
+        }
+
+        $('#priceHint').html('<small class="text-info"><i class="bi bi-hourglass-split me-1"></i>Fetching price...</small>').show();
+
+        $.ajax({
+            url: baseUrl + '/ajax/price',
+            method: 'GET',
+            data: { supervisor_id: svId, job_category_id: catId, job_type_id: typeId },
+            success: function(data) {
+                let price = parseFloat(data.price || 0);
+                $('#price_display').val(price.toFixed(2));
+                if (price > 0) {
+                    $('#price_display').addClass('text-success fw-bold').removeClass('text-danger');
+                    $('#priceHint').html('<small class="text-success"><i class="bi bi-check-circle me-1"></i>Price loaded from supervisor pricing</small>');
+                } else {
+                    $('#price_display').addClass('text-danger').removeClass('text-success fw-bold');
+                    $('#priceHint').html('<small class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>No pricing configured for this combination</small>');
+                }
+            },
+            error: function(xhr) {
+                console.error('Price fetch failed:', xhr.status, xhr.responseText);
+                $('#price_display').val('0.00').addClass('text-danger');
+                $('#priceHint').html('<small class="text-danger"><i class="bi bi-x-circle me-1"></i>Failed to fetch price. Check console.</small>');
+            }
         });
     }
 
