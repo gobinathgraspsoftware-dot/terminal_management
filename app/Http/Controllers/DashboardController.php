@@ -64,26 +64,38 @@ class DashboardController extends Controller
 
     /**
      * Get Supervisor Dashboard Data
+     *
+     * Internal supervisors: full team data + team member list
+     * External supervisors: own job data only, no team sections
      */
     protected function getSupervisorData(): array
     {
         $user = auth()->user();
+        $isInternal = $user->isInternalSupervisor();
+        $isExternal = $user->isExternalSupervisor();
 
-        return [
+        $data = [
+            // Pass supervisor type flags for conditional rendering in view
+            'supervisor_type' => $user->supervisor_type ?? 'internal',
+            'is_internal' => $isInternal,
+            'is_external' => $isExternal,
+
             'stats' => [
                 'team_jobs_today' => $this->getTeamJobsToday($user),
                 'job_status_breakdown' => $this->getTeamJobStatusBreakdown($user),
                 'team_sla_performance' => $this->getTeamSLAPerformance($user),
-                'team_members' => $this->getTeamMembersStatus($user),
-                'pending_claims' => $this->getTeamPendingClaims($user),
-                'top_performers' => $this->getTeamTopPerformers($user),
+                'team_members' => $isInternal ? $this->getTeamMembersStatus($user) : ['total' => 0, 'active' => 0, 'inactive' => 0],
+                'pending_claims' => $isInternal ? $this->getTeamPendingClaims($user) : 0,
+                'top_performers' => $isInternal ? $this->getTeamTopPerformers($user) : [],
             ],
             'charts' => [
                 'team_jobs_this_week' => $this->getTeamJobsThisWeek($user),
                 'sla_compliance_trend' => $this->getTeamSLAComplianceTrend($user),
             ],
-            'team_members_list' => $this->getTeamMembers($user),
+            'team_members_list' => $isInternal ? $this->getTeamMembers($user) : [],
         ];
+
+        return $data;
     }
 
     /**
@@ -252,19 +264,34 @@ class DashboardController extends Controller
     // SUPERVISOR DASHBOARD METHODS
     // ==========================================
 
+    /**
+     * Build the job scope closure for the current supervisor.
+     *
+     * Internal: supervisor_id = self OR technician_id IN (team tech ids)
+     * External: supervisor_id = self only (no team technicians)
+     */
+    protected function supervisorJobScope($user): \Closure
+    {
+        return function ($query) use ($user) {
+            $query->where('supervisor_id', $user->id);
+
+            // Internal supervisors also see their technicians' jobs
+            if ($user->isInternalSupervisor()) {
+                $query->orWhereIn('technician_id', function ($q) use ($user) {
+                    $q->select('id')
+                        ->from('users')
+                        ->where('supervisor_id', $user->id);
+                });
+            }
+        };
+    }
+
     protected function getTeamJobsToday($user): int
     {
         $today = Carbon::today();
 
         return DB::table('job_orders')
-            ->where(function($query) use ($user) {
-                $query->where('supervisor_id', $user->id)
-                    ->orWhereIn('technician_id', function($q) use ($user) {
-                        $q->select('id')
-                            ->from('users')
-                            ->where('supervisor_id', $user->id);
-                    });
-            })
+            ->where($this->supervisorJobScope($user))
             ->whereDate('created_at', $today)
             ->count();
     }
@@ -272,14 +299,7 @@ class DashboardController extends Controller
     protected function getTeamJobStatusBreakdown($user): array
     {
         return DB::table('job_orders')
-            ->where(function($query) use ($user) {
-                $query->where('supervisor_id', $user->id)
-                    ->orWhereIn('technician_id', function($q) use ($user) {
-                        $q->select('id')
-                            ->from('users')
-                            ->where('supervisor_id', $user->id);
-                    });
-            })
+            ->where($this->supervisorJobScope($user))
             ->whereNotIn('status', ['completed', 'cancelled'])
             ->select('status', DB::raw('count(*) as count'))
             ->groupBy('status')
@@ -290,26 +310,12 @@ class DashboardController extends Controller
     protected function getTeamSLAPerformance($user): array
     {
         $total = DB::table('job_orders')
-            ->where(function($query) use ($user) {
-                $query->where('supervisor_id', $user->id)
-                    ->orWhereIn('technician_id', function($q) use ($user) {
-                        $q->select('id')
-                            ->from('users')
-                            ->where('supervisor_id', $user->id);
-                    });
-            })
+            ->where($this->supervisorJobScope($user))
             ->whereIn('status', ['completed'])
             ->count();
 
         $onTime = DB::table('job_orders')
-            ->where(function($query) use ($user) {
-                $query->where('supervisor_id', $user->id)
-                    ->orWhereIn('technician_id', function($q) use ($user) {
-                        $q->select('id')
-                            ->from('users')
-                            ->where('supervisor_id', $user->id);
-                    });
-            })
+            ->where($this->supervisorJobScope($user))
             ->whereIn('status', ['completed'])
             ->where('sla_status', 'on_track')
             ->count();
@@ -377,14 +383,7 @@ class DashboardController extends Controller
         $endOfWeek = Carbon::now()->endOfWeek();
 
         $jobs = DB::table('job_orders')
-            ->where(function($query) use ($user) {
-                $query->where('supervisor_id', $user->id)
-                    ->orWhereIn('technician_id', function($q) use ($user) {
-                        $q->select('id')
-                            ->from('users')
-                            ->where('supervisor_id', $user->id);
-                    });
-            })
+            ->where($this->supervisorJobScope($user))
             ->whereBetween('created_at', [$startOfWeek, $endOfWeek])
             ->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as count'))
             ->groupBy('date')
@@ -420,26 +419,12 @@ class DashboardController extends Controller
 
         foreach ($last7Days as $date) {
             $total = DB::table('job_orders')
-                ->where(function($query) use ($user) {
-                    $query->where('supervisor_id', $user->id)
-                        ->orWhereIn('technician_id', function($q) use ($user) {
-                            $q->select('id')
-                                ->from('users')
-                                ->where('supervisor_id', $user->id);
-                        });
-                })
+                ->where($this->supervisorJobScope($user))
                 ->whereDate('completed_at', $date)
                 ->count();
 
             $onTime = DB::table('job_orders')
-                ->where(function($query) use ($user) {
-                    $query->where('supervisor_id', $user->id)
-                        ->orWhereIn('technician_id', function($q) use ($user) {
-                            $q->select('id')
-                                ->from('users')
-                                ->where('supervisor_id', $user->id);
-                        });
-                })
+                ->where($this->supervisorJobScope($user))
                 ->whereDate('completed_at', $date)
                 ->where('sla_status', 'on_track')
                 ->count();
@@ -455,6 +440,11 @@ class DashboardController extends Controller
 
     protected function getTeamMembers($user): array
     {
+        // External supervisors have no team members
+        if ($user->isExternalSupervisor()) {
+            return [];
+        }
+
         return DB::table('users')
             ->where('supervisor_id', $user->id)
             ->select('id', 'name', 'email', 'phone', 'status')
@@ -611,7 +601,12 @@ class DashboardController extends Controller
 
     protected function getEmptySupervisorData(): array
     {
+        $user = auth()->user();
+
         return [
+            'supervisor_type' => $user->supervisor_type ?? 'internal',
+            'is_internal' => $user->isInternalSupervisor(),
+            'is_external' => $user->isExternalSupervisor(),
             'stats' => [
                 'team_jobs_today' => 0,
                 'job_status_breakdown' => [],

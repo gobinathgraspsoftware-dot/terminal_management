@@ -61,15 +61,16 @@ use App\Observers\InventorySerialObserver;
  * - Defining custom authorization gates
  * - Implementing super admin bypass with security logging
  *
+ * SUPERVISOR TYPES:
+ * - Internal: Has technician team, can view team members, team-scoped data
+ * - External: No technician team, independent operator, own-scoped data
+ *
  * @package App\Providers
  */
 class AuthServiceProvider extends ServiceProvider
 {
     /**
      * The model to policy mappings for the application.
-     *
-     * These policies control access to models throughout the application.
-     * Each model is mapped to its corresponding policy class.
      *
      * @var array<class-string, class-string>
      */
@@ -118,55 +119,32 @@ class AuthServiceProvider extends ServiceProvider
 
     /**
      * Register any authentication / authorization services.
-     *
-     * This method is called during the application boot process.
-     * It registers all policies, observers, and custom gates.
-     *
-     * @return void
      */
     public function boot(): void
     {
-        // Register all model policies
         $this->registerPolicies();
-
-        // Register model observers
         $this->registerObservers();
-
-        // Register team management gates
         $this->registerTeamGates();
-
-        // Register inventory-specific gates
         $this->registerInventoryGates();
-
-        // Register super admin bypass (with security logging)
         $this->registerSuperAdminBypass();
     }
 
     /**
      * Register model observers.
-     *
-     * Observers listen to model events and perform actions automatically.
-     * Currently registered: InventorySerialObserver (creates stock ledger entries)
-     *
-     * @return void
      */
     protected function registerObservers(): void
     {
-        // Inventory Serial Observer - Automatically creates stock ledger entries
-        // when serials are created, updated, or deleted
         InventorySerial::observe(InventorySerialObserver::class);
     }
 
     /**
      * Register team management authorization gates.
      *
-     * These gates control access to team-related functionality:
-     * - Viewing teams and team members
-     * - Assigning technicians to supervisors
-     * - Managing team structure
-     * - Exporting team data
-     *
-     * @return void
+     * KEY RULES:
+     * - Internal supervisors: can view team, view team members, team-scoped data
+     * - External supervisors: NO team, cannot view team members, own-scoped data
+     * - Admin: can view everything
+     * - Technicians can only assign to INTERNAL supervisors
      */
     protected function registerTeamGates(): void
     {
@@ -175,21 +153,37 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasRole('admin');
         });
 
-        // View own team (admin and supervisor)
+        // View own team
+        // Admin: always
+        // Internal Supervisor: yes (has team)
+        // External Supervisor: can see the teams index (shows own stats), but no team members
         Gate::define('viewOwnTeam', function (User $user) {
-            return $user->hasRole(['admin', 'supervisor']);
-        });
-
-        // View specific team member
-        Gate::define('viewTeamMember', function (User $user, User $member) {
-            // Admin can view anyone
             if ($user->hasRole('admin')) {
                 return true;
             }
 
-            // Supervisor can view their team members
-            if ($user->hasRole('supervisor') && $member->supervisor_id === $user->id) {
+            // Both internal and external can access the teams index page,
+            // but the controller/view will differentiate what they see
+            return $user->hasRole('supervisor');
+        });
+
+        // View specific team member
+        // Admin: any member
+        // Internal Supervisor: own team members only
+        // External Supervisor: BLOCKED — they have no team members
+        // Technician: self only
+        Gate::define('viewTeamMember', function (User $user, User $member) {
+            if ($user->hasRole('admin')) {
                 return true;
+            }
+
+            if ($user->hasRole('supervisor')) {
+                // External supervisors cannot view team members (they have none)
+                if ($user->isExternalSupervisor()) {
+                    return false;
+                }
+                // Internal supervisor can view their own team members
+                return $member->supervisor_id === $user->id;
             }
 
             // Users can view themselves
@@ -211,39 +205,55 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasRole('admin') && $technician->hasRole('technician');
         });
 
-        // Export team data (admin and supervisor)
+        // Export team data
+        // Admin: always
+        // Internal Supervisor: yes (has team data to export)
+        // External Supervisor: no (no team data)
         Gate::define('exportTeam', function (User $user) {
-            return $user->hasRole(['admin', 'supervisor']);
+            if ($user->hasRole('admin')) {
+                return true;
+            }
+
+            if ($user->hasRole('supervisor')) {
+                return $user->isInternalSupervisor();
+            }
+
+            return false;
+        });
+
+        // View team inventory (supervisor stock balance/reports)
+        // Internal Supervisor: can see team technicians' stock
+        // External Supervisor: no team, no team inventory
+        Gate::define('view_team_inventory', function (User $user) {
+            if ($user->hasRole('admin')) {
+                return true;
+            }
+
+            if ($user->hasRole('supervisor')) {
+                return $user->isInternalSupervisor();
+            }
+
+            return false;
         });
     }
 
     /**
      * Register inventory-specific authorization gates.
-     *
-     * These gates provide shortcuts for common inventory operations:
-     * - Serial number lookups
-     * - Bulk operations (import, update, transfer)
-     *
-     * @return void
      */
     protected function registerInventoryGates(): void
     {
-        // Serial lookup - Quick access for inventory searches
         Gate::define('serial-lookup', function (User $user) {
             return $user->can('view_inventory');
         });
 
-        // Bulk import serials
         Gate::define('bulk-import-serials', function (User $user) {
             return $user->can('bulk_import_inventory');
         });
 
-        // Bulk update serials
         Gate::define('bulk-update-serials', function (User $user) {
             return $user->can('bulk_update_inventory');
         });
 
-        // Bulk transfer serials
         Gate::define('bulk-transfer-serials', function (User $user) {
             return $user->can('bulk_transfer_inventory');
         });
@@ -251,37 +261,17 @@ class AuthServiceProvider extends ServiceProvider
 
     /**
      * Register super admin bypass with security logging.
-     *
-     * SECURITY WARNING:
-     * - Super admin bypasses ALL authorization checks
-     * - Use ONLY for emergency access and system maintenance
-     * - All super admin access is logged for security audit
-     *
-     * Configuration:
-     * - Set APP_SUPER_ADMIN_EMAIL in .env
-     * - Set LOG_SUPER_ADMIN_ACCESS=true to enable logging
-     *
-     * Requirements:
-     * - User must have 'admin' role
-     * - User email must match APP_SUPER_ADMIN_EMAIL exactly
-     *
-     * @return void
      */
     protected function registerSuperAdminBypass(): void
     {
         Gate::before(function (User $user, string $ability) {
-            // Get super admin email from config
             $superAdminEmail = config('app.super_admin_email');
 
-            // If not configured, no bypass
             if (!$superAdminEmail) {
                 return null;
             }
 
-            // Check if user is super admin (must be admin role + matching email)
             if ($user->hasRole('admin') && $user->email === $superAdminEmail) {
-
-                // Log super admin access for security audit
                 if (config('app.log_super_admin_access', true)) {
                     \Log::info('Super Admin Access', [
                         'user_id' => $user->id,
@@ -293,12 +283,9 @@ class AuthServiceProvider extends ServiceProvider
                         'timestamp' => now()->toDateTimeString(),
                     ]);
                 }
-
-                // Grant access (bypass all other checks)
                 return true;
             }
 
-            // Continue normal authorization
             return null;
         });
     }

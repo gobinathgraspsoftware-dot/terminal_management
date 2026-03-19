@@ -628,7 +628,11 @@
             <!-- Team Management Section -->
             @php
                 $isTeamRoute = str_contains($currentRoute ?? '', 'supervisor.teams');
+                $isInternalSupervisor = ($user->supervisor_type === 'internal');
+                $isExternalSupervisor = ($user->supervisor_type === 'external');
             @endphp
+
+            @if($isInternalSupervisor)
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Team Management</small>
                 <ul class="nav flex-column mt-2">
@@ -646,6 +650,20 @@
                     </li>
                 </ul>
             </div>
+            @elseif($isExternalSupervisor)
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isTeamRoute ? 'active' : '' }}"
+                           href="{{ route('supervisor.teams.index') }}">
+                            <i class="bi bi-person-badge me-2"></i> My Overview
+                            <span class="badge bg-warning text-dark ms-auto">External</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            @endif
 
             @php
                 $isTicketRoute = str_contains($currentRoute ?? '', 'supervisor.tickets');

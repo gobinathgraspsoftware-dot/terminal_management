@@ -12,6 +12,11 @@ use Illuminate\Http\Request;
  * LocationController
  * Shared AJAX endpoints for State/City Select2 dropdowns and
  * supervisor lookup filtered by technician's state + city.
+ *
+ * SUPERVISOR TYPES:
+ * - When fetching supervisors for technician assignment (default): returns INTERNAL only
+ * - When type=all is passed: returns all supervisors (for admin views)
+ * - When type=internal or type=external is passed: returns that specific type
  */
 class LocationController extends Controller
 {
@@ -88,7 +93,13 @@ class LocationController extends Controller
 
     /**
      * Select2 AJAX: Search supervisors filtered by state_id and/or city_id
-     * GET /ajax/supervisors?state_id=1&city_id=5&search=&page=1
+     * GET /ajax/supervisors?state_id=1&city_id=5&search=&page=1&type=internal
+     *
+     * Type filter:
+     *   - type=internal  → Only internal supervisors (has team) — DEFAULT for technician assignment
+     *   - type=external  → Only external supervisors (no team)
+     *   - type=all       → All supervisors regardless of type
+     *   - (empty/none)   → Defaults to 'internal' (safe default for technician assignment)
      */
     public function supervisors(Request $request): JsonResponse
     {
@@ -122,21 +133,30 @@ class LocationController extends Controller
             });
         }
 
-        // Filter by supervisor_type (internal/external)
-        if ($request->get('type')) {
-            $query->where('supervisor_type', $request->get('type'));
+        // Filter by supervisor_type
+        // Default to 'internal' for technician assignment safety
+        $type = $request->get('type', 'internal');
+
+        if ($type === 'all') {
+            // No type filter — return all supervisors
+        } elseif (in_array($type, ['internal', 'external'])) {
+            $query->where('supervisor_type', $type);
+        } else {
+            // Unknown type — default to internal only
+            $query->where('supervisor_type', 'internal');
         }
 
         $total   = $query->count();
         $results = $query->skip(($page - 1) * $perPage)
                          ->take($perPage)
-                         ->get(['id', 'name', 'employee_id', 'state_id', 'city_id', 'mileage_rate'])
+                         ->get(['id', 'name', 'employee_id', 'state_id', 'city_id', 'mileage_rate', 'supervisor_type'])
                          ->map(fn ($u) => [
-                             'id'           => $u->id,
-                             'text'         => $u->name . ' (' . $u->employee_id . ')',
-                             'state_id'     => $u->state_id,
-                             'city_id'      => $u->city_id,
-                             'mileage_rate' => $u->mileage_rate,
+                             'id'              => $u->id,
+                             'text'            => $u->name . ' (' . $u->employee_id . ')' . ($u->supervisor_type === 'external' ? ' [External]' : ''),
+                             'state_id'        => $u->state_id,
+                             'city_id'         => $u->city_id,
+                             'mileage_rate'    => $u->mileage_rate,
+                             'supervisor_type' => $u->supervisor_type,
                          ]);
 
         return response()->json([
@@ -146,7 +166,7 @@ class LocationController extends Controller
     }
 
     /**
-     * AJAX: Get supervisor detail (state, city, mileage_rate)
+     * AJAX: Get supervisor detail (state, city, mileage_rate, supervisor_type)
      * Used by technician create/edit form to auto-populate inherited fields.
      * GET /ajax/supervisor-detail?id=5
      */
@@ -167,12 +187,13 @@ class LocationController extends Controller
         }
 
         return response()->json([
-            'success'      => true,
-            'state_id'     => $supervisor->state_id,
-            'state_name'   => $supervisor->state?->name,
-            'city_id'      => $supervisor->city_id,
-            'city_name'    => $supervisor->city ? $supervisor->city->name . ' (' . $supervisor->city->postcode . ')' : null,
-            'mileage_rate' => $supervisor->mileage_rate,
+            'success'         => true,
+            'state_id'        => $supervisor->state_id,
+            'state_name'      => $supervisor->state?->name,
+            'city_id'         => $supervisor->city_id,
+            'city_name'       => $supervisor->city ? $supervisor->city->name . ' (' . $supervisor->city->postcode . ')' : null,
+            'mileage_rate'    => $supervisor->mileage_rate,
+            'supervisor_type' => $supervisor->supervisor_type,
         ]);
     }
 }

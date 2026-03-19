@@ -15,7 +15,9 @@ use Yajra\DataTables\Facades\DataTables;
 
 /**
  * Supervisor TeamController — READ-ONLY team view.
- * Single consolidated page with DataTable + stats.
+ *
+ * Internal supervisors: Full team view with DataTable + stats.
+ * External supervisors: Own stats only (no technician team).
  */
 class TeamController extends Controller implements HasMiddleware
 {
@@ -36,6 +38,8 @@ class TeamController extends Controller implements HasMiddleware
 
     /**
      * My Team — single consolidated page.
+     * Internal: shows team DataTable + team stats.
+     * External: shows own stats + info message (no team).
      */
     public function index(): View
     {
@@ -43,15 +47,34 @@ class TeamController extends Controller implements HasMiddleware
         $teamStats = $this->teamService->getSupervisorTeamStats($currentUser);
         $teamPerformance = $this->teamService->getTeamPerformance($currentUser);
 
-        return view('supervisor.teams.index', compact('teamStats', 'teamPerformance'));
+        $isInternal = $currentUser->isInternalSupervisor();
+        $isExternal = $currentUser->isExternalSupervisor();
+
+        return view('supervisor.teams.index', compact(
+            'teamStats',
+            'teamPerformance',
+            'isInternal',
+            'isExternal'
+        ));
     }
 
     /**
      * Server-side DataTable for team members.
+     * Only available for INTERNAL supervisors.
      */
     public function datatable(Request $request): JsonResponse
     {
         $currentUser = Auth::user();
+
+        // External supervisors have no team — return empty
+        if ($currentUser->isExternalSupervisor()) {
+            return response()->json([
+                'draw' => (int) ($request->input('draw', 1)),
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
+            ]);
+        }
 
         $query = User::where('supervisor_id', $currentUser->id)
             ->select('users.*');
@@ -107,10 +130,19 @@ class TeamController extends Controller implements HasMiddleware
 
     /**
      * Show team member details (own team only).
+     * Only available for INTERNAL supervisors.
      */
     public function show(User $user): View|JsonResponse
     {
         $currentUser = Auth::user();
+
+        // External supervisors cannot view team members (they have none)
+        if ($currentUser->isExternalSupervisor()) {
+            if (request()->ajax()) {
+                return response()->json(['success' => false, 'message' => 'External supervisors do not have team members.'], 403);
+            }
+            abort(403, 'External supervisors do not have team members.');
+        }
 
         if ($user->supervisor_id !== $currentUser->id) {
             if (request()->ajax()) {

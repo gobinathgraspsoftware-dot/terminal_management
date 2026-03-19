@@ -21,7 +21,8 @@ use Yajra\DataTables\Facades\DataTables;
  *
  * NOTE: Independent technicians are NOT supported.
  *       All technicians MUST have a supervisor assigned.
- *       Supervisors can operate without technicians.
+ *       Internal supervisors have technician teams.
+ *       External supervisors do NOT have technician teams.
  *
  * @package App\Http\Controllers\Admin
  */
@@ -110,10 +111,21 @@ class TeamController extends Controller implements HasMiddleware
             ->addColumn('role', function ($user) {
                 $role = $user->roles->first()?->name ?? 'unknown';
                 $badge = $role === 'supervisor' ? 'primary' : 'success';
-                return '<span class="badge bg-' . $badge . '">' . ucfirst($role) . '</span>';
+                $html = '<span class="badge bg-' . $badge . '">' . ucfirst($role) . '</span>';
+
+                // Show supervisor_type badge for supervisors
+                if ($role === 'supervisor' && $user->supervisor_type) {
+                    $typeClass = $user->supervisor_type === 'internal' ? 'info' : 'warning';
+                    $html .= ' <span class="badge bg-' . $typeClass . '">' . ucfirst($user->supervisor_type) . '</span>';
+                }
+
+                return $html;
             })
             ->addColumn('supervisor_info', function ($user) {
                 if ($user->hasRole('supervisor')) {
+                    if ($user->isExternalSupervisor()) {
+                        return '<span class="badge bg-warning text-dark"><i class="bi bi-box-arrow-up-right me-1"></i>External (No Team)</span>';
+                    }
                     $count = $user->technicians()->where('status', 'active')->count();
                     return '<span class="text-muted">' . $count . ' technician(s)</span>';
                 }
@@ -153,6 +165,9 @@ class TeamController extends Controller implements HasMiddleware
                 if ($request->status) {
                     $query->where('status', $request->status);
                 }
+                if ($request->supervisor_type) {
+                    $query->where('supervisor_type', $request->supervisor_type);
+                }
             })
             ->rawColumns(['avatar', 'role', 'supervisor_info', 'status_badge', 'coverage', 'actions'])
             ->make(true);
@@ -174,7 +189,21 @@ class TeamController extends Controller implements HasMiddleware
                     : 'https://ui-avatars.com/api/?name=' . urlencode(substr($user->name, 0, 1)) . '&size=36&background=random&color=fff';
                 return '<img src="' . $url . '" class="rounded-circle" style="width:36px;height:36px;object-fit:cover;">';
             })
-            ->addColumn('team_size', fn($user) => '<span class="badge bg-info">' . $user->technicians_count . ' members</span>')
+            ->addColumn('supervisor_type_badge', function ($user) {
+                if ($user->supervisor_type === 'internal') {
+                    return '<span class="badge bg-info"><i class="bi bi-people me-1"></i>Internal</span>';
+                }
+                if ($user->supervisor_type === 'external') {
+                    return '<span class="badge bg-warning text-dark"><i class="bi bi-box-arrow-up-right me-1"></i>External</span>';
+                }
+                return '<span class="badge bg-secondary">Not Set</span>';
+            })
+            ->addColumn('team_size', function ($user) {
+                if ($user->supervisor_type === 'external') {
+                    return '<span class="text-muted">N/A</span>';
+                }
+                return '<span class="badge bg-info">' . $user->technicians_count . ' members</span>';
+            })
             ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . ($user->status == 'active' ? 'success' : 'secondary') . '">' . ucfirst($user->status) . '</span>')
             ->addColumn('coverage', function ($user) {
                 $states = is_array($user->coverage_states) ? $user->coverage_states : (is_string($user->coverage_states) ? json_decode($user->coverage_states, true) : null);
@@ -202,8 +231,11 @@ class TeamController extends Controller implements HasMiddleware
                 if ($request->status) {
                     $query->where('status', $request->status);
                 }
+                if ($request->supervisor_type) {
+                    $query->where('supervisor_type', $request->supervisor_type);
+                }
             })
-            ->rawColumns(['avatar', 'team_size', 'status_badge', 'coverage', 'actions'])
+            ->rawColumns(['avatar', 'supervisor_type_badge', 'team_size', 'status_badge', 'coverage', 'actions'])
             ->make(true);
     }
 
@@ -213,7 +245,7 @@ class TeamController extends Controller implements HasMiddleware
     protected function techniciansDatatable(Request $request): JsonResponse
     {
         $query = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))
-            ->with(['supervisor'])
+            ->with('supervisor')
             ->select('users.*');
 
         if ($request->supervisor_id) {
@@ -229,7 +261,12 @@ class TeamController extends Controller implements HasMiddleware
             })
             ->addColumn('supervisor_name', function ($user) {
                 if ($user->supervisor) {
-                    return '<span class="text-primary">' . e($user->supervisor->name) . '</span>';
+                    $typeBadge = '';
+                    if ($user->supervisor->supervisor_type) {
+                        $typeClass = $user->supervisor->supervisor_type === 'internal' ? 'info' : 'warning';
+                        $typeBadge = ' <span class="badge bg-' . $typeClass . ' ms-1" style="font-size:0.65em;">' . ucfirst($user->supervisor->supervisor_type) . '</span>';
+                    }
+                    return '<span class="text-primary">' . e($user->supervisor->name) . '</span>' . $typeBadge;
                 }
                 return '<span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Unassigned</span>';
             })
@@ -288,6 +325,7 @@ class TeamController extends Controller implements HasMiddleware
                     'email' => $user->email,
                     'phone' => $user->phone,
                     'status' => $user->status,
+                    'supervisor_type' => $user->supervisor_type,
                     'coverage_states' => $user->coverage_states ?? [],
                     'skill_tags' => $user->skill_tags ?? [],
                     'supervisor' => $user->supervisor,
@@ -296,7 +334,9 @@ class TeamController extends Controller implements HasMiddleware
             ]);
         }
 
+        // Only internal supervisors for assignment dropdown
         $supervisors = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
+            ->where('supervisor_type', 'internal')
             ->where('status', 'active')
             ->orderBy('name')
             ->get();
@@ -305,12 +345,22 @@ class TeamController extends Controller implements HasMiddleware
     }
 
     /**
-     * Assign single technician to supervisor (supervisor_id REQUIRED).
+     * Assign single technician to supervisor (supervisor MUST be internal).
      */
     public function assign(AssignTechnicianRequest $request): JsonResponse
     {
         try {
             DB::beginTransaction();
+
+            $supervisor = User::findOrFail($request->supervisor_id);
+
+            // Double-check: only internal supervisors can have technicians
+            if ($supervisor->isExternalSupervisor()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot assign technicians to an external supervisor. Only internal supervisors can have teams.'
+                ], 422);
+            }
 
             $technician = User::findOrFail($request->technician_id);
             $oldSupervisorId = $technician->supervisor_id;
@@ -320,10 +370,9 @@ class TeamController extends Controller implements HasMiddleware
 
             DB::commit();
 
-            $supervisorName = User::find($request->supervisor_id)->name;
             return response()->json([
                 'success' => true,
-                'message' => "{$technician->name} assigned to {$supervisorName}"
+                'message' => "{$technician->name} assigned to {$supervisor->name}"
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -332,12 +381,22 @@ class TeamController extends Controller implements HasMiddleware
     }
 
     /**
-     * Bulk assign technicians to supervisor (supervisor_id REQUIRED).
+     * Bulk assign technicians to supervisor (supervisor MUST be internal).
      */
     public function bulkAssign(BulkAssignRequest $request): JsonResponse
     {
         try {
             DB::beginTransaction();
+
+            $supervisor = User::findOrFail($request->supervisor_id);
+
+            // Double-check: only internal supervisors can have technicians
+            if ($supervisor->isExternalSupervisor()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot assign technicians to an external supervisor. Only internal supervisors can have teams.'
+                ], 422);
+            }
 
             $count = 0;
             foreach ($request->technician_ids as $id) {
@@ -352,10 +411,9 @@ class TeamController extends Controller implements HasMiddleware
 
             DB::commit();
 
-            $supervisorName = User::find($request->supervisor_id)->name;
             return response()->json([
                 'success' => true,
-                'message' => "{$count} technician(s) assigned to {$supervisorName}",
+                'message' => "{$count} technician(s) assigned to {$supervisor->name}",
                 'count' => $count
             ]);
         } catch (\Exception $e) {
@@ -378,10 +436,12 @@ class TeamController extends Controller implements HasMiddleware
 
     /**
      * Get supervisors list for dropdown/AJAX.
+     * Only returns INTERNAL supervisors (they are the ones that can have teams).
      */
     public function supervisorsList(Request $request): JsonResponse
     {
         $query = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
+            ->where('supervisor_type', 'internal')
             ->where('status', 'active')
             ->withCount(['technicians' => fn($q) => $q->where('status', 'active')]);
 

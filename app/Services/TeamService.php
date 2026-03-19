@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\DB;
  *
  * NOTE: Independent technicians are NOT supported.
  *       All technicians MUST have a supervisor assigned.
- *       Supervisors can operate without technicians (independent supervisors).
+ *       Internal supervisors have technician teams.
+ *       External supervisors do NOT have technician teams.
  *
  * @package App\Services
  */
@@ -27,26 +28,35 @@ class TeamService
     public function getTeamStatistics(): array
     {
         $totalSupervisors = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))->where('status', 'active')->count();
+        $internalSupervisors = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
+            ->where('supervisor_type', 'internal')->where('status', 'active')->count();
+        $externalSupervisors = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
+            ->where('supervisor_type', 'external')->where('status', 'active')->count();
+
         $totalTechnicians = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))->where('status', 'active')->count();
         $assignedTechnicians = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))->whereNotNull('supervisor_id')->where('status', 'active')->count();
         $unassignedTechnicians = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))->whereNull('supervisor_id')->where('status', 'active')->count();
 
-        $avgTeamSize = $totalSupervisors > 0 ? round($assignedTechnicians / $totalSupervisors, 1) : 0;
+        // Average team size based on internal supervisors only (external don't have teams)
+        $avgTeamSize = $internalSupervisors > 0 ? round($assignedTechnicians / $internalSupervisors, 1) : 0;
 
         $largestTeam = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
+            ->where('supervisor_type', 'internal')
             ->withCount(['technicians' => fn($q) => $q->where('status', 'active')])
             ->orderByDesc('technicians_count')
             ->first();
 
         return [
-            'total_supervisors' => $totalSupervisors,
-            'total_technicians' => $totalTechnicians,
-            'assigned_technicians' => $assignedTechnicians,
-            'unassigned_technicians' => $unassignedTechnicians, // Needs attention — must be assigned
-            'avg_team_size' => $avgTeamSize,
-            'largest_team' => [
+            'total_supervisors'      => $totalSupervisors,
+            'internal_supervisors'   => $internalSupervisors,
+            'external_supervisors'   => $externalSupervisors,
+            'total_technicians'      => $totalTechnicians,
+            'assigned_technicians'   => $assignedTechnicians,
+            'unassigned_technicians' => $unassignedTechnicians,
+            'avg_team_size'          => $avgTeamSize,
+            'largest_team'           => [
                 'supervisor_name' => $largestTeam?->name ?? '-',
-                'team_size' => $largestTeam?->technicians_count ?? 0,
+                'team_size'       => $largestTeam?->technicians_count ?? 0,
             ],
         ];
     }
@@ -54,9 +64,19 @@ class TeamService
     /**
      * Get supervisor's own team statistics.
      * Used by: Admin\TeamController::stats(), Supervisor\TeamController::index() & stats()
+     *
+     * For external supervisors: returns zero team members and own job stats only.
      */
     public function getSupervisorTeamStats(User $supervisor): array
     {
+        $isExternal = $supervisor->isExternalSupervisor();
+
+        // External supervisors have no team members
+        if ($isExternal) {
+            return $this->getExternalSupervisorStats($supervisor);
+        }
+
+        // Internal supervisor — full team stats
         $allTeamMembers = User::where('supervisor_id', $supervisor->id)->get();
         $activeMembers = $allTeamMembers->where('status', 'active');
 
@@ -127,22 +147,103 @@ class TeamService
         }
 
         return [
-            'total_members'       => $totalMembers,
-            'active_members'      => $activeCount,
-            'todays_jobs'         => $todaysJobs,
-            'pending_jobs'        => $pendingJobs,
-            'completed_this_month' => $completedThisMonth,
-            'sla_compliance'      => [
+            'supervisor_type'       => 'internal',
+            'total_members'         => $totalMembers,
+            'active_members'        => $activeCount,
+            'todays_jobs'           => $todaysJobs,
+            'pending_jobs'          => $pendingJobs,
+            'completed_this_month'  => $completedThisMonth,
+            'sla_compliance'        => [
                 'rate'    => $slaRate,
                 'on_time' => $slaOnTime,
                 'total'   => $slaTotal,
             ],
-            'coverage_states'     => $coverageStates,
-            // Backward-compatible keys
+            'coverage_states'       => $coverageStates,
             'members_with_coverage' => $activeMembers->filter(fn($m) => !empty($m->coverage_states))->count(),
-            'total_jobs'          => ($todaysJobs + $pendingJobs + $completedThisMonth),
-            'completed_jobs'      => $completedThisMonth,
-            'completion_rate'     => $slaRate,
+            'total_jobs'            => ($todaysJobs + $pendingJobs + $completedThisMonth),
+            'completed_jobs'        => $completedThisMonth,
+            'completion_rate'       => $slaRate,
+        ];
+    }
+
+    /**
+     * Get stats for an external supervisor (no team, own jobs only).
+     */
+    protected function getExternalSupervisorStats(User $supervisor): array
+    {
+        $todaysJobs = 0;
+        $pendingJobs = 0;
+        $completedThisMonth = 0;
+        $slaRate = 100;
+        $slaOnTime = 0;
+        $slaTotal = 0;
+
+        try {
+            if (class_exists(JobOrder::class)) {
+                // External supervisor jobs: supervisor_id = self OR technician_id = self
+                $jobScope = fn($q) => $q->where('supervisor_id', $supervisor->id)
+                    ->orWhere('technician_id', $supervisor->id);
+
+                $todaysJobs = JobOrder::where($jobScope)
+                    ->whereDate('job_date', today())
+                    ->count();
+
+                $pendingJobs = JobOrder::where($jobScope)
+                    ->whereIn('status', ['pending_assignment', 'assigned', 'in_progress'])
+                    ->count();
+
+                $completedThisMonth = JobOrder::where($jobScope)
+                    ->where('status', 'completed')
+                    ->whereMonth('updated_at', now()->month)
+                    ->whereYear('updated_at', now()->year)
+                    ->count();
+
+                $slaTotal = JobOrder::where($jobScope)
+                    ->where('status', 'completed')
+                    ->count();
+
+                if ($slaTotal > 0) {
+                    $slaOnTime = JobOrder::where($jobScope)
+                        ->where('status', 'completed')
+                        ->where(function ($q) {
+                            $q->whereNull('sla_deadline')
+                              ->orWhereColumn('completed_at', '<=', 'sla_deadline');
+                        })
+                        ->count();
+                    $slaRate = round(($slaOnTime / $slaTotal) * 100, 1);
+                }
+            }
+        } catch (\Exception $e) {
+            // job_orders table may not exist yet
+        }
+
+        // Collect own coverage states
+        $coverageStates = [];
+        $raw = $supervisor->coverage_states;
+        if (is_array($raw)) {
+            $coverageStates = $raw;
+        } elseif (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $coverageStates = is_array($decoded) ? $decoded : [];
+        }
+
+        return [
+            'supervisor_type'       => 'external',
+            'total_members'         => 0,
+            'active_members'        => 0,
+            'todays_jobs'           => $todaysJobs,
+            'pending_jobs'          => $pendingJobs,
+            'completed_this_month'  => $completedThisMonth,
+            'sla_compliance'        => [
+                'rate'    => $slaRate,
+                'on_time' => $slaOnTime,
+                'total'   => $slaTotal,
+            ],
+            'coverage_states'       => $coverageStates,
+            'members_with_coverage' => 0,
+            'total_jobs'            => ($todaysJobs + $pendingJobs + $completedThisMonth),
+            'completed_jobs'        => $completedThisMonth,
+            'completion_rate'       => $slaRate,
         ];
     }
 
@@ -168,8 +269,17 @@ class TeamService
                 if ($user->hasRole('technician')) {
                     $jobQuery->where('technician_id', $user->id);
                 } elseif ($user->hasRole('supervisor')) {
-                    $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->push($user->id);
-                    $jobQuery->whereIn('technician_id', $teamIds);
+                    if ($user->isInternalSupervisor()) {
+                        // Internal supervisor: own + team jobs
+                        $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->push($user->id);
+                        $jobQuery->whereIn('technician_id', $teamIds);
+                    } else {
+                        // External supervisor: own jobs only
+                        $jobQuery->where(function ($q) use ($user) {
+                            $q->where('supervisor_id', $user->id)
+                              ->orWhere('technician_id', $user->id);
+                        });
+                    }
                 }
 
                 $totalJobs = (clone $jobQuery)->count();
@@ -224,8 +334,15 @@ class TeamService
             if ($user->hasRole('technician')) {
                 $query->where('technician_id', $user->id);
             } elseif ($user->hasRole('supervisor')) {
-                $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->push($user->id);
-                $query->whereIn('technician_id', $teamIds);
+                if ($user->isInternalSupervisor()) {
+                    $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->push($user->id);
+                    $query->whereIn('technician_id', $teamIds);
+                } else {
+                    $query->where(function ($q) use ($user) {
+                        $q->where('supervisor_id', $user->id)
+                          ->orWhere('technician_id', $user->id);
+                    });
+                }
             }
 
             return $query->orderBy('created_at', 'desc')
@@ -262,8 +379,15 @@ class TeamService
                     if ($user->hasRole('technician')) {
                         $query->where('technician_id', $user->id);
                     } elseif ($user->hasRole('supervisor')) {
-                        $teamIds = User::where('supervisor_id', $user->id)->pluck('id');
-                        $query->whereIn('technician_id', $teamIds);
+                        if ($user->isInternalSupervisor()) {
+                            $teamIds = User::where('supervisor_id', $user->id)->pluck('id');
+                            $query->whereIn('technician_id', $teamIds);
+                        } else {
+                            $query->where(function ($q) use ($user) {
+                                $q->where('supervisor_id', $user->id)
+                                  ->orWhere('technician_id', $user->id);
+                            });
+                        }
                     }
 
                     $data[] = $query->count();
@@ -334,10 +458,11 @@ class TeamService
 
     /**
      * Get team performance data for supervisor dashboard chart.
+     * For internal supervisors: uses team technician IDs.
+     * For external supervisors: uses own supervisor_id scoped jobs.
      */
     public function getTeamPerformance(User $supervisor): array
     {
-        $teamIds = User::where('supervisor_id', $supervisor->id)->pluck('id');
         $labels = [];
         $data = [];
 
@@ -346,10 +471,22 @@ class TeamService
                 for ($i = 6; $i >= 0; $i--) {
                     $date = Carbon::now()->subDays($i);
                     $labels[] = $date->format('D');
-                    $data[] = JobOrder::whereIn('technician_id', $teamIds)
-                        ->where('status', 'completed')
-                        ->whereDate('updated_at', $date)
-                        ->count();
+
+                    $query = JobOrder::where('status', 'completed')
+                        ->whereDate('updated_at', $date);
+
+                    if ($supervisor->isInternalSupervisor()) {
+                        $teamIds = User::where('supervisor_id', $supervisor->id)->pluck('id');
+                        $query->whereIn('technician_id', $teamIds);
+                    } else {
+                        // External supervisor: own jobs only
+                        $query->where(function ($q) use ($supervisor) {
+                            $q->where('supervisor_id', $supervisor->id)
+                              ->orWhere('technician_id', $supervisor->id);
+                        });
+                    }
+
+                    $data[] = $query->count();
                 }
             } else {
                 throw new \Exception('No JobOrder model');
