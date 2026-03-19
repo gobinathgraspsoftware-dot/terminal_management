@@ -139,7 +139,7 @@ class TicketController extends Controller
         $jobCategories = JobCategory::active()->orderBy('category_name')->get();
         $jobTypes = JobType::active()->orderBy('job_title')->get();
 
-        // Supervisors matching ticket's state/city
+        // Supervisors matching ticket's state
         $supervisorQuery = User::role('supervisor')->where('status', 'active');
         if ($ticket->state_id) {
             $supervisorQuery->where(function ($q) use ($ticket) {
@@ -327,6 +327,7 @@ class TicketController extends Controller
         $query = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
             ->where('status', 'active');
 
+        // Filter by state only (state_id match OR coverage_states JSON contains)
         if ($request->filled('state_id')) {
             $stateId = $request->state_id;
             $query->where(function ($q) use ($stateId) {
@@ -335,12 +336,7 @@ class TicketController extends Controller
             });
         }
 
-        if ($request->filled('city_id')) {
-            $cityId = $request->city_id;
-            $query->orderByRaw('CASE WHEN city_id = ? THEN 0 ELSE 1 END', [$cityId]);
-        }
-
-        $supervisors = $query->orderBy('name')->get(['id', 'name', 'state_id', 'city_id', 'mileage_rate', 'supervisor_type']);
+        $supervisors = $query->orderBy('name')->get(['id', 'name', 'state_id', 'mileage_rate', 'supervisor_type']);
         return response()->json($supervisors);
     }
 

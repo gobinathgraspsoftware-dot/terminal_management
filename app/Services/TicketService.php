@@ -46,7 +46,6 @@ class TicketService
                 $q->where('ticket_no', 'like', "%{$search}%")
                   ->orWhere('vendor_ticket_ref_no', 'like', "%{$search}%")
                   ->orWhere('merchant_name', 'like', "%{$search}%")
-                  ->orWhere('tid', 'like', "%{$search}%")
                   ->orWhere('terminal_id', 'like', "%{$search}%")
                   ->orWhere('router_id', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%")
@@ -77,21 +76,17 @@ class TicketService
     }
 
     /**
-     * Create a new ticket with vendor-based ticket ID
+     * Create a new ticket with vendor-based ticket ID.
+     * NOTE: SLA is NOT set at creation. It is calculated when technician ACCEPTS the ticket.
      */
     public function create(array $data): Ticket
     {
         return DB::transaction(function () use ($data) {
-            // Generate vendor-based ticket number
             $data['ticket_no'] = Ticket::generateVendorTicketNo($data['vendor_id']);
             $data['created_by'] = Auth::id();
             $data['updated_by'] = Auth::id();
 
-            // SLA
-            $slaHours = (int) ($data['sla_hours'] ?? 24);
-            $data['sla_hours'] = $slaHours;
-            $data['sla_deadline'] = now()->addHours($slaHours);
-            $data['sla_status'] = Ticket::SLA_ON_TRACK;
+            // NO SLA at creation — SLA starts when ticket is accepted
 
             // Lookup price from SupervisorJobPricing
             if (!empty($data['supervisor_id']) && !empty($data['job_category_id']) && !empty($data['job_type_id'])) {
@@ -116,12 +111,10 @@ class TicketService
             $supervisor = !empty($data['supervisor_id']) ? User::find($data['supervisor_id']) : null;
 
             if (!empty($data['technician_id']) && $supervisor && $supervisor->isInternalSupervisor()) {
-                // Internal supervisor assigning to technician
                 $data['status'] = Ticket::STATUS_ASSIGNED;
                 $data['assigned_at'] = now();
             } elseif ($supervisor && $supervisor->isExternalSupervisor()) {
-                // External supervisor — ticket assigned to the supervisor (no technician)
-                $data['technician_id'] = null; // External supervisors don't assign technicians
+                $data['technician_id'] = null;
                 $data['status'] = Ticket::STATUS_ASSIGNED;
                 $data['assigned_at'] = now();
             } else {
@@ -195,7 +188,8 @@ class TicketService
     }
 
     /**
-     * Change ticket status with proof handling
+     * Change ticket status with proof handling.
+     * SLA is calculated HERE when status changes to ACCEPTED (24 hours from accept time).
      */
     public function changeStatus(Ticket $ticket, string $newStatus, ?string $remarks = null, ?string $rescheduleReason = null, array $proofFiles = []): Ticket
     {
@@ -218,15 +212,23 @@ class TicketService
             $oldStatus = $ticket->status;
             $updateData = ['status' => $newStatus, 'updated_by' => Auth::id()];
 
-            // Timestamp tracking for each status
+            // ── ACCEPTED: Start SLA countdown (24 hours from now) ──
             if ($newStatus === Ticket::STATUS_ACCEPTED) {
                 $updateData['accepted_at'] = now();
+                $updateData['sla_hours'] = 24;
+                $updateData['sla_deadline'] = now()->addHours(24);
+                $updateData['sla_status'] = Ticket::SLA_ON_TRACK;
             }
+
             if ($newStatus === Ticket::STATUS_REJECTED) {
                 $updateData['rejected_at'] = now();
-                // When rejected, unassign technician so it can be reassigned
                 $updateData['technician_id'] = null;
+                // Reset SLA since ticket goes back to pool
+                $updateData['sla_hours'] = null;
+                $updateData['sla_deadline'] = null;
+                $updateData['sla_status'] = null;
             }
+
             if ($newStatus === Ticket::STATUS_IN_PROGRESS && !$ticket->started_at) {
                 $updateData['started_at'] = now();
             }
@@ -254,7 +256,7 @@ class TicketService
                 'created_at' => now(),
             ]);
 
-            // Upload proof files (if any were provided)
+            // Upload proof files
             if (!empty($proofFiles)) {
                 $this->uploadProofs($ticket, $history, $proofFiles);
             }
@@ -270,36 +272,24 @@ class TicketService
 
     /**
      * Auto-create a ticket claim when ticket is completed.
-     * Only creates if total_claim_amount > 0 and no claim already exists for this ticket.
      * Claims are only for external supervisors.
      */
     protected function autoCreateTicketClaim(Ticket $ticket): void
     {
         try {
-            // Skip if no claim amount
             $totalClaim = (float) ($ticket->total_claim_amount ?? 0);
-            if ($totalClaim <= 0) {
-                return;
-            }
+            if ($totalClaim <= 0) return;
 
-            // Check supervisor type — claims only for external supervisors
             if ($ticket->supervisor_id) {
                 $supervisor = User::find($ticket->supervisor_id);
-                if ($supervisor && $supervisor->isInternalSupervisor()) {
-                    // Internal supervisor — no claims
-                    return;
-                }
+                if ($supervisor && $supervisor->isInternalSupervisor()) return;
             }
 
-            // Skip if a ticket claim already exists for this ticket
             $exists = Claim::ticketClaims()->where('ticket_id', $ticket->id)->exists();
-            if ($exists) {
-                return;
-            }
+            if ($exists) return;
 
             $claimService = app(ClaimManagementService::class);
             $claimService->createTicketClaim($ticket);
-
             Log::info("Auto-created ticket claim for Ticket #{$ticket->ticket_no}");
         } catch (\Exception $e) {
             Log::error("Failed to auto-create ticket claim for Ticket #{$ticket->ticket_no}: " . $e->getMessage());
@@ -319,11 +309,9 @@ class TicketService
 
                 $fileName = $file->getClientOriginalName();
                 $filePath = 'ticket-proofs/' . $ticket->id;
-
                 $fileSize = $file->getSize() ?: 0;
                 $mimeType = $file->getClientMimeType() ?: null;
 
-                // cPanel-safe upload
                 $destinationPath = $_SERVER['DOCUMENT_ROOT'] . '/storage/' . $filePath;
                 if (!is_dir($destinationPath)) {
                     mkdir($destinationPath, 0755, true);
@@ -377,11 +365,10 @@ class TicketService
     }
 
     /**
-     * Assign technician — only allowed for internal supervisors
+     * Assign technician
      */
     public function assignTechnician(Ticket $ticket, int $technicianId, ?string $remarks = null): Ticket
     {
-        // Verify the supervisor is internal
         $supervisor = $ticket->supervisor_id ? User::find($ticket->supervisor_id) : null;
         if ($supervisor && $supervisor->isExternalSupervisor()) {
             throw new \Exception('External supervisors cannot assign technicians to tickets.');
@@ -412,7 +399,7 @@ class TicketService
     }
 
     /**
-     * Reassign technician (change technician on an existing ticket)
+     * Reassign technician — resets SLA since new technician must accept again
      */
     public function reassignTechnician(Ticket $ticket, int $technicianId, ?string $remarks = null): Ticket
     {
@@ -426,6 +413,10 @@ class TicketService
                 'status' => Ticket::STATUS_ASSIGNED,
                 'assigned_at' => now(),
                 'accepted_at' => null,
+                // Reset SLA — new technician must accept, SLA restarts then
+                'sla_hours' => null,
+                'sla_deadline' => null,
+                'sla_status' => null,
                 'updated_by' => Auth::id(),
             ]);
 
@@ -506,7 +497,7 @@ class TicketService
     }
 
     /**
-     * Update SLA statuses
+     * Update SLA statuses (called by scheduler)
      */
     public function updateSlaStatuses(): int
     {

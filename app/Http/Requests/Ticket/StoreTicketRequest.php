@@ -20,7 +20,6 @@ class StoreTicketRequest extends FormRequest
             'vendor_branch_id'     => 'required|exists:vendor_branches,id',
             'state_id'             => 'required|exists:states,id',
             'city_id'              => 'required|exists:cities,id',
-            'tid'                  => 'required|string|max:100',
             'merchant_name'        => 'required|string|max:255',
             'merchant_address'     => 'required|string|max:2000',
             'contact_number'       => 'required|string|max:50',
@@ -30,9 +29,8 @@ class StoreTicketRequest extends FormRequest
             'supervisor_id'        => 'required|exists:users,id',
             'technician_id'        => 'nullable|exists:users,id',
             'priority'             => 'required|in:low,normal,high,urgent',
-            'sla_hours'            => 'nullable|integer|min:1|max:720',
             'description'          => 'required|string|max:5000',
-            'expected_start_date'  => 'nullable|date|after_or_equal:today',
+            'expected_start_date'  => 'nullable|date',
             'expected_end_date'    => 'nullable|date|after_or_equal:expected_start_date',
             // Claim
             'mileage'              => 'nullable|numeric|min:0',
@@ -68,7 +66,6 @@ class StoreTicketRequest extends FormRequest
             }
         }
 
-        // old_terminal_id required for replacement job types
         $rules['old_terminal_id'] = 'nullable|string|max:100';
 
         return $rules;
@@ -81,7 +78,6 @@ class StoreTicketRequest extends FormRequest
             'vendor_branch_id.required'     => 'Please select a branch.',
             'state_id.required'             => 'Please select a state.',
             'city_id.required'              => 'Please select a district.',
-            'tid.required'                  => 'Terminal ID (TID) is required.',
             'merchant_name.required'        => 'Merchant name is required.',
             'merchant_address.required'     => 'Merchant address is required.',
             'contact_number.required'       => 'Contact number is required.',
