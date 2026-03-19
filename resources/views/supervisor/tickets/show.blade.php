@@ -30,13 +30,6 @@
             </div>
         </div>
         <div class="d-flex gap-2">
-            @can('update', $ticket)
-            @if(!in_array($ticket->status, ['done_success','done_fail','closed']))
-            <a href="{{ route('supervisor.tickets.edit', $ticket->id) }}" class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-pencil me-1"></i>Edit
-            </a>
-            @endif
-            @endcan
             <a href="{{ route('supervisor.tickets.index') }}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>Back
             </a>

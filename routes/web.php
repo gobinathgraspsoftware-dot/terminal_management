@@ -1061,27 +1061,12 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
 
     /* Ticket Management Routes */
     Route::prefix('tickets')->name('tickets.')->group(function () {
-        Route::get('/', [SupervisorTicketController::class, 'index'])->name('index');
-        Route::get('/datatable', [SupervisorTicketController::class, 'datatable'])->name('datatable');
-        Route::get('/create', [SupervisorTicketController::class, 'create'])->name('create');
-        Route::post('/', [SupervisorTicketController::class, 'store'])->name('store');
-        // AJAX endpoints
-        Route::get('/ajax/vendor-branches', [SupervisorTicketController::class, 'getVendorBranches'])->name('ajax.vendor-branches');
-        Route::get('/ajax/cities', [SupervisorTicketController::class, 'getCities'])->name('ajax.cities');
-        Route::get('/ajax/technicians', [SupervisorTicketController::class, 'getTechnicians'])->name('ajax.technicians');
-        Route::get('/ajax/supervisors', [SupervisorTicketController::class, 'getSupervisors'])->name('ajax.supervisors');
-        Route::get('/ajax/supervisor-mileage-rate', [SupervisorTicketController::class, 'getSupervisorMileageRate'])->name('ajax.supervisor-mileage-rate');
-        Route::get('/ajax/price', [SupervisorTicketController::class, 'getPrice'])->name('ajax.price');
-        Route::get('/ajax/job-category-details', [SupervisorTicketController::class, 'getJobCategoryDetails'])->name('ajax.job-category-details');
-        // Parameterized routes
-        Route::get('/{ticket}', [SupervisorTicketController::class, 'show'])->name('show');
-        Route::get('/{ticket}/edit', [SupervisorTicketController::class, 'edit'])->name('edit');
-        Route::put('/{ticket}', [SupervisorTicketController::class, 'update'])->name('update');
-        Route::post('/{ticket}/change-status', [SupervisorTicketController::class, 'changeStatus'])->name('change-status');
-        Route::post('/{ticket}/assign', [SupervisorTicketController::class, 'assign'])->name('assign');
-        Route::post('/{ticket}/reassign', [SupervisorTicketController::class, 'reassign'])->name('reassign');
-        Route::post('/{ticket}/update-claim', [SupervisorTicketController::class, 'updateClaim'])->name('update-claim');
-        Route::post('/{ticket}/comment', [SupervisorTicketController::class, 'addComment'])->name('comment');
+        Route::get('/', [TechnicianTicketController::class, 'index'])->name('index');
+        Route::get('/datatable', [TechnicianTicketController::class, 'datatable'])->name('datatable');
+        Route::get('/{ticket}', [TechnicianTicketController::class, 'show'])->name('show');
+        Route::post('/{ticket}/change-status', [TechnicianTicketController::class, 'changeStatus'])->name('change-status');
+        Route::post('/{ticket}/update-claim', [TechnicianTicketController::class, 'updateClaim'])->name('update-claim');
+        Route::post('/{ticket}/comment', [TechnicianTicketController::class, 'addComment'])->name('comment');
     });
 
     /* Claim management */

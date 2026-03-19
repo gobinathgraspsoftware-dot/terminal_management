@@ -79,13 +79,8 @@
 
     {{-- DataTable --}}
     <div class="card shadow-sm">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <div class="card-header bg-white">
             <h5 class="mb-0"><i class="bi bi-ticket-detailed me-2"></i>Tickets</h5>
-            @can('create_tickets')
-            <a href="{{ route('supervisor.tickets.create') }}" class="btn btn-primary btn-sm">
-                <i class="bi bi-plus-lg me-1"></i>New Ticket
-            </a>
-            @endcan
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -138,10 +133,7 @@ $(function() {
             { data: 'sla_remaining', render: (data, type, row) => !data ? '-' : `<span class="${row.sla_breached ? 'text-danger fw-bold' : 'text-success'}">${data}</span>` },
             { data: 'created_at' },
             { data: null, orderable: false, render: (data, type, row) =>
-                `<div class="btn-group btn-group-sm">
-                    <a href="/supervisor/tickets/${row.id}" class="btn btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
-                    <a href="/supervisor/tickets/${row.id}/edit" class="btn btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
-                </div>`
+                `<a href="/supervisor/tickets/${row.id}" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>`
             }
         ],
         order: [[9, 'desc']]
