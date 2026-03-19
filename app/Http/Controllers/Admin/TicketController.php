@@ -309,7 +309,7 @@ class TicketController extends Controller
 
     public function getCities(Request $request)
     {
-        $cities = City::where('state_id', $request->state_id)->orderBy('name')->get(['id', 'name']);
+        $cities = City::where('state_id', $request->state_id)->orderBy('name')->get(['id', 'name', 'postcode']);
         return response()->json($cities);
     }
 
