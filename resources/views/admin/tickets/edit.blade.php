@@ -1,186 +1,144 @@
-@php use App\Models\Ticket; @endphp
 @extends('layouts.app')
-
 @section('title', 'Edit Ticket - ' . $ticket->ticket_no)
 
 @section('content')
 <div class="container-fluid">
-    <div class="page-header d-flex justify-content-between align-items-center">
-        <h1><i class="bi bi-pencil-square me-2"></i>Edit Ticket: {{ $ticket->ticket_no }}</h1>
-        <a href="{{ route('admin.tickets.show', $ticket->id) }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-1"></i>Back to Ticket
-        </a>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0"><i class="bi bi-pencil me-2"></i>Edit Ticket: {{ $ticket->ticket_no }}</h4>
+        <a href="{{ route('admin.tickets.show', $ticket->id) }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to Ticket</a>
     </div>
 
-    <form id="ticketForm" method="POST" action="{{ route('admin.tickets.update', $ticket->id) }}">
-        @csrf
-        @method('PUT')
-        <div class="card">
-            <div class="card-body">
-
-                {{-- Section 1: Ticket Information --}}
-                <div class="alert fw-bold mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px;">
-                    <i class="bi bi-info-circle me-2"></i>Section 1: Ticket Information
-                </div>
-                <div class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <label class="form-label">Vendor <span class="text-danger">*</span></label>
-                        <select name="vendor_id" id="vendor_id" class="form-select" required>
-                            <option value="">Select Vendor</option>
-                            @foreach($vendors as $v)
-                                <option value="{{ $v->id }}" {{ $ticket->vendor_id == $v->id ? 'selected' : '' }}>{{ $v->vendor_name }} ({{ $v->vendor_code }})</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Vendor Ticket Ref No</label>
-                        <input type="text" name="vendor_ticket_ref_no" class="form-control" value="{{ $ticket->vendor_ticket_ref_no }}" placeholder="External ticket reference">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Branch <span class="text-danger">*</span></label>
-                        <select name="vendor_branch_id" id="vendor_branch_id" class="form-select" required>
-                            <option value="">Select Branch</option>
-                            @foreach($branches as $b)
-                                <option value="{{ $b->id }}" {{ $ticket->vendor_branch_id == $b->id ? 'selected' : '' }}
-                                    data-state="{{ $b->state_id }}" data-city="{{ $b->city_id }}">{{ $b->branch_name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">State <span class="text-danger">*</span></label>
-                        <select name="state_id" id="state_id" class="form-select" required>
-                            <option value="">Select State</option>
-                            @foreach($states as $st)
-                                <option value="{{ $st->id }}" {{ $ticket->state_id == $st->id ? 'selected' : '' }}>{{ $st->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">District <span class="text-danger">*</span></label>
-                        <select name="city_id" id="city_id" class="form-select" required>
-                            <option value="">Select District</option>
-                            @foreach($cities as $c)
-                                <option value="{{ $c->id }}" {{ $ticket->city_id == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Job Type <span class="text-danger">*</span></label>
-                        <select name="job_type_id" id="job_type_id" class="form-select" required>
-                            <option value="">Select Job Type</option>
-                            @foreach($jobTypes as $jt)
-                                <option value="{{ $jt->id }}" {{ $ticket->job_type_id == $jt->id ? 'selected' : '' }}>{{ $jt->job_title }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Charge</label>
-                        <select name="charge_id" id="charge_id" class="form-select">
-                            <option value="">Select Charge</option>
-                            @foreach($charges as $ch)
-                                <option value="{{ $ch->id }}" {{ $ticket->charge_id == $ch->id ? 'selected' : '' }}>{{ $ch->charge_name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Supervisor <span class="text-danger">*</span></label>
-                        <select name="supervisor_id" id="supervisor_id" class="form-select" required>
-                            <option value="">Select Supervisor</option>
-                            @foreach($supervisors as $s)
-                                <option value="{{ $s->id }}" {{ $ticket->supervisor_id == $s->id ? 'selected' : '' }}
-                                    data-mileage-rate="{{ $s->mileage_rate ?? 0 }}">{{ $s->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Assignee (Technician)</label>
-                        <select name="technician_id" id="technician_id" class="form-select">
-                            <option value="">Select Technician (Optional)</option>
-                            {{-- Populated via JS on load --}}
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Priority <span class="text-danger">*</span></label>
-                        <select name="priority" class="form-select" required>
-                            @foreach(Ticket::getPriorities() as $val => $label)
-                                <option value="{{ $val }}" {{ $ticket->priority === $val ? 'selected' : '' }}>{{ $label }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">SLA (Hours) <span class="text-danger">*</span></label>
-                        <input type="number" name="sla_hours" class="form-control" value="{{ $ticket->sla_hours }}" min="1" max="720">
+    <form id="ticketForm" novalidate>
+        @csrf @method('PUT')
+        <div class="row g-4">
+            <div class="col-lg-8">
+                {{-- Vendor --}}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-building me-2"></i>Vendor Information</h6></div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Vendor <span class="text-danger">*</span></label>
+                                <select name="vendor_id" id="vendor_id" class="form-select select2" required>
+                                    <option value="">Select Vendor</option>
+                                    @foreach($vendors as $v)<option value="{{ $v->id }}" {{ $ticket->vendor_id == $v->id ? 'selected' : '' }}>{{ $v->vendor_name }}</option>@endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Branch <span class="text-danger">*</span></label>
+                                <select name="vendor_branch_id" id="vendor_branch_id" class="form-select select2" required>
+                                    <option value="">Select Branch</option>
+                                    @foreach($branches as $b)<option value="{{ $b->id }}" {{ $ticket->vendor_branch_id == $b->id ? 'selected' : '' }}>{{ $b->branch_name }}</option>@endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6"><label class="form-label">Vendor Ref</label><input type="text" name="vendor_ticket_ref_no" class="form-control" value="{{ $ticket->vendor_ticket_ref_no }}"></div>
+                        </div>
                     </div>
                 </div>
 
-                {{-- Section 2: Merchant Details --}}
-                <div class="alert fw-bold mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px;">
-                    <i class="bi bi-shop me-2"></i>Section 2: Merchant Details
-                </div>
-                <div class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <label class="form-label">Terminal ID (TID) <span class="text-danger">*</span></label>
-                        <input type="text" name="tid" class="form-control" value="{{ $ticket->tid }}" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Merchant Name <span class="text-danger">*</span></label>
-                        <input type="text" name="merchant_name" class="form-control" value="{{ $ticket->merchant_name }}" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Contact Number <span class="text-danger">*</span></label>
-                        <input type="text" name="contact_number" class="form-control" value="{{ $ticket->contact_number }}" required>
-                    </div>
-                    <div class="col-md-8">
-                        <label class="form-label">Merchant Address <span class="text-danger">*</span></label>
-                        <textarea name="merchant_address" class="form-control" rows="2" required>{{ $ticket->merchant_address }}</textarea>
-                    </div>
-                </div>
-
-                {{-- Section 3: Description & Claim --}}
-                <div class="alert fw-bold mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px;">
-                    <i class="bi bi-card-text me-2"></i>Section 3: Description & Claim
-                </div>
-                <div class="row g-3 mb-4">
-                    <div class="col-12">
-                        <label class="form-label">Description <span class="text-danger">*</span></label>
-                        <textarea name="description" class="form-control" rows="3" required>{{ $ticket->description }}</textarea>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Mileage (KM)</label>
-                        <input type="number" name="mileage" id="mileage" class="form-control" step="0.01" min="0" value="{{ $ticket->mileage ?? 0 }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Mileage Rate (RM/KM)</label>
-                        <input type="text" id="mileage_rate_display" class="form-control" readonly value="{{ number_format($ticket->mileage_rate ?? 0, 2) }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Mileage Amount (RM)</label>
-                        <input type="text" id="mileage_amount_display" class="form-control" readonly value="{{ number_format($ticket->mileage_amount ?? 0, 2) }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Mileage Remarks</label>
-                        <input type="text" name="mileage_remarks" class="form-control" value="{{ $ticket->mileage_remarks }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Toll (RM)</label>
-                        <input type="number" name="toll" id="toll" class="form-control" step="0.01" min="0" value="{{ $ticket->toll ?? 0 }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Standby / Meal (RM)</label>
-                        <input type="number" name="standby_meal" id="standby_meal" class="form-control" step="0.01" min="0" value="{{ $ticket->standby_meal ?? 0 }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold text-success">Total Claim (RM)</label>
-                        <input type="text" id="total_claim_display" class="form-control fw-bold text-success" readonly value="{{ number_format($ticket->total_claim_amount ?? 0, 2) }}">
+                {{-- Location --}}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Location & Merchant</h6></div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4"><label class="form-label">State <span class="text-danger">*</span></label>
+                                <select name="state_id" id="state_id" class="form-select select2" required>
+                                    <option value="">Select State</option>
+                                    @foreach($states as $s)<option value="{{ $s->id }}" {{ $ticket->state_id == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>@endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4"><label class="form-label">District <span class="text-danger">*</span></label>
+                                <select name="city_id" id="city_id" class="form-select select2" required>
+                                    <option value="">Select District</option>
+                                    @foreach($cities as $c)<option value="{{ $c->id }}" {{ $ticket->city_id == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>@endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4"><label class="form-label">TID <span class="text-danger">*</span></label><input type="text" name="tid" class="form-control" required value="{{ $ticket->tid }}"></div>
+                            <div class="col-md-6"><label class="form-label">Merchant Name <span class="text-danger">*</span></label><input type="text" name="merchant_name" class="form-control" required value="{{ $ticket->merchant_name }}"></div>
+                            <div class="col-md-6"><label class="form-label">Contact Number <span class="text-danger">*</span></label><input type="text" name="contact_number" class="form-control" required value="{{ $ticket->contact_number }}"></div>
+                            <div class="col-12"><label class="form-label">Merchant Address <span class="text-danger">*</span></label><textarea name="merchant_address" class="form-control" rows="2" required>{{ $ticket->merchant_address }}</textarea></div>
+                        </div>
                     </div>
                 </div>
 
-                <hr>
-                <div class="text-end">
-                    <a href="{{ route('admin.tickets.show', $ticket->id) }}" class="btn btn-secondary me-2">Cancel</a>
-                    <button type="submit" id="btnSubmit" class="btn btn-primary">
-                        <i class="bi bi-check-lg me-1"></i>Update Ticket
-                    </button>
+                {{-- Job Category & Type — BOTH INDEPENDENT --}}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Job Category & Type</h6></div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Job Category <span class="text-danger">*</span></label>
+                                <select name="job_category_id" id="job_category_id" class="form-select" required>
+                                    <option value="">Select Category</option>
+                                    @foreach($jobCategories as $cat)<option value="{{ $cat->id }}" data-slug="{{ $cat->slug }}" {{ $ticket->job_category_id == $cat->id ? 'selected' : '' }}>{{ $cat->category_name }}</option>@endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Job Type <span class="text-danger">*</span></label>
+                                <select name="job_type_id" id="job_type_id" class="form-select" required>
+                                    <option value="">Select Job Type</option>
+                                    @foreach($jobTypes as $jt)<option value="{{ $jt->id }}" data-slug="{{ $jt->slug }}" {{ $ticket->job_type_id == $jt->id ? 'selected' : '' }}>{{ $jt->job_title }}</option>@endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4"><label class="form-label">Price (RM)</label><input type="text" name="price" id="price_display" class="form-control bg-light" readonly value="{{ number_format($ticket->price, 2) }}"></div>
+                            <div class="col-md-6 device-field" id="terminalIdGroup">
+                                <label class="form-label">Terminal ID <span class="text-danger terminal-required-star">*</span></label>
+                                <input type="text" name="terminal_id" id="terminal_id" class="form-control" value="{{ $ticket->terminal_id }}">
+                            </div>
+                            <div class="col-md-6 device-field" id="routerIdGroup">
+                                <label class="form-label">Router ID <span class="text-danger router-required-star">*</span></label>
+                                <input type="text" name="router_id" id="router_id" class="form-control" value="{{ $ticket->router_id }}">
+                            </div>
+                            <div class="col-md-6 device-field" id="oldTerminalIdGroup">
+                                <label class="form-label">Old Terminal ID</label>
+                                <input type="text" name="old_terminal_id" class="form-control" value="{{ $ticket->old_terminal_id }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Description --}}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-card-text me-2"></i>Details & Schedule</h6></div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12"><label class="form-label">Description <span class="text-danger">*</span></label><textarea name="description" class="form-control" rows="4" required>{{ $ticket->description }}</textarea></div>
+                            <div class="col-md-4"><label class="form-label">Expected Start</label><input type="date" name="expected_start_date" class="form-control" value="{{ $ticket->expected_start_date?->format('Y-m-d') }}"></div>
+                            <div class="col-md-4"><label class="form-label">Expected End</label><input type="date" name="expected_end_date" class="form-control" value="{{ $ticket->expected_end_date?->format('Y-m-d') }}"></div>
+                            <div class="col-md-4"><label class="form-label">SLA Hours</label><input type="number" name="sla_hours" class="form-control" value="{{ $ticket->sla_hours }}"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-people me-2"></i>Assignment</h6></div>
+                    <div class="card-body">
+                        <div class="mb-3"><label class="form-label">Priority <span class="text-danger">*</span></label>
+                            <select name="priority" class="form-select" required>
+                                @foreach(\App\Models\Ticket::getPriorities() as $key => $label)<option value="{{ $key }}" {{ $ticket->priority === $key ? 'selected' : '' }}>{{ $label }}</option>@endforeach
+                            </select>
+                        </div>
+                        <div class="mb-3"><label class="form-label">Supervisor <span class="text-danger">*</span></label>
+                            <select name="supervisor_id" id="supervisor_id" class="form-select select2" required>
+                                <option value="">Select Supervisor</option>
+                                @foreach($supervisors as $sv)<option value="{{ $sv->id }}" data-type="{{ $sv->supervisor_type }}" {{ $ticket->supervisor_id == $sv->id ? 'selected' : '' }}>{{ $sv->name }} ({{ ucfirst($sv->supervisor_type ?? 'N/A') }})</option>@endforeach
+                            </select>
+                            <div id="supervisorTypeInfo" class="mt-1"><span id="supervisorTypeBadge"></span></div>
+                        </div>
+                        <div class="mb-3" id="technicianGroup">
+                            <label class="form-label">Assign Technician</label>
+                            <select name="technician_id" id="technician_id" class="form-select select2">
+                                <option value="">Assign Later</option>
+                                @foreach($technicians as $t)<option value="{{ $t->id }}" {{ $ticket->technician_id == $t->id ? 'selected' : '' }}>{{ $t->name }}</option>@endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary" id="btnSubmit"><i class="bi bi-check-lg me-1"></i>Update Ticket</button>
+                    <a href="{{ route('admin.tickets.show', $ticket->id) }}" class="btn btn-outline-secondary">Cancel</a>
                 </div>
             </div>
         </div>
@@ -191,105 +149,128 @@
 @push('scripts')
 <script>
 $(function() {
-    var mileageRate = parseFloat('{{ $ticket->mileage_rate ?? 0 }}');
-    var currentTechId = '{{ $ticket->technician_id }}';
-    var currentSupId = '{{ $ticket->supervisor_id }}';
+    @php $roleName = explode('.', Route::currentRouteName())[0]; @endphp
+    const roleName = '{{ $roleName }}';
+    const baseUrl = '/' + roleName + '/tickets';
+    let currentSupervisorType = '{{ $ticket->supervisor?->supervisor_type }}';
 
-    // ── On page load: populate technician list for current supervisor ──
-    if (currentSupId) {
-        loadTechnicians(currentSupId, currentTechId);
+    $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
+
+    // Init supervisor type display
+    function initSupervisorType() {
+        if (currentSupervisorType === 'internal') {
+            $('#supervisorTypeBadge').html('<span class="badge bg-success">Internal Supervisor</span>');
+            $('#technicianGroup').show();
+        } else if (currentSupervisorType === 'external') {
+            $('#supervisorTypeBadge').html('<span class="badge bg-warning text-dark">External Supervisor</span>');
+            $('#technicianGroup').hide();
+        }
     }
+    initSupervisorType();
 
-    // ── Vendor → Branches ──
+    // Init device fields based on current category
+    @if($ticket->jobCategory)
+    toggleDeviceFields('{{ $ticket->jobCategory->slug }}');
+    @endif
+    // Init old_terminal_id for replacement
+    @if($ticket->jobType && $ticket->jobType->isReplacement())
+    $('#oldTerminalIdGroup').show();
+    @endif
+
+    // Vendor → Branch
     $('#vendor_id').on('change', function() {
-        var vendorId = $(this).val();
-        $('#vendor_branch_id').html('<option value="">Loading...</option>');
-        if (!vendorId) { $('#vendor_branch_id').html('<option value="">Select Branch</option>'); return; }
-        $.get('{{ route("admin.tickets.ajax.vendor-branches") }}', { vendor_id: vendorId }, function(data) {
-            var opts = '<option value="">Select Branch</option>';
-            $.each(data, function(i, b) {
-                opts += '<option value="' + b.id + '" data-state="' + (b.state_id||'') + '" data-city="' + (b.city_id||'') + '">' + b.branch_name + '</option>';
-            });
-            $('#vendor_branch_id').html(opts);
+        $.get(baseUrl + '/ajax/vendor-branches', { vendor_id: $(this).val() }, function(data) {
+            let opts = '<option value="">Select Branch</option>';
+            data.forEach(b => opts += `<option value="${b.id}">${b.branch_name}</option>`);
+            $('#vendor_branch_id').html(opts).trigger('change.select2');
         });
     });
 
-    $('#vendor_branch_id').on('change', function() {
-        var opt = $(this).find(':selected');
-        if (opt.data('state')) $('#state_id').val(opt.data('state')).trigger('change', [opt.data('city')]);
-    });
-
-    // ── State → Cities ──
-    $('#state_id').on('change', function(e, presetCityId) {
-        var stateId = $(this).val();
-        if (!stateId) { $('#city_id').html('<option value="">Select District</option>'); return; }
-        $.get('{{ route("admin.tickets.ajax.cities") }}', { state_id: stateId }, function(data) {
-            var opts = '<option value="">Select District</option>';
-            $.each(data, function(i, c) { opts += '<option value="' + c.id + '">' + c.name + '</option>'; });
-            $('#city_id').html(opts);
-            if (presetCityId) $('#city_id').val(presetCityId);
+    // State → City
+    $('#state_id').on('change', function() {
+        $.get(baseUrl + '/ajax/cities', { state_id: $(this).val() }, function(data) {
+            let opts = '<option value="">Select District</option>';
+            data.forEach(c => opts += `<option value="${c.id}">${c.name}</option>`);
+            $('#city_id').html(opts).trigger('change.select2');
         });
     });
 
-    // ── Supervisor → Technicians (include supervisor in assignee list) ──
+    // Supervisor change
     $('#supervisor_id').on('change', function() {
-        var supId = $(this).val();
-        var opt = $(this).find(':selected');
-        mileageRate = parseFloat(opt.data('mileage-rate')) || 0;
-        $('#mileage_rate_display').val(mileageRate.toFixed(2));
-        calcClaim();
-        if (supId) loadTechnicians(supId, null);
-        else $('#technician_id').html('<option value="">Select Technician (Optional)</option>');
-    });
-
-    function loadTechnicians(supId, preselect) {
-        var supName = $('#supervisor_id option[value="' + supId + '"]').text();
-        $('#technician_id').html('<option value="">Loading...</option>');
-        $.get('{{ route("admin.tickets.ajax.technicians") }}', { supervisor_id: supId }, function(data) {
-            var opts = '<option value="">Select Technician (Optional)</option>';
-            // Supervisor as first assignable option
-            opts += '<option value="' + supId + '"' + (preselect == supId ? ' selected' : '') + '>' + supName + ' (Supervisor)</option>';
-            $.each(data, function(i, t) {
-                opts += '<option value="' + t.id + '"' + (preselect == t.id ? ' selected' : '') + '>' + t.name + '</option>';
+        currentSupervisorType = $(this).find(':selected').data('type');
+        initSupervisorType();
+        let svId = $(this).val();
+        if (!svId) return;
+        if (currentSupervisorType === 'internal') {
+            $.get(baseUrl + '/ajax/technicians', { supervisor_id: svId }, function(data) {
+                let opts = '<option value="">Assign Later</option>';
+                data.forEach(t => opts += `<option value="${t.id}">${t.name}</option>`);
+                $('#technician_id').html(opts).trigger('change.select2');
             });
-            $('#technician_id').html(opts);
-        });
-    }
-
-    // ── Job Type → Charges ──
-    $('#job_type_id').on('change', function() {
-        var jtId = $(this).val(), curCharge = '{{ $ticket->charge_id }}';
-        if (!jtId) { $('#charge_id').html('<option value="">Select Charge</option>'); return; }
-        $.get('{{ route("admin.tickets.ajax.charges") }}', { job_type_id: jtId }, function(data) {
-            var opts = '<option value="">Select Charge</option>';
-            $.each(data, function(i, c) { opts += '<option value="' + c.id + '"' + (c.id == curCharge ? ' selected' : '') + '>' + c.charge_name + ' (RM ' + parseFloat(c.default_price).toFixed(2) + ')</option>'; });
-            $('#charge_id').html(opts);
-        });
+        }
+        refreshPrice();
     });
 
-    // ── Claim Calc ──
-    $('#mileage, #toll, #standby_meal').on('input', calcClaim);
-    function calcClaim() {
-        var km = parseFloat($('#mileage').val()) || 0, mAmt = km * mileageRate;
-        $('#mileage_amount_display').val(mAmt.toFixed(2));
-        $('#total_claim_display').val((mAmt + (parseFloat($('#toll').val())||0) + (parseFloat($('#standby_meal').val())||0)).toFixed(2));
+    // Job Category → ONLY toggles device fields + price (NO cascade to job type)
+    $('#job_category_id').on('change', function() {
+        let slug = $(this).find(':selected').data('slug');
+        toggleDeviceFields(slug);
+        refreshPrice();
+    });
+
+    // Job Type → ONLY checks replacement + price (independent)
+    $('#job_type_id').on('change', function() {
+        let slug = $(this).find(':selected').data('slug') || '';
+        if (slug.includes('replacement')) { $('#oldTerminalIdGroup').show(); }
+        else { $('#oldTerminalIdGroup').hide(); }
+        refreshPrice();
+    });
+
+    function toggleDeviceFields(slug) {
+        $('.device-field').hide();
+        $('.terminal-required-star, .router-required-star').hide();
+        $('#terminal_id, #router_id').removeAttr('required');
+        switch(slug) {
+            case 'terminal':
+                $('#terminalIdGroup').show(); $('.terminal-required-star').show(); $('#terminal_id').attr('required', true);
+                break;
+            case 'router':
+                $('#routerIdGroup').show(); $('.router-required-star').show(); $('#router_id').attr('required', true);
+                break;
+            case 'project':
+                $('#terminalIdGroup, #routerIdGroup').show();
+                break;
+        }
     }
 
-    // ── Submit ──
+    function refreshPrice() {
+        let svId = $('#supervisor_id').val(), catId = $('#job_category_id').val(), typeId = $('#job_type_id').val();
+        if (!svId || !catId || !typeId) return;
+        $.get(baseUrl + '/ajax/price', { supervisor_id: svId, job_category_id: catId, job_type_id: typeId }, function(data) {
+            $('#price_display').val(parseFloat(data.price || 0).toFixed(2));
+        });
+    }
+
+    // Form submit
     $('#ticketForm').on('submit', function(e) {
         e.preventDefault();
-        var btn = $('#btnSubmit');
-        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Updating...');
+        let btn = $('#btnSubmit');
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving...');
+        let fd = new FormData(this);
+        fd.set('price', $('#price_display').val());
         $.ajax({
-            url: $(this).attr('action'), method: 'POST', data: $(this).serialize(),
-            success: function(res) {
-                if (res.success) { showToast(res.message, 'success'); setTimeout(function() { window.location.href = res.redirect; }, 1000); }
-                else { showToast(res.message, 'error'); btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>Update Ticket'); }
-            },
+            url: '{{ route("admin.tickets.update", $ticket->id) }}',
+            method: 'POST', data: fd, processData: false, contentType: false,
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+            success: function(res) { if (res.success) { showToast(res.message, 'success'); window.location.href = res.redirect; } else showToast(res.message, 'error'); },
             error: function(xhr) {
-                var msg = xhr.responseJSON?.errors ? Object.values(xhr.responseJSON.errors).flat().join('<br>') : (xhr.responseJSON?.message || 'Error.');
-                showToast(msg, 'error'); btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>Update Ticket');
-            }
+                if (xhr.status === 422) {
+                    let errors = xhr.responseJSON?.errors || {};
+                    $('.is-invalid').removeClass('is-invalid');
+                    Object.keys(errors).forEach(f => $('[name="'+f+'"]').addClass('is-invalid').siblings('.invalid-feedback').text(errors[f][0]));
+                } else showToast(xhr.responseJSON?.message || 'Server error.', 'error');
+            },
+            complete: () => btn.prop('disabled', false).html('<i class="bi bi-check-lg me-1"></i>Update Ticket')
         });
     });
 });

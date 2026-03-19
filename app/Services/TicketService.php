@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Claim;
+use App\Models\SupervisorJobPricing;
 use App\Models\Ticket;
 use App\Models\TicketComment;
 use App\Models\TicketProof;
@@ -20,15 +21,18 @@ class TicketService
      */
     public function getDatatable(array $params, $user): array
     {
-        $query = Ticket::with(['vendor', 'vendorBranch', 'state', 'city', 'supervisor', 'technician', 'jobType', 'creator'])
-            ->visibleTo($user);
+        $query = Ticket::with([
+            'vendor', 'vendorBranch', 'state', 'city',
+            'supervisor', 'technician', 'jobCategory', 'jobType', 'creator',
+        ])->visibleTo($user);
 
-        if (!empty($params['status']))       $query->where('status', $params['status']);
-        if (!empty($params['priority']))     $query->where('priority', $params['priority']);
-        if (!empty($params['vendor_id']))    $query->where('vendor_id', $params['vendor_id']);
-        if (!empty($params['supervisor_id'])) $query->where('supervisor_id', $params['supervisor_id']);
-        if (!empty($params['date_from']))    $query->whereDate('created_at', '>=', $params['date_from']);
-        if (!empty($params['date_to']))      $query->whereDate('created_at', '<=', $params['date_to']);
+        if (!empty($params['status']))         $query->where('status', $params['status']);
+        if (!empty($params['priority']))       $query->where('priority', $params['priority']);
+        if (!empty($params['vendor_id']))      $query->where('vendor_id', $params['vendor_id']);
+        if (!empty($params['supervisor_id']))  $query->where('supervisor_id', $params['supervisor_id']);
+        if (!empty($params['job_category_id'])) $query->where('job_category_id', $params['job_category_id']);
+        if (!empty($params['date_from']))      $query->whereDate('created_at', '>=', $params['date_from']);
+        if (!empty($params['date_to']))        $query->whereDate('created_at', '<=', $params['date_to']);
 
         if (!empty($params['sla_breach']) && $params['sla_breach'] === 'yes') {
             $query->slaBreach();
@@ -43,6 +47,8 @@ class TicketService
                   ->orWhere('vendor_ticket_ref_no', 'like', "%{$search}%")
                   ->orWhere('merchant_name', 'like', "%{$search}%")
                   ->orWhere('tid', 'like', "%{$search}%")
+                  ->orWhere('terminal_id', 'like', "%{$search}%")
+                  ->orWhere('router_id', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%")
                   ->orWhereHas('vendor', fn($q2) => $q2->where('vendor_name', 'like', "%{$search}%"))
                   ->orWhereHas('supervisor', fn($q2) => $q2->where('name', 'like', "%{$search}%"))
@@ -87,6 +93,15 @@ class TicketService
             $data['sla_deadline'] = now()->addHours($slaHours);
             $data['sla_status'] = Ticket::SLA_ON_TRACK;
 
+            // Lookup price from SupervisorJobPricing
+            if (!empty($data['supervisor_id']) && !empty($data['job_category_id']) && !empty($data['job_type_id'])) {
+                $pricing = SupervisorJobPricing::where('supervisor_id', $data['supervisor_id'])
+                    ->where('job_category_id', $data['job_category_id'])
+                    ->where('job_type_id', $data['job_type_id'])
+                    ->first();
+                $data['price'] = $pricing ? $pricing->price : 0;
+            }
+
             // Pull mileage_rate from supervisor
             if (!empty($data['supervisor_id'])) {
                 $supervisor = User::find($data['supervisor_id']);
@@ -97,8 +112,16 @@ class TicketService
             $data['mileage_amount'] = ($data['mileage'] ?? 0) * ($data['mileage_rate'] ?? 0);
             $data['total_claim_amount'] = ($data['mileage_amount'] ?? 0) + ($data['toll'] ?? 0) + ($data['standby_meal'] ?? 0);
 
-            // Auto-set status
-            if (!empty($data['technician_id'])) {
+            // Auto-set status based on assignment
+            $supervisor = !empty($data['supervisor_id']) ? User::find($data['supervisor_id']) : null;
+
+            if (!empty($data['technician_id']) && $supervisor && $supervisor->isInternalSupervisor()) {
+                // Internal supervisor assigning to technician
+                $data['status'] = Ticket::STATUS_ASSIGNED;
+                $data['assigned_at'] = now();
+            } elseif ($supervisor && $supervisor->isExternalSupervisor()) {
+                // External supervisor — ticket assigned to the supervisor (no technician)
+                $data['technician_id'] = null; // External supervisors don't assign technicians
                 $data['status'] = Ticket::STATUS_ASSIGNED;
                 $data['assigned_at'] = now();
             } else {
@@ -129,6 +152,15 @@ class TicketService
             $oldStatus = $ticket->status;
             $data['updated_by'] = Auth::id();
 
+            // Lookup price from SupervisorJobPricing
+            if (!empty($data['supervisor_id']) && !empty($data['job_category_id']) && !empty($data['job_type_id'])) {
+                $pricing = SupervisorJobPricing::where('supervisor_id', $data['supervisor_id'])
+                    ->where('job_category_id', $data['job_category_id'])
+                    ->where('job_type_id', $data['job_type_id'])
+                    ->first();
+                $data['price'] = $pricing ? $pricing->price : 0;
+            }
+
             // Recalculate mileage if supervisor changed
             if (!empty($data['supervisor_id'])) {
                 $supervisor = User::find($data['supervisor_id']);
@@ -139,7 +171,7 @@ class TicketService
             $data['mileage_amount'] = ($data['mileage'] ?? $ticket->mileage ?? 0) * ($data['mileage_rate'] ?? $ticket->mileage_rate ?? 0);
             $data['total_claim_amount'] = ($data['mileage_amount'] ?? 0) + ($data['toll'] ?? $ticket->toll ?? 0) + ($data['standby_meal'] ?? $ticket->standby_meal ?? 0);
 
-            // Auto-assign status
+            // Auto-assign status if technician first assigned
             if (!empty($data['technician_id']) && !$ticket->technician_id && $ticket->status === Ticket::STATUS_OPEN) {
                 $data['status'] = Ticket::STATUS_ASSIGNED;
                 $data['assigned_at'] = now();
@@ -164,22 +196,37 @@ class TicketService
 
     /**
      * Change ticket status with proof handling
-     * ★ FIX #3: Proof uploads are now OPTIONAL for all statuses
      */
     public function changeStatus(Ticket $ticket, string $newStatus, ?string $remarks = null, ?string $rescheduleReason = null, array $proofFiles = []): Ticket
     {
-        $allowed = Ticket::getAllowedTransitions($ticket->status);
+        $user = Auth::user();
+
+        // Determine allowed transitions based on role
+        if ($user->hasRole('technician')) {
+            $allowed = Ticket::getTechnicianTransitions($ticket->status);
+        } elseif ($user->hasRole('supervisor') && $user->isExternalSupervisor()) {
+            $allowed = Ticket::getExternalSupervisorTransitions($ticket->status);
+        } else {
+            $allowed = Ticket::getAllowedTransitions($ticket->status);
+        }
+
         if (!in_array($newStatus, $allowed)) {
             throw new \Exception("Cannot transition from '{$ticket->status}' to '{$newStatus}'");
         }
-
-        // ★ REMOVED: Mandatory proof validation
-        // Proofs are now optional — users CAN upload but are not forced to.
 
         return DB::transaction(function () use ($ticket, $newStatus, $remarks, $rescheduleReason, $proofFiles) {
             $oldStatus = $ticket->status;
             $updateData = ['status' => $newStatus, 'updated_by' => Auth::id()];
 
+            // Timestamp tracking for each status
+            if ($newStatus === Ticket::STATUS_ACCEPTED) {
+                $updateData['accepted_at'] = now();
+            }
+            if ($newStatus === Ticket::STATUS_REJECTED) {
+                $updateData['rejected_at'] = now();
+                // When rejected, unassign technician so it can be reassigned
+                $updateData['technician_id'] = null;
+            }
             if ($newStatus === Ticket::STATUS_IN_PROGRESS && !$ticket->started_at) {
                 $updateData['started_at'] = now();
             }
@@ -212,7 +259,7 @@ class TicketService
                 $this->uploadProofs($ticket, $history, $proofFiles);
             }
 
-            // ── Auto-create Ticket Claim on completion ──
+            // Auto-create Ticket Claim on completion
             if (in_array($newStatus, [Ticket::STATUS_DONE_SUCCESS, Ticket::STATUS_DONE_FAIL])) {
                 $this->autoCreateTicketClaim($ticket);
             }
@@ -222,8 +269,9 @@ class TicketService
     }
 
     /**
-     * Auto-create a ticket claim when ticket is completed (done_success / done_fail).
+     * Auto-create a ticket claim when ticket is completed.
      * Only creates if total_claim_amount > 0 and no claim already exists for this ticket.
+     * Claims are only for external supervisors.
      */
     protected function autoCreateTicketClaim(Ticket $ticket): void
     {
@@ -234,27 +282,32 @@ class TicketService
                 return;
             }
 
+            // Check supervisor type — claims only for external supervisors
+            if ($ticket->supervisor_id) {
+                $supervisor = User::find($ticket->supervisor_id);
+                if ($supervisor && $supervisor->isInternalSupervisor()) {
+                    // Internal supervisor — no claims
+                    return;
+                }
+            }
+
             // Skip if a ticket claim already exists for this ticket
             $exists = Claim::ticketClaims()->where('ticket_id', $ticket->id)->exists();
             if ($exists) {
                 return;
             }
 
-            // Use the ClaimManagementService to create the ticket claim
             $claimService = app(ClaimManagementService::class);
             $claimService->createTicketClaim($ticket);
 
             Log::info("Auto-created ticket claim for Ticket #{$ticket->ticket_no}");
         } catch (\Exception $e) {
-            // Log error but do NOT break the ticket status change
             Log::error("Failed to auto-create ticket claim for Ticket #{$ticket->ticket_no}: " . $e->getMessage());
         }
     }
 
     /**
-     * Upload proof files for a status change
-     * ★ FIX: Capture file size & mime type BEFORE $file->move() to avoid
-     *   SplFileInfo::getSize() stat failed error (temp file deleted after move)
+     * Upload proof files
      */
     public function uploadProofs(Ticket $ticket, TicketStatusHistory $history, array $proofFiles): void
     {
@@ -267,7 +320,6 @@ class TicketService
                 $fileName = $file->getClientOriginalName();
                 $filePath = 'ticket-proofs/' . $ticket->id;
 
-                // ★ Capture BEFORE move — temp file still exists
                 $fileSize = $file->getSize() ?: 0;
                 $mimeType = $file->getClientMimeType() ?: null;
 
@@ -279,7 +331,6 @@ class TicketService
                 $storedName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $fileName);
                 $file->move($destinationPath, $storedName);
 
-                // ★ Use captured values AFTER move — temp file is gone
                 TicketProof::create([
                     'ticket_id' => $ticket->id,
                     'ticket_status_history_id' => $history->id,
@@ -299,7 +350,6 @@ class TicketService
      */
     public function updateClaim(Ticket $ticket, array $data): Ticket
     {
-        // Pull mileage_rate from supervisor
         $mileageRate = $ticket->mileage_rate;
         if ($ticket->supervisor_id) {
             $supervisor = User::find($ticket->supervisor_id);
@@ -327,10 +377,16 @@ class TicketService
     }
 
     /**
-     * Assign technician
+     * Assign technician — only allowed for internal supervisors
      */
     public function assignTechnician(Ticket $ticket, int $technicianId, ?string $remarks = null): Ticket
     {
+        // Verify the supervisor is internal
+        $supervisor = $ticket->supervisor_id ? User::find($ticket->supervisor_id) : null;
+        if ($supervisor && $supervisor->isExternalSupervisor()) {
+            throw new \Exception('External supervisors cannot assign technicians to tickets.');
+        }
+
         return DB::transaction(function () use ($ticket, $technicianId, $remarks) {
             $oldStatus = $ticket->status;
             $ticket->update([
@@ -356,6 +412,41 @@ class TicketService
     }
 
     /**
+     * Reassign technician (change technician on an existing ticket)
+     */
+    public function reassignTechnician(Ticket $ticket, int $technicianId, ?string $remarks = null): Ticket
+    {
+        return DB::transaction(function () use ($ticket, $technicianId, $remarks) {
+            $oldTechId = $ticket->technician_id;
+            $oldTech = $oldTechId ? User::find($oldTechId) : null;
+            $newTech = User::find($technicianId);
+
+            $ticket->update([
+                'technician_id' => $technicianId,
+                'status' => Ticket::STATUS_ASSIGNED,
+                'assigned_at' => now(),
+                'accepted_at' => null,
+                'updated_by' => Auth::id(),
+            ]);
+
+            TicketStatusHistory::create([
+                'ticket_id' => $ticket->id,
+                'from_status' => $ticket->getOriginal('status'),
+                'to_status' => Ticket::STATUS_ASSIGNED,
+                'changed_by' => Auth::id(),
+                'remarks' => $remarks ?? sprintf(
+                    'Reassigned from %s to %s',
+                    $oldTech?->name ?? 'Unassigned',
+                    $newTech?->name ?? 'Unknown'
+                ),
+                'created_at' => now(),
+            ]);
+
+            return $ticket->fresh();
+        });
+    }
+
+    /**
      * Add comment
      */
     public function addComment(Ticket $ticket, string $comment): TicketComment
@@ -365,6 +456,19 @@ class TicketService
             'comment' => $comment,
             'user_id' => Auth::id(),
         ]);
+    }
+
+    /**
+     * Get price for a supervisor + job_category + job_type combination
+     */
+    public function getPrice(int $supervisorId, int $jobCategoryId, int $jobTypeId): float
+    {
+        $pricing = SupervisorJobPricing::where('supervisor_id', $supervisorId)
+            ->where('job_category_id', $jobCategoryId)
+            ->where('job_type_id', $jobTypeId)
+            ->first();
+
+        return $pricing ? (float) $pricing->price : 0;
     }
 
     /**
@@ -378,6 +482,8 @@ class TicketService
             'total'        => (clone $base)->count(),
             'open'         => (clone $base)->where('status', Ticket::STATUS_OPEN)->count(),
             'assigned'     => (clone $base)->where('status', Ticket::STATUS_ASSIGNED)->count(),
+            'accepted'     => (clone $base)->where('status', Ticket::STATUS_ACCEPTED)->count(),
+            'rejected'     => (clone $base)->where('status', Ticket::STATUS_REJECTED)->count(),
             'in_progress'  => (clone $base)->where('status', Ticket::STATUS_IN_PROGRESS)->count(),
             'scheduled'    => (clone $base)->where('status', Ticket::STATUS_SCHEDULED)->count(),
             'done_success' => (clone $base)->where('status', Ticket::STATUS_DONE_SUCCESS)->count(),
@@ -388,7 +494,7 @@ class TicketService
     }
 
     /**
-     * SLA breached tickets for reminders (excludes scheduled)
+     * SLA breached tickets
      */
     public function getSlaBreachedTickets($user)
     {
@@ -406,10 +512,8 @@ class TicketService
     {
         $count = 0;
         $activeTickets = Ticket::whereNotIn('status', [
-            Ticket::STATUS_DONE_SUCCESS,
-            Ticket::STATUS_DONE_FAIL,
-            Ticket::STATUS_CLOSED,
-            Ticket::STATUS_SCHEDULED,
+            Ticket::STATUS_DONE_SUCCESS, Ticket::STATUS_DONE_FAIL,
+            Ticket::STATUS_CLOSED, Ticket::STATUS_SCHEDULED, Ticket::STATUS_REJECTED,
         ])->whereNotNull('sla_deadline')->get();
 
         foreach ($activeTickets as $ticket) {

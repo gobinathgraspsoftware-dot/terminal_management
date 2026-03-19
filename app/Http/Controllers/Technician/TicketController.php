@@ -40,7 +40,9 @@ class TicketController extends Controller
                     'vendor_name' => $ticket->vendor?->vendor_name ?? '-',
                     'merchant_name' => $ticket->merchant_name ?? '-',
                     'tid' => $ticket->tid ?? '-',
+                    'job_category' => $ticket->jobCategory?->category_name ?? '-',
                     'job_type' => $ticket->jobType?->job_title ?? '-',
+                    'price' => number_format($ticket->price ?? 0, 2),
                     'status' => $ticket->status,
                     'status_badge' => Ticket::getStatusBadge($ticket->status),
                     'priority' => $ticket->priority,
@@ -64,28 +66,37 @@ class TicketController extends Controller
     {
         $this->authorize('view', $ticket);
         $ticket->load([
-            'vendor', 'vendorBranch', 'state', 'city', 'charge',
+            'vendor', 'vendorBranch', 'state', 'city', 'jobCategory',
             'supervisor', 'technician', 'jobType', 'creator',
             'comments.user', 'statusHistory.changedBy', 'statusHistory.proofs', 'proofs',
         ]);
 
-        $allowedTransitions = Ticket::getAllowedTransitions($ticket->status);
+        $allowedTransitions = Ticket::getTechnicianTransitions($ticket->status);
         $statuses = Ticket::getStatuses();
 
-        return view('technician.tickets.show', compact('ticket', 'allowedTransitions', 'statuses'));
+        // Check if job type is replacement (technician needs to key in old_terminal_id)
+        $isReplacement = $ticket->jobType && $ticket->jobType->isReplacement();
+
+        return view('technician.tickets.show', compact('ticket', 'allowedTransitions', 'statuses', 'isReplacement'));
     }
 
     public function changeStatus(Request $request, Ticket $ticket)
     {
         $this->authorize('changeStatus', $ticket);
         $request->validate([
-            'status' => 'required|in:in_progress,scheduled,done_success,done_fail',
+            'status' => 'required|in:accepted,rejected,in_progress,scheduled,done_success,done_fail',
             'remarks' => 'nullable|string|max:1000',
             'reschedule_reason' => 'nullable|required_if:status,scheduled|string|max:1000',
+            'old_terminal_id' => 'nullable|string|max:100',
             'proof_files.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
         ]);
 
         try {
+            // If technician provides old_terminal_id (replacement jobs)
+            if ($request->filled('old_terminal_id')) {
+                $ticket->update(['old_terminal_id' => $request->old_terminal_id]);
+            }
+
             $proofFiles = [];
             if ($request->hasFile('proof_files')) {
                 foreach ($request->file('proof_files') as $proofType => $file) {

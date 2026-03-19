@@ -20,6 +20,10 @@ class JobType extends Model
         'status',
     ];
 
+    // =========================================================
+    // Relationships
+    // =========================================================
+
     /**
      * Get job orders of this type.
      */
@@ -29,18 +33,41 @@ class JobType extends Model
     }
 
     /**
-     * Scope: Active only.
+     * Supervisor job pricing entries for this type.
+     * Note: Job types are shared across ALL job categories.
+     * Pricing is determined by the combination:
+     *   supervisor_id + job_category_id + job_type_id
      */
+    public function supervisorJobPricings()
+    {
+        return $this->hasMany(SupervisorJobPricing::class, 'job_type_id');
+    }
+
+    // =========================================================
+    // Scopes
+    // =========================================================
+
     public function scopeActive($query)
     {
         return $query->where('status', self::STATUS_ACTIVE);
     }
 
-    /**
-     * Check if job type is active.
-     */
+    // =========================================================
+    // Helpers
+    // =========================================================
+
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    /**
+     * Check if this job type is a replacement type.
+     * Used to determine if old_terminal_id is required from technician.
+     */
+    public function isReplacement(): bool
+    {
+        return str_contains(strtolower($this->slug ?? ''), 'replacement')
+            || str_contains(strtolower($this->job_title ?? ''), 'replacement');
     }
 }

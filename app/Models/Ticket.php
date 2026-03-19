@@ -11,9 +11,11 @@ class Ticket extends Model
 {
     use HasFactory, SoftDeletes;
 
-    // ── Status constants (per document) ──
+    // ── Status constants ──
     const STATUS_OPEN = 'open';
     const STATUS_ASSIGNED = 'assigned';
+    const STATUS_ACCEPTED = 'accepted';
+    const STATUS_REJECTED = 'rejected';
     const STATUS_IN_PROGRESS = 'in_progress';
     const STATUS_SCHEDULED = 'scheduled';
     const STATUS_DONE_SUCCESS = 'done_success';
@@ -34,13 +36,17 @@ class Ticket extends Model
     protected $fillable = [
         'ticket_no', 'vendor_ticket_ref_no',
         'vendor_id', 'vendor_branch_id', 'state_id', 'city_id',
-        'tid', 'merchant_name', 'merchant_address', 'contact_number',
-        'supervisor_id', 'technician_id', 'job_type_id', 'charge_id',
+        'tid', 'terminal_id', 'router_id', 'old_terminal_id',
+        'merchant_name', 'merchant_address', 'contact_number',
+        'supervisor_id', 'technician_id',
+        'job_category_id', 'job_type_id', 'price',
         'priority', 'description',
+        'expected_start_date', 'expected_end_date',
         'sla_hours', 'sla_deadline', 'sla_status',
         'status',
         'started_at', 'completed_at', 'closed_at',
-        'assigned_at', 'rescheduled_at', 'reschedule_reason',
+        'assigned_at', 'accepted_at', 'rejected_at',
+        'rescheduled_at', 'reschedule_reason',
         // Claim fields
         'mileage', 'mileage_remarks', 'mileage_rate', 'mileage_amount',
         'toll', 'standby_meal', 'total_claim_amount',
@@ -55,13 +61,18 @@ class Ticket extends Model
             'completed_at' => 'datetime',
             'closed_at' => 'datetime',
             'assigned_at' => 'datetime',
+            'accepted_at' => 'datetime',
+            'rejected_at' => 'datetime',
             'rescheduled_at' => 'datetime',
+            'expected_start_date' => 'date',
+            'expected_end_date' => 'date',
             'mileage' => 'decimal:2',
             'mileage_rate' => 'decimal:2',
             'mileage_amount' => 'decimal:2',
             'toll' => 'decimal:2',
             'standby_meal' => 'decimal:2',
             'total_claim_amount' => 'decimal:2',
+            'price' => 'decimal:2',
             'sla_hours' => 'integer',
         ];
     }
@@ -76,8 +87,8 @@ class Ticket extends Model
     public function city()          { return $this->belongsTo(City::class); }
     public function supervisor()    { return $this->belongsTo(User::class, 'supervisor_id'); }
     public function technician()    { return $this->belongsTo(User::class, 'technician_id'); }
+    public function jobCategory()   { return $this->belongsTo(JobCategory::class); }
     public function jobType()       { return $this->belongsTo(JobType::class); }
-    public function charge()        { return $this->belongsTo(ChargeCatalog::class, 'charge_id'); }
     public function creator()       { return $this->belongsTo(User::class, 'created_by'); }
     public function updater()       { return $this->belongsTo(User::class, 'updated_by'); }
 
@@ -109,7 +120,10 @@ class Ticket extends Model
     {
         return $query->whereNotNull('sla_deadline')
             ->where('sla_deadline', '<', now())
-            ->whereNotIn('status', [self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL, self::STATUS_CLOSED, self::STATUS_SCHEDULED]);
+            ->whereNotIn('status', [
+                self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL,
+                self::STATUS_CLOSED, self::STATUS_SCHEDULED, self::STATUS_REJECTED,
+            ]);
     }
 
     // ══════════════════════════════════════
@@ -119,13 +133,15 @@ class Ticket extends Model
     public static function getStatuses(): array
     {
         return [
-            self::STATUS_OPEN        => 'Open',
-            self::STATUS_ASSIGNED    => 'Assigned',
-            self::STATUS_IN_PROGRESS => 'In Progress',
-            self::STATUS_SCHEDULED   => 'Scheduled',
-            self::STATUS_DONE_SUCCESS=> 'Done / Success',
-            self::STATUS_DONE_FAIL   => 'Done / Fail',
-            self::STATUS_CLOSED      => 'Closed',
+            self::STATUS_OPEN         => 'Open',
+            self::STATUS_ASSIGNED     => 'Assigned',
+            self::STATUS_ACCEPTED     => 'Accepted',
+            self::STATUS_REJECTED     => 'Rejected',
+            self::STATUS_IN_PROGRESS  => 'In Progress',
+            self::STATUS_SCHEDULED    => 'Scheduled',
+            self::STATUS_DONE_SUCCESS => 'Done / Success',
+            self::STATUS_DONE_FAIL    => 'Done / Fail',
+            self::STATUS_CLOSED       => 'Closed',
         ];
     }
 
@@ -139,17 +155,55 @@ class Ticket extends Model
         ];
     }
 
+    /**
+     * Status transitions updated with accept/reject flow.
+     * - assigned → accepted/rejected (by assignee)
+     * - accepted → in_progress
+     * - rejected → open (returns to pool) or closed
+     */
     public static function getAllowedTransitions(string $currentStatus): array
     {
         return match ($currentStatus) {
-            self::STATUS_OPEN        => [self::STATUS_ASSIGNED, self::STATUS_IN_PROGRESS, self::STATUS_CLOSED],
-            self::STATUS_ASSIGNED    => [self::STATUS_IN_PROGRESS, self::STATUS_SCHEDULED, self::STATUS_CLOSED],
-            self::STATUS_IN_PROGRESS => [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
-            self::STATUS_SCHEDULED   => [self::STATUS_IN_PROGRESS, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
-            self::STATUS_DONE_SUCCESS=> [self::STATUS_CLOSED],
-            self::STATUS_DONE_FAIL   => [self::STATUS_CLOSED, self::STATUS_IN_PROGRESS],
-            self::STATUS_CLOSED      => [],
-            default                  => [],
+            self::STATUS_OPEN         => [self::STATUS_ASSIGNED, self::STATUS_CLOSED],
+            self::STATUS_ASSIGNED     => [self::STATUS_ACCEPTED, self::STATUS_REJECTED, self::STATUS_CLOSED],
+            self::STATUS_ACCEPTED     => [self::STATUS_IN_PROGRESS, self::STATUS_SCHEDULED, self::STATUS_CLOSED],
+            self::STATUS_REJECTED     => [self::STATUS_OPEN, self::STATUS_ASSIGNED, self::STATUS_CLOSED],
+            self::STATUS_IN_PROGRESS  => [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
+            self::STATUS_SCHEDULED    => [self::STATUS_IN_PROGRESS, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
+            self::STATUS_DONE_SUCCESS => [self::STATUS_CLOSED],
+            self::STATUS_DONE_FAIL    => [self::STATUS_CLOSED, self::STATUS_IN_PROGRESS],
+            self::STATUS_CLOSED       => [],
+            default                   => [],
+        };
+    }
+
+    /**
+     * Transitions allowed for technicians specifically.
+     */
+    public static function getTechnicianTransitions(string $currentStatus): array
+    {
+        return match ($currentStatus) {
+            self::STATUS_ASSIGNED     => [self::STATUS_ACCEPTED, self::STATUS_REJECTED],
+            self::STATUS_ACCEPTED     => [self::STATUS_IN_PROGRESS],
+            self::STATUS_IN_PROGRESS  => [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
+            self::STATUS_SCHEDULED    => [self::STATUS_IN_PROGRESS, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
+            default                   => [],
+        };
+    }
+
+    /**
+     * Transitions allowed for external supervisors (they act like assignees, no technician).
+     */
+    public static function getExternalSupervisorTransitions(string $currentStatus): array
+    {
+        return match ($currentStatus) {
+            self::STATUS_ASSIGNED     => [self::STATUS_ACCEPTED, self::STATUS_REJECTED],
+            self::STATUS_ACCEPTED     => [self::STATUS_IN_PROGRESS, self::STATUS_SCHEDULED],
+            self::STATUS_IN_PROGRESS  => [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
+            self::STATUS_SCHEDULED    => [self::STATUS_IN_PROGRESS, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
+            self::STATUS_DONE_SUCCESS => [self::STATUS_CLOSED],
+            self::STATUS_DONE_FAIL    => [self::STATUS_CLOSED, self::STATUS_IN_PROGRESS],
+            default                   => [],
         };
     }
 
@@ -158,6 +212,8 @@ class Ticket extends Model
         return match ($status) {
             self::STATUS_OPEN         => '<span class="badge bg-secondary">Open</span>',
             self::STATUS_ASSIGNED     => '<span class="badge bg-info">Assigned</span>',
+            self::STATUS_ACCEPTED     => '<span class="badge bg-primary">Accepted</span>',
+            self::STATUS_REJECTED     => '<span class="badge bg-danger">Rejected</span>',
             self::STATUS_IN_PROGRESS  => '<span class="badge bg-primary">In Progress</span>',
             self::STATUS_SCHEDULED    => '<span class="badge bg-warning text-dark">Scheduled</span>',
             self::STATUS_DONE_SUCCESS => '<span class="badge bg-success">Done / Success</span>',
@@ -189,10 +245,8 @@ class Ticket extends Model
             throw new \Exception('Vendor not found for ticket ID generation.');
         }
 
-        // Use vendor_code as prefix (e.g. MYB, RHB)
         $prefix = strtoupper($vendor->vendor_code);
 
-        // Get the next running number for this vendor prefix
         $lastTicket = static::withTrashed()
             ->where('ticket_no', 'like', $prefix . '%')
             ->orderByRaw('CAST(SUBSTRING(ticket_no, ?) AS UNSIGNED) DESC', [strlen($prefix) + 1])
@@ -214,7 +268,10 @@ class Ticket extends Model
     public function isSlaBreach(): bool
     {
         if (!$this->sla_deadline) return false;
-        if (in_array($this->status, [self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL, self::STATUS_CLOSED, self::STATUS_SCHEDULED])) {
+        if (in_array($this->status, [
+            self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL,
+            self::STATUS_CLOSED, self::STATUS_SCHEDULED, self::STATUS_REJECTED,
+        ])) {
             return false;
         }
         return now()->gt($this->sla_deadline);
@@ -228,6 +285,9 @@ class Ticket extends Model
         }
         if ($this->status === self::STATUS_SCHEDULED) {
             return 'Rescheduled';
+        }
+        if ($this->status === self::STATUS_REJECTED) {
+            return 'Rejected';
         }
         if (now()->gt($this->sla_deadline)) {
             $diff = now()->diff($this->sla_deadline);
@@ -248,6 +308,19 @@ class Ticket extends Model
     }
 
     /**
+     * Check if claims are applicable for this ticket based on supervisor type.
+     * - Internal supervisor: claims NOT applicable (pricing goes to technician)
+     * - External supervisor: claims ARE applicable (pricing goes to supervisor)
+     */
+    public function isClaimApplicable(): bool
+    {
+        if (!$this->supervisor_id) return false;
+        $supervisor = $this->supervisor ?? User::find($this->supervisor_id);
+        if (!$supervisor) return false;
+        return $supervisor->isExternalSupervisor();
+    }
+
+    /**
      * Status requires proof upload?
      */
     public static function statusRequiresProof(string $status): bool
@@ -255,9 +328,6 @@ class Ticket extends Model
         return in_array($status, [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL]);
     }
 
-    /**
-     * What proof types are needed for a given status?
-     */
     public static function getRequiredProofTypes(string $status): array
     {
         return match ($status) {
