@@ -88,7 +88,7 @@ class RolePermissionSeeder extends Seeder
             'view_payouts', 'export_payouts',
 
             // Claims - Approve team claims
-            'view_claims', 'approve_claims', 'reject_claims', 'view_team_claims',
+            'view_claims', 'create_claims', 'edit_claims', 'approve_claims', 'reject_claims', 'view_team_claims',
 
             // Reports
             'view_reports', 'export_reports',

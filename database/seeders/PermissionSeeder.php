@@ -116,7 +116,7 @@ class PermissionSeeder extends Seeder
             'payouts' => ['view', 'create', 'approve', 'reject', 'mark_paid', 'export'],
 
             // Claims
-            'claims' => ['view', 'create', 'edit', 'submit', 'approve', 'reject', 'mark_paid', 'view_all', 'view_team', 'view_own'],
+            'claims' => ['view', 'create', 'edit', 'submit', 'verify', 'approve', 'reject', 'mark_paid', 'bulk_pay', 'export', 'view_all', 'view_team', 'view_own'],
 
             // Reports
             'reports' => ['view', 'export', 'schedule'],

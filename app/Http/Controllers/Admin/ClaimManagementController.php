@@ -148,7 +148,16 @@ class ClaimManagementController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('admin.claims.create-other-claim', compact('tickets', 'claimTypes', 'technicians'));
+        // Also include external supervisors (they can claim)
+        $externalSupervisors = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
+            ->where('supervisor_type', User::SUPERVISOR_TYPE_EXTERNAL)
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $claimableUsers = $technicians->merge($externalSupervisors)->sortBy('name');
+
+        return view('admin.claims.create-other-claim', compact('tickets', 'claimTypes', 'claimableUsers'));
     }
 
     /**

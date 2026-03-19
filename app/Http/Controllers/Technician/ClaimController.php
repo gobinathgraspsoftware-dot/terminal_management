@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Technician;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateClaimRequest;
 use App\Models\Claim;
+use App\Models\ClaimAttachment;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\ClaimManagementService;
@@ -73,7 +75,7 @@ class ClaimController extends Controller
                 'total_amount'    => number_format((float) $claim->total_amount, 2),
                 'status'          => Claim::getStatusBadge($claim->status),
                 'submitted_at'    => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
-                'actions'         => '<a href="' . route('technician.claims.show', $claim->id) . '" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>',
+                'actions'         => $this->getTicketClaimActions($claim),
             ];
         });
 
@@ -81,7 +83,7 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Other Claims (Create + View)
+    // Other Claims (Create + Edit + View)
     // ══════════════════════════════════════════════
 
     public function otherClaims()
@@ -105,7 +107,7 @@ class ClaimController extends Controller
                 'status'          => Claim::getStatusBadge($claim->status),
                 'submitted_at'    => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
                 'has_attachments' => $claim->attachments->isNotEmpty() ? '<i class="bi bi-paperclip text-primary"></i>' : '',
-                'actions'         => '<a href="' . route('technician.claims.show', $claim->id) . '" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>',
+                'actions'         => $this->getOtherClaimActions($claim),
             ];
         });
 
@@ -161,6 +163,79 @@ class ClaimController extends Controller
         }
     }
 
+    /**
+     * Edit Other Claim form (technician can edit own claims in draft/submitted status)
+     */
+    public function edit(Claim $claim)
+    {
+        $this->authorize('update', $claim);
+
+        // Only other claims can be edited by technician
+        if ($claim->claim_category !== Claim::CATEGORY_OTHER) {
+            return redirect()->route('technician.claims.show', $claim->id)
+                ->with('error', 'Ticket claims cannot be edited directly.');
+        }
+
+        $user = Auth::user();
+
+        $claim->load(['attachments.uploadedBy']);
+
+        $tickets = Ticket::where('technician_id', $user->id)
+            ->whereIn('status', [Ticket::STATUS_DONE_SUCCESS, Ticket::STATUS_DONE_FAIL, Ticket::STATUS_CLOSED])
+            ->orderBy('ticket_no', 'desc')
+            ->get(['id', 'ticket_no', 'merchant_name']);
+
+        $claimTypes = Claim::getOtherClaimTypes();
+
+        return view('technician.claims.edit', compact('claim', 'tickets', 'claimTypes'));
+    }
+
+    /**
+     * Update Other Claim (technician can update own claims in draft/submitted status)
+     */
+    public function update(UpdateClaimRequest $request, Claim $claim)
+    {
+        $this->authorize('update', $claim);
+
+        // Only other claims can be updated by technician
+        if ($claim->claim_category !== Claim::CATEGORY_OTHER) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ticket claims cannot be edited directly.',
+            ], 403);
+        }
+
+        try {
+            $files = $request->file('attachments', []);
+            $updated = $this->service->updateOtherClaim($claim, $request->validated(), is_array($files) ? $files : [$files]);
+            return response()->json([
+                'success' => true,
+                'message' => "Claim {$updated->claim_no} updated successfully.",
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Delete an attachment from a claim (AJAX)
+     */
+    public function deleteAttachment(Claim $claim, ClaimAttachment $attachment)
+    {
+        $this->authorize('update', $claim);
+
+        if ($attachment->claim_id !== $claim->id) {
+            return response()->json(['success' => false, 'message' => 'Attachment does not belong to this claim.'], 403);
+        }
+
+        try {
+            $this->service->deleteAttachment($attachment);
+            return response()->json(['success' => true, 'message' => 'Attachment deleted successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     // ══════════════════════════════════════════════
     // Show
     // ══════════════════════════════════════════════
@@ -176,5 +251,39 @@ class ClaimController extends Controller
         ]);
 
         return view('technician.claims.show', compact('claim'));
+    }
+
+    // ══════════════════════════════════════════════
+    // Action Button Helpers
+    // ══════════════════════════════════════════════
+
+    /**
+     * Generate action buttons for ticket claims DataTable
+     */
+    protected function getTicketClaimActions(Claim $claim): string
+    {
+        $showUrl = route('technician.claims.show', $claim->id);
+        return '<a href="' . $showUrl . '" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>';
+    }
+
+    /**
+     * Generate action buttons for other claims DataTable
+     */
+    protected function getOtherClaimActions(Claim $claim): string
+    {
+        $showUrl = route('technician.claims.show', $claim->id);
+        $html = '<div class="btn-group btn-group-sm">';
+        $html .= '<a href="' . $showUrl . '" class="btn btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>';
+
+        // Show edit button only for editable claims (draft/submitted)
+        if ($claim->isEditable() && (
+            $claim->technician_id === Auth::id() || $claim->submitted_by === Auth::id()
+        )) {
+            $editUrl = route('technician.claims.edit', $claim->id);
+            $html .= '<a href="' . $editUrl . '" class="btn btn-outline-warning" title="Edit"><i class="bi bi-pencil"></i></a>';
+        }
+
+        $html .= '</div>';
+        return $html;
     }
 }

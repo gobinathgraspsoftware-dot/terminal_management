@@ -4,9 +4,10 @@
 
 @section('content')
 <div class="container-fluid">
+    {{-- Page Header --}}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1"><i class="bi bi-file-earmark-text me-2"></i>My Other Claims</h4>
+            <h4 class="mb-1">My Other Claims</h4>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('technician.dashboard') }}">Dashboard</a></li>
@@ -15,19 +16,40 @@
                 </ol>
             </nav>
         </div>
-        <a href="{{ route('technician.claims.create') }}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-circle me-1"></i> New Other Claim
+        <a href="{{ route('technician.claims.create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Submit Other Claim
         </a>
     </div>
 
-    <div class="card">
+    {{-- Status Filter --}}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <label class="form-label mb-0 small fw-bold">Filter by Status:</label>
+                </div>
+                <div class="col-md-3">
+                    <select id="statusFilter" class="form-select form-select-sm">
+                        <option value="">All Statuses</option>
+                        @foreach(\App\Models\Claim::getStatuses() as $key => $label)
+                            <option value="{{ $key }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- DataTable --}}
+    <div class="card border-0 shadow-sm">
         <div class="card-body">
             <div class="table-responsive">
-                <table id="otherClaimsTable" class="table table-striped table-hover" style="width:100%">
-                    <thead>
+                <table id="otherClaimsTable" class="table table-hover table-sm align-middle w-100">
+                    <thead class="table-light">
                         <tr>
+                            <th>#</th>
                             <th>Claim No</th>
-                            <th>Type</th>
+                            <th>Claim Type</th>
                             <th>Description</th>
                             <th>Amount (RM)</th>
                             <th>Status</th>
@@ -47,22 +69,35 @@
 @push('scripts')
 <script>
 $(function() {
-    $('#otherClaimsTable').DataTable({
+    const table = $('#otherClaimsTable').DataTable({
         processing: true,
         serverSide: true,
-        ajax: '{{ route("technician.claims.other-claims-data") }}',
+        ajax: {
+            url: '{{ route("technician.claims.other-claims-data") }}',
+            data: function(d) {
+                d.status = $('#statusFilter').val();
+            }
+        },
         columns: [
+            { data: null, orderable: false, searchable: false, render: function(data, type, row, meta) {
+                return meta.row + meta.settings._iDisplayStart + 1;
+            }},
             { data: 'claim_no' },
             { data: 'claim_type' },
             { data: 'description' },
             { data: 'total_amount', className: 'text-end' },
             { data: 'status', orderable: false },
             { data: 'submitted_at' },
-            { data: 'has_attachments', orderable: false, searchable: false },
-            { data: 'actions', orderable: false, searchable: false },
+            { data: 'has_attachments', className: 'text-center', orderable: false },
+            { data: 'actions', orderable: false, searchable: false, className: 'text-nowrap' },
         ],
-        order: [[5, 'desc']],
-        responsive: true,
+        order: [[6, 'desc']],
+        pageLength: 25,
+        language: { emptyTable: 'No other claims found.' }
+    });
+
+    $('#statusFilter').on('change', function() {
+        table.ajax.reload();
     });
 });
 </script>

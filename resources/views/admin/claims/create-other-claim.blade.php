@@ -4,102 +4,108 @@
 
 @section('content')
 <div class="container-fluid">
+    {{-- Page Header --}}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h4 class="mb-1">Create Other Claim</h4>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('admin.claims.index') }}">Claim Management</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('admin.claims.other-claims') }}">Other Claims</a></li>
-                    <li class="breadcrumb-item active">Create</li>
+                    <li class="breadcrumb-item"><a href="{{ route('admin.claims.index') }}">Claims</a></li>
+                    <li class="breadcrumb-item active">Create Other Claim</li>
                 </ol>
             </nav>
         </div>
+        <a href="{{ route('admin.claims.other-claims') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Other Claims
+        </a>
     </div>
 
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0"><i class="bi bi-file-earmark-plus me-1"></i> New Other Claim</h6>
-                </div>
-                <div class="card-body">
-                    <form id="claim-form" enctype="multipart/form-data">
-                        @csrf
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Claim Type <span class="text-danger">*</span></label>
-                                <select name="claim_type_label" class="form-select" required>
-                                    <option value="">-- Select Claim Type --</option>
-                                    @foreach($claimTypes as $key => $label)
-                                        <option value="{{ $label }}">{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Claim Amount (RM) <span class="text-danger">*</span></label>
-                                <input type="number" name="claim_amount" class="form-control" step="0.01" min="0.01" required placeholder="0.00">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Technician <span class="text-danger">*</span></label>
-                                <select name="technician_id" class="form-select select2-technician" required>
-                                    <option value="">-- Select Technician --</option>
-                                    @foreach($technicians as $tech)
-                                        <option value="{{ $tech->id }}">{{ $tech->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Linked Ticket (Optional)</label>
-                                <select name="ticket_id" class="form-select select2-ticket">
-                                    <option value="">-- No Ticket --</option>
-                                    @foreach($tickets as $ticket)
-                                        <option value="{{ $ticket->id }}">{{ $ticket->ticket_no }} - {{ $ticket->merchant_name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Description <span class="text-danger">*</span></label>
-                                <textarea name="description" class="form-control" rows="3" required placeholder="Describe the claim..."></textarea>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Remarks</label>
-                                <input type="text" name="remarks" class="form-control" placeholder="Optional remarks...">
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Attachments (PDF, PNG, JPG - max 5MB each)</label>
-                                <input type="file" name="attachments[]" class="form-control" multiple accept=".pdf,.png,.jpg,.jpeg">
-                                <small class="text-muted">You can upload up to 5 files.</small>
-                            </div>
-                        </div>
-
-                        <hr>
-                        <div class="d-flex justify-content-end gap-2">
-                            <a href="{{ route('admin.claims.other-claims') }}" class="btn btn-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary" id="btn-submit">
-                                <i class="bi bi-check-circle me-1"></i> Create Other Claim
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0"><i class="bi bi-file-earmark-plus me-2"></i>Claim Information</h5>
         </div>
+        <div class="card-body">
+            <form id="claimForm" enctype="multipart/form-data">
+                @csrf
+                <div class="row g-3">
+                    {{-- Claim Type --}}
+                    <div class="col-md-6">
+                        <label for="claim_type_label" class="form-label">Claim Type <span class="text-danger">*</span></label>
+                        <select id="claim_type_label" name="claim_type_label" class="form-select" required>
+                            <option value="">-- Select Claim Type --</option>
+                            @foreach($claimTypes as $value => $label)
+                                <option value="{{ $label }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        <div class="invalid-feedback"></div>
+                    </div>
 
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0"><i class="bi bi-question-circle me-1"></i> Help</h6>
+                    {{-- Technician / Claimant --}}
+                    <div class="col-md-6">
+                        <label for="technician_id" class="form-label">Claimant (Technician / External Supervisor) <span class="text-danger">*</span></label>
+                        <select id="technician_id" name="technician_id" class="form-select select2-field" required>
+                            <option value="">-- Select Claimant --</option>
+                            @foreach($claimableUsers as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                        <div class="invalid-feedback"></div>
+                        <div class="form-text">Only technicians and external supervisors are eligible to claim.</div>
+                    </div>
+
+                    {{-- Linked Ticket (Optional) --}}
+                    <div class="col-md-6">
+                        <label for="ticket_id" class="form-label">Related Ticket (Optional)</label>
+                        <select id="ticket_id" name="ticket_id" class="form-select select2-field">
+                            <option value="">-- None --</option>
+                            @foreach($tickets as $ticket)
+                                <option value="{{ $ticket->id }}">{{ $ticket->ticket_no }} - {{ $ticket->merchant_name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- Claim Amount --}}
+                    <div class="col-md-6">
+                        <label for="claim_amount" class="form-label">Claim Amount (RM) <span class="text-danger">*</span></label>
+                        <input type="number" id="claim_amount" name="claim_amount" class="form-control"
+                               step="0.01" min="0.01" required placeholder="0.00">
+                        <div class="invalid-feedback"></div>
+                    </div>
+
+                    {{-- Description --}}
+                    <div class="col-12">
+                        <label for="description" class="form-label">Description <span class="text-danger">*</span></label>
+                        <textarea id="description" name="description" class="form-control" rows="3" required
+                                  placeholder="Describe the claim..."></textarea>
+                        <div class="invalid-feedback"></div>
+                    </div>
+
+                    {{-- Remarks --}}
+                    <div class="col-12">
+                        <label for="remarks" class="form-label">Remarks</label>
+                        <textarea id="remarks" name="remarks" class="form-control" rows="2"
+                                  placeholder="Additional remarks (optional)"></textarea>
+                    </div>
+
+                    {{-- Attachments --}}
+                    <div class="col-12">
+                        <label for="attachments" class="form-label">Attachments (Max 5 files, PDF/PNG/JPG, 5MB each)</label>
+                        <input type="file" id="attachments" name="attachments[]" class="form-control"
+                               multiple accept=".pdf,.png,.jpg,.jpeg">
+                        <div class="form-text">Upload supporting documents such as receipts, invoices, or photos.</div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <ol class="mb-0 ps-3">
-                        <li class="mb-2">Select a claim type and assign a technician.</li>
-                        <li class="mb-2">Enter the claim amount and description.</li>
-                        <li class="mb-2">Optionally link to a ticket and attach proof documents.</li>
-                        <li class="mb-0">Claim will be submitted for verification immediately.</li>
-                    </ol>
+
+                <hr>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{{ route('admin.claims.other-claims') }}" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <i class="bi bi-send me-1"></i> Create Claim
+                    </button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 </div>
@@ -108,14 +114,21 @@
 @push('scripts')
 <script>
 $(function() {
-    $('.select2-ticket').select2({ theme: 'bootstrap-5', width: '100%', allowClear: true });
-    $('.select2-technician').select2({ theme: 'bootstrap-5', width: '100%', allowClear: true });
+    // Initialize Select2
+    $('#technician_id').select2({ theme: 'bootstrap-5', placeholder: '-- Select Claimant --', allowClear: false });
+    $('#ticket_id').select2({ theme: 'bootstrap-5', placeholder: '-- None --', allowClear: true });
 
-    $('#claim-form').on('submit', function(e) {
+    // Form submission
+    $('#claimForm').on('submit', function(e) {
         e.preventDefault();
-        var formData = new FormData(this);
-        var $btn = $('#btn-submit');
-        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Creating...');
+
+        const btn = $('#submitBtn');
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span> Creating...');
+
+        // Reset validation
+        $(this).find('.is-invalid').removeClass('is-invalid');
+
+        const formData = new FormData(this);
 
         $.ajax({
             url: '{{ route("admin.claims.store-other-claim") }}',
@@ -123,23 +136,28 @@ $(function() {
             data: formData,
             processData: false,
             contentType: false,
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
             success: function(res) {
                 if (res.success) {
-                    showToast(res.message, 'success');
-                    setTimeout(function() { window.location.href = '{{ route("admin.claims.other-claims") }}'; }, 1500);
+                    showToast('success', res.message);
+                    setTimeout(() => window.location.href = '{{ route("admin.claims.other-claims") }}', 1500);
                 } else {
-                    showToast(res.message || 'Error occurred.', 'error');
-                    $btn.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i> Create Other Claim');
+                    showToast('error', res.message || 'An error occurred.');
+                    btn.prop('disabled', false).html('<i class="bi bi-send me-1"></i> Create Claim');
                 }
             },
             error: function(xhr) {
-                var errors = xhr.responseJSON?.errors;
-                if (errors) {
-                    showToast(Object.values(errors).flat().join('<br>'), 'error');
+                if (xhr.status === 422) {
+                    const errors = xhr.responseJSON.errors;
+                    $.each(errors, function(field, messages) {
+                        const input = $('[name="' + field + '"]');
+                        input.addClass('is-invalid');
+                        input.siblings('.invalid-feedback').text(messages[0]);
+                    });
                 } else {
-                    showToast(xhr.responseJSON?.message || 'Error occurred.', 'error');
+                    showToast('error', xhr.responseJSON?.message || 'Server error. Please try again.');
                 }
-                $btn.prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i> Create Other Claim');
+                btn.prop('disabled', false).html('<i class="bi bi-send me-1"></i> Create Claim');
             }
         });
     });

@@ -1305,15 +1305,22 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         // Landing
         Route::get('/', [TechnicianClaimController::class, 'index'])->name('index');
 
-        // Ticket Claims (Create + View) — own tickets only
+        // Ticket Claims (View Only) — own tickets only
         Route::get('/ticket-claims', [TechnicianClaimController::class, 'ticketClaims'])->name('ticket-claims');
         Route::get('/ajax/ticket-claims-data', [TechnicianClaimController::class, 'ticketClaimsData'])->name('ticket-claims-data');
 
-        // Other Claims (Create + View)
+        // Other Claims (Create + Edit + View)
         Route::get('/other-claims', [TechnicianClaimController::class, 'otherClaims'])->name('other-claims');
         Route::get('/ajax/other-claims-data', [TechnicianClaimController::class, 'otherClaimsData'])->name('other-claims-data');
         Route::get('/create', [TechnicianClaimController::class, 'create'])->name('create');
         Route::post('/store', [TechnicianClaimController::class, 'store'])->name('store');
+
+        // Edit & Update (specific routes BEFORE parameterized /{claim})
+        Route::get('/edit/{claim}', [TechnicianClaimController::class, 'edit'])->name('edit');
+        Route::put('/update/{claim}', [TechnicianClaimController::class, 'update'])->name('update');
+
+        // Delete Attachment (specific route BEFORE parameterized /{claim})
+        Route::delete('/{claim}/attachment/{attachment}', [TechnicianClaimController::class, 'deleteAttachment'])->name('delete-attachment');
 
         // Show (parameterized - MUST be last)
         Route::get('/{claim}', [TechnicianClaimController::class, 'show'])->name('show');

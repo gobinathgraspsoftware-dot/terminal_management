@@ -97,6 +97,52 @@ class ClaimManagementService
     }
 
     /**
+     * Update an existing other claim (technician or external supervisor edit)
+     *
+     * Only allowed when claim is in draft or submitted status.
+     */
+    public function updateOtherClaim(Claim $claim, array $data, array $files = []): Claim
+    {
+        return DB::transaction(function () use ($claim, $data, $files) {
+            $updateData = [
+                'claim_type_label' => $data['claim_type_label'] ?? $claim->claim_type_label,
+                'description'      => $data['description'] ?? $claim->description,
+                'total_amount'     => $data['claim_amount'] ?? $claim->total_amount,
+                'original_amount'  => $data['claim_amount'] ?? $claim->total_amount,
+                'ticket_id'        => $data['ticket_id'] ?? $claim->ticket_id,
+                'remarks'          => $data['remarks'] ?? $claim->remarks,
+                'updated_by'       => Auth::id(),
+            ];
+
+            // Admin can reassign technician
+            if (Auth::user()->hasRole('admin') && isset($data['technician_id'])) {
+                $updateData['technician_id'] = $data['technician_id'];
+            }
+
+            $claim->update($updateData);
+
+            // Handle new file attachments (append, do not replace)
+            if (!empty($files)) {
+                $this->storeAttachments($claim, $files);
+            }
+
+            return $claim->fresh();
+        });
+    }
+
+    /**
+     * Delete a specific claim attachment
+     */
+    public function deleteAttachment(ClaimAttachment $attachment): bool
+    {
+        $filePath = $_SERVER['DOCUMENT_ROOT'] . '/storage/' . $attachment->file_path;
+        if (file_exists($filePath)) {
+            @unlink($filePath);
+        }
+        return $attachment->delete();
+    }
+
+    /**
      * Store claim attachments using cPanel-compatible file upload
      */
     protected function storeAttachments(Claim $claim, array $files): void

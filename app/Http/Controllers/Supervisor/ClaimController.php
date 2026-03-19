@@ -35,6 +35,8 @@ class ClaimController extends Controller
         $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
         $teamIds[] = $user->id;
 
+        $isInternal = $user->isInternalSupervisor();
+
         $stats = [
             'ticket_total'     => Claim::ticketClaims()->whereIn('technician_id', $teamIds)->count(),
             'ticket_submitted' => Claim::ticketClaims()->submitted()->whereIn('technician_id', $teamIds)->count(),
@@ -48,7 +50,7 @@ class ClaimController extends Controller
 
         $activeTab = $request->input('tab', 'ticket');
 
-        return view('supervisor.claims.index', compact('stats', 'activeTab'));
+        return view('supervisor.claims.index', compact('stats', 'activeTab', 'isInternal'));
     }
 
     // ══════════════════════════════════════════════
@@ -58,7 +60,10 @@ class ClaimController extends Controller
     public function ticketClaims()
     {
         $this->authorize('viewAny', Claim::class);
-        return view('supervisor.claims.ticket-claims');
+
+        $isInternal = Auth::user()->isInternalSupervisor();
+
+        return view('supervisor.claims.ticket-claims', compact('isInternal'));
     }
 
     public function ticketClaimsData(Request $request)
@@ -91,7 +96,10 @@ class ClaimController extends Controller
     public function otherClaims()
     {
         $this->authorize('viewAny', Claim::class);
-        return view('supervisor.claims.other-claims');
+
+        $isInternal = Auth::user()->isInternalSupervisor();
+
+        return view('supervisor.claims.other-claims', compact('isInternal'));
     }
 
     public function otherClaimsData(Request $request)
@@ -117,11 +125,22 @@ class ClaimController extends Controller
         return response()->json($result);
     }
 
+    /**
+     * Create Other Claim form — external supervisors only
+     */
     public function create()
     {
         $this->authorize('create', Claim::class);
 
-        $tickets = Ticket::visibleTo(Auth::user())
+        $user = Auth::user();
+
+        // Double-check: internal supervisors should not reach here
+        if ($user->isInternalSupervisor()) {
+            return redirect()->route('supervisor.claims.index')
+                ->with('error', 'Internal supervisors cannot submit claims.');
+        }
+
+        $tickets = Ticket::visibleTo($user)
             ->whereIn('status', [Ticket::STATUS_DONE_SUCCESS, Ticket::STATUS_DONE_FAIL, Ticket::STATUS_CLOSED])
             ->orderBy('ticket_no', 'desc')
             ->get(['id', 'ticket_no', 'merchant_name']);
@@ -131,13 +150,30 @@ class ClaimController extends Controller
         return view('supervisor.claims.create', compact('tickets', 'claimTypes'));
     }
 
+    /**
+     * Store Other Claim — external supervisors only
+     */
     public function store(StoreOtherClaimRequest $request)
     {
         $this->authorize('create', Claim::class);
 
+        $user = Auth::user();
+
+        // Double-check: internal supervisors should not reach here
+        if ($user->isInternalSupervisor()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal supervisors cannot submit claims.',
+            ], 403);
+        }
+
         try {
+            // Force technician_id to self for external supervisors
+            $data = $request->validated();
+            $data['technician_id'] = $user->id;
+
             $files = $request->file('attachments', []);
-            $claim = $this->service->createOtherClaim($request->validated(), is_array($files) ? $files : [$files]);
+            $claim = $this->service->createOtherClaim($data, is_array($files) ? $files : [$files]);
             return response()->json(['success' => true, 'message' => "Claim {$claim->claim_no} submitted successfully."]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
@@ -158,6 +194,8 @@ class ClaimController extends Controller
             'attachments.uploadedBy',
         ]);
 
-        return view('supervisor.claims.show', compact('claim'));
+        $isInternal = Auth::user()->isInternalSupervisor();
+
+        return view('supervisor.claims.show', compact('claim', 'isInternal'));
     }
 }
