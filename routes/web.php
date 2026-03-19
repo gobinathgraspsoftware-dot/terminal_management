@@ -1061,12 +1061,14 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
 
     /* Ticket Management Routes */
     Route::prefix('tickets')->name('tickets.')->group(function () {
-        Route::get('/', [TechnicianTicketController::class, 'index'])->name('index');
-        Route::get('/datatable', [TechnicianTicketController::class, 'datatable'])->name('datatable');
-        Route::get('/{ticket}', [TechnicianTicketController::class, 'show'])->name('show');
-        Route::post('/{ticket}/change-status', [TechnicianTicketController::class, 'changeStatus'])->name('change-status');
-        Route::post('/{ticket}/update-claim', [TechnicianTicketController::class, 'updateClaim'])->name('update-claim');
-        Route::post('/{ticket}/comment', [TechnicianTicketController::class, 'addComment'])->name('comment');
+        Route::get('/', [SupervisorTicketController::class, 'index'])->name('index');
+        Route::get('/datatable', [SupervisorTicketController::class, 'datatable'])->name('datatable');
+        Route::get('/{ticket}', [SupervisorTicketController::class, 'show'])->name('show');
+        Route::post('/{ticket}/change-status', [SupervisorTicketController::class, 'changeStatus'])->name('change-status');
+        Route::post('/{ticket}/assign', [SupervisorTicketController::class, 'assign'])->name('assign');
+        Route::post('/{ticket}/reassign', [SupervisorTicketController::class, 'reassign'])->name('reassign');
+        Route::post('/{ticket}/update-claim', [SupervisorTicketController::class, 'updateClaim'])->name('update-claim');
+        Route::post('/{ticket}/comment', [SupervisorTicketController::class, 'addComment'])->name('comment');
     });
 
     /* Claim management */

@@ -60,7 +60,7 @@ class TicketController extends Controller
                     'sla_remaining' => $ticket->sla_remaining,
                     'sla_breached' => $ticket->isSlaBreach(),
                     'total_claim' => number_format($ticket->total_claim_amount ?? 0, 2),
-                    'created_at' => $ticket->created_at->format('d M Y H:i'),
+                    'created_at' => $ticket->created_at?->format('d M Y H:i') ?? '-',
                 ];
             });
 
