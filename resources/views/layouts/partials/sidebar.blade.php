@@ -458,41 +458,6 @@
             </div>
             @endcan
 
-            <!-- Procurement - Purchase Orders Section (ADMIN) -->
-            @php
-                $isPurchaseOrderRoute = str_contains($currentRoute ?? '', 'admin.purchase-orders');
-                $isGrnsRoute = str_contains($currentRoute ?? '', 'admin.grns');
-                $isGrnReportsRoute = str_contains($currentRoute ?? '', 'admin.grn-reports');
-            @endphp
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Procurement</small>
-                <ul class="nav flex-column mt-2">
-                    @can('view_purchase_orders')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isPurchaseOrderRoute ? 'active' : '' }}"
-                        href="{{ route('admin.purchase-orders.index') }}">
-                            <i class="bi bi-cart-check me-2"></i> Purchase Orders
-                        </a>
-                    </li>
-                    @endcan
-                    @can('view_grns')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isGrnsRoute ? 'active' : '' }}"
-                        href="{{ route('admin.grns.index') }}">
-                            <i class="bi bi-box-seam me-2"></i> Goods Receipt Notes
-                        </a>
-                    </li>
-                    @endcan
-                    @can('view_reports_grns')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isGrnReportsRoute ? 'active' : '' }}"
-                        href="{{ route('admin.grn-reports.index') }}">
-                            <i class="bi bi-graph-up me-2"></i> GRN Reports
-                        </a>
-                    </li>
-                    @endcan
-                </ul>
-            </div>
 
             <!-- Financial Section -->
             {{-- <div class="nav-section mb-3">
@@ -1138,41 +1103,6 @@
             </div>
             @endcan
 
-            <!-- Procurement Section (Supervisor) -->
-            @php
-                $isPurchaseOrderRoute = str_contains($currentRoute ?? '', 'supervisor.purchase-orders');
-                $isGrnsRoute = str_contains($currentRoute ?? '', 'supervisor.grns');
-                $isGrnReportsRoute = str_contains($currentRoute ?? '', 'supervisor.grn-reports');
-            @endphp
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Procurement</small>
-                <ul class="nav flex-column mt-2">
-                    @can('view_purchase_orders')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isPurchaseOrderRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.purchase-orders.index') }}">
-                            <i class="bi bi-cart-check me-2"></i> Purchase Orders
-                        </a>
-                    </li>
-                    @endcan
-                    @can('view_grns')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isGrnsRoute ? 'active' : '' }}" href="{{ route('supervisor.grns.index') }}">
-                            <i class="bi bi-box-seam me-2"></i> Goods Receipt Notes
-                        </a>
-                    </li>
-                    @endcan
-                    @can('view_reports_grns')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isGrnReportsRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.grn-reports.index') }}">
-                            <i class="bi bi-graph-up me-2"></i> GRN Reports
-                        </a>
-                    </li>
-                    @endcan
-                </ul>
-            </div>
-
             <!-- Profile Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
@@ -1594,33 +1524,6 @@
                 </ul>
             </div>
             @endcan
-
-            <!-- Procurement Section (Technician) -->
-            @php
-                $isPurchaseOrderRoute = str_contains($currentRoute ?? '', 'technician.purchase-orders');
-                $isGrnsRoute = str_contains($currentRoute ?? '', 'technician.grns');
-            @endphp
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Procurement</small>
-                <ul class="nav flex-column mt-2">
-                    {{-- @can('view_purchase_orders') --}}
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isPurchaseOrderRoute ? 'active' : '' }}"
-                        href="{{ route('technician.purchase-orders.index') }}">
-                            <i class="bi bi-cart-check me-2"></i> My Purchase Orders
-                        </a>
-                    </li>
-                    {{-- @endcan --}}
-                    @can('view_grns')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isGrnsRoute ? 'active' : '' }}"
-                        href="{{ route('technician.grns.index') }}">
-                            <i class="bi bi-box-seam me-2"></i> Goods Receipt Notes
-                        </a>
-                    </li>
-                    @endcan
-                </ul>
-            </div>
 
             <!-- Claims & Payouts Section -->
             {{-- <div class="nav-section mb-3">

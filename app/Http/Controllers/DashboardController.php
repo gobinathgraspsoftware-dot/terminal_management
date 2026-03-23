@@ -49,7 +49,7 @@ class DashboardController extends Controller
                 'pending_jobs' => $this->getPendingJobsCount(),
                 'today_jobs' => $this->getTodayJobsStats(),
                 'low_stock_items' => $this->getLowStockCount(),
-                'pending_po_approvals' => $this->getPendingPOApprovals(),
+                'pending_po_approvals' => 0, // PO module removed
                 'pending_claim_approvals' => $this->getPendingClaimApprovals(),
                 'pending_payout_approvals' => $this->getPendingPayoutApprovals(),
                 'sla_breaches' => $this->getSLABreaches(),
@@ -149,11 +149,10 @@ class DashboardController extends Controller
             ->count();
     }
 
+    // PO module removed — return 0
     protected function getPendingPOApprovals(): int
     {
-        return DB::table('purchase_orders')
-            ->where('status', 'pending_approval')
-            ->count();
+        return 0;
     }
 
     protected function getPendingClaimApprovals(): int

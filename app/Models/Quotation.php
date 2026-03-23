@@ -59,10 +59,7 @@ class Quotation extends Model
         return $this->hasMany(QuotationLine::class)->orderBy('line_no');
     }
 
-    public function purchaseOrder()
-    {
-        return $this->hasOne(PurchaseOrder::class);
-    }
+    // purchaseOrder relationship REMOVED (Procurement tabs removed)
 
     public function approvedBy()
     {
@@ -165,17 +162,8 @@ class Quotation extends Model
         return $this->status === self::STATUS_APPROVED;
     }
 
-    public function canBeConverted(): bool
-    {
-        return $this->isVendorQuotation()
-            && $this->status === self::STATUS_ACCEPTED
-            && !$this->purchaseOrder;
-    }
-
-    public function isConvertedToPO(): bool
-    {
-        return $this->purchaseOrder !== null;
-    }
+    // canBeConverted() REMOVED (Procurement tabs removed)
+    // isConvertedToPO() REMOVED (Procurement tabs removed)
 
     public function checkExpiry(): bool
     {

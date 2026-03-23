@@ -60,11 +60,6 @@ class QuotationPolicy
      */
     public function update(User $user, Quotation $quotation): bool
     {
-        // Cannot edit if already converted to PO
-        if ($quotation->isConvertedToPO()) {
-            return false;
-        }
-
         // Cannot edit if not in editable status
         if (!$quotation->isEditable()) {
             return false;
@@ -99,11 +94,6 @@ class QuotationPolicy
      */
     public function delete(User $user, Quotation $quotation): bool
     {
-        // Cannot delete if converted to PO
-        if ($quotation->isConvertedToPO()) {
-            return false;
-        }
-
         // Can only delete draft quotations
         if (!$quotation->isDraft()) {
             return false;
@@ -205,20 +195,7 @@ class QuotationPolicy
         return false;
     }
 
-    /**
-     * Determine if the user can convert quotation to PO.
-     */
-    public function convertToPO(User $user, Quotation $quotation): bool
-    {
-        // Must be vendor quotation and accepted
-        if (!$quotation->canBeConverted()) {
-            return false;
-        }
-
-        // Only admins and supervisors can convert
-        return ($user->hasRole('admin') || $user->hasRole('supervisor')) 
-            && $user->can('convert_to_po_quotations');
-    }
+    // convertToPO() method REMOVED (Procurement tabs removed)
 
     /**
      * Determine if the user can export quotations.

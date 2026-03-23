@@ -4,8 +4,7 @@ namespace App\Services;
 
 use App\Models\Quotation;
 use App\Models\QuotationLine;
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
+// PurchaseOrder/PurchaseOrderLine imports REMOVED (Procurement tabs removed)
 use App\Models\JobOrder;
 use App\Models\NumberSeries;
 use Illuminate\Support\Facades\DB;
@@ -229,59 +228,7 @@ class QuotationService
         return $quotation->fresh();
     }
 
-    /**
-     * Convert vendor quotation to purchase order.
-     */
-    public function convertToPurchaseOrder(Quotation $quotation): PurchaseOrder
-    {
-        if (!$quotation->canBeConverted()) {
-            throw new \Exception('This quotation cannot be converted to Purchase Order.');
-        }
-
-        return DB::transaction(function () use ($quotation) {
-            // Generate PO number
-            $poNo = NumberSeries::getNextNumber('purchase_order');
-
-            // Create purchase order
-            $po = PurchaseOrder::create([
-                'po_no' => $poNo,
-                'po_date' => now(),
-                'vendor_id' => $quotation->vendor_id,
-                'quotation_id' => $quotation->id,
-                'reference' => $quotation->reference,
-                'subtotal' => $quotation->subtotal,
-                'tax_amount' => $quotation->tax_amount,
-                'discount_amount' => $quotation->discount_amount,
-                'total_amount' => $quotation->total_amount,
-                'currency' => $quotation->currency,
-                'payment_terms' => $quotation->terms_conditions,
-                'notes' => $quotation->notes,
-                'status' => PurchaseOrder::STATUS_DRAFT,
-                'created_by' => Auth::id(),
-            ]);
-
-            // Copy quotation lines to PO lines
-            foreach ($quotation->lines as $quoteLine) {
-                PurchaseOrderLine::create([
-                    'purchase_order_id' => $po->id,
-                    'line_no' => $quoteLine->line_no,
-                    'model_id' => $quoteLine->model_id,
-                    'description' => $quoteLine->description,
-                    'quantity_ordered' => $quoteLine->quantity,
-                    'unit' => $quoteLine->unit,
-                    'unit_price' => $quoteLine->unit_price,
-                    'discount_percent' => $quoteLine->discount_percent,
-                    'discount_amount' => $quoteLine->discount_amount,
-                    'tax_rate' => $quoteLine->tax_rate,
-                    'tax_amount' => $quoteLine->tax_amount,
-                    'line_total' => $quoteLine->line_total,
-                    'remarks' => $quoteLine->remarks,
-                ]);
-            }
-
-            return $po->fresh(['lines', 'vendor']);
-        });
-    }
+    // convertToPurchaseOrder() method REMOVED (Procurement tabs removed)
 
     /**
      * Create quotation from completed jobs.

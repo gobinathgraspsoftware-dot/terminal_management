@@ -375,28 +375,7 @@ class QuotationController extends Controller
         }
     }
 
-    /**
-     * Convert to PO
-     */
-    public function convertToPO(Quotation $quotation)
-    {
-        $this->authorize('convertToPO', $quotation);
-
-        try {
-            $po = $this->quotationService->convertToPurchaseOrder($quotation);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Quotation converted to Purchase Order successfully.',
-                'redirect' => route('admin.purchase-orders.show', $po)
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
-        }
-    }
+    // convertToPO() method REMOVED (Procurement tabs removed)
 
     /**
      * Duplicate quotation

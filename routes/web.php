@@ -78,14 +78,6 @@ use App\Http\Controllers\Technician\InventoryController as TechnicianInventoryCo
 use App\Http\Controllers\Admin\QuotationController as AdminQuotationController;
 use App\Http\Controllers\Supervisor\QuotationController as SupervisorQuotationController;
 use App\Http\Controllers\Technician\QuotationController as TechnicianQuotationController;
-use App\Http\Controllers\Admin\PurchaseOrderController as AdminPOController;
-use App\Http\Controllers\Supervisor\PurchaseOrderController as SupervisorPOController;
-use App\Http\Controllers\Technician\PurchaseOrderController as TechnicianPOController;
-use App\Http\Controllers\Admin\GrnController as AdminGrnController;
-use App\Http\Controllers\Supervisor\GrnController as SupervisorGrnController;
-use App\Http\Controllers\Technician\GrnController as TechnicianGrnController;
-use App\Http\Controllers\Admin\GrnReportController as AdminGrnReportController;
-use App\Http\Controllers\Supervisor\GrnReportController as SupervisorGrnReportController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\Admin\JobTypeController as AdminJobTypeController;
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
@@ -620,58 +612,6 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('{quotation}/pdf/email', [AdminQuotationController::class, 'emailPdf'])->name('pdf.email');
     });
 
-    /* Purchase Orders */
-    Route::prefix('purchase-orders')->name('purchase-orders.')->group(function () {
-        Route::get('/export', [AdminPOController::class, 'export'])->name('export');
-        Route::resource('/', AdminPOController::class)->parameters(['' => 'purchaseOrder']);
-        Route::post('/{purchaseOrder}/submit', [AdminPOController::class, 'submitForApproval'])->name('submit');
-        Route::post('/{purchaseOrder}/approve', [AdminPOController::class, 'approve'])->name('approve');
-        Route::post('/{purchaseOrder}/reject', [AdminPOController::class, 'reject'])->name('reject');
-        Route::post('/{purchaseOrder}/send', [AdminPOController::class, 'sendToVendor'])->name('send');
-        Route::post('/{purchaseOrder}/close', [AdminPOController::class, 'close'])->name('close');
-        Route::post('/{purchaseOrder}/cancel', [AdminPOController::class, 'cancel'])->name('cancel');
-        Route::get('/{purchaseOrder}/pdf', [AdminPOController::class, 'pdf'])->name('pdf');
-        Route::get('/{purchaseOrder}/download', [AdminPOController::class, 'downloadPdf'])->name('download');
-    });
-
-    /* GRNS Routes */
-    Route::prefix('grns')->name('grns.')->group(function () {
-        Route::get('/', [AdminGrnController::class, 'index'])->name('index');
-        Route::get('/create', [AdminGrnController::class, 'create'])->name('create');
-        Route::post('/', [AdminGrnController::class, 'store'])->name('store');
-        Route::get('/{grn}', [AdminGrnController::class, 'show'])->name('show');
-        Route::get('/{grn}/edit', [AdminGrnController::class, 'edit'])->name('edit');
-        Route::put('/{grn}', [AdminGrnController::class, 'update'])->name('update');
-        Route::delete('/{grn}', [AdminGrnController::class, 'destroy'])->name('destroy');
-
-        // Special routes
-        Route::get('/purchase-orders/{po}/details', [AdminGrnController::class, 'getPurchaseOrderDetails'])
-            ->name('po-details');
-        Route::post('/{grn}/post', [AdminGrnController::class, 'post'])->name('post');
-        Route::post('/{grn}/cancel', [AdminGrnController::class, 'cancel'])->name('cancel');
-        Route::post('/validate-serial', [AdminGrnController::class, 'validateSerial'])
-            ->name('validate-serial');
-
-        Route::get('/{grn}/pdf', [AdminGrnController::class, 'pdf'])->name('pdf');
-        Route::get('/{grn}/download', [AdminGrnController::class, 'downloadPdf'])->name('download');
-        // Export
-        Route::get('/export/excel', [AdminGrnController::class, 'export'])->name('export');
-    });
-
-    /* GRN Reports Routes (Admin) */
-    Route::prefix('grn-reports')->name('grn-reports.')->middleware('permission:view_reports_grns')->group(function () {
-        Route::get('/', [AdminGrnReportController::class, 'index'])->name('index');
-        Route::get('/register', [AdminGrnReportController::class, 'register'])->name('register');
-        Route::get('/receiving-by-vendor', [AdminGrnReportController::class, 'receivingByVendor'])->name('receiving-by-vendor');
-        Route::get('/receiving-by-model', [AdminGrnReportController::class, 'receivingByModel'])->name('receiving-by-model');
-
-        // Exports
-        Route::get('/export-list', [AdminGrnReportController::class, 'exportList'])->name('export-list');
-        Route::get('/export-register', [AdminGrnReportController::class, 'exportRegister'])->name('export-register');
-        Route::get('/export-receiving-by-vendor', [AdminGrnReportController::class, 'exportReceivingByVendor'])->name('export-receiving-by-vendor');
-        Route::get('/export-receiving-by-model', [AdminGrnReportController::class, 'exportReceivingByModel'])->name('export-receiving-by-model');
-    });
-
     /* Ticket Management Routes */
     Route::prefix('tickets')->name('tickets.')->group(function () {
         Route::get('/', [AdminTicketController::class, 'index'])->name('index');
@@ -1059,44 +999,6 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::post('{quotation}/pdf/email', [SupervisorQuotationController::class, 'emailPdf'])->name('pdf.email');
     });
 
-    /* Purchase Orders */
-    Route::prefix('purchase-orders')->name('purchase-orders.')->group(function () {
-        Route::get('/', [SupervisorPOController::class, 'index'])->name('index');
-        Route::get('/create', [SupervisorPOController::class, 'create'])->name('create');
-        Route::post('/', [SupervisorPOController::class, 'store'])->name('store');
-        Route::get('/{purchaseOrder}', [SupervisorPOController::class, 'show'])->name('show');
-        Route::get('/{purchaseOrder}/edit', [SupervisorPOController::class, 'edit'])->name('edit');
-        Route::put('/{purchaseOrder}', [SupervisorPOController::class, 'update'])->name('update');
-        Route::get('/{purchaseOrder}/pdf', [SupervisorPOController::class, 'pdf'])->name('pdf');
-    });
-
-    /* GNRS Routes */
-    Route::prefix('grns')->name('grns.')->group(function () {
-        Route::get('/', [SupervisorGrnController::class, 'index'])->name('index');
-        Route::get('/create', [SupervisorGrnController::class, 'create'])->name('create');
-        Route::post('/', [SupervisorGrnController::class, 'store'])->name('store');
-        Route::get('/{grn}', [SupervisorGrnController::class, 'show'])->name('show');
-        Route::get('/purchase-orders/{po}/details', [SupervisorGrnController::class, 'getPurchaseOrderDetails'])->name('po-details');
-        Route::post('/{grn}/post', [SupervisorGrnController::class, 'post'])->name('post');
-        Route::post('/validate-serial', [SupervisorGrnController::class, 'validateSerial'])->name('validate-serial');
-        Route::get('/{grn}/pdf', [SupervisorGrnController::class, 'pdf'])->name('pdf');
-        Route::get('/{grn}/download', [SupervisorGrnController::class, 'downloadPdf'])->name('download');
-    });
-
-    /* GRN Reports Routes (Supervisor - team-scoped) */
-    Route::prefix('grn-reports')->name('grn-reports.')->middleware('permission:view_reports_grns')->group(function () {
-        Route::get('/', [SupervisorGrnReportController::class, 'index'])->name('index');
-        Route::get('/register', [SupervisorGrnReportController::class, 'register'])->name('register');
-        Route::get('/receiving-by-vendor', [SupervisorGrnReportController::class, 'receivingByVendor'])->name('receiving-by-vendor');
-        Route::get('/receiving-by-model', [SupervisorGrnReportController::class, 'receivingByModel'])->name('receiving-by-model');
-
-        // Exports
-        Route::get('/export-list', [SupervisorGrnReportController::class, 'exportList'])->name('export-list');
-        Route::get('/export-register', [SupervisorGrnReportController::class, 'exportRegister'])->name('export-register');
-        Route::get('/export-receiving-by-vendor', [SupervisorGrnReportController::class, 'exportReceivingByVendor'])->name('export-receiving-by-vendor');
-        Route::get('/export-receiving-by-model', [SupervisorGrnReportController::class, 'exportReceivingByModel'])->name('export-receiving-by-model');
-    });
-
     /* Ticket Management Routes */
     Route::prefix('tickets')->name('tickets.')->group(function () {
         Route::get('/', [SupervisorTicketController::class, 'index'])->name('index');
@@ -1337,19 +1239,6 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
     Route::prefix('quotations')->name('quotations.')->group(function () {
         Route::get('/', [TechnicianQuotationController::class, 'index'])->name('index');
         Route::get('/{quotation}', [TechnicianQuotationController::class, 'show'])->name('show');
-    });
-
-    /* Purchase Orders */
-    Route::prefix('purchase-orders')->name('purchase-orders.')->group(function () {
-        Route::get('/', [TechnicianPOController::class, 'index'])->name('index');
-        Route::get('/{purchaseOrder}', [TechnicianPOController::class, 'show'])->name('show');
-        Route::get('/{purchaseOrder}/pdf', [TechnicianPOController::class, 'pdf'])->name('pdf');
-    });
-
-    /* GNRS Routes */
-    Route::prefix('grns')->name('grns.')->group(function () {
-        Route::get('/', [TechnicianGrnController::class, 'index'])->name('index');
-        Route::get('/{grn}', [TechnicianGrnController::class, 'show'])->name('show');
     });
 
     /* Ticket Management Routes */
