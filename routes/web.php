@@ -97,6 +97,9 @@ use App\Http\Controllers\Admin\ClaimManagementController as AdminClaimController
 use App\Http\Controllers\Supervisor\ClaimController as SupervisorClaimController;
 use App\Http\Controllers\Technician\ClaimController as TechnicianClaimController;
 use App\Http\Controllers\Admin\JobCategoryController as AdminJobCategoryController;
+use App\Http\Controllers\Admin\InventoryManagementController as AdminInventoryManagementController;
+use App\Http\Controllers\Supervisor\InventoryManagementController as SupervisorInventoryManagementController;
+use App\Http\Controllers\Technician\InventoryManagementController as TechnicianInventoryManagementController;
 
 /*
 |--------------------------------------------------------------------------
@@ -736,6 +739,41 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/{claim}/update-amount', [AdminClaimController::class, 'updateAmount'])->name('update-amount');
     });
 
+    Route::prefix('inventory-management')->name('inventory-management.')->group(function () {
+        // Hub
+        Route::get('/', [AdminInventoryManagementController::class, 'index'])->name('index');
+
+        // DataTable AJAX — MUST be before parameterized routes
+        Route::get('/router-datatable', [AdminInventoryManagementController::class, 'routerDatatable'])->name('router-datatable');
+        Route::get('/accessory-datatable', [AdminInventoryManagementController::class, 'accessoryDatatable'])->name('accessory-datatable');
+        Route::get('/available-serials', [AdminInventoryManagementController::class, 'getAvailableSerials'])->name('available-serials');
+        Route::get('/ticket-device-info', [AdminInventoryManagementController::class, 'getTicketDeviceInfo'])->name('ticket-device-info');
+
+        // Stock In
+        Route::get('/stock-in', [AdminInventoryManagementController::class, 'stockInForm'])->name('stock-in');
+        Route::post('/stock-in', [AdminInventoryManagementController::class, 'storeStockIn'])->name('stock-in.store');
+        Route::post('/stock-in/{stockIn}/post', [AdminInventoryManagementController::class, 'postStockIn'])->name('stock-in.post');
+        Route::post('/stock-in/{stockIn}/cancel', [AdminInventoryManagementController::class, 'cancelStockIn'])->name('stock-in.cancel');
+
+        // Stock Out
+        Route::get('/stock-out', [AdminInventoryManagementController::class, 'stockOutForm'])->name('stock-out');
+        Route::post('/stock-out', [AdminInventoryManagementController::class, 'storeStockOut'])->name('stock-out.store');
+        Route::post('/stock-out/{stockOut}/post', [AdminInventoryManagementController::class, 'postStockOut'])->name('stock-out.post');
+        Route::post('/stock-out/{stockOut}/cancel', [AdminInventoryManagementController::class, 'cancelStockOut'])->name('stock-out.cancel');
+
+        // Replacement
+        Route::get('/replacement', [AdminInventoryManagementController::class, 'replacementForm'])->name('replacement');
+        Route::post('/replacement', [AdminInventoryManagementController::class, 'storeReplacement'])->name('replacement.store');
+        Route::post('/replacement/{replacement}/complete', [AdminInventoryManagementController::class, 'completeReplacement'])->name('replacement.complete');
+        Route::post('/replacement/{replacement}/cancel', [AdminInventoryManagementController::class, 'cancelReplacement'])->name('replacement.cancel');
+
+        // Accessories Usage
+        Route::get('/accessories', [AdminInventoryManagementController::class, 'accessoriesIndex'])->name('accessories');
+        Route::post('/accessories', [AdminInventoryManagementController::class, 'storeAccessoryUsage'])->name('accessories.store');
+        Route::post('/accessories/{accessoryUsage}/return', [AdminInventoryManagementController::class, 'returnAccessory'])->name('accessories.return');
+        Route::get('/accessories/export', [AdminInventoryManagementController::class, 'exportAccessoryUsage'])->name('accessories.export');
+    });
+
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
         Route::get('/settings', function () {
@@ -1090,6 +1128,30 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{claim}', [SupervisorClaimController::class, 'show'])->name('show');
     });
 
+    Route::prefix('inventory-management')->name('inventory-management.')->group(function () {
+        // Hub
+        Route::get('/', [SupervisorInventoryManagementController::class, 'index'])->name('index');
+
+        // DataTable AJAX
+        Route::get('/router-datatable', [SupervisorInventoryManagementController::class, 'routerDatatable'])->name('router-datatable');
+        Route::get('/accessory-datatable', [SupervisorInventoryManagementController::class, 'accessoryDatatable'])->name('accessory-datatable');
+        Route::get('/available-serials', [SupervisorInventoryManagementController::class, 'getAvailableSerials'])->name('available-serials');
+
+        // Stock Out
+        Route::get('/stock-out', [SupervisorInventoryManagementController::class, 'stockOutForm'])->name('stock-out');
+        Route::post('/stock-out', [SupervisorInventoryManagementController::class, 'storeStockOut'])->name('stock-out.store');
+
+        // Replacement
+        Route::get('/replacement', [SupervisorInventoryManagementController::class, 'replacementForm'])->name('replacement');
+        Route::post('/replacement', [SupervisorInventoryManagementController::class, 'storeReplacement'])->name('replacement.store');
+        Route::post('/replacement/{replacement}/complete', [SupervisorInventoryManagementController::class, 'completeReplacement'])->name('replacement.complete');
+
+        // Accessories
+        Route::get('/accessories', [SupervisorInventoryManagementController::class, 'accessoriesIndex'])->name('accessories');
+        Route::post('/accessories', [SupervisorInventoryManagementController::class, 'storeAccessoryUsage'])->name('accessories.store');
+        Route::post('/accessories/{accessoryUsage}/return', [SupervisorInventoryManagementController::class, 'returnAccessory'])->name('accessories.return');
+    });
+
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
         Route::get('/jobs/assign', function () {
@@ -1325,6 +1387,24 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         // Show (parameterized - MUST be last)
         Route::get('/{claim}', [TechnicianClaimController::class, 'show'])->name('show');
     });
+
+    Route::prefix('inventory-management')->name('inventory-management.')->group(function () {
+        // Hub
+        Route::get('/', [TechnicianInventoryManagementController::class, 'index'])->name('index');
+
+        // My Serials AJAX
+        Route::get('/my-serials', [TechnicianInventoryManagementController::class, 'getMySerials'])->name('my-serials');
+
+        // Replacement
+        Route::get('/replacement', [TechnicianInventoryManagementController::class, 'replacementForm'])->name('replacement');
+        Route::post('/replacement', [TechnicianInventoryManagementController::class, 'storeReplacement'])->name('replacement.store');
+
+        // Accessories
+        Route::get('/my-accessories', [TechnicianInventoryManagementController::class, 'myAccessories'])->name('my-accessories');
+        Route::post('/accessories', [TechnicianInventoryManagementController::class, 'storeAccessoryUsage'])->name('accessories.store');
+        Route::post('/accessories/{accessoryUsage}/return', [TechnicianInventoryManagementController::class, 'returnAccessory'])->name('accessories.return');
+    });
+
 });
 
 // =====================================================

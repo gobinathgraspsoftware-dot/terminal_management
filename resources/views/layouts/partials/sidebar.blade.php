@@ -279,11 +279,59 @@
                 $isStockReturnRoute = str_contains($currentRoute ?? '', 'admin.stock-returns');
                 $isStockTransferRoute = str_contains($currentRoute ?? '', 'admin.stock-transfers');
                 $isStockAdjustmentRoute = str_contains($currentRoute ?? '', 'admin.stock-adjustments');
+                $isInventoryMgmtRoute = str_contains($currentRoute ?? '', 'admin.inventory-management');
             @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
+
+
+                    @can('view_inventory_management')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isInventoryMgmtRoute ?? false ? 'active' : '' }}"
+                        href="{{ route('admin.inventory-management.index') }}">
+                            <i class="bi bi-box-seam me-2"></i> Inventory Management
+                        </a>
+                    </li>
+                    @endcan
+
+                    {{-- Sub-links (shown when on inventory-management pages) --}}
+                    @if($isInventoryMgmtRoute ?? false)
+                        @can('create_stock_in')
+                        <li class="nav-item">
+                            <a class="nav-link ps-4 {{ str_contains($currentRoute ?? '', 'stock-in') ? 'active' : '' }}"
+                            href="{{ route('admin.inventory-management.stock-in') }}">
+                                <i class="bi bi-box-arrow-in-down me-2 text-success"></i> Stock In
+                            </a>
+                        </li>
+                        @endcan
+                        @can('create_stock_out')
+                        <li class="nav-item">
+                            <a class="nav-link ps-4 {{ str_contains($currentRoute ?? '', 'stock-out') ? 'active' : '' }}"
+                            href="{{ route('admin.inventory-management.stock-out') }}">
+                                <i class="bi bi-box-arrow-up me-2 text-danger"></i> Stock Out
+                            </a>
+                        </li>
+                        @endcan
+                        @can('create_replacements')
+                        <li class="nav-item">
+                            <a class="nav-link ps-4 {{ str_contains($currentRoute ?? '', 'replacement') ? 'active' : '' }}"
+                            href="{{ route('admin.inventory-management.replacement') }}">
+                                <i class="bi bi-arrow-left-right me-2 text-warning"></i> Replacement
+                            </a>
+                        </li>
+                        @endcan
+                        @can('view_accessory_usage')
+                        <li class="nav-item">
+                            <a class="nav-link ps-4 {{ str_contains($currentRoute ?? '', 'accessories') ? 'active' : '' }}"
+                            href="{{ route('admin.inventory-management.accessories') }}">
+                                <i class="bi bi-sim me-2 text-secondary"></i> Accessories Usage
+                            </a>
+                        </li>
+                        @endcan
+                    @endif
+
                     @can('view_inventory')
                     <li class="nav-item">
                         <a class="nav-link {{ $isInventoryDashboardRoute ? 'active' : '' }}"
@@ -777,11 +825,49 @@
                 $isStockReturnRoute = str_contains($currentRoute ?? '', 'supervisor.stock-returns');
                 $isStockTransferRoute = str_contains($currentRoute ?? '', 'supervisor.stock-transfers');
                 $isStockAdjustmentRoute = str_contains($currentRoute ?? '', 'supervisor.stock-adjustments');
+                $isInventoryMgmtRoute = str_contains($currentRoute ?? '', 'supervisor.inventory-management');
             @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
+
+                    @can('view_inventory_management')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isInventoryMgmtRoute ?? false ? 'active' : '' }}"
+                        href="{{ route('supervisor.inventory-management.index') }}">
+                            <i class="bi bi-box-seam me-2"></i> Inventory Management
+                        </a>
+                    </li>
+                    @endcan
+
+                    @if($isInventoryMgmtRoute ?? false)
+                        @can('create_stock_out')
+                        <li class="nav-item">
+                            <a class="nav-link ps-4 {{ str_contains($currentRoute ?? '', 'stock-out') ? 'active' : '' }}"
+                            href="{{ route('supervisor.inventory-management.stock-out') }}">
+                                <i class="bi bi-box-arrow-up me-2 text-danger"></i> Stock Out
+                            </a>
+                        </li>
+                        @endcan
+                        @can('create_replacements')
+                        <li class="nav-item">
+                            <a class="nav-link ps-4 {{ str_contains($currentRoute ?? '', 'replacement') ? 'active' : '' }}"
+                            href="{{ route('supervisor.inventory-management.replacement') }}">
+                                <i class="bi bi-arrow-left-right me-2 text-warning"></i> Replacement
+                            </a>
+                        </li>
+                        @endcan
+                        @can('view_accessory_usage')
+                        <li class="nav-item">
+                            <a class="nav-link ps-4 {{ str_contains($currentRoute ?? '', 'accessories') ? 'active' : '' }}"
+                            href="{{ route('supervisor.inventory-management.accessories') }}">
+                                <i class="bi bi-sim me-2 text-secondary"></i> Accessories
+                            </a>
+                        </li>
+                        @endcan
+                    @endif
+
                     @can('view_inventory')
                     <li class="nav-item">
                         <a class="nav-link {{ $isInventoryDashboardRoute ? 'active' : '' }}"
@@ -1311,12 +1397,42 @@
                 $isStockIssueRoute = str_contains($currentRoute ?? '', 'technician.stock-issues');
                 $isStockReturnRoute = str_contains($currentRoute ?? '', 'technician.stock-returns');
                 $isStockTransferRoute = str_contains($currentRoute ?? '', 'technician.stock-transfers');
+                $isInventoryMgmtRoute = str_contains($currentRoute ?? '', 'technician.inventory-management');
             @endphp
 
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
+
+                    @can('view_inventory_management')
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isInventoryMgmtRoute ?? false ? 'active' : '' }}"
+                        href="{{ route('technician.inventory-management.index') }}">
+                            <i class="bi bi-box-seam me-2"></i> Inventory Management
+                        </a>
+                    </li>
+                    @endcan
+
+                    @if($isInventoryMgmtRoute ?? false)
+                        @can('create_replacements')
+                        <li class="nav-item">
+                            <a class="nav-link ps-4 {{ str_contains($currentRoute ?? '', 'replacement') ? 'active' : '' }}"
+                            href="{{ route('technician.inventory-management.replacement') }}">
+                                <i class="bi bi-arrow-left-right me-2 text-warning"></i> Replacement
+                            </a>
+                        </li>
+                        @endcan
+                        @can('view_accessory_usage')
+                        <li class="nav-item">
+                            <a class="nav-link ps-4 {{ str_contains($currentRoute ?? '', 'my-accessories') ? 'active' : '' }}"
+                            href="{{ route('technician.inventory-management.my-accessories') }}">
+                                <i class="bi bi-sim me-2 text-secondary"></i> My Accessories
+                            </a>
+                        </li>
+                        @endcan
+                    @endif
+
                     @can('view_inventory')
                     <li class="nav-item">
                         <a class="nav-link {{ $isInventoryDashboardRoute ? 'active' : '' }}"
