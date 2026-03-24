@@ -141,12 +141,8 @@ class DashboardController extends Controller
 
     protected function getLowStockCount(): int
     {
-        return DB::table('stock_balances')
-            ->select('model_id', DB::raw('SUM(quantity_available) as total_available'))
-            ->groupBy('model_id')
-            ->havingRaw('SUM(quantity_available) < 5')
-            ->get()
-            ->count();
+        // Old stock_balances table removed — return 0 until inventory-management module provides this
+        return 0;
     }
 
     // PO module removed — return 0

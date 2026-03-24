@@ -45,8 +45,8 @@
                             <i class="bi bi-folder2-open me-1"></i> Claims
                         </a>
                         @endcan
-                        @can('view_inventory')
-                        <a href="{{ route('supervisor.inventory-dashboard.index') }}" class="btn btn-sm btn-info text-white">
+                        @can('view_inventory_management')
+                        <a href="{{ route('supervisor.inventory-management.index') }}" class="btn btn-sm btn-info text-white">
                             <i class="bi bi-box-seam me-1"></i> Inventory
                         </a>
                         @endcan

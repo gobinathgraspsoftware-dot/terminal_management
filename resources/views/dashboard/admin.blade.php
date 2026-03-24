@@ -35,8 +35,8 @@
                             <i class="bi bi-ticket-detailed me-1"></i> Tickets
                         </a>
                         @endcan
-                        @can('view_inventory')
-                        <a href="{{ route('admin.inventory-dashboard.index') }}" class="btn btn-sm btn-success">
+                        @can('view_inventory_management')
+                        <a href="{{ route('admin.inventory-management.index') }}" class="btn btn-sm btn-success">
                             <i class="bi bi-box-seam me-1"></i> Inventory
                         </a>
                         @endcan
@@ -94,7 +94,7 @@
                 'iconBg' => 'warning',
                 'value'  => $stats['low_stock_items'],
                 'label'  => 'Low Stock Alerts',
-                'link'   => route('admin.inventory-dashboard.index'),
+                'link'   => route('admin.inventory-management.index'),
             ])
         </div>
     </div>

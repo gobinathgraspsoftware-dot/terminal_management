@@ -9,13 +9,9 @@ use Illuminate\Support\Facades\Gate;
 use App\Models\User;
 use App\Models\ChargeCatalog;
 use App\Models\Depot;
-use App\Models\InventorySerial;
 use App\Models\Partner;
 use App\Models\RateCard;
 use App\Models\Site;
-use App\Models\StockBalance;
-use App\Models\StockIssue;
-use App\Models\StockLedger;
 use App\Models\TerminalCategory;
 use App\Models\TerminalModel;
 use App\Models\Vendor;
@@ -29,13 +25,9 @@ use App\Policies\RolePolicy;
 use App\Policies\UserPolicy;
 use App\Policies\ChargeCatalogPolicy;
 use App\Policies\DepotPolicy;
-use App\Policies\InventorySerialPolicy;
 use App\Policies\PartnerPolicy;
 use App\Policies\RateCardPolicy;
 use App\Policies\SitePolicy;
-use App\Policies\StockBalancePolicy;
-use App\Policies\StockIssuePolicy;
-use App\Policies\StockLedgerPolicy;
 use App\Policies\TerminalCategoryPolicy;
 use App\Policies\TerminalModelPolicy;
 use App\Policies\VendorPolicy;
@@ -49,8 +41,7 @@ use App\Models\JobType;
 use App\Policies\JobCategoryPolicy;
 use App\Policies\JobTypePolicy;
 
-// Observers
-use App\Observers\InventorySerialObserver;
+// Old inventory observers removed
 
 /**
  * AuthServiceProvider - Registers policies, observers, and authorization gates.
@@ -101,12 +92,8 @@ class AuthServiceProvider extends ServiceProvider
         RateCard::class => RateCardPolicy::class,
 
         // ==========================================
-        // INVENTORY MANAGEMENT
+        // INVENTORY — old policies removed, handled by inventory-management module
         // ==========================================
-        InventorySerial::class => InventorySerialPolicy::class,
-        StockBalance::class => StockBalancePolicy::class,
-        StockLedger::class => StockLedgerPolicy::class,
-        StockIssue::class => StockIssuePolicy::class,
 
         Permission::class => PermissionPolicy::class,
         Role::class => RolePolicy::class,
@@ -134,7 +121,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     protected function registerObservers(): void
     {
-        InventorySerial::observe(InventorySerialObserver::class);
+        // Old InventorySerial observer removed — handled by inventory-management module
     }
 
     /**
@@ -242,21 +229,8 @@ class AuthServiceProvider extends ServiceProvider
      */
     protected function registerInventoryGates(): void
     {
-        Gate::define('serial-lookup', function (User $user) {
-            return $user->can('view_inventory');
-        });
-
-        Gate::define('bulk-import-serials', function (User $user) {
-            return $user->can('bulk_import_inventory');
-        });
-
-        Gate::define('bulk-update-serials', function (User $user) {
-            return $user->can('bulk_update_inventory');
-        });
-
-        Gate::define('bulk-transfer-serials', function (User $user) {
-            return $user->can('bulk_transfer_inventory');
-        });
+        // Old inventory gates removed (serial-lookup, bulk-import-serials, etc.)
+        // Now handled by inventory-management module permissions
     }
 
     /**

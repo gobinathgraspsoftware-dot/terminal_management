@@ -32,9 +32,9 @@
                             <i class="bi bi-ticket-detailed me-1"></i> My Tickets
                         </a>
                         @endcan
-                        @can('view_inventory')
-                        <a href="{{ route('technician.inventory-serials.index') }}" class="btn btn-sm btn-success">
-                            <i class="bi bi-upc-scan me-1"></i> My Stock
+                        @can('view_inventory_management')
+                        <a href="{{ route('technician.inventory-management.index') }}" class="btn btn-sm btn-success">
+                            <i class="bi bi-box-seam me-1"></i> My Stock
                         </a>
                         @endcan
                         @can('view_claims')
