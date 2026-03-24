@@ -10,29 +10,19 @@ use Illuminate\Support\Facades\Storage;
 /**
  * QuotationPdfService - Handles PDF generation for quotations
  *
- * Features:
- * - Professional PDF layout with company branding
- * - Quotation details and line items
- * - Client/Vendor information
- * - Terms & conditions
- * - Download and email capabilities
+ * UPDATED: Removed 'client' eager-load — clients table dropped
  */
 class QuotationPdfService
 {
     /**
      * Generate quotation PDF
-     *
-     * @param Quotation $quotation
-     * @param array $options
-     * @return \Barryvdh\DomPDF\PDF
      */
     public function generatePdf(Quotation $quotation, array $options = [])
     {
-        // Load relationships
+        // Load relationships — Removed: 'client' — table dropped
         $quotation->load([
             'lines.model.category',
             'lines.charge',
-            'client',
             'vendor',
             'createdBy',
             'approvedBy'
@@ -69,53 +59,34 @@ class QuotationPdfService
 
     /**
      * Download quotation PDF
-     *
-     * @param Quotation $quotation
-     * @param array $options
-     * @return \Illuminate\Http\Response
      */
     public function downloadPdf(Quotation $quotation, array $options = [])
     {
         $pdf = $this->generatePdf($quotation, $options);
-
         $filename = $this->generateFilename($quotation);
-
         return $pdf->download($filename);
     }
 
     /**
      * Stream quotation PDF (for preview)
-     *
-     * @param Quotation $quotation
-     * @param array $options
-     * @return \Illuminate\Http\Response
      */
     public function streamPdf(Quotation $quotation, array $options = [])
     {
         $pdf = $this->generatePdf($quotation, $options);
-
         $filename = $this->generateFilename($quotation);
-
         return $pdf->stream($filename);
     }
 
     /**
      * Save PDF to storage
-     *
-     * @param Quotation $quotation
-     * @param string $path
-     * @param array $options
-     * @return string
      */
     public function savePdf(Quotation $quotation, string $path = null, array $options = [])
     {
         $pdf = $this->generatePdf($quotation, $options);
-
         $filename = $this->generateFilename($quotation);
         $storagePath = $path ?? 'quotations/' . $quotation->id;
         $fullPath = $storagePath . '/' . $filename;
 
-        // Save to storage
         Storage::put($fullPath, $pdf->output());
 
         return $fullPath;
@@ -123,22 +94,16 @@ class QuotationPdfService
 
     /**
      * Generate filename for PDF
-     *
-     * @param Quotation $quotation
-     * @return string
      */
     protected function generateFilename(Quotation $quotation): string
     {
         $quotationNo = str_replace(['/', '\\'], '-', $quotation->quotation_no);
         $type = ucfirst($quotation->quotation_type);
-
         return "{$type}_Quotation_{$quotationNo}.pdf";
     }
 
     /**
      * Get company settings
-     *
-     * @return array
      */
     protected function getCompanySettings(): array
     {
@@ -159,8 +124,6 @@ class QuotationPdfService
 
     /**
      * Get company logo as base64 for embedding in PDF
-     *
-     * @return string|null
      */
     protected function getCompanyLogoBase64(): ?string
     {
@@ -178,9 +141,6 @@ class QuotationPdfService
 
     /**
      * Generate quotation summary (for email body)
-     *
-     * @param Quotation $quotation
-     * @return array
      */
     public function generateSummary(Quotation $quotation): array
     {
@@ -198,9 +158,6 @@ class QuotationPdfService
 
     /**
      * Add watermark to PDF (for draft/expired quotations)
-     *
-     * @param Quotation $quotation
-     * @return string|null
      */
     public function getWatermark(Quotation $quotation): ?string
     {
@@ -221,10 +178,7 @@ class QuotationPdfService
 
     /**
      * Validate quotation before PDF generation
-     *
-     * @param Quotation $quotation
-     * @return bool
-     * @throws \Exception
+     * UPDATED: Removed client_id check — table dropped
      */
     public function validateQuotation(Quotation $quotation): bool
     {
@@ -232,8 +186,8 @@ class QuotationPdfService
             throw new \Exception('Cannot generate PDF for quotation without line items.');
         }
 
-        if (!$quotation->client_id && !$quotation->vendor_id) {
-            throw new \Exception('Quotation must have either a client or vendor.');
+        if (!$quotation->vendor_id) {
+            throw new \Exception('Quotation must have a vendor.');
         }
 
         return true;

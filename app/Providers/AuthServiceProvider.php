@@ -8,10 +8,6 @@ use Illuminate\Support\Facades\Gate;
 // Models
 use App\Models\User;
 use App\Models\ChargeCatalog;
-use App\Models\Depot;
-use App\Models\Partner;
-use App\Models\RateCard;
-use App\Models\Site;
 use App\Models\TerminalCategory;
 use App\Models\TerminalModel;
 use App\Models\Vendor;
@@ -24,10 +20,6 @@ use App\Policies\PermissionPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\UserPolicy;
 use App\Policies\ChargeCatalogPolicy;
-use App\Policies\DepotPolicy;
-use App\Policies\PartnerPolicy;
-use App\Policies\RateCardPolicy;
-use App\Policies\SitePolicy;
 use App\Policies\TerminalCategoryPolicy;
 use App\Policies\TerminalModelPolicy;
 use App\Policies\VendorPolicy;
@@ -41,22 +33,13 @@ use App\Models\JobType;
 use App\Policies\JobCategoryPolicy;
 use App\Policies\JobTypePolicy;
 
-// Old inventory observers removed
+// Removed: Partner, Client, Site, Depot, RateCard models & policies
 
 /**
  * AuthServiceProvider - Registers policies, observers, and authorization gates.
  *
- * This provider is responsible for:
- * - Registering model-policy mappings for authorization
- * - Registering model observers for business logic
- * - Defining custom authorization gates
- * - Implementing super admin bypass with security logging
- *
- * SUPERVISOR TYPES:
- * - Internal: Has technician team, can view team members, team-scoped data
- * - External: No technician team, independent operator, own-scoped data
- *
- * @package App\Providers
+ * REMOVED MODULES: Partners, Clients, Sites, Depots, Rate Cards
+ * These policy registrations have been removed as part of module cleanup.
  */
 class AuthServiceProvider extends ServiceProvider
 {
@@ -72,14 +55,6 @@ class AuthServiceProvider extends ServiceProvider
         User::class => UserPolicy::class,
 
         // ==========================================
-        // MASTER DATA
-        // ==========================================
-        Partner::class => PartnerPolicy::class,
-        Vendor::class => VendorPolicy::class,
-        Site::class => SitePolicy::class,
-        Depot::class => DepotPolicy::class,
-
-        // ==========================================
         // TERMINAL MODELS & CATEGORIES
         // ==========================================
         TerminalModel::class => TerminalModelPolicy::class,
@@ -89,16 +64,16 @@ class AuthServiceProvider extends ServiceProvider
         // PRICING & CHARGES
         // ==========================================
         ChargeCatalog::class => ChargeCatalogPolicy::class,
-        RateCard::class => RateCardPolicy::class,
 
         // ==========================================
-        // INVENTORY — old policies removed, handled by inventory-management module
+        // REMOVED: Partner, Client, Site, Depot, RateCard policies
         // ==========================================
 
         Permission::class => PermissionPolicy::class,
         Role::class => RolePolicy::class,
         Quotation::class => QuotationPolicy::class,
         VendorType::class => VendorTypePolicy::class,
+        Vendor::class => VendorPolicy::class,
         Claim::class => ClaimPolicy::class,
         JobType::class => JobTypePolicy::class,
         JobCategory::class => JobCategoryPolicy::class,
@@ -141,39 +116,26 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         // View own team
-        // Admin: always
-        // Internal Supervisor: yes (has team)
-        // External Supervisor: can see the teams index (shows own stats), but no team members
         Gate::define('viewOwnTeam', function (User $user) {
             if ($user->hasRole('admin')) {
                 return true;
             }
-
-            // Both internal and external can access the teams index page,
-            // but the controller/view will differentiate what they see
             return $user->hasRole('supervisor');
         });
 
         // View specific team member
-        // Admin: any member
-        // Internal Supervisor: own team members only
-        // External Supervisor: BLOCKED — they have no team members
-        // Technician: self only
         Gate::define('viewTeamMember', function (User $user, User $member) {
             if ($user->hasRole('admin')) {
                 return true;
             }
 
             if ($user->hasRole('supervisor')) {
-                // External supervisors cannot view team members (they have none)
                 if ($user->isExternalSupervisor()) {
                     return false;
                 }
-                // Internal supervisor can view their own team members
                 return $member->supervisor_id === $user->id;
             }
 
-            // Users can view themselves
             return $user->id === $member->id;
         });
 
@@ -187,15 +149,12 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasRole('admin');
         });
 
-        // Remove technician from team (admin only, target must be technician)
+        // Remove technician from team (admin only)
         Gate::define('removeFromTeam', function (User $user, User $technician) {
             return $user->hasRole('admin') && $technician->hasRole('technician');
         });
 
         // Export team data
-        // Admin: always
-        // Internal Supervisor: yes (has team data to export)
-        // External Supervisor: no (no team data)
         Gate::define('exportTeam', function (User $user) {
             if ($user->hasRole('admin')) {
                 return true;
@@ -208,9 +167,7 @@ class AuthServiceProvider extends ServiceProvider
             return false;
         });
 
-        // View team inventory (supervisor stock balance/reports)
-        // Internal Supervisor: can see team technicians' stock
-        // External Supervisor: no team, no team inventory
+        // View team inventory
         Gate::define('view_team_inventory', function (User $user) {
             if ($user->hasRole('admin')) {
                 return true;
@@ -229,8 +186,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     protected function registerInventoryGates(): void
     {
-        // Old inventory gates removed (serial-lookup, bulk-import-serials, etc.)
-        // Now handled by inventory-management module permissions
+        // Handled by inventory-management module permissions
     }
 
     /**

@@ -191,45 +191,6 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/statistics', [PermissionController::class, 'statistics'])->name('statistics');
     });
 
-    /* Partners Management Routes */
-    Route::prefix('partners')->name('partners.')->group(function () {
-        Route::get('/datatable', [AdminPartnerController::class, 'datatable'])->name('datatable');
-        Route::get('/export', [AdminPartnerController::class, 'export'])->name('export');
-        Route::post('/import', [AdminPartnerController::class, 'import'])->name('import');
-        Route::get('/import-template', [AdminPartnerController::class, 'importTemplate'])->name('import-template');
-        Route::post('/{partner}/restore', [AdminPartnerController::class, 'restore'])->name('restore')->withTrashed();
-        Route::post('/{partner}/toggle-status', [AdminPartnerController::class, 'toggleStatus'])->name('toggle-status');
-        Route::post('/{partner}/regenerate-api-key', [AdminPartnerController::class, 'regenerateApiKey'])->name('regenerate-api-key');
-        Route::get('/ajax/list', [AdminPartnerController::class, 'getList'])->name('ajax.list');
-        Route::get('/', [AdminPartnerController::class, 'index'])->name('index');
-        Route::get('/create', [AdminPartnerController::class, 'create'])->name('create');
-        Route::post('/', [AdminPartnerController::class, 'store'])->name('store');
-        Route::get('/{partner}', [AdminPartnerController::class, 'show'])->name('show')->withTrashed();
-        Route::get('/{partner}/edit', [AdminPartnerController::class, 'edit'])->name('edit');
-        Route::put('/{partner}', [AdminPartnerController::class, 'update'])->name('update');
-        Route::delete('/{partner}', [AdminPartnerController::class, 'destroy'])->name('destroy');
-    });
-
-    /* Client Management Routes */
-    Route::prefix('clients')->name('clients.')->group(function () {
-        Route::get('/', [AdminClientController::class, 'index'])->name('index');
-        Route::get('/datatable', [AdminClientController::class, 'datatable'])->name('datatable');
-        Route::get('/create', [AdminClientController::class, 'create'])->name('create');
-        Route::post('/', [AdminClientController::class, 'store'])->name('store');
-        Route::get('/{client}', [AdminClientController::class, 'show'])->name('show');
-        Route::get('/{client}/edit', [AdminClientController::class, 'edit'])->name('edit');
-        Route::put('/{client}', [AdminClientController::class, 'update'])->name('update');
-        Route::delete('/{client}', [AdminClientController::class, 'destroy'])->name('destroy');
-        Route::post('/{client}/restore', [AdminClientController::class, 'restore'])->name('restore');
-        Route::post('/{client}/toggle-status', [AdminClientController::class, 'toggleStatus'])->name('toggle-status');
-        Route::post('/{client}/contacts', [AdminClientController::class, 'addContact'])->name('contacts.store');
-        Route::put('/{client}/contacts/{contact}', [AdminClientController::class, 'updateContact'])->name('contacts.update');
-        Route::delete('/{client}/contacts/{contact}', [AdminClientController::class, 'removeContact'])->name('contacts.destroy');
-        Route::post('/{client}/contacts/{contact}/set-primary', [AdminClientController::class, 'setPrimaryContact'])->name('contacts.set-primary');
-        Route::get('/ajax/list', [AdminClientController::class, 'getList'])->name('ajax.list');
-    });
-
-
     /* Vendors Management Routes */
     Route::prefix('vendors')->name('vendors.')->group(function () {
         // List & DataTable
@@ -259,31 +220,6 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::delete('/{vendor}', [AdminVendorController::class, 'destroy'])->name('destroy');
         Route::post('/{vendor}/restore', [AdminVendorController::class, 'restore'])->name('restore');
         Route::post('/{vendor}/toggle-status', [AdminVendorController::class, 'toggleStatus'])->name('toggle-status');
-    });
-
-    /* Sites Management Routes */
-    Route::prefix('sites')->name('sites.')->group(function () {
-        Route::get('/', [AdminSiteController::class, 'index'])->name('index');
-        Route::get('/datatable', [AdminSiteController::class, 'datatable'])->name('datatable');
-        Route::get('/create', [AdminSiteController::class, 'create'])->name('create');
-        Route::post('/', [AdminSiteController::class, 'store'])->name('store');
-        Route::get('/{site}', [AdminSiteController::class, 'show'])->name('show');
-        Route::get('/{site}/edit', [AdminSiteController::class, 'edit'])->name('edit');
-        Route::put('/{site}', [AdminSiteController::class, 'update'])->name('update');
-        Route::delete('/{site}', [AdminSiteController::class, 'destroy'])->name('destroy');
-        Route::post('/{siteId}/restore', [AdminSiteController::class, 'restore'])->name('restore');
-        Route::get('/export', [AdminSiteController::class, 'export'])->name('export');
-        Route::post('/capture-gps', [AdminSiteController::class, 'captureGps'])->name('capture-gps');
-
-        /* Site Contacts Management Routes */
-        Route::prefix('{site}/contacts')->name('contacts.')->group(function () {
-            Route::get('/', [AdminSiteContactController::class, 'index'])->name('index');
-            Route::post('/', [AdminSiteContactController::class, 'store'])->name('store');
-            Route::get('/{contact}', [AdminSiteContactController::class, 'show'])->name('show');
-            Route::put('/{contact}', [AdminSiteContactController::class, 'update'])->name('update');
-            Route::delete('/{contact}', [AdminSiteContactController::class, 'destroy'])->name('destroy');
-            Route::post('/{contact}/set-primary', [AdminSiteContactController::class, 'setPrimary'])->name('set-primary');
-        });
     });
 
     /* Terminal categories routes */
@@ -324,21 +260,6 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/search', [AdminChargeCatalogController::class, 'searchCharges'])->name('search');
     });
 
-    /* Rate Card Routes */
-    Route::prefix('rate-cards')->name('rate-cards.')->group(function () {
-        Route::get('/', [AdminRateCardController::class, 'index'])->name('index');
-        Route::get('/create', [AdminRateCardController::class, 'create'])->name('create');
-        Route::get('/export', [AdminRateCardController::class, 'export'])->name('export');
-        Route::post('/calculate-preview', [AdminRateCardController::class, 'calculatePreview'])->name('calculate-preview');
-        Route::post('/find-applicable', [AdminRateCardController::class, 'findApplicableRate'])->name('find-applicable');
-        Route::get('/{rate_card}', [AdminRateCardController::class, 'show'])->name('show');
-        Route::get('/{rate_card}/edit', [AdminRateCardController::class, 'edit'])->name('edit');
-        Route::post('/', [AdminRateCardController::class, 'store'])->name('store');
-        Route::put('/{rate_card}', [AdminRateCardController::class, 'update'])->name('update');
-        Route::delete('/{rate_card}', [AdminRateCardController::class, 'destroy'])->name('destroy');
-        Route::post('/{rate_card}/toggle-status', [AdminRateCardController::class, 'toggleStatus'])->name('toggle-status');
-    });
-
     /* Job Types Routes */
     Route::prefix('job-types')->name('job-types.')->group(function () {
         Route::get('/datatable', [AdminJobTypeController::class, 'datatable'])->name('datatable');
@@ -362,16 +283,6 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::put('/{job_category}', [AdminJobCategoryController::class, 'update'])->name('update');
         Route::delete('/{job_category}', [AdminJobCategoryController::class, 'destroy'])->name('destroy');
     });
-
-    /* Depots Routes */
-    Route::resource('depots', AdminDepotController::class);
-    Route::prefix('depots')->name('depots.')->group(function () {
-        Route::post('{id}/restore', [AdminDepotController::class, 'restore'])->name('restore');
-        Route::get('{depot}/stock-summary', [AdminDepotController::class, 'stockSummary'])->name('stock-summary');
-        Route::get('{depot}/movements', [AdminDepotController::class, 'movements'])->name('movements');
-    });
-
-    /* OLD Inventory tabs removed */
 
     /* Quatation Routes */
     Route::prefix('quotations')->name('quotations.')->group(function () {
@@ -528,29 +439,6 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/login-history', [SupervisorProfileController::class, 'loginHistory'])->name('login-history');
     });
 
-    /* Partners Management Routes */
-    Route::prefix('partners')->name('partners.')->group(function () {
-        Route::get('/datatable', [SupervisorPartnerController::class, 'datatable'])->name('datatable');
-        Route::get('/ajax/list', [SupervisorPartnerController::class, 'getList'])->name('ajax.list');
-        Route::get('/', [SupervisorPartnerController::class, 'index'])->name('index');
-        Route::get('/{partner}', [SupervisorPartnerController::class, 'show'])->name('show');
-    });
-
-    /* Client Routes */
-    Route::prefix('clients')->name('clients.')->group(function () {
-        Route::get('/', [SupervisorClientController::class, 'index'])->name('index');
-        Route::get('/datatable', [SupervisorClientController::class, 'datatable'])->name('datatable');
-        Route::get('/{client}', [SupervisorClientController::class, 'show'])->name('show');
-        Route::get('/ajax/list', [SupervisorClientController::class, 'getList'])->name('ajax.list');
-    });
-
-    /* Sites management Routes */
-    Route::prefix('sites')->name('sites.')->group(function () {
-        Route::get('/', [SupervisorSiteController::class, 'index'])->name('index');
-        Route::get('/datatable', [SupervisorSiteController::class, 'datatable'])->name('datatable');
-        Route::get('/{site}', [SupervisorSiteController::class, 'show'])->name('show');
-    });
-
     /* Terminal categories Management Routes */
     Route::prefix('terminal-categories')->name('terminal-categories.')->group(function () {
         Route::get('/', [SupervisorTerminalCategoryController::class, 'index'])->name('index');
@@ -572,24 +460,6 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         // AJAX endpoint for quotations
         Route::get('/search', [SupervisorChargeCatalogController::class, 'searchCharges'])->name('search');
     });
-
-    /* Rate Cards Routes */
-    Route::prefix('rate-cards')->name('rate-cards.')->group(function () {
-        Route::get('/', [SupervisorRateCardController::class, 'index'])->name('index');
-        Route::get('/{rate_card}', [SupervisorRateCardController::class, 'show'])->name('show');
-        Route::post('/calculate-preview', [SupervisorRateCardController::class, 'calculatePreview'])->name('calculate-preview');
-        Route::post('/find-applicable', [SupervisorRateCardController::class, 'findApplicableRate'])->name('find-applicable');
-    });
-
-    /* Depots Routes */
-    Route::prefix('depots')->name('depots.')->group(function () {
-        Route::get('/', [SupervisorDepotController::class, 'index'])->name('index');
-        Route::get('/{depot}', [SupervisorDepotController::class, 'show'])->name('show');
-        Route::get('/{depot}/stock-summary', [SupervisorDepotController::class, 'stockSummary'])->name('stock-summary');
-        Route::get('/{depot}/movements', [SupervisorDepotController::class, 'movements'])->name('movements');
-    });
-
-    /* OLD Inventory tabs removed */
 
     /* Quatation Routes */
     Route::prefix('quotations')->name('quotations.')->group(function () {
@@ -678,28 +548,6 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/login-history', [TechnicianProfileController::class, 'loginHistory'])->name('login-history');
     });
 
-    /* Partners Management Routes */
-    Route::prefix('partners')->name('partners.')->group(function () {
-        Route::get('/datatable', [TechnicianPartnerController::class, 'datatable'])->name('datatable');
-        Route::get('/ajax/list', [TechnicianPartnerController::class, 'getList'])->name('ajax.list');
-        Route::get('/', [TechnicianPartnerController::class, 'index'])->name('index');
-        Route::get('/{partner}', [TechnicianPartnerController::class, 'show'])->name('show');
-    });
-
-    /* Client Routes */
-    Route::prefix('clients')->name('clients.')->group(function () {
-        Route::get('/', [TechnicianClientController::class, 'index'])->name('index');
-        Route::get('/datatable', [TechnicianClientController::class, 'datatable'])->name('datatable');
-        Route::get('/{client}', [TechnicianClientController::class, 'show'])->name('show');
-        Route::get('/ajax/list', [TechnicianClientController::class, 'getList'])->name('ajax.list');
-    });
-
-    /* Sites management Routes */
-    Route::prefix('sites')->name('sites.')->group(function () {
-        Route::get('/', [TechnicianSiteController::class, 'index'])->name('index');
-        Route::get('/{site}', [TechnicianSiteController::class, 'show'])->name('show');
-    });
-
     /* Terminal Categories Management Routes */
     Route::prefix('terminal-categories')->name('terminal-categories.')->group(function () {
         Route::get('/', [TechnicianTerminalCategoryController::class, 'index'])->name('index');
@@ -720,26 +568,10 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/search', [TechnicianChargeCatalogController::class, 'search'])->name('search');
     });
 
-    /* Rate cards Routes */
-    Route::prefix('charge-catalog')->name('charge-catalog.')->group(function () {
-        Route::get('/', [TechnicianRateCardController::class, 'index'])->name('index');
-        Route::post('/calculate-preview', [TechnicianRateCardController::class, 'calculatePreview'])->name('calculate-preview');
-        Route::post('/find-applicable', [TechnicianRateCardController::class, 'findApplicableRate'])->name('find-applicable');
-    });
-
-    /* Depots Routes */
-    Route::prefix('depots')->name('depots.')->group(function () {
-        Route::get('/', [TechnicianDepotController::class, 'index'])->name('index');
-        Route::get('/{depot}', [TechnicianDepotController::class, 'show'])->name('show');
-        Route::get('/{depot}/stock-summary', [TechnicianDepotController::class, 'stockSummary'])->name('stock-summary');
-    });
-
     /* My Jobs */
     Route::get('/jobs', function () {
         return 'My Jobs - Technician Only';
     })->name('jobs.index');
-
-    /* OLD Inventory tabs removed */
 
     /* Quatation Routes */
     Route::prefix('quotations')->name('quotations.')->group(function () {

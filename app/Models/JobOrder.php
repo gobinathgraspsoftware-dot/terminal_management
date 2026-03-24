@@ -60,14 +60,12 @@ class JobOrder extends Model
         ];
     }
 
-    public function partner() { return $this->belongsTo(Partner::class); }
-    public function client() { return $this->belongsTo(Client::class); }
-    public function site() { return $this->belongsTo(Site::class); }
+    // Removed: partner(), client(), site(), rateCard() — tables dropped
+
     public function supervisor() { return $this->belongsTo(User::class, 'supervisor_id'); }
     public function technician() { return $this->belongsTo(User::class, 'technician_id'); }
     public function invoice() { return $this->belongsTo(Invoice::class); }
-    public function rateCard() { return $this->belongsTo(RateCard::class, 'commission_rate_card_id'); }
-    
+
     public function assignments() { return $this->hasMany(JobAssignment::class); }
     public function devices() { return $this->hasMany(JobDevice::class); }
     public function photos() { return $this->hasMany(JobPhoto::class); }
@@ -84,7 +82,7 @@ class JobOrder extends Model
         }
 
         if ($user->hasRole('supervisor')) {
-            $teamTechIds = $user->technicians->pluck('id')->toArray();
+            $teamTechIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
             return $query->where(function($q) use ($user, $teamTechIds) {
                 $q->where('supervisor_id', $user->id)
                   ->orWhereIn('technician_id', $teamTechIds);

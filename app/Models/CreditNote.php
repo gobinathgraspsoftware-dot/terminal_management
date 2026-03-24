@@ -35,7 +35,7 @@ class CreditNote extends Model
     }
 
     public function invoice() { return $this->belongsTo(Invoice::class); }
-    public function client() { return $this->belongsTo(Client::class); }
+    // Removed: client() — table dropped
     public function vendor() { return $this->belongsTo(Vendor::class); }
     public function lines() { return $this->hasMany(CreditNoteLine::class); }
 }

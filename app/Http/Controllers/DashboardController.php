@@ -48,7 +48,7 @@ class DashboardController extends Controller
             'stats' => [
                 'pending_jobs' => $this->getPendingJobsCount(),
                 'today_jobs' => $this->getTodayJobsStats(),
-                'pending_po_approvals' => 0, // PO module removed
+                'pending_po_approvals' => 0,
                 'pending_claim_approvals' => $this->getPendingClaimApprovals(),
                 'pending_payout_approvals' => $this->getPendingPayoutApprovals(),
                 'sla_breaches' => $this->getSLABreaches(),
@@ -74,7 +74,6 @@ class DashboardController extends Controller
         $isExternal = $user->isExternalSupervisor();
 
         $data = [
-            // Pass supervisor type flags for conditional rendering in view
             'supervisor_type' => $user->supervisor_type ?? 'internal',
             'is_internal' => $isInternal,
             'is_external' => $isExternal,
@@ -138,7 +137,6 @@ class DashboardController extends Controller
             ->toArray();
     }
 
-    // PO module removed — return 0
     protected function getPendingPOApprovals(): int
     {
         return 0;
@@ -209,7 +207,6 @@ class DashboardController extends Controller
         $labels = [];
         $data = [];
 
-        // Group by week for monthly view
         $weeks = [];
         for ($i = 0; $i < 5; $i++) {
             $weekStart = $startOfMonth->copy()->addWeeks($i);
@@ -254,16 +251,12 @@ class DashboardController extends Controller
 
     /**
      * Build the job scope closure for the current supervisor.
-     *
-     * Internal: supervisor_id = self OR technician_id IN (team tech ids)
-     * External: supervisor_id = self only (no team technicians)
      */
     protected function supervisorJobScope($user): \Closure
     {
         return function ($query) use ($user) {
             $query->where('supervisor_id', $user->id);
 
-            // Internal supervisors also see their technicians' jobs
             if ($user->isInternalSupervisor()) {
                 $query->orWhereIn('technician_id', function ($q) use ($user) {
                     $q->select('id')
@@ -428,7 +421,6 @@ class DashboardController extends Controller
 
     protected function getTeamMembers($user): array
     {
-        // External supervisors have no team members
         if ($user->isExternalSupervisor()) {
             return [];
         }
@@ -443,6 +435,7 @@ class DashboardController extends Controller
 
     // ==========================================
     // TECHNICIAN DASHBOARD METHODS
+    // (Removed: client/site JOINs — tables dropped)
     // ==========================================
 
     protected function getTechnicianTodayJobs($user): int
@@ -477,7 +470,7 @@ class DashboardController extends Controller
         $pending = DB::table('job_orders')
             ->where('technician_id', $user->id)
             ->where('status', 'completed')
-            ->whereNull('invoice_id') // Not yet invoiced/paid
+            ->whereNull('invoice_id')
             ->sum('commission_amount');
 
         $paid = DB::table('payout_lines')
@@ -493,39 +486,34 @@ class DashboardController extends Controller
         ];
     }
 
+    /**
+     * Get technician's today job list
+     * UPDATED: Removed client/site JOINs — tables dropped
+     */
     protected function getTechnicianTodayJobsList($user): array
     {
         $today = Carbon::today();
 
         return DB::table('job_orders')
-            ->join('clients', 'job_orders.client_id', '=', 'clients.id')
-            ->leftJoin('sites', 'job_orders.site_id', '=', 'sites.id')
             ->where('job_orders.technician_id', $user->id)
             ->whereDate('job_orders.scheduled_date', $today)
-            ->select(
-                'job_orders.*',
-                'clients.client_name as client_name',
-                'sites.site_name as site_name',
-                'sites.address as site_address'
-            )
+            ->select('job_orders.*')
             ->orderBy('job_orders.priority', 'desc')
             ->orderBy('job_orders.scheduled_time', 'asc')
             ->get()
             ->toArray();
     }
 
+    /**
+     * Get technician's recent completed jobs
+     * UPDATED: Removed client/site JOINs — tables dropped
+     */
     protected function getTechnicianRecentJobs($user, int $limit = 5): array
     {
         return DB::table('job_orders')
-            ->join('clients', 'job_orders.client_id', '=', 'clients.id')
-            ->leftJoin('sites', 'job_orders.site_id', '=', 'sites.id')
             ->where('job_orders.technician_id', $user->id)
             ->where('job_orders.status', 'completed')
-            ->select(
-                'job_orders.*',
-                'clients.client_name as client_name',
-                'sites.site_name as site_name'
-            )
+            ->select('job_orders.*')
             ->orderBy('job_orders.completed_at', 'desc')
             ->limit($limit)
             ->get()

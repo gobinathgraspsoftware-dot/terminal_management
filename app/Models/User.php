@@ -37,7 +37,7 @@ class User extends Authenticatable
         'supervisor_type',
         'coverage_states',
         'skill_tags',
-        'default_rate_card_id',
+        // Removed: 'default_rate_card_id' — rate_cards table dropped
         'mileage_rate',
         'address',
         'state_id',
@@ -142,11 +142,7 @@ class User extends Authenticatable
         return $this->belongsTo(City::class, 'city_id');
     }
 
-    // Default rate card
-    public function defaultRateCard()
-    {
-        return $this->belongsTo(RateCard::class, 'default_rate_card_id');
-    }
+    // Removed: defaultRateCard() — rate_cards table dropped
 
     /**
      * Get stock balances for this technician
@@ -159,8 +155,6 @@ class User extends Authenticatable
 
     /**
      * Supervisor job pricing - prices mapped per job_category + job_type.
-     * For internal supervisors: pricing reflects to their technicians.
-     * For external supervisors: pricing reflects to the supervisor itself.
      */
     public function supervisorJobPricings()
     {
@@ -194,9 +188,6 @@ class User extends Authenticatable
 
     /**
      * Get the effective job pricing for a given category + type.
-     * - If user is a technician with internal supervisor: uses supervisor pricing.
-     * - If user is an external supervisor: uses own pricing.
-     * - If user is an internal supervisor: uses own pricing (reflected to technicians).
      */
     public function getJobPrice(int $jobCategoryId, int $jobTypeId): ?float
     {
@@ -312,7 +303,6 @@ class User extends Authenticatable
 
     /**
      * Scope: Unassigned technicians (need supervisor assignment)
-     * NOTE: These technicians are in an invalid state and need to be assigned ASAP.
      */
     public function scopeUnassigned($query)
     {
@@ -419,8 +409,6 @@ class User extends Authenticatable
 
     /**
      * Get effective mileage rate.
-     * For technicians with a supervisor, returns the supervisor's rate.
-     * For supervisors, returns own rate.
      */
     public function getEffectiveMileageRateAttribute(): ?string
     {

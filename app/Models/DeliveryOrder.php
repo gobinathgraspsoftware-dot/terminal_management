@@ -38,8 +38,7 @@ class DeliveryOrder extends Model
     }
 
     public function jobOrder() { return $this->belongsTo(JobOrder::class); }
-    public function client() { return $this->belongsTo(Client::class); }
-    public function site() { return $this->belongsTo(Site::class); }
+    // Removed: client(), site() — tables dropped
     public function technician() { return $this->belongsTo(User::class, 'technician_id'); }
     public function lines() { return $this->hasMany(DeliveryOrderLine::class); }
 }

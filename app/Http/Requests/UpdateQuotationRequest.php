@@ -17,18 +17,6 @@ class UpdateQuotationRequest extends FormRequest
     }
 
     /**
-     * Prepare the data for validation.
-     */
-    protected function prepareForValidation(): void
-    {
-        $quotation = $this->route('quotation');
-
-        $this->merge([
-            'currency' => $this->currency ?? ($quotation ? $quotation->currency : 'MYR'),
-        ]);
-    }
-
-    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
@@ -36,7 +24,7 @@ class UpdateQuotationRequest extends FormRequest
         return [
             'quotation_date' => ['required', 'date'],
             'quotation_type' => ['required', 'in:customer,vendor'],
-            'client_id' => ['required_if:quotation_type,customer', 'nullable', 'exists:clients,id'],
+            // Removed: client_id validation — clients table dropped
             'vendor_id' => ['required_if:quotation_type,vendor', 'nullable', 'exists:vendors,id'],
             'reference' => ['nullable', 'string', 'max:255'],
             'valid_until' => ['required', 'date', 'after:quotation_date'],
@@ -70,7 +58,6 @@ class UpdateQuotationRequest extends FormRequest
             'quotation_date.required' => 'Quotation date is required.',
             'quotation_type.required' => 'Quotation type is required.',
             'quotation_type.in' => 'Invalid quotation type selected.',
-            'client_id.required_if' => 'Client is required for customer quotations.',
             'vendor_id.required_if' => 'Vendor is required for vendor quotations.',
             'valid_until.required' => 'Valid until date is required.',
             'valid_until.after' => 'Valid until date must be after quotation date.',
@@ -96,7 +83,6 @@ class UpdateQuotationRequest extends FormRequest
         return [
             'quotation_date' => 'quotation date',
             'quotation_type' => 'quotation type',
-            'client_id' => 'client',
             'vendor_id' => 'vendor',
             'valid_until' => 'valid until date',
             'currency' => 'currency',

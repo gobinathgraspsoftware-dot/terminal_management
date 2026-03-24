@@ -49,9 +49,8 @@ class Invoice extends Model
         ];
     }
 
-    public function client() { return $this->belongsTo(Client::class); }
+    // Removed: client(), partner() — tables dropped
     public function vendor() { return $this->belongsTo(Vendor::class); }
-    public function partner() { return $this->belongsTo(Partner::class); }
     public function lines() { return $this->hasMany(InvoiceLine::class); }
     public function payments() { return $this->hasMany(Payment::class); }
     public function creditNotes() { return $this->hasMany(CreditNote::class); }

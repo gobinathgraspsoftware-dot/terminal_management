@@ -133,15 +133,10 @@
             </div>
             @endcan
 
-            <!-- Master Data Section (NEW - Includes Partners) -->
+            <!-- Master Data Section (Cleaned: Removed Partners, Clients, Sites, Depots, Rate Cards) -->
             @php
-                $isPartnerRoute = str_contains($currentRoute ?? '', 'admin.partners');
-                $isClientRoute = str_contains($currentRoute ?? '', 'admin.clients');
                 $isVendorRoute = str_contains($currentRoute ?? '', 'admin.vendors');
-                $isSiteRoute = str_contains($currentRoute ?? '', 'admin.sites');
-                $isDepotRoute = str_contains($currentRoute ?? '', 'admin.depots');
                 $ischargeCatelogRoute = str_contains($currentRoute ?? '', 'admin.charge-catalog');
-                $isRateCardRoute = str_contains($currentRoute ?? '', 'admin.rate-cards');
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'admin.terminal-models');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'admin.terminal-categories');
                 $isJobTypeRoute = str_contains($currentRoute ?? '', 'admin.job-types');
@@ -151,18 +146,6 @@
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Master Data</small>
                 <ul class="nav flex-column mt-2">
-                    {{-- <li class="nav-item">
-                        <a class="nav-link {{ $isPartnerRoute ? 'active' : '' }}"
-                           href="{{ route('admin.partners.index') }}">
-                            <i class="bi bi-building-fill me-2"></i> Partners
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isClientRoute ? 'active' : '' }}"
-                           href="{{ route('admin.clients.index') }}">
-                            <i class="bi bi-shop me-2"></i> Clients
-                        </a>
-                    </li> --}}
                     @can('view_vendor_types')
                     <li class="nav-item">
                         <a class="nav-link {{ $isVendorTypeRoute ? 'active' : '' }}"
@@ -177,43 +160,18 @@
                             <i class="bi bi-truck me-2"></i> Vendors
                         </a>
                     </li>
-                    {{-- <li class="nav-item">
-                        <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
-                           href="{{ route('admin.sites.index') }}">
-                            <i class="bi bi-geo-alt me-2"></i> Sites
-                        </a>
-                    </li> --}}
-                    {{-- @can('view_depots')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isDepotRoute ? 'active' : '' }}"
-                        href="{{ route('admin.depots.index') }}">
-                            <i class="bi bi-building me-2"></i> Depots
-                        </a>
-                    </li>
-                    @endcan --}}
                     <li class="nav-item">
                         <a href="{{ route('admin.charge-catalog.index') }}"
                         class="nav-link {{ $ischargeCatelogRoute ? 'active' : '' }}">
                             <i class="bi bi-tag"></i> Job Catalog
                         </a>
                     </li>
-                    {{-- @can('view_rate_cards')
-                    <li class="nav-item">
-                        <a href="{{ route('admin.rate-cards.index') }}"
-                        class="nav-link {{ $isRateCardRoute ? 'active' : '' }}">
-                            <i class="bi bi-credit-card-2-front"></i> Rate Cards
-                        </a>
-                    </li>
-                    @endcan --}}
                     @can('view_models')
                     <li class="nav-item">
                         <a class="nav-link {{ $isTerminalRoute ? 'active' : '' }}"
                         href="{{ route('admin.terminal-models.index') }}">
                             <i class="bi bi-box-seam"></i>
                             <span>Terminal Models</span>
-                            @if($unreadNotifications ?? 0)
-                                <span class="badge bg-danger ms-auto">{{ $unreadNotifications }}</span>
-                            @endif
                         </a>
                     </li>
                     @endcan
@@ -242,33 +200,6 @@
                 </ul>
             </div>
 
-            <!-- Job Management Section -->
-            {{-- @php
-                $isJobRoute = str_contains($currentRoute ?? '', 'admin.jobs');
-            @endphp
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Job Management</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isJobRoute ? 'active' : '' }}" href="#">
-                            <i class="bi bi-clipboard-check me-2"></i> All Jobs
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-clock-history me-2"></i> Job History
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-exclamation-triangle me-2"></i> SLA Tracking
-                        </a>
-                    </li>
-                </ul>
-            </div> --}}
-
-            <!-- Inventory Section removed -->
-
             <!-- Quotations Section -->
             @php
                 $isQuotationRoute = str_contains($currentRoute ?? '', 'admin.quotations');
@@ -294,53 +225,6 @@
                 </ul>
             </div>
             @endcan
-
-
-            <!-- Financial Section -->
-            {{-- <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Financial</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-receipt me-2"></i> Invoices
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-cash-coin me-2"></i> Payments
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-pie-chart me-2"></i> Aging Analysis
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-wallet2 me-2"></i> Payouts
-                        </a>
-                    </li>
-                </ul>
-            </div> --}}
-
-            <!-- Reports Section -->
-            {{-- <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Reports</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-file-earmark-bar-graph me-2"></i> All Reports
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-activity me-2"></i> Activity Logs
-                        </a>
-                    </li>
-                </ul>
-            </div> --}}
-
-            <!-- Old Stock Reports Section removed -->
 
             <!-- Claim Management Section -->
             @canany(['view_all_claims', 'view_claims', 'verify_claims', 'bulk_pay_claims'])
@@ -489,64 +373,23 @@
             </div>
             @endcan
 
-            <!-- Master Data Section (View Only for Supervisor) -->
+            <!-- Master Data Section (Cleaned: Removed Partners, Clients, Sites, Depots, Rate Cards) -->
             @php
-                $isPartnerRoute = str_contains($currentRoute ?? '', 'supervisor.partners');
-                $isClientRoute = str_contains($currentRoute ?? '', 'supervisor.clients');
-                $isSiteRoute = str_contains($currentRoute ?? '', 'supervisor.sites');
-                $isDepotRoute = str_contains($currentRoute ?? '', 'supervisor.depots');
                 $isChargeCatelogRoute = str_contains($currentRoute ?? '', 'supervisor.charge-catalog');
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'supervisor.terminal-models');
-                $isRateCardRoute = str_contains($currentRoute ?? '', 'supervisor.rate-cards');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'supervisor.terminal-categories');
                 $isVendorRoute = str_contains($currentRoute ?? '', 'supervisor.vendors');
             @endphp
-            @can('partners.view')
+            @can('view_vendors')
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Master Data</small>
                 <ul class="nav flex-column mt-2">
-                    {{-- <li class="nav-item">
-                        <a class="nav-link {{ $isPartnerRoute ? 'active' : '' }}"
-                           href="{{ route('supervisor.partners.index') }}">
-                            <i class="bi bi-building-fill me-2"></i> Partners
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isClientRoute ? 'active' : '' }}"
-                           href="#">
-                            <i class="bi bi-shop me-2"></i> Clients
-                        </a>
-                    </li> --}}
-                    @can('view_vendors')
                     <li class="nav-item">
                         <a class="nav-link {{ $isVendorRoute ? 'active' : '' }}"
                             href="{{ route('supervisor.vendors.index') }}">
                             <i class="bi bi-truck me-2"></i> Vendors
                         </a>
                     </li>
-                    @endcan
-                    {{-- <li class="nav-item">
-                        <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
-                           href="{{ route('supervisor.sites.index') }}">
-                            <i class="bi bi-geo-alt me-2"></i> Sites
-                        </a>
-                    </li> --}}
-                    {{-- @can('view_rate_cards')
-                    <li class="nav-item">
-                        <a href="{{ route('supervisor.rate-cards.index') }}"
-                        class="nav-link {{ $isRateCardRoute ? 'active' : '' }}">
-                            <i class="bi bi-credit-card-2-front"></i> Rate Cards
-                        </a>
-                    </li>
-                    @endcan --}}
-                    {{-- @can('view_depots')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isDepotRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.depots.index') }}">
-                            <i class="bi bi-building me-2"></i> Depots
-                        </a>
-                    </li>
-                    @endcan --}}
                     <li class="nav-item">
                         <a href="{{ route('supervisor.charge-catalog.index') }}"
                         class="nav-link {{ $isChargeCatelogRoute ? 'active' : '' }}">
@@ -572,62 +415,6 @@
             </div>
             @endcan
 
-            <!-- Inventory Section removed -->
-
-            <!-- Job Management Section -->
-            {{-- <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Job Management</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-clipboard-check me-2"></i> Team Jobs
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-exclamation-triangle me-2"></i> SLA Tracking
-                        </a>
-                    </li>
-                </ul>
-            </div> --}}
-
-            <!-- Approvals Section -->
-            {{-- <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Approvals</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-file-earmark-check me-2"></i> Pending Claims
-                            <span class="badge bg-warning ms-auto">3</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-receipt me-2"></i> Job Approvals
-                        </a>
-                    </li>
-                </ul>
-            </div> --}}
-
-            <!-- Reports Section -->
-            {{-- <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Reports</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-file-earmark-bar-graph me-2"></i> Team Reports
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-graph-up me-2"></i> Performance
-                        </a>
-                    </li>
-                </ul>
-            </div> --}}
-
-            <!-- Old Supervisor Stock Reports Section removed -->
-
             <!-- Claims Section -->
             @canany(['view_claims', 'view_team_claims', 'create_claims'])
             <div class="nav-section mb-3">
@@ -651,7 +438,6 @@
                             <i class="bi bi-file-earmark-text me-2"></i> Other Claims
                         </a>
                     </li>
-                    {{-- Only external supervisors can submit claims --}}
                     @if(auth()->user()->supervisor_type !== 'internal')
                     <li class="nav-item">
                         <a class="nav-link {{ str_contains($currentRoute, 'supervisor.claims.create') ? 'active' : '' }}"
@@ -756,43 +542,15 @@
             </div>
             @endcan
 
+            <!-- Reference Data (Cleaned: Removed Partners, Clients, Sites, Depots, Rate Cards) -->
             @php
-                $isPartnerRoute = str_contains($currentRoute ?? '', 'technician.partners');
-                $isClientRoute = str_contains($currentRoute ?? '', 'technician.clients');
-                $isSiteRoute = str_contains($currentRoute ?? '', 'technician.sites');
-                $isDepotRoute = str_contains($currentRoute ?? '', 'technician.depots');
                 $isChargeCatelogRoute = str_contains($currentRoute ?? '', 'technician.charge-catalog');
                 $isTerminalRoute = str_contains($currentRoute ?? '', 'technician.terminal-models');
                 $isCategoryRoute = str_contains($currentRoute ?? '', 'technician.terminal-categories');
-                $isRateCardRoute = str_contains($currentRoute ?? '', 'technician.rate-cards');
             @endphp
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Reference Data</small>
                 <ul class="nav flex-column mt-2">
-                    {{-- @can('view_partners')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isPartnerRoute ? 'active' : '' }}"
-                        href="{{ route('technician.partners.index') }}">
-                            <i class="bi bi-building me-2"></i> Partners
-                        </a>
-                    </li>
-                    @endcan
-                    @can('view_clients')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isClientRoute ? 'active' : '' }}"
-                        href="#">
-                            <i class="bi bi-shop me-2"></i> Clients
-                        </a>
-                    </li>
-                    @endcan --}}
-                    {{-- @can('view_sites')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
-                        href="{{ route('technician.sites.index') }}">
-                            <i class="bi bi-geo-alt me-2"></i> Sites
-                        </a>
-                    </li>
-                    @endcan --}}
                     @can('view_models')
                     <li class="nav-item">
                         <a class="nav-link {{ $isTerminalRoute ? 'active' : '' }}"
@@ -802,28 +560,12 @@
                         </a>
                     </li>
                     @endcan
-                    {{-- @can('view_depots')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isDepotRoute ? 'active' : '' }}"
-                        href="{{ route('technician.depots.index') }}">
-                            <i class="bi bi-building me-2"></i> Depots
-                        </a>
-                    </li>
-                    @endcan --}}
                     <li class="nav-item">
                         <a href="{{ route('technician.charge-catalog.index') }}"
                         class="nav-link {{ $isChargeCatelogRoute ? 'active' : '' }}">
                             <i class="bi bi-tag"></i> Job Catalog
                         </a>
                     </li>
-                    {{-- @can('view_rate_cards')
-                    <li class="nav-item">
-                        <a href="{{ route('technician.rate-cards.index') }}"
-                        class="nav-link {{ $isRateCardRoute ? 'active' : '' }}">
-                            <i class="bi bi-credit-card-2-front"></i> My Commission Rates
-                        </a>
-                    </li>
-                    @endcan --}}
                     @can('view_categories')
                     <li class="nav-item">
                         <a class="nav-link {{ $isCategoryRoute ? 'active' : '' }}"
@@ -834,60 +576,6 @@
                     @endcan
                 </ul>
             </div>
-
-            <!-- My Work Section -->
-            {{-- <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">My Work</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-clipboard-check me-2"></i> My Jobs
-                            <span class="badge bg-primary ms-auto">5</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-clock-history me-2"></i> Job History
-                        </a>
-                    </li>
-                </ul>
-            </div> --}}
-
-            <!-- Old Technician Stock Reports Section removed -->
-
-            <!-- Reference Data Section (Limited View for Technician) -->
-            @php
-                $isPartnerRoute = str_contains($currentRoute ?? '', 'technician.partners');
-                $isClientRoute = str_contains($currentRoute ?? '', 'technician.clients');
-                $isSiteRoute = str_contains($currentRoute ?? '', 'technician.sites');
-            @endphp
-            @can('partners.view')
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Reference Data</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isPartnerRoute ? 'active' : '' }}"
-                           href="{{ route('technician.partners.index') }}">
-                            <i class="bi bi-building me-2"></i> Partners
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isClientRoute ? 'active' : '' }}"
-                           href="#">
-                            <i class="bi bi-shop me-2"></i> Clients
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isSiteRoute ? 'active' : '' }}"
-                           href="{{ route('technician.sites.index') }}">
-                            <i class="bi bi-geo-alt me-2"></i> Sites
-                        </a>
-                    </li>
-                </ul>
-            </div>
-            @endcan
-
-            <!-- Inventory Section removed -->
 
             <!-- Claims & Payouts Section -->
             <div class="nav-section mb-3">
@@ -917,11 +605,6 @@
                             <i class="bi bi-plus-circle me-2"></i> Submit Other Claim
                         </a>
                     </li>
-                    {{-- <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-cash-coin me-2"></i> Commission
-                        </a>
-                    </li> --}}
                 </ul>
             </div>
 
@@ -942,23 +625,6 @@
                 </ul>
             </div>
             @endcan
-
-            <!-- Claims & Payouts Section -->
-            {{-- <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Claims & Payouts</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-file-earmark-text me-2"></i> My Claims
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-cash-coin me-2"></i> Commission
-                        </a>
-                    </li>
-                </ul>
-            </div> --}}
 
             <!-- Profile Section -->
             <div class="nav-section mb-3">

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Supervisor;
 
 use App\Http\Controllers\Controller;
 use App\Models\Quotation;
-use App\Models\Client;
 use App\Models\Vendor;
 use App\Models\User;
 use App\Models\TerminalModel;
@@ -22,6 +21,8 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
+
+// Removed: Client model import — table dropped
 
 class QuotationController extends Controller
 {
@@ -57,12 +58,12 @@ class QuotationController extends Controller
             return $this->datatable($request);
         }
 
-        $clients = Client::where('status', 'active')->orderBy('client_name')->get();
+        // Removed: $clients — table dropped
         $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
         $statuses = Quotation::getStatusList();
         $types = Quotation::getTypeList();
 
-        return view('supervisor.quotations.index', compact('clients', 'vendors', 'statuses', 'types'));
+        return view('supervisor.quotations.index', compact('vendors', 'statuses', 'types'));
     }
 
     /**
@@ -70,7 +71,7 @@ class QuotationController extends Controller
      */
     protected function datatable(Request $request)
     {
-        $query = Quotation::with(['client', 'vendor', 'createdBy', 'approvedBy'])
+        $query = Quotation::with(['vendor', 'createdBy', 'approvedBy'])
             ->whereIn('created_by', $this->getTeamMemberIds())
             ->select('quotations.*');
 
@@ -82,9 +83,7 @@ class QuotationController extends Controller
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('client_id')) {
-            $query->where('client_id', $request->client_id);
-        }
+        // Removed: client_id filter — table dropped
 
         if ($request->filled('vendor_id')) {
             $query->where('vendor_id', $request->vendor_id);
@@ -146,12 +145,12 @@ class QuotationController extends Controller
     {
         $this->authorize('create', Quotation::class);
 
-        $clients = Client::where('status', 'active')->orderBy('client_name')->get();
+        // Removed: $clients — table dropped
         $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
         $models = TerminalModel::where('status', 'active')->orderBy('model_name')->get();
         $charges = ChargeCatalog::where('status', 'active')->orderBy('charge_name')->get();
 
-        return view('supervisor.quotations.create', compact('clients', 'vendors', 'models', 'charges'));
+        return view('supervisor.quotations.create', compact('vendors', 'models', 'charges'));
     }
 
     /**
@@ -191,7 +190,7 @@ class QuotationController extends Controller
     {
         $this->authorize('view', $quotation);
 
-        $quotation->load(['lines.model', 'lines.charge', 'client', 'vendor', 'createdBy', 'approvedBy', 'purchaseOrder']);
+        $quotation->load(['lines.model', 'lines.charge', 'vendor', 'createdBy', 'approvedBy', 'purchaseOrder']);
 
         return view('supervisor.quotations.show', compact('quotation'));
     }
@@ -205,12 +204,12 @@ class QuotationController extends Controller
 
         $quotation->load(['lines.model', 'lines.charge']);
 
-        $clients = Client::where('status', 'active')->orderBy('client_name')->get();
+        // Removed: $clients — table dropped
         $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
         $models = TerminalModel::where('status', 'active')->orderBy('model_name')->get();
         $charges = ChargeCatalog::where('status', 'active')->orderBy('charge_name')->get();
 
-        return view('supervisor.quotations.edit', compact('quotation', 'clients', 'vendors', 'models', 'charges'));
+        return view('supervisor.quotations.edit', compact('quotation', 'vendors', 'models', 'charges'));
     }
 
     /**
@@ -251,7 +250,7 @@ class QuotationController extends Controller
         $this->authorize('delete', $quotation);
 
         try {
-            $quotation->delete();
+            $this->quotationService->deleteQuotation($quotation);
 
             return response()->json([
                 'success' => true,
@@ -266,18 +265,16 @@ class QuotationController extends Controller
     }
 
     /**
-     * Submit for approval
+     * Approve quotation
      */
-    public function submitForApproval(Quotation $quotation)
+    public function approve(ApproveQuotationRequest $request, Quotation $quotation)
     {
-        $this->authorize('update', $quotation);
-
         try {
-            $this->quotationService->submitForApproval($quotation);
+            $this->quotationService->approveQuotation($quotation, $request->validated());
 
             return response()->json([
                 'success' => true,
-                'message' => 'Quotation submitted for approval successfully.'
+                'message' => 'Quotation approved successfully.'
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -288,32 +285,22 @@ class QuotationController extends Controller
     }
 
     /**
-     * Process approval (approve or reject) - called from show page buttons
-     * Route: POST /{quotation}/process-approval
+     * Reject quotation
      */
-    public function processApproval(ApproveQuotationRequest $request, Quotation $quotation)
+    public function reject(Request $request, Quotation $quotation)
     {
-        try {
-            if ($request->action === 'approve') {
-                $this->quotationService->approveQuotation($quotation);
-                $message = 'Quotation approved successfully.';
-            } else {
-                $this->quotationService->rejectQuotation($quotation, $request->reason);
-                $message = 'Quotation rejected successfully.';
-            }
+        $this->authorize('reject', $quotation);
 
-            return response()->json(['success' => true, 'message' => $message]);
+        $request->validate([
+            'rejection_reason' => 'required|string|max:500',
+        ]);
+
+        try {
+            $this->quotationService->rejectQuotation($quotation, $request->rejection_reason);
+            return response()->json(['success' => true, 'message' => 'Quotation rejected.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
-    }
-
-    /**
-     * Approve quotation (legacy/alternate route)
-     */
-    public function approve(ApproveQuotationRequest $request, Quotation $quotation)
-    {
-        return $this->processApproval($request, $quotation);
     }
 
     /**
@@ -428,7 +415,7 @@ class QuotationController extends Controller
     {
         $this->authorize('export', Quotation::class);
 
-        $filters = $request->only(['quotation_type', 'status', 'client_id', 'vendor_id', 'date_from', 'date_to']);
+        $filters = $request->only(['quotation_type', 'status', 'vendor_id', 'date_from', 'date_to']);
         $filters['team_member_ids'] = $this->getTeamMemberIds();
 
         return Excel::download(
@@ -444,7 +431,7 @@ class QuotationController extends Controller
     {
         $this->authorize('view', $quotation);
 
-        $quotation->load(['lines.model', 'lines.charge', 'client', 'vendor']);
+        $quotation->load(['lines.model', 'lines.charge', 'vendor']);
 
         return view('supervisor.quotations.print', compact('quotation'));
     }
