@@ -51,7 +51,7 @@
     <!-- Stats Row -->
     <div class="row g-3 mb-4">
         <div class="col-lg-4 col-md-6">
-            @include('partials.dashboard-widget', [
+            @include('components.dashboard-widget', [
                 'icon'        => 'calendar-check',
                 'iconBg'      => 'primary',
                 'value'       => $stats['today_jobs'],
@@ -61,7 +61,7 @@
             ])
         </div>
         <div class="col-lg-4 col-md-6">
-            @include('partials.dashboard-widget', [
+            @include('components.dashboard-widget', [
                 'icon'   => 'arrow-repeat',
                 'iconBg' => 'info',
                 'value'  => $stats['jobs_by_status']['in_progress'] ?? 0,
@@ -69,7 +69,7 @@
             ])
         </div>
         <div class="col-lg-4 col-md-6">
-            @include('partials.dashboard-widget', [
+            @include('components.dashboard-widget', [
                 'icon'   => 'check-circle',
                 'iconBg' => 'success',
                 'value'  => $stats['jobs_by_status']['completed'] ?? 0,

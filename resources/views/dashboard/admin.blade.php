@@ -59,7 +59,7 @@
     <!-- Stats Row 1 - Job Stats -->
     <div class="row g-3 mb-4">
         <div class="col-lg-3 col-md-6">
-            @include('partials.dashboard-widget', [
+            @include('components.dashboard-widget', [
                 'icon'        => 'clipboard-check',
                 'iconBg'      => 'primary',
                 'value'       => $stats['pending_jobs'],
@@ -69,7 +69,7 @@
             ])
         </div>
         <div class="col-lg-3 col-md-6">
-            @include('partials.dashboard-widget', [
+            @include('components.dashboard-widget', [
                 'icon'        => 'calendar-check',
                 'iconBg'      => 'success',
                 'value'       => array_sum($stats['today_jobs']),
@@ -79,7 +79,7 @@
             ])
         </div>
         <div class="col-lg-3 col-md-6">
-            @include('partials.dashboard-widget', [
+            @include('components.dashboard-widget', [
                 'icon'        => 'exclamation-triangle',
                 'iconBg'      => 'danger',
                 'value'       => $stats['sla_breaches'],
@@ -89,7 +89,7 @@
             ])
         </div>
         <div class="col-lg-3 col-md-6">
-            @include('partials.dashboard-widget', [
+            @include('components.dashboard-widget', [
                 'icon'   => 'box-seam',
                 'iconBg' => 'warning',
                 'value'  => $stats['low_stock_items'],
@@ -102,7 +102,7 @@
     <!-- Stats Row 2 - Pending Approvals (PO widget removed) -->
     <div class="row g-3 mb-4">
         <div class="col-lg-6 col-md-6">
-            @include('partials.dashboard-widget', [
+            @include('components.dashboard-widget', [
                 'title'  => 'Claim Approvals',
                 'icon'   => 'file-earmark-check',
                 'iconBg' => 'warning',
@@ -112,7 +112,7 @@
             ])
         </div>
         <div class="col-lg-6 col-md-6">
-            @include('partials.dashboard-widget', [
+            @include('components.dashboard-widget', [
                 'title'  => 'Payout Approvals',
                 'icon'   => 'wallet2',
                 'iconBg' => 'success',

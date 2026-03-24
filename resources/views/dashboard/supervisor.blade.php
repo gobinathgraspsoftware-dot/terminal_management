@@ -59,7 +59,7 @@
     <!-- Stats Row 1 -->
     <div class="row g-3 mb-4">
         <div class="col-lg-3 col-md-6">
-            @include('partials.dashboard-widget', [
+            @include('components.dashboard-widget', [
                 'icon'        => 'calendar-check',
                 'iconBg'      => 'primary',
                 'value'       => $stats['team_jobs_today'],
@@ -69,7 +69,7 @@
             ])
         </div>
         <div class="col-lg-3 col-md-6">
-            @include('partials.dashboard-widget', [
+            @include('components.dashboard-widget', [
                 'icon'   => 'people',
                 'iconBg' => 'success',
                 'value'  => $stats['team_members']['total'] ?? 0,
@@ -77,7 +77,7 @@
             ])
         </div>
         <div class="col-lg-3 col-md-6">
-            @include('partials.dashboard-widget', [
+            @include('components.dashboard-widget', [
                 'icon'   => 'speedometer2',
                 'iconBg' => 'info',
                 'value'  => ($stats['team_sla_performance']['rate'] ?? 0) . '%',
@@ -85,7 +85,7 @@
             ])
         </div>
         <div class="col-lg-3 col-md-6">
-            @include('partials.dashboard-widget', [
+            @include('components.dashboard-widget', [
                 'icon'   => 'file-earmark-check',
                 'iconBg' => 'warning',
                 'value'  => $stats['pending_claims'],
