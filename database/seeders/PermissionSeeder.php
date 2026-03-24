@@ -52,32 +52,9 @@ class PermissionSeeder extends Seeder
             // Master Data - Rate Cards
             'rate_cards' => ['view', 'create', 'edit', 'delete'],
 
-            // Inventory - Serial Numbers
-            'inventory' => ['view', 'create', 'edit', 'delete', 'adjust', 'transfer', 'view_history', 'export', 'bulk_import', 'bulk_update', 'bulk_transfer', 'print_labels',],
-
-            // Inventory - Stock Issues
-            'stock_issues' => ['view', 'create', 'edit', 'post', 'cancel'],
-
-            // Inventory - Stock Transfers
-            'stock_transfers' => ['view', 'create', 'edit', 'approve', 'dispatch', 'receive', 'cancel'],
-
-            // Inventory - Stock Returns (NEW)
-            'stock_returns' => ['view', 'create', 'edit', 'post', 'cancel', 'view_technician_inventory'],
-
-            // Inventory - Stock Adjustments
-            'stock_adjustments' => ['view', 'create', 'approve', 'reject', 'post'],
-
-            // Inventory - Stock Ledger
-            'stock_ledger' => ['view', 'create', 'reverse', 'export'],
-
-            // Inventory - Stock Balance
-            'stock_balance' => ['view', 'recalculate', 'reserve', 'release_reservation', 'view_alerts', 'export'],
-
-            /* Inventory - Stock Valuation */
-            'stock_valuation' => ['view', 'view_detailed', 'view_movement_value', 'view_aging', 'export' ],
-
-            /* stock reports */
-            'stock_reports' => ['view', 'view_movement_report', 'view_stock_card', 'view_summary_report', 'export', 'print_stock_card'],
+            // Inventory permissions removed — replaced by inventory_management module permissions
+            // Old modules removed: inventory, stock_issues, stock_transfers, stock_returns,
+            // stock_adjustments, stock_ledger, stock_balance, stock_valuation, stock_reports
 
             // Procurement - Quotations
             'quotations' => ['view', 'create', 'edit', 'delete', 'approve', 'reject', 'send', 'convert_to_po', 'export'],

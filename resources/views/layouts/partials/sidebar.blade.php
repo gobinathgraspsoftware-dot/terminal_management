@@ -268,24 +268,12 @@
             </div> --}}
 
             @php
-                $isInventoryDashboardRoute = str_contains($currentRoute ?? '', 'admin.inventory-dashboard');
-                $isInventorySerialRoute = str_contains($currentRoute ?? '', 'admin.inventory-serials');
-                $isStockLedgerRoute = str_contains($currentRoute ?? '', 'admin.stock-ledger');
-                $isStockBalanceRoute = str_contains($currentRoute ?? '', 'admin.stock-balance');
-                $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'admin.serial-movement-history');
-                $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'admin.bulk-serials');
-                $isStockValuationRoute = str_contains($currentRoute ?? '', 'admin.stock-valuation');
-                $isStockIssueRoute = str_contains($currentRoute ?? '', 'admin.stock-issues');
-                $isStockReturnRoute = str_contains($currentRoute ?? '', 'admin.stock-returns');
-                $isStockTransferRoute = str_contains($currentRoute ?? '', 'admin.stock-transfers');
-                $isStockAdjustmentRoute = str_contains($currentRoute ?? '', 'admin.stock-adjustments');
                 $isInventoryMgmtRoute = str_contains($currentRoute ?? '', 'admin.inventory-management');
             @endphp
             <!-- Inventory Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
                 <ul class="nav flex-column mt-2">
-
 
                     @can('view_inventory_management')
                     <li class="nav-item">
@@ -331,104 +319,6 @@
                         </li>
                         @endcan
                     @endif
-
-                    @can('view_inventory')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isInventoryDashboardRoute ? 'active' : '' }}"
-                        href="{{ route('admin.inventory-dashboard.index') }}">
-                            <i class="bi bi-speedometer me-2"></i> Inventory Dashboard
-                        </a>
-                    </li>
-                    @endcan
-                    @can('view_inventory')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
-                        href="{{ route('admin.inventory-serials.index') }}">
-                            <i class="bi bi-upc-scan me-2"></i> Serial Numbers
-                        </a>
-                    </li>
-                    @endcan
-
-                    @can('view_inventory')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isMovementHistoryRoute ? 'active' : '' }}"
-                        href="{{ route('admin.serial-movement-history.index') }}">
-                            <i class="bi bi-clock-history me-2"></i> Movement History
-                        </a>
-                    </li>
-                    @endcan
-
-                    @can('bulk_import_inventory')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isBulkSerialsRoute ? 'active' : '' }}"
-                        href="{{ route('admin.bulk-serials.index') }}">
-                            <i class="bi bi-boxes me-2"></i> Bulk Operations
-                        </a>
-                    </li>
-                    @endcan
-
-                    {{-- Stock Ledger --}}
-                    @can('view_stock_ledger')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockLedgerRoute ? 'active' : '' }}"
-                        href="{{ route('admin.stock-ledger.index') }}">
-                            <i class="bi bi-journal-text me-2"></i> Stock Ledger
-                        </a>
-                    </li>
-                    @endcan
-
-                    {{-- Stock Issues --}}
-                    @can('view_stock_issues')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockIssueRoute ? 'active' : '' }}"
-                        href="{{ route('admin.stock-issues.index') }}">
-                            <i class="bi bi-box-arrow-right me-2"></i> Stock Issues
-                        </a>
-                    </li>
-                    @endcan
-
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockReturnRoute ? 'active' : '' }}"
-                        href="{{ route('admin.stock-returns.index') }}">
-                            <i class="bi bi-arrow-return-left me-2"></i> Stock Returns
-                        </a>
-                    </li>
-
-                    {{-- Stock Balance --}}
-                    @can('view_stock_balance')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockBalanceRoute && !str_contains($currentRoute ?? '', 'alerts') ? 'active' : '' }}"
-                        href="{{ route('admin.stock-balance.index') }}">
-                            <i class="bi bi-boxes me-2"></i> Stock Balance
-                        </a>
-                    </li>
-                    @endcan
-                    @can('view_stock_valuation')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockValuationRoute ? 'active' : '' }}"
-                        href="{{ route('admin.stock-valuation.index') }}">
-                            <i class="bi bi-cash-stack me-2"></i> Stock Valuation
-                        </a>
-                    </li>
-                    @endcan
-                    {{-- Stock Transfers --}}
-                    @can('view_stock_transfers')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockTransferRoute ? 'active' : '' }}"
-                        href="{{ route('admin.stock-transfers.index') }}">
-                            <i class="bi bi-arrow-left-right me-2"></i> Stock Transfers
-                        </a>
-                    </li>
-                    @endcan
-
-                    @can('view_stock_adjustments')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockAdjustmentRoute ? 'active' : '' }}"
-                        href="{{ route('admin.stock-adjustments.index') }}">
-                            <i class="bi bi-tools me-2"></i> Stock Adjustments
-                        </a>
-                    </li>
-                    @endcan
                 </ul>
             </div>
 
@@ -503,50 +393,7 @@
                 </ul>
             </div> --}}
 
-            <!-- Stock Reports Section -->
-            @php
-                $isStockReportsRoute = str_contains($currentRoute ?? '', 'admin.stock-reports');
-            @endphp
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Stock Reports</small>
-                <ul class="nav flex-column mt-2">
-                    @can('view_stock_reports')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockReportsRoute && !str_contains($currentRoute ?? '', 'movement') && !str_contains($currentRoute ?? '', 'stock-card') && !str_contains($currentRoute ?? '', 'summary') ? 'active' : '' }}"
-                        href="{{ route('admin.stock-reports.index') }}">
-                            <i class="bi bi-bar-chart me-2"></i> Reports Dashboard
-                        </a>
-                    </li>
-                    @endcan
-
-                    @can('view_movement_report_stock_reports')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.movement') ? 'active' : '' }}"
-                        href="{{ route('admin.stock-reports.movement') }}">
-                            <i class="bi bi-arrow-left-right me-2"></i> Movement Report
-                        </a>
-                    </li>
-                    @endcan
-
-                    @can('view_stock_card_stock_reports')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.stock-card') ? 'active' : '' }}"
-                        href="{{ route('admin.stock-reports.stock-card') }}">
-                            <i class="bi bi-credit-card me-2"></i> Stock Card
-                        </a>
-                    </li>
-                    @endcan
-
-                    @can('view_summary_report_stock_reports')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.summary') ? 'active' : '' }}"
-                        href="{{ route('admin.stock-reports.summary') }}">
-                            <i class="bi bi-file-earmark-bar-graph me-2"></i> Summary Report
-                        </a>
-                    </li>
-                    @endcan
-                </ul>
-            </div>
+            <!-- Old Stock Reports Section removed -->
 
             <!-- Claim Management Section -->
             @canany(['view_all_claims', 'view_claims', 'verify_claims', 'bulk_pay_claims'])
@@ -779,17 +626,6 @@
             @endcan
 
             @php
-                $isInventoryDashboardRoute = str_contains($currentRoute ?? '', 'supervisor.inventory-dashboard');
-                $isInventorySerialRoute = str_contains($currentRoute ?? '', 'supervisor.inventory-serials');
-                $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'supervisor.serial-movement-history');
-                $isStockLedgerRoute = str_contains($currentRoute ?? '', 'supervisor.stock-ledger');
-                $isStockBalanceRoute = str_contains($currentRoute ?? '', 'supervisor.stock-balance');
-                $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'supervisor.bulk-serials');
-                $isStockValuationRoute = str_contains($currentRoute ?? '', 'supervisor.stock-valuation');
-                $isStockIssueRoute = str_contains($currentRoute ?? '', 'supervisor.stock-issues');
-                $isStockReturnRoute = str_contains($currentRoute ?? '', 'supervisor.stock-returns');
-                $isStockTransferRoute = str_contains($currentRoute ?? '', 'supervisor.stock-transfers');
-                $isStockAdjustmentRoute = str_contains($currentRoute ?? '', 'supervisor.stock-adjustments');
                 $isInventoryMgmtRoute = str_contains($currentRoute ?? '', 'supervisor.inventory-management');
             @endphp
             <!-- Inventory Section -->
@@ -832,115 +668,6 @@
                         </li>
                         @endcan
                     @endif
-
-                    @can('view_inventory')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isInventoryDashboardRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.inventory-dashboard.index') }}">
-                            <i class="bi bi-speedometer me-2"></i> Inventory Dashboard
-                        </a>
-                    </li>
-                    @endcan
-                    @can('view_team_inventory')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isInventorySerialRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.inventory-serials.index') }}">
-                            <i class="bi bi-upc-scan me-2"></i> Serial Numbers
-                        </a>
-                    </li>
-                    @endcan
-
-                    @can('view_team_inventory')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isMovementHistoryRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.serial-movement-history.index') }}">
-                            <i class="bi bi-clock-history me-2"></i> Movement History
-                        </a>
-                    </li>
-                    @endcan
-
-                    @can('import_team_inventory')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isBulkSerialsRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.bulk-serials.index') }}">
-                            <i class="bi bi-boxes me-2"></i> Bulk Operations
-                        </a>
-                    </li>
-                    @endcan
-
-                    {{-- Stock Ledger (Team View) --}}
-                    @can('view_stock_ledger')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockLedgerRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.stock-ledger.index') }}">
-                            <i class="bi bi-journal-text me-2"></i> Stock Ledger
-                        </a>
-                    </li>
-                    @endcan
-
-                    {{-- Stock Issues --}}
-                    @can('view_stock_issues')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockIssueRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.stock-issues.index') }}">
-                            <i class="bi bi-box-arrow-right me-2"></i> Stock Issues
-                        </a>
-                    </li>
-                    @endcan
-
-                    {{-- Stock Transfers --}}
-                    @can('view_stock_transfers')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockTransferRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.stock-transfers.index') }}">
-                            <i class="bi bi-arrow-left-right me-2"></i> Stock Transfers
-                        </a>
-                    </li>
-                    @endcan
-
-                    @can('view_stock_adjustments')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockAdjustmentRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.stock-adjustments.index') }}">
-                            <i class="bi bi-tools me-2"></i> Stock Adjustments
-                        </a>
-                    </li>
-                    @endcan
-
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockReturnRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.stock-returns.index') }}">
-                            <i class="bi bi-arrow-return-left me-2"></i> Stock Returns
-                        </a>
-                    </li>
-
-                    {{-- Stock Balance (Team View) --}}
-                    @can('view_stock_balance')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockBalanceRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.stock-balance.index') }}">
-                            <i class="bi bi-boxes me-2"></i> Stock Balance
-                        </a>
-                    </li>
-                    @endcan
-                    @can('view_stock_valuation')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockValuationRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.stock-valuation.index') }}">
-                            <i class="bi bi-cash-stack me-2"></i> Stock Valuation
-                        </a>
-                    </li>
-                    @endcan
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-graph-up me-2"></i> Team Stock
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-arrow-down-circle me-2"></i> Stock Requests
-                        </a>
-                    </li>
                 </ul>
             </div>
 
@@ -996,50 +723,7 @@
                 </ul>
             </div> --}}
 
-            <!-- Stock Reports Section -->
-            @php
-                $isStockReportsRoute = str_contains($currentRoute ?? '', 'supervisor.stock-reports');
-            @endphp
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Stock Reports</small>
-                <ul class="nav flex-column mt-2">
-                    @can('view_stock_reports')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockReportsRoute && !str_contains($currentRoute ?? '', 'movement') && !str_contains($currentRoute ?? '', 'stock-card') && !str_contains($currentRoute ?? '', 'summary') ? 'active' : '' }}"
-                        href="{{ route('supervisor.stock-reports.index') }}">
-                            <i class="bi bi-bar-chart me-2"></i> Reports Dashboard
-                        </a>
-                    </li>
-                    @endcan
-
-                    @can('view_movement_report_stock_reports')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.movement') ? 'active' : '' }}"
-                        href="{{ route('supervisor.stock-reports.movement') }}">
-                            <i class="bi bi-arrow-left-right me-2"></i> Movement Report
-                        </a>
-                    </li>
-                    @endcan
-
-                    @can('view_stock_card_stock_reports')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.stock-card') ? 'active' : '' }}"
-                        href="{{ route('supervisor.stock-reports.stock-card') }}">
-                            <i class="bi bi-credit-card me-2"></i> Stock Card
-                        </a>
-                    </li>
-                    @endcan
-
-                    @can('view_summary_report_stock_reports')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.summary') ? 'active' : '' }}"
-                        href="{{ route('supervisor.stock-reports.summary') }}">
-                            <i class="bi bi-file-earmark-bar-graph me-2"></i> Summary Report
-                        </a>
-                    </li>
-                    @endcan
-                </ul>
-            </div>
+            <!-- Old Supervisor Stock Reports Section removed -->
 
             <!-- Claims Section -->
             @canany(['view_claims', 'view_team_claims', 'create_claims'])
@@ -1266,23 +950,7 @@
                 </ul>
             </div> --}}
 
-            <!-- My Stock Reports Section -->
-            @php
-                $isStockReportsRoute = str_contains($currentRoute ?? '', 'technician.stock-reports');
-            @endphp
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">My Stock Reports</small>
-                <ul class="nav flex-column mt-2">
-                    @can('view_stock_card_stock_reports')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'stock-reports.stock-card') ? 'active' : '' }}"
-                        href="{{ route('technician.stock-reports.stock-card') }}">
-                            <i class="bi bi-credit-card me-2"></i> My Stock Card
-                        </a>
-                    </li>
-                    @endcan
-                </ul>
-            </div>
+            <!-- Old Technician Stock Reports Section removed -->
 
             <!-- Reference Data Section (Limited View for Technician) -->
             @php
@@ -1317,16 +985,6 @@
             @endcan
 
             @php
-                $isInventoryDashboardRoute = str_contains($currentRoute ?? '', 'technician.inventory-dashboard');
-                $isInventorySerialRoute = str_contains($currentRoute ?? '', 'technician.inventory-serials');
-                $isMovementHistoryRoute = str_contains($currentRoute ?? '', 'technician.serial-movement-history');
-                $isStockLedgerRoute = str_contains($currentRoute ?? '', 'technician.stock-ledger');
-                $isInventoryRoute = str_contains($currentRoute ?? '', 'technician.inventory.index');
-                $isStockBalanceRoute = str_contains($currentRoute ?? '', 'technician.stock-balance');
-                $isBulkSerialsRoute = str_contains($currentRoute ?? '', 'technician.bulk-serials');
-                $isStockIssueRoute = str_contains($currentRoute ?? '', 'technician.stock-issues');
-                $isStockReturnRoute = str_contains($currentRoute ?? '', 'technician.stock-returns');
-                $isStockTransferRoute = str_contains($currentRoute ?? '', 'technician.stock-transfers');
                 $isInventoryMgmtRoute = str_contains($currentRoute ?? '', 'technician.inventory-management');
             @endphp
 
@@ -1362,112 +1020,6 @@
                         </li>
                         @endcan
                     @endif
-
-                    @can('view_inventory')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isInventoryDashboardRoute ? 'active' : '' }}"
-                        href="{{ route('technician.inventory-dashboard.index') }}">
-                            <i class="bi bi-speedometer me-2"></i> My Inventory Dashboard
-                        </a>
-                    </li>
-                    @endcan
-
-                    {{-- NEW: My Stock with enhanced view --}}
-                    @can('view_inventory')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isInventoryRoute ? 'active' : '' }}"
-                        href="{{ route('technician.inventory.index') }}">
-                            <i class="bi bi-box-seam me-2"></i> My Stock
-                        </a>
-                    </li>
-                    @endcan
-
-                    {{-- NEW: Inventory Summary --}}
-                    @can('view_inventory')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'inventory.summary') ? 'active' : '' }}"
-                        href="{{ route('technician.inventory.summary') }}">
-                            <i class="bi bi-bar-chart me-2"></i> Inventory Summary
-                        </a>
-                    </li>
-                    @endcan
-
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isMovementHistoryRoute ? 'active' : '' }}"
-                        href="{{ route('technician.serial-movement-history.index') }}">
-                            <i class="bi bi-clock-history me-2"></i> Movement History
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isBulkSerialsRoute ? 'active' : '' }}"
-                        href="{{ route('technician.bulk-serials.index') }}">
-                            <i class="bi bi-boxes me-2"></i> Bulk Operations
-                        </a>
-                    </li>
-
-                    {{-- My Stock Ledger --}}
-                    @can('view_stock_ledger')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockLedgerRoute ? 'active' : '' }}"
-                        href="{{ route('technician.stock-ledger.index') }}">
-                            <i class="bi bi-journal-text me-2"></i> My Stock Ledger
-                        </a>
-                    </li>
-                    @endcan
-
-                    {{-- My Stock Issues --}}
-                    @can('view_stock_issues')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockIssueRoute ? 'active' : '' }}"
-                        href="{{ route('technician.stock-issues.index') }}">
-                            <i class="bi bi-box-arrow-right me-2"></i> My Stock Issues
-                        </a>
-                    </li>
-                    @endcan
-
-                    @can('view_inventory')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'inventory.return-request') ? 'active' : '' }}"
-                        href="{{ route('technician.inventory.return-request') }}">
-                            <i class="bi bi-arrow-return-left me-2"></i> Request Return
-                        </a>
-                    </li>
-                    @endcan
-
-                    {{-- Stock Returns List --}}
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockReturnRoute ? 'active' : '' }}"
-                        href="{{ route('technician.stock-returns.index') }}">
-                            <i class="bi bi-list-check me-2"></i> My Returns
-                        </a>
-                    </li>
-
-                    {{-- My Stock Balance --}}
-                    @can('view_stock_balance')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockBalanceRoute ? 'active' : '' }}"
-                        href="{{ route('technician.stock-balance.index') }}">
-                            <i class="bi bi-boxes me-2"></i> My Stock Balance
-                        </a>
-                    </li>
-                    @endcan
-
-                    {{-- Stock Transfers --}}
-                    @can('view_stock_transfers')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isStockTransferRoute ? 'active' : '' }}"
-                        href="{{ route('technician.stock-transfers.index') }}">
-                            <i class="bi bi-arrow-left-right me-2"></i> Stock Transfers
-                        </a>
-                    </li>
-                    @endcan
-
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">
-                            <i class="bi bi-arrow-down-circle me-2"></i> Stock Request
-                        </a>
-                    </li>
                 </ul>
             </div>
 

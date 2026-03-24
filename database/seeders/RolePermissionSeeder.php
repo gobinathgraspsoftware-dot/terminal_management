@@ -44,18 +44,8 @@ class RolePermissionSeeder extends Seeder
             'view_partners', 'view_clients', 'view_vendors', 'view_sites', 'view_depots',
             'view_models', 'view_categories', 'view_charges', 'view_rate_cards',
 
-            // Inventory - Full access except adjustments
-            'view_inventory', 'view_history_inventory', 'export_inventory',
-
-            // Bulk Operations Permissions
-            'bulk_import_inventory', 'bulk_update_inventory', 'bulk_transfer_inventory', 'print_labels_inventory',
-
-            // Stock Issues/Transfers
-            'view_stock_issues', 'create_stock_issues', 'post_stock_issues', 'edit_stock_issues',
-            'view_stock_transfers', 'create_stock_transfers', 'approve_stock_transfers',
-
-            /* Stock Returns */
-            'view_stock_returns', 'create_stock_returns', 'edit_stock_returns', 'post_stock_returns', 'cancel_stock_returns', 'view_technician_inventory_stock_returns',
+            // Inventory - Full access via inventory-management module
+            // Old inventory/stock permissions removed — now managed by inventory_management permissions
 
             // Procurement - View and create
             'view_quotations', 'create_quotations', 'edit_quotations', 'export_quotations',
@@ -100,26 +90,7 @@ class RolePermissionSeeder extends Seeder
             // Notifications
             'view_notifications', 'create_notifications', 'send_notifications',
 
-            // Stock Ledger Permissions
-            'view_stock_ledger',
-            'reverse_stock_ledger',
-
-            // Stock Balance Permissions
-            'view_stock_balance',
-            'view_stock_alerts',
-
-            /* Stock Valuation Permissions */
-            'view_stock_valuation',
-            'view_detailed_stock_valuation',
-            'export_stock_valuation',
-
-            /* Stock report permissions */
-            'view_stock_reports',
-            'view_movement_report_stock_reports',
-            'view_stock_card_stock_reports',
-            'view_summary_report_stock_reports',
-            'export_stock_reports',
-            'print_stock_card_stock_reports',
+            // Old stock ledger/balance/valuation/reports permissions removed
 
             // Tickets - Create, edit, assign team, change status, comment
             'view_tickets', 'create_tickets', 'edit_tickets', 'assign_tickets',
@@ -139,12 +110,8 @@ class RolePermissionSeeder extends Seeder
             // Master Data - View only (needed for job execution)
             'view_clients', 'view_sites', 'view_models',
 
-            // Inventory - View own issued stock
-            'view_inventory', // Limited to own stock in controller
-            'view_stock_issues', // Limited to own issues
-
-            // Can print labels for own serials
-            'print_labels_inventory',
+            // Inventory - View own stock via inventory-management module
+            // Old inventory/stock permissions removed — now managed by inventory_management permissions
 
             // Job Orders - Own jobs only
             'view_jobs', 'start_jobs', 'complete_jobs', 'fail_jobs',
@@ -169,18 +136,7 @@ class RolePermissionSeeder extends Seeder
             // Notifications
             'view_notifications',
 
-            // Stock Ledger Permissions
-            'view_stock_ledger',
-
-            // Stock Balance Permissions
-            'view_stock_balance',
-
-            /* Stock report permisions */
-            'view_stock_card_stock_reports',
-            'print_stock_card_stock_reports',
-
-            /* Stock Returns */
-            'view_stock_returns', 'create_stock_returns', 'edit_stock_returns', 'view_technician_inventory_stock_returns',
+            // Old stock ledger/balance/reports/returns permissions removed
 
             // Tickets - View own, change status (start/complete), comment
             'view_tickets', 'change_status_tickets', 'add_comment_tickets', 'view_own_tickets',
