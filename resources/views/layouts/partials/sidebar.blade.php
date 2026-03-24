@@ -267,6 +267,63 @@
             </div>
             @endcanany
 
+            @php
+                $isInventoryRoute = str_contains($currentRoute ?? '', 'admin.inventory');
+            @endphp
+            @canany(['view_inventory', 'create_stock_in', 'create_stock_out'])
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isInventoryRoute && !str_contains($currentRoute, 'stock-') && !str_contains($currentRoute, 'movements') && !str_contains($currentRoute, 'transfer') ? 'active' : '' }}"
+                           href="{{ route('admin.inventory.index') }}">
+                            <i class="bi bi-box-seam me-2"></i> Items
+                        </a>
+                    </li>
+                    @can('create_stock_in')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.inventory.stock-in') ? 'active' : '' }}"
+                           href="{{ route('admin.inventory.stock-in') }}">
+                            <i class="bi bi-box-arrow-in-down me-2"></i> Stock In
+                        </a>
+                    </li>
+                    @endcan
+                    @can('create_stock_out')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.inventory.stock-out') ? 'active' : '' }}"
+                           href="{{ route('admin.inventory.stock-out') }}">
+                            <i class="bi bi-box-arrow-right me-2"></i> Stock Out
+                        </a>
+                    </li>
+                    @endcan
+                    @can('create_stock_return')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.inventory.stock-return') ? 'active' : '' }}"
+                           href="{{ route('admin.inventory.stock-return') }}">
+                            <i class="bi bi-box-arrow-up me-2"></i> Stock Return
+                        </a>
+                    </li>
+                    @endcan
+                    @can('view_stock_movements')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.inventory.movements') ? 'active' : '' }}"
+                           href="{{ route('admin.inventory.movements') }}">
+                            <i class="bi bi-arrow-left-right me-2"></i> Movements
+                        </a>
+                    </li>
+                    @endcan
+                    @can('create_stock_transfer')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.inventory.transfer') ? 'active' : '' }}"
+                           href="{{ route('admin.inventory.transfer') }}">
+                            <i class="bi bi-shuffle me-2"></i> Transfers
+                        </a>
+                    </li>
+                    @endcan
+                </ul>
+            </div>
+            @endcanany
+
             <!-- Profile Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
@@ -450,6 +507,55 @@
             </div>
             @endcanany
 
+            @php
+                $isInventoryRoute = str_contains($currentRoute ?? '', 'supervisor.inventory');
+            @endphp
+            @canany(['view_inventory', 'create_stock_in', 'create_stock_out'])
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isInventoryRoute && !str_contains($currentRoute, 'stock-') && !str_contains($currentRoute, 'movements') && !str_contains($currentRoute, 'transfer') ? 'active' : '' }}"
+                           href="{{ route('supervisor.inventory.index') }}">
+                            <i class="bi bi-box-seam me-2"></i> Items
+                        </a>
+                    </li>
+                    @can('create_stock_in')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.inventory.stock-in') ? 'active' : '' }}"
+                           href="{{ route('supervisor.inventory.stock-in') }}">
+                            <i class="bi bi-box-arrow-in-down me-2"></i> Stock In
+                        </a>
+                    </li>
+                    @endcan
+                    @can('create_stock_out')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.inventory.stock-out') ? 'active' : '' }}"
+                           href="{{ route('supervisor.inventory.stock-out') }}">
+                            <i class="bi bi-box-arrow-right me-2"></i> Stock Out
+                        </a>
+                    </li>
+                    @endcan
+                    @can('view_stock_movements')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.inventory.movements') ? 'active' : '' }}"
+                           href="{{ route('supervisor.inventory.movements') }}">
+                            <i class="bi bi-arrow-left-right me-2"></i> Movements
+                        </a>
+                    </li>
+                    @endcan
+                    @can('create_stock_transfer')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.inventory.transfer') ? 'active' : '' }}"
+                           href="{{ route('supervisor.inventory.transfer') }}">
+                            <i class="bi bi-shuffle me-2"></i> Transfers
+                        </a>
+                    </li>
+                    @endcan
+                </ul>
+            </div>
+            @endcanany
+
             <!-- Quotations Section -->
             @php
                 $isQuotationRoute = str_contains($currentRoute ?? '', 'supervisor.quotations');
@@ -607,6 +713,23 @@
                     </li>
                 </ul>
             </div>
+
+            @php
+                $isInventoryRoute = str_contains($currentRoute ?? '', 'technician.inventory');
+            @endphp
+            @canany(['view_own_inventory', 'view_stock_movements'])
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">My Inventory</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $isInventoryRoute ? 'active' : '' }}"
+                           href="{{ route('technician.inventory.index') }}">
+                            <i class="bi bi-box-seam me-2"></i> My Stock
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            @endcanany
 
             <!-- Quotations Section -->
             @php

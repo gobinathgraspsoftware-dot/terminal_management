@@ -13,17 +13,7 @@ use App\Http\Controllers\Supervisor\ProfileController as SupervisorProfileContro
 use App\Http\Controllers\Technician\ProfileController as TechnicianProfileController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\PermissionController;
-use App\Http\Controllers\Admin\PartnerController as AdminPartnerController;
-use App\Http\Controllers\Supervisor\PartnerController as SupervisorPartnerController;
-use App\Http\Controllers\Technician\PartnerController as TechnicianPartnerController;
-use App\Http\Controllers\Admin\ClientController as AdminClientController;
-use App\Http\Controllers\Supervisor\ClientController as SupervisorClientController;
-use App\Http\Controllers\Technician\ClientController as TechnicianClientController;
 use App\Http\Controllers\Admin\VendorController as AdminVendorController;
-use App\Http\Controllers\Admin\SiteController as AdminSiteController;
-use App\Http\Controllers\Admin\SiteContactController as AdminSiteContactController;
-use App\Http\Controllers\Supervisor\SiteController as SupervisorSiteController;
-use App\Http\Controllers\Technician\SiteController as TechnicianSiteController;
 use App\Http\Controllers\Admin\TerminalCategoryController as AdminTerminalCategoryController;
 use App\Http\Controllers\Supervisor\TerminalCategoryController as SupervisorTerminalCategoryController;
 use App\Http\Controllers\Technician\TerminalCategoryController as TechnicianTerminalCategoryController;
@@ -33,13 +23,6 @@ use App\Http\Controllers\Technician\TerminalModelController as TechnicianTermina
 use App\Http\Controllers\Admin\ChargeCatalogController as AdminChargeCatalogController;
 use App\Http\Controllers\Supervisor\ChargeCatalogController as SupervisorChargeCatalogController;
 use App\Http\Controllers\Technician\ChargeCatalogController as TechnicianChargeCatalogController;
-use App\Http\Controllers\Admin\RateCardController as AdminRateCardController;
-use App\Http\Controllers\Supervisor\RateCardController as SupervisorRateCardController;
-use App\Http\Controllers\Technician\RateCardController as TechnicianRateCardController;
-use App\Http\Controllers\Admin\DepotController as AdminDepotController;
-use App\Http\Controllers\Supervisor\DepotController as SupervisorDepotController;
-use App\Http\Controllers\Technician\DepotController as TechnicianDepotController;
-// Old Inventory module controllers removed
 use App\Http\Controllers\Admin\QuotationController as AdminQuotationController;
 use App\Http\Controllers\Supervisor\QuotationController as SupervisorQuotationController;
 use App\Http\Controllers\Technician\QuotationController as TechnicianQuotationController;
@@ -54,7 +37,12 @@ use App\Http\Controllers\Admin\ClaimManagementController as AdminClaimController
 use App\Http\Controllers\Supervisor\ClaimController as SupervisorClaimController;
 use App\Http\Controllers\Technician\ClaimController as TechnicianClaimController;
 use App\Http\Controllers\Admin\JobCategoryController as AdminJobCategoryController;
-// Inventory Management controllers removed
+use App\Http\Controllers\Admin\InventoryController as AdminInventoryController;
+use App\Http\Controllers\Admin\StockMovementController as AdminStockMovementController;
+use App\Http\Controllers\Supervisor\InventoryController as SupervisorInventoryController;
+use App\Http\Controllers\Supervisor\StockMovementController as SupervisorStockMovementController;
+use App\Http\Controllers\Technician\InventoryController as TechnicianInventoryController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -282,6 +270,48 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/{job_category}/edit', [AdminJobCategoryController::class, 'edit'])->name('edit');
         Route::put('/{job_category}', [AdminJobCategoryController::class, 'update'])->name('update');
         Route::delete('/{job_category}', [AdminJobCategoryController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::prefix('inventory')->name('inventory.')->group(function () {
+        // DataTable + AJAX (before parameterized routes)
+        Route::get('/datatable', [AdminInventoryController::class, 'datatable'])->name('datatable');
+        Route::get('/export', [AdminInventoryController::class, 'export'])->name('export');
+        Route::get('/ajax/item-stock', [AdminInventoryController::class, 'getItemStock'])->name('get-item-stock');
+
+        // Stock In
+        Route::get('/stock-in', [AdminInventoryController::class, 'stockInForm'])->name('stock-in');
+        Route::post('/stock-in', [AdminInventoryController::class, 'stockIn'])->name('stock-in.process');
+
+        // Stock Out
+        Route::get('/stock-out', [AdminInventoryController::class, 'stockOutForm'])->name('stock-out');
+        Route::post('/stock-out', [AdminInventoryController::class, 'stockOut'])->name('stock-out.process');
+
+        // Stock Return
+        Route::get('/stock-return', [AdminInventoryController::class, 'stockReturnForm'])->name('stock-return');
+        Route::post('/stock-return', [AdminInventoryController::class, 'stockReturn'])->name('stock-return.process');
+
+        // Stock Adjustment
+        Route::post('/stock-adjustment', [AdminInventoryController::class, 'stockAdjustment'])->name('stock-adjustment.process');
+
+        // Stock Movements
+        Route::get('/movements', [AdminStockMovementController::class, 'index'])->name('movements');
+        Route::get('/movements/datatable', [AdminStockMovementController::class, 'datatable'])->name('movements.datatable');
+
+        // Stock Transfer
+        Route::get('/transfer', [AdminStockMovementController::class, 'transferForm'])->name('transfer');
+        Route::post('/transfer', [AdminStockMovementController::class, 'createTransfer'])->name('transfer.create');
+        Route::post('/transfer/{stockTransfer}/approve', [AdminStockMovementController::class, 'approveTransfer'])->name('transfer.approve');
+        Route::post('/transfer/{stockTransfer}/reject', [AdminStockMovementController::class, 'rejectTransfer'])->name('transfer.reject');
+
+        // CRUD (parameterized routes LAST)
+        Route::get('/', [AdminInventoryController::class, 'index'])->name('index');
+        Route::get('/create', [AdminInventoryController::class, 'create'])->name('create');
+        Route::post('/', [AdminInventoryController::class, 'store'])->name('store');
+        Route::get('/{inventory_item}', [AdminInventoryController::class, 'show'])->name('show');
+        Route::get('/{inventory_item}/edit', [AdminInventoryController::class, 'edit'])->name('edit');
+        Route::put('/{inventory_item}', [AdminInventoryController::class, 'update'])->name('update');
+        Route::delete('/{inventory_item}', [AdminInventoryController::class, 'destroy'])->name('destroy');
+        Route::patch('/{inventory_item}/toggle-status', [AdminInventoryController::class, 'toggleStatus'])->name('toggle-status');
     });
 
     /* Quatation Routes */
@@ -514,6 +544,34 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{claim}', [SupervisorClaimController::class, 'show'])->name('show');
     });
 
+    Route::prefix('inventory')->name('inventory.')->group(function () {
+        // DataTable + AJAX (before parameterized routes)
+        Route::get('/datatable', [SupervisorInventoryController::class, 'datatable'])->name('datatable');
+        Route::get('/ajax/item-stock', [SupervisorInventoryController::class, 'getItemStock'])->name('get-item-stock');
+
+        // Stock In
+        Route::get('/stock-in', [SupervisorInventoryController::class, 'stockInForm'])->name('stock-in');
+        Route::post('/stock-in', [SupervisorInventoryController::class, 'stockIn'])->name('stock-in.process');
+
+        // Stock Out
+        Route::get('/stock-out', [SupervisorInventoryController::class, 'stockOutForm'])->name('stock-out');
+        Route::post('/stock-out', [SupervisorInventoryController::class, 'stockOut'])->name('stock-out.process');
+
+        // Stock Return
+        Route::post('/stock-return', [SupervisorInventoryController::class, 'stockReturn'])->name('stock-return.process');
+
+        // Movements
+        Route::get('/movements', [SupervisorStockMovementController::class, 'index'])->name('movements');
+        Route::get('/movements/datatable', [SupervisorStockMovementController::class, 'datatable'])->name('movements.datatable');
+
+        // Transfer
+        Route::get('/transfer', [SupervisorStockMovementController::class, 'transferForm'])->name('transfer');
+        Route::post('/transfer', [SupervisorStockMovementController::class, 'createTransfer'])->name('transfer.create');
+
+        // Index
+        Route::get('/', [SupervisorInventoryController::class, 'index'])->name('index');
+    });
+
     /* Inventory Management Module removed */
 
     /* Job Assignment (supervisor or admin) */
@@ -613,6 +671,11 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
 
         // Show (parameterized - MUST be last)
         Route::get('/{claim}', [TechnicianClaimController::class, 'show'])->name('show');
+    });
+
+    Route::prefix('inventory')->name('inventory.')->group(function () {
+        Route::get('/datatable', [TechnicianInventoryController::class, 'datatable'])->name('datatable');
+        Route::get('/', [TechnicianInventoryController::class, 'index'])->name('index');
     });
 
     /* Inventory Management Module removed */
