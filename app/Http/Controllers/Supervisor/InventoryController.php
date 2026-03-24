@@ -35,6 +35,7 @@ class InventoryController extends Controller implements HasMiddleware
 
     /**
      * Get team technician IDs for scoping.
+     * NOTE: Uses supervisor_id column — team_id does NOT exist in users table.
      */
     protected function getTeamTechnicianIds(): array
     {
@@ -190,6 +191,23 @@ class InventoryController extends Controller implements HasMiddleware
                 'message' => 'Stock Out failed: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Stock Return form (return from technician to warehouse).
+     * FIX: This method was missing in the original delivery.
+     */
+    public function stockReturnForm(): View
+    {
+        $items = InventoryItem::active()->orderBy('item_name')->get();
+        $techIds = $this->getTeamTechnicianIds();
+        $technicians = User::whereIn('id', $techIds)->where('status', 'active')->orderBy('name')->get();
+
+        return view('supervisor.inventory.stock-out', [
+            'items'       => $items,
+            'technicians' => $technicians,
+            'mode'        => 'return',
+        ]);
     }
 
     /**

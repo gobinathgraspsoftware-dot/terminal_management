@@ -9,6 +9,9 @@ class PermissionSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * Uses firstOrCreate so this seeder is safe to re-run without duplicates.
+     * New inventory permissions added under INVENTORY MANAGEMENT section.
      */
     public function run(): void
     {
@@ -52,9 +55,22 @@ class PermissionSeeder extends Seeder
             // Master Data - Rate Cards
             'rate_cards' => ['view', 'create', 'edit', 'delete'],
 
-            // Inventory permissions removed — replaced by inventory_management module permissions
-            // Old modules removed: inventory, stock_issues, stock_transfers, stock_returns,
-            // stock_adjustments, stock_ledger, stock_balance, stock_valuation, stock_reports
+            // ============================================================
+            // INVENTORY MANAGEMENT (NEW)
+            // Generates: view_inventory, create_inventory, edit_inventory,
+            //            delete_inventory, export_inventory, view_own_inventory
+            // ============================================================
+            'inventory' => ['view', 'create', 'edit', 'delete', 'export', 'view_own'],
+
+            // Stock Movements => view_stock_movements
+            'stock_movements' => ['view'],
+
+            // Stock Actions => create_stock_in, create_stock_out, etc.
+            'stock_in'         => ['create'],
+            'stock_out'        => ['create'],
+            'stock_return'     => ['create'],
+            'stock_adjustment' => ['create'],
+            'stock_transfer'   => ['create', 'approve'],
 
             // Procurement - Quotations
             'quotations' => ['view', 'create', 'edit', 'delete', 'approve', 'reject', 'send', 'convert_to_po', 'export'],
@@ -117,19 +133,28 @@ class PermissionSeeder extends Seeder
             'vendor_types' => ['view', 'create', 'edit', 'delete'],
         ];
 
-        // Create permissions
+        // Create permissions using firstOrCreate (safe to re-run without duplicates)
+        $created = 0;
         foreach ($permissions as $module => $actions) {
             foreach ($actions as $action) {
-                Permission::create([
-                    'name' => "{$action}_{$module}",
-                    'guard_name' => 'web',
-                    'module' => $module,
-                    'description' => ucfirst(str_replace('_', ' ', $action)) . ' ' . ucfirst(str_replace('_', ' ', $module)),
-                ]);
+                $perm = Permission::firstOrCreate(
+                    [
+                        'name'       => "{$action}_{$module}",
+                        'guard_name' => 'web',
+                    ],
+                    [
+                        'module'      => $module,
+                        'description' => ucfirst(str_replace('_', ' ', $action)) . ' ' . ucfirst(str_replace('_', ' ', $module)),
+                    ]
+                );
+                if ($perm->wasRecentlyCreated) {
+                    $created++;
+                }
             }
         }
 
-        $this->command->info('Permissions created successfully!');
-        $this->command->info('Total permissions created: ' . Permission::count());
+        $this->command->info('Permissions seeded successfully!');
+        $this->command->info('New permissions created: ' . $created);
+        $this->command->info('Total permissions in DB: ' . Permission::count());
     }
 }

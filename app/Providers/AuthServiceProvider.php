@@ -14,6 +14,11 @@ use App\Models\Vendor;
 use App\Models\Quotation;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use App\Models\VendorType;
+use App\Models\Claim;
+use App\Models\JobCategory;
+use App\Models\JobType;
+use App\Models\InventoryItem;
 
 // Policies
 use App\Policies\PermissionPolicy;
@@ -24,22 +29,18 @@ use App\Policies\TerminalCategoryPolicy;
 use App\Policies\TerminalModelPolicy;
 use App\Policies\VendorPolicy;
 use App\Policies\QuotationPolicy;
-use App\Models\VendorType;
 use App\Policies\VendorTypePolicy;
-use App\Models\Claim;
 use App\Policies\ClaimPolicy;
-use App\Models\JobCategory;
-use App\Models\JobType;
 use App\Policies\JobCategoryPolicy;
 use App\Policies\JobTypePolicy;
+use App\Policies\InventoryItemPolicy;
 
 // Removed: Partner, Client, Site, Depot, RateCard models & policies
 
 /**
  * AuthServiceProvider - Registers policies, observers, and authorization gates.
  *
- * REMOVED MODULES: Partners, Clients, Sites, Depots, Rate Cards
- * These policy registrations have been removed as part of module cleanup.
+ * CHANGES: Added InventoryItem model + InventoryItemPolicy imports and $policies mapping.
  */
 class AuthServiceProvider extends ServiceProvider
 {
@@ -77,6 +78,11 @@ class AuthServiceProvider extends ServiceProvider
         Claim::class => ClaimPolicy::class,
         JobType::class => JobTypePolicy::class,
         JobCategory::class => JobCategoryPolicy::class,
+
+        // ==========================================
+        // INVENTORY MANAGEMENT (NEW)
+        // ==========================================
+        InventoryItem::class => InventoryItemPolicy::class,
     ];
 
     /**
@@ -186,7 +192,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     protected function registerInventoryGates(): void
     {
-        // Handled by inventory-management module permissions
+        // Handled by InventoryItemPolicy — no additional gates needed
     }
 
     /**

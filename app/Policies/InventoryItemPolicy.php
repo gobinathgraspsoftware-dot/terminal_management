@@ -5,7 +5,14 @@ namespace App\Policies;
 use App\Models\InventoryItem;
 use App\Models\User;
 
-class InventoryPolicy
+/**
+ * InventoryItemPolicy
+ *
+ * IMPORTANT: Named InventoryItemPolicy (not InventoryPolicy) to match
+ * Laravel's auto-discovery convention: {ModelName}Policy.
+ * Also explicitly registered in AuthServiceProvider::$policies.
+ */
+class InventoryItemPolicy
 {
     /**
      * View any inventory items.

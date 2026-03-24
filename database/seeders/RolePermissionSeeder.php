@@ -44,8 +44,14 @@ class RolePermissionSeeder extends Seeder
             'view_partners', 'view_clients', 'view_vendors', 'view_sites', 'view_depots',
             'view_models', 'view_categories', 'view_charges', 'view_rate_cards',
 
-            // Inventory - Full access via inventory-management module
-            // Old inventory/stock permissions removed — now managed by inventory_management permissions
+            // ============================================================
+            // INVENTORY MANAGEMENT (NEW)
+            // ============================================================
+            'view_inventory', 'create_inventory', 'edit_inventory', 'export_inventory',
+            'view_stock_movements',
+            'create_stock_in', 'create_stock_out', 'create_stock_return',
+            'create_stock_transfer',
+            // ============================================================
 
             // Procurement - View and create
             'view_quotations', 'create_quotations', 'edit_quotations', 'export_quotations',
@@ -53,7 +59,7 @@ class RolePermissionSeeder extends Seeder
             // Job Orders - Full team access
             'view_jobs', 'create_jobs', 'edit_jobs', 'assign_jobs', 'reassign_jobs',
             'start_jobs', 'complete_jobs', 'fail_jobs', 'cancel_jobs',
-            'view_team_jobs', // Can see team jobs
+            'view_team_jobs',
 
             // Delivery Orders
             'view_delivery_orders', 'create_delivery_orders', 'edit_delivery_orders',
@@ -62,20 +68,20 @@ class RolePermissionSeeder extends Seeder
             // Site Assets
             'view_site_assets', 'view_history_site_assets', 'export_site_assets',
 
-            // Invoicing - Can create and view
+            // Invoicing
             'view_invoices_ar', 'create_invoices_ar', 'edit_invoices_ar', 'export_invoices_ar',
             'view_invoices_ap',
 
-            // Payments - View and create
+            // Payments
             'view_payments', 'create_payments', 'export_payments',
 
             // Aging
             'view_aging', 'export_aging', 'send_reminders_aging',
 
-            // Payouts - View team payouts
+            // Payouts
             'view_payouts', 'export_payouts',
 
-            // Claims - Approve team claims
+            // Claims
             'view_claims', 'create_claims', 'edit_claims', 'approve_claims', 'reject_claims', 'view_team_claims',
 
             // Reports
@@ -90,9 +96,7 @@ class RolePermissionSeeder extends Seeder
             // Notifications
             'view_notifications', 'create_notifications', 'send_notifications',
 
-            // Old stock ledger/balance/valuation/reports permissions removed
-
-            // Tickets - Create, edit, assign team, change status, comment
+            // Tickets
             'view_tickets', 'create_tickets', 'edit_tickets', 'assign_tickets',
             'change_status_tickets', 'add_comment_tickets', 'view_team_tickets',
         ];
@@ -104,30 +108,34 @@ class RolePermissionSeeder extends Seeder
         // TECHNICIAN ROLE - Field Operations Only
         // ==============================================
         $technicianPermissions = [
-            // Users - View own profile only
-            'view_users', // Limited to self in controller
+            // Users
+            'view_users',
 
-            // Master Data - View only (needed for job execution)
+            // Master Data
             'view_clients', 'view_sites', 'view_models',
 
-            // Inventory - View own stock via inventory-management module
-            // Old inventory/stock permissions removed — now managed by inventory_management permissions
+            // ============================================================
+            // INVENTORY MANAGEMENT (NEW) - View own stock only
+            // ============================================================
+            'view_own_inventory',
+            'view_stock_movements',
+            // ============================================================
 
-            // Job Orders - Own jobs only
+            // Job Orders
             'view_jobs', 'start_jobs', 'complete_jobs', 'fail_jobs',
-            'view_own_jobs', // Can only see assigned jobs
+            'view_own_jobs',
 
-            // Delivery Orders - View related to own jobs
+            // Delivery Orders
             'view_delivery_orders',
 
-            // Site Assets - View only
+            // Site Assets
             'view_site_assets',
 
-            // Claims - Create and manage own claims
+            // Claims
             'view_claims', 'create_claims', 'edit_claims', 'submit_claims',
-            'view_own_claims', // Can only see own claims
+            'view_own_claims',
 
-            // Reports - View own performance
+            // Reports
             'view_reports',
 
             // Dashboards
@@ -136,9 +144,7 @@ class RolePermissionSeeder extends Seeder
             // Notifications
             'view_notifications',
 
-            // Old stock ledger/balance/reports/returns permissions removed
-
-            // Tickets - View own, change status (start/complete), comment
+            // Tickets
             'view_tickets', 'change_status_tickets', 'add_comment_tickets', 'view_own_tickets',
         ];
 
