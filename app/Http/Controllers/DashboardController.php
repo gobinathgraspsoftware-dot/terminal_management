@@ -48,7 +48,6 @@ class DashboardController extends Controller
             'stats' => [
                 'pending_jobs' => $this->getPendingJobsCount(),
                 'today_jobs' => $this->getTodayJobsStats(),
-                'low_stock_items' => $this->getLowStockCount(),
                 'pending_po_approvals' => 0, // PO module removed
                 'pending_claim_approvals' => $this->getPendingClaimApprovals(),
                 'pending_payout_approvals' => $this->getPendingPayoutApprovals(),
@@ -137,12 +136,6 @@ class DashboardController extends Controller
             ->groupBy('status')
             ->pluck('count', 'status')
             ->toArray();
-    }
-
-    protected function getLowStockCount(): int
-    {
-        // Old stock_balances table removed — return 0 until inventory-management module provides this
-        return 0;
     }
 
     // PO module removed — return 0
@@ -556,7 +549,6 @@ class DashboardController extends Controller
             $data = match ($widget) {
                 'pending_jobs' => ['count' => $this->getPendingJobsCount()],
                 'today_jobs' => ['count' => array_sum($this->getTodayJobsStats())],
-                'low_stock' => ['count' => $this->getLowStockCount()],
                 'sla_breaches' => ['count' => $this->getSLABreaches()],
                 'team_jobs_today' => ['count' => $this->getTeamJobsToday($user)],
                 'tech_today_jobs' => ['count' => $this->getTechnicianTodayJobs($user)],
@@ -580,7 +572,6 @@ class DashboardController extends Controller
             'stats' => [
                 'pending_jobs' => 0,
                 'today_jobs' => [],
-                'low_stock_items' => 0,
                 'pending_po_approvals' => 0,
                 'pending_claim_approvals' => 0,
                 'pending_payout_approvals' => 0,

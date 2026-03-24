@@ -32,11 +32,6 @@
                             <i class="bi bi-ticket-detailed me-1"></i> My Tickets
                         </a>
                         @endcan
-                        @can('view_inventory_management')
-                        <a href="{{ route('technician.inventory-management.index') }}" class="btn btn-sm btn-success">
-                            <i class="bi bi-box-seam me-1"></i> My Stock
-                        </a>
-                        @endcan
                         @can('view_claims')
                         <a href="{{ route('technician.claims.index') }}" class="btn btn-sm btn-warning">
                             <i class="bi bi-folder2-open me-1"></i> My Claims

@@ -35,11 +35,6 @@
                             <i class="bi bi-ticket-detailed me-1"></i> Tickets
                         </a>
                         @endcan
-                        @can('view_inventory_management')
-                        <a href="{{ route('admin.inventory-management.index') }}" class="btn btn-sm btn-success">
-                            <i class="bi bi-box-seam me-1"></i> Inventory
-                        </a>
-                        @endcan
                         @can('view_all_claims')
                         <a href="{{ route('admin.claims.index') }}" class="btn btn-sm btn-warning">
                             <i class="bi bi-folder2-open me-1"></i> Claims
@@ -58,7 +53,7 @@
 
     <!-- Stats Row 1 - Job Stats -->
     <div class="row g-3 mb-4">
-        <div class="col-lg-3 col-md-6">
+        <div class="col-lg-4 col-md-6">
             @include('components.dashboard-widget', [
                 'icon'        => 'clipboard-check',
                 'iconBg'      => 'primary',
@@ -68,7 +63,7 @@
                 'widgetId'    => 'pending_jobs',
             ])
         </div>
-        <div class="col-lg-3 col-md-6">
+        <div class="col-lg-4 col-md-6">
             @include('components.dashboard-widget', [
                 'icon'        => 'calendar-check',
                 'iconBg'      => 'success',
@@ -78,7 +73,7 @@
                 'widgetId'    => 'today_jobs',
             ])
         </div>
-        <div class="col-lg-3 col-md-6">
+        <div class="col-lg-4 col-md-6">
             @include('components.dashboard-widget', [
                 'icon'        => 'exclamation-triangle',
                 'iconBg'      => 'danger',
@@ -88,18 +83,9 @@
                 'widgetId'    => 'sla_breaches',
             ])
         </div>
-        <div class="col-lg-3 col-md-6">
-            @include('components.dashboard-widget', [
-                'icon'   => 'box-seam',
-                'iconBg' => 'warning',
-                'value'  => $stats['low_stock_items'],
-                'label'  => 'Low Stock Alerts',
-                'link'   => route('admin.inventory-management.index'),
-            ])
-        </div>
     </div>
 
-    <!-- Stats Row 2 - Pending Approvals (PO widget removed) -->
+    <!-- Stats Row 2 - Pending Approvals -->
     <div class="row g-3 mb-4">
         <div class="col-lg-6 col-md-6">
             @include('components.dashboard-widget', [
