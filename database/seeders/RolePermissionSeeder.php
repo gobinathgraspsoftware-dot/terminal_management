@@ -53,9 +53,6 @@ class RolePermissionSeeder extends Seeder
             'create_stock_transfer',
             // ============================================================
 
-            // Procurement - View and create
-            'view_quotations', 'create_quotations', 'edit_quotations', 'export_quotations',
-
             // Job Orders - Full team access
             'view_jobs', 'create_jobs', 'edit_jobs', 'assign_jobs', 'reassign_jobs',
             'start_jobs', 'complete_jobs', 'fail_jobs', 'cancel_jobs',

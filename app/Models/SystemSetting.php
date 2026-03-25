@@ -177,18 +177,7 @@ class SystemSetting extends Model
         return self::getMultiple($keys);
     }
 
-    /**
-     * Get quotation default settings
-     *
-     * @return array
-     */
-    public static function getQuotationSettings(): array
-    {
-        return [
-            'validity_days' => (int) self::get('quotation_validity_days', 30),
-            'terms_conditions' => self::get('quotation_terms_conditions', ''),
-        ];
-    }
+    // getQuotationSettings() removed — Quotation module removed
 
     /**
      * Clear all settings cache

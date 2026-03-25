@@ -55,11 +55,6 @@ class PermissionSeeder extends Seeder
             // Master Data - Rate Cards
             'rate_cards' => ['view', 'create', 'edit', 'delete'],
 
-            // ============================================================
-            // INVENTORY MANAGEMENT (NEW)
-            // Generates: view_inventory, create_inventory, edit_inventory,
-            //            delete_inventory, export_inventory, view_own_inventory
-            // ============================================================
             'inventory' => ['view', 'create', 'edit', 'delete', 'export', 'view_own'],
 
             // Stock Movements => view_stock_movements
@@ -71,9 +66,6 @@ class PermissionSeeder extends Seeder
             'stock_return'     => ['create'],
             'stock_adjustment' => ['create'],
             'stock_transfer'   => ['create', 'approve'],
-
-            // Procurement - Quotations
-            'quotations' => ['view', 'create', 'edit', 'delete', 'approve', 'reject', 'send', 'convert_to_po', 'export'],
 
             // Job Orders
             'jobs' => ['view', 'create', 'edit', 'delete', 'assign', 'reassign', 'start', 'complete', 'fail', 'cancel', 'view_all', 'view_team', 'view_own'],

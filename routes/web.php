@@ -23,9 +23,6 @@ use App\Http\Controllers\Technician\TerminalModelController as TechnicianTermina
 use App\Http\Controllers\Admin\ChargeCatalogController as AdminChargeCatalogController;
 use App\Http\Controllers\Supervisor\ChargeCatalogController as SupervisorChargeCatalogController;
 use App\Http\Controllers\Technician\ChargeCatalogController as TechnicianChargeCatalogController;
-use App\Http\Controllers\Admin\QuotationController as AdminQuotationController;
-use App\Http\Controllers\Supervisor\QuotationController as SupervisorQuotationController;
-use App\Http\Controllers\Technician\QuotationController as TechnicianQuotationController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\Admin\JobTypeController as AdminJobTypeController;
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
@@ -314,31 +311,6 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::patch('/{inventory_item}/toggle-status', [AdminInventoryController::class, 'toggleStatus'])->name('toggle-status');
     });
 
-    /* Quatation Routes */
-    Route::prefix('quotations')->name('quotations.')->group(function () {
-        Route::get('/export', [AdminQuotationController::class, 'export'])->name('export');
-        Route::get('/', [AdminQuotationController::class, 'index'])->name('index');
-        Route::get('/create', [AdminQuotationController::class, 'create'])->name('create');
-        Route::post('/', [AdminQuotationController::class, 'store'])->name('store');
-        Route::get('/{quotation}', [AdminQuotationController::class, 'show'])->name('show');
-        Route::get('/{quotation}/edit', [AdminQuotationController::class, 'edit'])->name('edit');
-        Route::put('/{quotation}', [AdminQuotationController::class, 'update'])->name('update');
-        Route::delete('/{quotation}', [AdminQuotationController::class, 'destroy'])->name('destroy');
-        Route::post('/{quotation}/submit-approval', [AdminQuotationController::class, 'submitForApproval'])->name('submit-approval');
-        Route::post('/{quotation}/process-approval', [AdminQuotationController::class, 'processApproval'])->name('process-approval');
-        Route::post('/{quotation}/send', [AdminQuotationController::class, 'send'])->name('send');
-        Route::post('/{quotation}/accept', [AdminQuotationController::class, 'accept'])->name('accept');
-        Route::post('/{quotation}/cancel', [AdminQuotationController::class, 'cancel'])->name('cancel');
-        Route::post('/{quotation}/convert-to-po', [AdminQuotationController::class, 'convertToPO'])->name('convert-to-po');
-        Route::post('/{quotation}/duplicate', [AdminQuotationController::class, 'duplicate'])->name('duplicate');
-        Route::get('/{quotation}/print', [AdminQuotationController::class, 'print'])->name('print');
-        Route::get('/model-price/{model}', [AdminQuotationController::class, 'getModelPrice'])->name('model-price');
-        Route::get('/charge-price/{charge}', [AdminQuotationController::class, 'getChargePrice'])->name('charge-price');
-        Route::get('{quotation}/pdf/download', [AdminQuotationController::class, 'downloadPdf'])->name('pdf.download');
-        Route::get('{quotation}/pdf/preview', [AdminQuotationController::class, 'previewPdf'])->name('pdf.preview');
-        Route::post('{quotation}/pdf/email', [AdminQuotationController::class, 'emailPdf'])->name('pdf.email');
-    });
-
     /* Ticket Management Routes */
     Route::prefix('tickets')->name('tickets.')->group(function () {
         Route::get('/', [AdminTicketController::class, 'index'])->name('index');
@@ -491,28 +463,6 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/search', [SupervisorChargeCatalogController::class, 'searchCharges'])->name('search');
     });
 
-    /* Quatation Routes */
-    Route::prefix('quotations')->name('quotations.')->group(function () {
-        Route::get('/export', [SupervisorQuotationController::class, 'export'])->name('export');
-        Route::get('/', [SupervisorQuotationController::class, 'index'])->name('index');
-        Route::get('/create', [SupervisorQuotationController::class, 'create'])->name('create');
-        Route::post('/', [SupervisorQuotationController::class, 'store'])->name('store');
-        Route::get('/{quotation}', [SupervisorQuotationController::class, 'show'])->name('show');
-        Route::get('/{quotation}/edit', [SupervisorQuotationController::class, 'edit'])->name('edit');
-        Route::put('/{quotation}', [SupervisorQuotationController::class, 'update'])->name('update');
-        Route::delete('/{quotation}', [SupervisorQuotationController::class, 'destroy'])->name('destroy');
-        Route::post('/{quotation}/submit-approval', [SupervisorQuotationController::class, 'submitForApproval'])->name('submit-approval');
-        Route::post('/{quotation}/process-approval', [SupervisorQuotationController::class, 'processApproval'])->name('process-approval');
-        Route::post('/{quotation}/send', [SupervisorQuotationController::class, 'send'])->name('send');
-        Route::post('/{quotation}/convert-to-po', [SupervisorQuotationController::class, 'convertToPO'])->name('convert-to-po');
-        Route::get('/{quotation}/print', [SupervisorQuotationController::class, 'print'])->name('print');
-        Route::get('/model-price/{model}', [SupervisorQuotationController::class, 'getModelPrice'])->name('model-price');
-        Route::get('/charge-price/{charge}', [SupervisorQuotationController::class, 'getChargePrice'])->name('charge-price');
-        Route::get('{quotation}/pdf/download', [SupervisorQuotationController::class, 'downloadPdf'])->name('pdf.download');
-        Route::get('{quotation}/pdf/preview', [SupervisorQuotationController::class, 'previewPdf'])->name('pdf.preview');
-        Route::post('{quotation}/pdf/email', [SupervisorQuotationController::class, 'emailPdf'])->name('pdf.email');
-    });
-
     /* Ticket Management Routes */
     Route::prefix('tickets')->name('tickets.')->group(function () {
         Route::get('/', [SupervisorTicketController::class, 'index'])->name('index');
@@ -630,12 +580,6 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
     Route::get('/jobs', function () {
         return 'My Jobs - Technician Only';
     })->name('jobs.index');
-
-    /* Quatation Routes */
-    Route::prefix('quotations')->name('quotations.')->group(function () {
-        Route::get('/', [TechnicianQuotationController::class, 'index'])->name('index');
-        Route::get('/{quotation}', [TechnicianQuotationController::class, 'show'])->name('show');
-    });
 
     /* Ticket Management Routes */
     Route::prefix('tickets')->name('tickets.')->group(function () {

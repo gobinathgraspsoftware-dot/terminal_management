@@ -11,7 +11,6 @@ use App\Models\ChargeCatalog;
 use App\Models\TerminalCategory;
 use App\Models\TerminalModel;
 use App\Models\Vendor;
-use App\Models\Quotation;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use App\Models\VendorType;
@@ -28,7 +27,6 @@ use App\Policies\ChargeCatalogPolicy;
 use App\Policies\TerminalCategoryPolicy;
 use App\Policies\TerminalModelPolicy;
 use App\Policies\VendorPolicy;
-use App\Policies\QuotationPolicy;
 use App\Policies\VendorTypePolicy;
 use App\Policies\ClaimPolicy;
 use App\Policies\JobCategoryPolicy;
@@ -72,7 +70,6 @@ class AuthServiceProvider extends ServiceProvider
 
         Permission::class => PermissionPolicy::class,
         Role::class => RolePolicy::class,
-        Quotation::class => QuotationPolicy::class,
         VendorType::class => VendorTypePolicy::class,
         Vendor::class => VendorPolicy::class,
         Claim::class => ClaimPolicy::class,

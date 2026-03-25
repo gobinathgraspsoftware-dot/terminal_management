@@ -217,10 +217,7 @@ class Vendor extends Model
         return $this->hasMany(Invoice::class);
     }
 
-    public function quotations()
-    {
-        return $this->hasMany(Quotation::class);
-    }
+    // quotations() relationship removed — Quotation module removed
 
     public function createdBy()
     {

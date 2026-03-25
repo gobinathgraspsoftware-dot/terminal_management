@@ -9,6 +9,7 @@ use App\Models\User;
  * Charge Catalog Policy
  *
  * Authorization rules for charge catalog operations
+ * NOTE: 'view_quotations' permission removed — Quotation module removed
  */
 class ChargeCatalogPolicy
 {
@@ -19,7 +20,6 @@ class ChargeCatalogPolicy
     {
         return $user->hasAnyPermission([
             'view_charges',
-            'view_quotations',
             'view_invoices',
         ]);
     }
@@ -31,7 +31,6 @@ class ChargeCatalogPolicy
     {
         return $user->hasAnyPermission([
             'view_charges',
-            'view_quotations',
             'view_invoices',
         ]);
     }
@@ -55,24 +54,27 @@ class ChargeCatalogPolicy
     /**
      * Determine if user can delete the charge.
      */
-    public function delete(User $user, ChargeCatalog $charge): bool
+    public function delete(User $user, ?ChargeCatalog $charge = null): bool
     {
         return $user->hasPermissionTo('delete_charges');
     }
 
     /**
-     * Determine if user can restore the charge.
+     * Determine if user can export charges.
      */
-    public function restore(User $user, ChargeCatalog $charge): bool
+    public function export(User $user): bool
     {
-        return $user->hasPermissionTo('delete_charges');
+        return $user->hasPermissionTo('export_charges');
     }
 
     /**
-     * Determine if user can permanently delete the charge.
+     * Determine if user can search charges (AJAX for invoice line items).
      */
-    public function forceDelete(User $user, ChargeCatalog $charge): bool
+    public function searchCharges(User $user): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasAnyPermission([
+            'view_charges',
+            'view_invoices',
+        ]);
     }
 }

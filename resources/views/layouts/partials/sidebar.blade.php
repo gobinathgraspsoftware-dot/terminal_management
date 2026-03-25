@@ -200,32 +200,6 @@
                 </ul>
             </div>
 
-            <!-- Quotations Section -->
-            @php
-                $isQuotationRoute = str_contains($currentRoute ?? '', 'admin.quotations');
-            @endphp
-            @can('view_quotations')
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Quotations</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isQuotationRoute && !str_contains($currentRoute, 'create') ? 'active' : '' }}"
-                           href="{{ route('admin.quotations.index') }}">
-                            <i class="bi bi-file-earmark-text me-2"></i> All Quotations
-                        </a>
-                    </li>
-                    @can('create_quotations')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'admin.quotations.create') ? 'active' : '' }}"
-                           href="{{ route('admin.quotations.create') }}">
-                            <i class="bi bi-plus-circle me-2"></i> Create Quotation
-                        </a>
-                    </li>
-                    @endcan
-                </ul>
-            </div>
-            @endcan
-
             <!-- Claim Management Section -->
             @canany(['view_all_claims', 'view_claims', 'verify_claims', 'bulk_pay_claims'])
             <div class="nav-section mb-3">
@@ -556,32 +530,6 @@
             </div>
             @endcanany
 
-            <!-- Quotations Section -->
-            @php
-                $isQuotationRoute = str_contains($currentRoute ?? '', 'supervisor.quotations');
-            @endphp
-            @can('view_quotations')
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Quotations</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isQuotationRoute && !str_contains($currentRoute, 'create') ? 'active' : '' }}"
-                           href="{{ route('supervisor.quotations.index') }}">
-                            <i class="bi bi-file-earmark-text me-2"></i> Team Quotations
-                        </a>
-                    </li>
-                    @can('create_quotations')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute ?? '', 'supervisor.quotations.create') ? 'active' : '' }}"
-                           href="{{ route('supervisor.quotations.create') }}">
-                            <i class="bi bi-plus-circle me-2"></i> Create Quotation
-                        </a>
-                    </li>
-                    @endcan
-                </ul>
-            </div>
-            @endcan
-
             <!-- Profile Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
@@ -730,24 +678,6 @@
                 </ul>
             </div>
             @endcanany
-
-            <!-- Quotations Section -->
-            @php
-                $isQuotationRoute = str_contains($currentRoute ?? '', 'technician.quotations');
-            @endphp
-            @can('view_quotations')
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Quotations</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isQuotationRoute ? 'active' : '' }}"
-                           href="{{ route('technician.quotations.index') }}">
-                            <i class="bi bi-file-earmark-text me-2"></i> My Quotations
-                        </a>
-                    </li>
-                </ul>
-            </div>
-            @endcan
 
             <!-- Profile Section -->
             <div class="nav-section mb-3">
