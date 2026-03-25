@@ -77,7 +77,7 @@
                         @error('quantity') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
-                    <!-- Router IDs -->
+                    <!-- Router IDs (ONLY for routers) -->
                     <div class="col-12" id="router-ids-section" style="display:none;">
                         <label class="form-label fw-bold">Router IDs <small class="text-muted">(one per quantity unit)</small></label>
                         <div id="router-ids-container"></div>
@@ -111,9 +111,11 @@
 $(function() {
     var routerItems = @json($routerItems);
     var accessoryItems = @json($accessoryItems);
+    var currentStockType = '';
 
     function toggleStockType() {
         var type = $('#stock_type').val();
+        currentStockType = type;
         var $select = $('#inventory_item_id');
         $select.empty().append('<option value="">-- Select Item --</option>');
 
@@ -131,6 +133,8 @@ $(function() {
             $('#new-router-fields').hide();
         }
         if ($select.hasClass('select2-hidden-accessible')) $select.trigger('change.select2');
+
+        // Show/hide router IDs based on stock type
         updateRouterIdFields();
     }
 
@@ -150,17 +154,20 @@ $(function() {
         }
     });
 
+    // Generate router ID fields — ONLY for router stock type
     function updateRouterIdFields() {
         var qty = parseInt($('#quantity').val()) || 0;
         var $container = $('#router-ids-container');
         $container.empty();
-        if (qty > 0) {
+
+        // Only show router ID fields when stock type is "router"
+        if (currentStockType === 'router' && qty > 0) {
             $('#router-ids-section').show();
             for (var i = 0; i < qty; i++) {
                 $container.append(
                     '<div class="row mb-2"><div class="col-md-6"><div class="input-group input-group-sm">' +
                     '<span class="input-group-text">Router ID #' + (i + 1) + '</span>' +
-                    '<input type="text" name="router_ids[]" class="form-control" placeholder="Enter Router ID" maxlength="100">' +
+                    '<input type="text" name="router_ids[]" class="form-control" placeholder="Enter Router ID" maxlength="100" required>' +
                     '</div></div></div>'
                 );
             }

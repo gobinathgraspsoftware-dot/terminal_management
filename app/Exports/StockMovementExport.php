@@ -48,7 +48,7 @@ class StockMovementExport implements FromCollection, WithHeadings, WithMapping, 
             'Type',
             'Item Code',
             'Item Name',
-            'Terminal ID',
+            'Router IDs',
             'Quantity',
             'From',
             'To',
@@ -66,6 +66,17 @@ class StockMovementExport implements FromCollection, WithHeadings, WithMapping, 
         static $row = 0;
         $row++;
 
+        // Get router IDs display
+        $routerIds = $movement->router_ids;
+        if (empty($routerIds)) {
+            $routerIdsDisplay = '-';
+        } else {
+            if (is_string($routerIds)) {
+                $routerIds = json_decode($routerIds, true) ?? [];
+            }
+            $routerIdsDisplay = is_array($routerIds) ? implode(', ', $routerIds) : '-';
+        }
+
         return [
             $row,
             $movement->movement_no,
@@ -73,7 +84,7 @@ class StockMovementExport implements FromCollection, WithHeadings, WithMapping, 
             $movement->getTypeLabel(),
             $movement->inventoryItem->item_code ?? 'N/A',
             $movement->inventoryItem->item_name ?? 'N/A',
-            $movement->inventoryItem->serial_number ?? '-',
+            $routerIdsDisplay,
             $movement->quantity,
             $movement->getFromLocation(),
             $movement->getToLocation(),

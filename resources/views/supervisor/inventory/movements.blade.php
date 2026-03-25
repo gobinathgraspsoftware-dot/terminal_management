@@ -14,43 +14,43 @@
                 </ol>
             </nav>
         </div>
-        {{-- Export not available for supervisor role --}}
     </div>
 
-    {{-- Filters --}}
+    <!-- Filters -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <div class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Movement Type</label>
-                    <select id="filter_type" class="form-select form-select-sm">
+                <div class="col-md-2">
+                    <label class="form-label">Movement Type</label>
+                    <select id="filter-type" class="form-select form-select-sm">
                         <option value="">All Types</option>
                         @foreach($movementTypes as $key => $label)
-                            <option value="{{ $key }}">{{ $label }}</option>
+                        <option value="{{ $key }}">{{ $label }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold">Item</label>
-                    <select id="filter_item" class="form-select form-select-sm select2">
+                    <label class="form-label">Item</label>
+                    <select id="filter-item" class="form-select form-select-sm select2">
                         <option value="">All Items</option>
                         @foreach($items as $item)
-                            <option value="{{ $item->id }}" {{ request('inventory_item_id') == $item->id ? 'selected' : '' }}>
-                                {{ $item->item_code }} - {{ $item->item_name }}
-                            </option>
+                        <option value="{{ $item->id }}">{{ $item->item_code }} - {{ $item->item_name }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label fw-semibold">Date From</label>
-                    <input type="date" id="filter_date_from" class="form-control form-control-sm">
+                    <label class="form-label">Date From</label>
+                    <input type="date" id="filter-date-from" class="form-control form-control-sm">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label fw-semibold">Date To</label>
-                    <input type="date" id="filter_date_to" class="form-control form-control-sm">
+                    <label class="form-label">Date To</label>
+                    <input type="date" id="filter-date-to" class="form-control form-control-sm">
                 </div>
-                <div class="col-md-2 text-end">
-                    <button type="button" id="btn_reset" class="btn btn-outline-secondary btn-sm">
+                <div class="col-md-3 d-flex align-items-end">
+                    <button id="btn-filter" class="btn btn-primary btn-sm me-2">
+                        <i class="bi bi-search me-1"></i> Filter
+                    </button>
+                    <button id="btn-reset" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-x-circle me-1"></i> Reset
                     </button>
                 </div>
@@ -58,18 +58,18 @@
         </div>
     </div>
 
-    {{-- DataTable --}}
+    <!-- DataTable -->
     <div class="card border-0 shadow-sm">
         <div class="card-body">
             <div class="table-responsive">
                 <table id="movementsTable" class="table table-hover table-sm align-middle" style="width:100%">
                     <thead class="table-light">
                         <tr>
-                            <th width="50">#</th>
+                            <th>#</th>
                             <th>Movement No</th>
                             <th>Type</th>
                             <th>Item</th>
-                            <th>Terminal ID</th>
+                            <th>Router IDs</th>
                             <th>Qty</th>
                             <th>From</th>
                             <th>To</th>
@@ -89,8 +89,10 @@
 
 @push('scripts')
 <script>
-$(document).ready(function() {
-    $('.select2').select2({ theme: 'bootstrap-5', width: '100%', allowClear: true });
+$(function() {
+    if ($.fn.select2) {
+        $('#filter-item').select2({ theme: 'bootstrap-5', placeholder: 'All Items', allowClear: true });
+    }
 
     var table = $('#movementsTable').DataTable({
         processing: true,
@@ -98,57 +100,65 @@ $(document).ready(function() {
         ajax: {
             url: '{{ route("supervisor.inventory.movements.datatable") }}',
             data: function(d) {
-                d.movement_type = $('#filter_type').val();
-                d.inventory_item_id = $('#filter_item').val();
-                d.date_from = $('#filter_date_from').val();
-                d.date_to = $('#filter_date_to').val();
+                d.movement_type = $('#filter-type').val();
+                d.inventory_item_id = $('#filter-item').val();
+                d.date_from = $('#filter-date-from').val();
+                d.date_to = $('#filter-date-to').val();
             }
         },
         columns: [
-            { data: 'DT_RowIndex', orderable: false, searchable: false },
+            { data: 'DT_RowIndex', orderable: false, searchable: false, width: '40px' },
             { data: 'movement_no' },
             { data: 'movement_type', orderable: false },
-            { data: 'item_name' },
-            { data: 'serial_number' },
+            {
+                data: null,
+                orderable: false,
+                render: function(data) {
+                    return '<span class="fw-semibold">' + data.item_code + '</span><br><small class="text-muted">' + data.item_name + '</small>';
+                }
+            },
+            {
+                data: 'router_ids',
+                orderable: false,
+                render: function(data) {
+                    if (!data || data === '-') return '<span class="text-muted">-</span>';
+                    return '<small class="text-primary">' + data + '</small>';
+                }
+            },
             {
                 data: 'quantity',
+                className: 'text-center',
                 render: function(data) {
-                    var cls = parseInt(data) > 0 ? 'text-success' : 'text-danger';
-                    var prefix = parseInt(data) > 0 ? '+' : '';
-                    return '<span class="fw-semibold ' + cls + '">' + prefix + data + '</span>';
+                    var cls = data > 0 ? 'text-success fw-bold' : 'text-danger fw-bold';
+                    var prefix = data > 0 ? '+' : '';
+                    return '<span class="' + cls + '">' + prefix + data + '</span>';
                 }
             },
             { data: 'from_location' },
             { data: 'to_location' },
-            { data: 'ticket_no' },
+            {
+                data: 'ticket_no',
+                render: function(data) {
+                    if (!data || data === '-') return '<span class="text-muted">-</span>';
+                    return '<span class="badge bg-outline-primary border">' + data + '</span>';
+                }
+            },
             { data: 'condition', orderable: false },
             { data: 'movement_date' },
-            { data: 'performed_by' },
+            { data: 'performed_by' }
         ],
         order: [[1, 'desc']],
         pageLength: 25,
-        language: {
-            emptyTable: 'No movements found.',
-            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"></div> Loading...',
-        }
+        language: { search: '', searchPlaceholder: 'Search...' }
     });
 
-    // Filters
-    $('#filter_type, #filter_item, #filter_date_from, #filter_date_to').on('change', function() {
+    $('#btn-filter').on('click', function() { table.ajax.reload(); });
+    $('#btn-reset').on('click', function() {
+        $('#filter-type').val('');
+        $('#filter-item').val('').trigger('change.select2');
+        $('#filter-date-from, #filter-date-to').val('');
         table.ajax.reload();
     });
-
-    $('#btn_reset').on('click', function() {
-        $('#filter_type, #filter_date_from, #filter_date_to').val('');
-        $('#filter_item').val('').trigger('change.select2');
-        table.ajax.reload();
-    });
-
-    // Pre-set item filter if passed via URL
-    var urlItem = '{{ request("inventory_item_id") }}';
-    if (urlItem) {
-        $('#filter_item').val(urlItem).trigger('change.select2');
-    }
 });
 </script>
 @endpush
