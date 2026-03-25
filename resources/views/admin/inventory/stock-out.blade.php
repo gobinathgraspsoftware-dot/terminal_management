@@ -107,7 +107,7 @@ $(function() {
                 data: 'ticket_no',
                 render: function(data) {
                     if (!data || data === '-') return '<span class="text-muted">-</span>';
-                    return '<span class="badge bg-outline-primary border">' + data + '</span>';
+                    return '<span class="badge bg-primary border">' + data + '</span>';
                 }
             },
             { data: 'reason' },

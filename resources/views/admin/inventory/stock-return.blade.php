@@ -202,7 +202,7 @@ $(function() {
                 data: 'ticket_no',
                 render: function(data) {
                     if (!data || data === '-') return '<span class="text-muted">Manual</span>';
-                    return '<span class="badge bg-outline-info border">' + data + '</span>';
+                    return '<span class="badge bg-info border">' + data + '</span>';
                 }
             },
             { data: 'condition', orderable: false },
