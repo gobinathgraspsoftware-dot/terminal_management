@@ -14,7 +14,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class InventoryController extends Controller
 {
@@ -34,7 +34,7 @@ class InventoryController extends Controller
      */
     public function index()
     {
-        $this->authorize('viewAny', InventoryItem::class);
+        Gate::authorize('viewAny', InventoryItem::class);
 
         $stats = $this->service->getSummaryStats();
         $jobCategories = JobCategory::active()->orderBy('category_name')->get();
@@ -47,7 +47,7 @@ class InventoryController extends Controller
      */
     public function datatable(Request $request)
     {
-        $this->authorize('viewAny', InventoryItem::class);
+        Gate::authorize('viewAny', InventoryItem::class);
 
         $result = $this->service->getDatatable($request->all());
         return response()->json($result);
@@ -73,7 +73,7 @@ class InventoryController extends Controller
      */
     public function stockInForm()
     {
-        $this->authorize('stockIn', InventoryItem::class);
+        Gate::authorize('stockIn', InventoryItem::class);
 
         $jobCategories = JobCategory::active()->orderBy('category_name')->get();
         $routerItems = InventoryItem::routers()->active()->orderBy('item_name')->get();
@@ -87,7 +87,7 @@ class InventoryController extends Controller
      */
     public function stockIn(StockInRequest $request)
     {
-        $this->authorize('stockIn', InventoryItem::class);
+        Gate::authorize('stockIn', InventoryItem::class);
 
         try {
             $data = $request->validated();
@@ -128,7 +128,7 @@ class InventoryController extends Controller
      */
     public function stockOutForm()
     {
-        $this->authorize('stockOut', InventoryItem::class);
+        Gate::authorize('stockOut', InventoryItem::class);
 
         $availableRouters = $this->service->getAvailableRouters();
         $availableAccessories = $this->service->getAvailableAccessories();
@@ -164,7 +164,7 @@ class InventoryController extends Controller
      */
     public function stockOut(StockOutRequest $request)
     {
-        $this->authorize('stockOut', InventoryItem::class);
+        Gate::authorize('stockOut', InventoryItem::class);
 
         try {
             $movement = $this->service->stockOut($request->validated());
@@ -185,11 +185,11 @@ class InventoryController extends Controller
     // ══════════════════════════════════════════════════════════
 
     /**
-     * Process Stock Return (POST only, form is in stock-return blade).
+     * Stock Return form.
      */
     public function stockReturnForm()
     {
-        $this->authorize('stockReturn', InventoryItem::class);
+        Gate::authorize('stockReturn', InventoryItem::class);
 
         $allItems = InventoryItem::active()->orderBy('item_name')->get();
         $supervisorId = auth()->id();
@@ -207,7 +207,7 @@ class InventoryController extends Controller
      */
     public function stockReturn(StockReturnRequest $request)
     {
-        $this->authorize('stockReturn', InventoryItem::class);
+        Gate::authorize('stockReturn', InventoryItem::class);
 
         try {
             $movement = $this->service->stockReturn($request->validated());
@@ -232,7 +232,7 @@ class InventoryController extends Controller
      */
     public function movementsIndex()
     {
-        $this->authorize('viewMovements', InventoryItem::class);
+        Gate::authorize('viewMovements', InventoryItem::class);
 
         $items = InventoryItem::active()->orderBy('item_name')->get(['id', 'item_code', 'item_name']);
         $movementTypes = StockMovement::getMovementTypes();
@@ -245,7 +245,7 @@ class InventoryController extends Controller
      */
     public function movementsDatatable(Request $request)
     {
-        $this->authorize('viewMovements', InventoryItem::class);
+        Gate::authorize('viewMovements', InventoryItem::class);
 
         $result = $this->service->getMovementsDatatable($request->all());
         return response()->json($result);

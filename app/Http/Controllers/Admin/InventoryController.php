@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Exports\InventoryExport;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Maatwebsite\Excel\Facades\Excel;
 
 class InventoryController extends Controller
@@ -37,7 +38,7 @@ class InventoryController extends Controller
      */
     public function index()
     {
-        $this->authorize('viewAny', InventoryItem::class);
+        Gate::authorize('viewAny', InventoryItem::class);
 
         $stats = $this->service->getSummaryStats();
         $jobCategories = JobCategory::active()->orderBy('category_name')->get();
@@ -50,7 +51,7 @@ class InventoryController extends Controller
      */
     public function datatable(Request $request)
     {
-        $this->authorize('viewAny', InventoryItem::class);
+        Gate::authorize('viewAny', InventoryItem::class);
 
         $result = $this->service->getDatatable($request->all());
         return response()->json($result);
@@ -76,7 +77,7 @@ class InventoryController extends Controller
      */
     public function create()
     {
-        $this->authorize('create', InventoryItem::class);
+        Gate::authorize('create', InventoryItem::class);
 
         $jobCategories = JobCategory::active()->orderBy('category_name')->get();
 
@@ -88,7 +89,7 @@ class InventoryController extends Controller
      */
     public function store(StoreInventoryItemRequest $request)
     {
-        $this->authorize('create', InventoryItem::class);
+        Gate::authorize('create', InventoryItem::class);
 
         try {
             $item = $this->service->createItem($request->validated());
@@ -109,7 +110,7 @@ class InventoryController extends Controller
      */
     public function show(InventoryItem $inventory_item)
     {
-        $this->authorize('view', $inventory_item);
+        Gate::authorize('view', $inventory_item);
 
         $inventory_item->load(['jobCategory', 'creator', 'updater']);
 
@@ -147,7 +148,7 @@ class InventoryController extends Controller
      */
     public function edit(InventoryItem $inventory_item)
     {
-        $this->authorize('update', $inventory_item);
+        Gate::authorize('update', $inventory_item);
 
         $jobCategories = JobCategory::active()->orderBy('category_name')->get();
 
@@ -159,7 +160,7 @@ class InventoryController extends Controller
      */
     public function update(UpdateInventoryItemRequest $request, InventoryItem $inventory_item)
     {
-        $this->authorize('update', $inventory_item);
+        Gate::authorize('update', $inventory_item);
 
         try {
             $this->service->updateItem($inventory_item, $request->validated());
@@ -180,7 +181,7 @@ class InventoryController extends Controller
      */
     public function destroy(InventoryItem $inventory_item)
     {
-        $this->authorize('delete', $inventory_item);
+        Gate::authorize('delete', $inventory_item);
 
         try {
             $this->service->deleteItem($inventory_item);
@@ -196,7 +197,7 @@ class InventoryController extends Controller
      */
     public function toggleStatus(InventoryItem $inventory_item)
     {
-        $this->authorize('update', $inventory_item);
+        Gate::authorize('update', $inventory_item);
 
         $item = $this->service->toggleStatus($inventory_item);
 
@@ -216,7 +217,7 @@ class InventoryController extends Controller
      */
     public function stockInForm()
     {
-        $this->authorize('stockIn', InventoryItem::class);
+        Gate::authorize('stockIn', InventoryItem::class);
 
         $jobCategories = JobCategory::active()->orderBy('category_name')->get();
         $routerItems = InventoryItem::routers()->active()->orderBy('item_name')->get();
@@ -230,7 +231,7 @@ class InventoryController extends Controller
      */
     public function stockIn(StockInRequest $request)
     {
-        $this->authorize('stockIn', InventoryItem::class);
+        Gate::authorize('stockIn', InventoryItem::class);
 
         try {
             $data = $request->validated();
@@ -273,7 +274,7 @@ class InventoryController extends Controller
      */
     public function stockOutForm()
     {
-        $this->authorize('stockOut', InventoryItem::class);
+        Gate::authorize('stockOut', InventoryItem::class);
 
         $availableRouters = $this->service->getAvailableRouters();
         $availableAccessories = $this->service->getAvailableAccessories();
@@ -305,7 +306,7 @@ class InventoryController extends Controller
      */
     public function stockOut(StockOutRequest $request)
     {
-        $this->authorize('stockOut', InventoryItem::class);
+        Gate::authorize('stockOut', InventoryItem::class);
 
         try {
             $movement = $this->service->stockOut($request->validated());
@@ -330,7 +331,7 @@ class InventoryController extends Controller
      */
     public function stockReturnForm()
     {
-        $this->authorize('stockReturn', InventoryItem::class);
+        Gate::authorize('stockReturn', InventoryItem::class);
 
         $allItems = InventoryItem::active()->orderBy('item_name')->get();
         $technicians = User::role('technician')
@@ -346,7 +347,7 @@ class InventoryController extends Controller
      */
     public function stockReturn(StockReturnRequest $request)
     {
-        $this->authorize('stockReturn', InventoryItem::class);
+        Gate::authorize('stockReturn', InventoryItem::class);
 
         try {
             $movement = $this->service->stockReturn($request->validated());
@@ -371,7 +372,7 @@ class InventoryController extends Controller
      */
     public function stockAdjustmentForm()
     {
-        $this->authorize('stockAdjustment', InventoryItem::class);
+        Gate::authorize('stockAdjustment', InventoryItem::class);
 
         $allItems = InventoryItem::active()
             ->with(['stockBalances' => fn($q) => $q->warehouse()])
@@ -386,7 +387,7 @@ class InventoryController extends Controller
      */
     public function stockAdjustment(StockAdjustmentRequest $request)
     {
-        $this->authorize('stockAdjustment', InventoryItem::class);
+        Gate::authorize('stockAdjustment', InventoryItem::class);
 
         try {
             $adjustment = $this->service->stockAdjustment($request->validated());
@@ -411,7 +412,7 @@ class InventoryController extends Controller
      */
     public function export(Request $request)
     {
-        $this->authorize('export', InventoryItem::class);
+        Gate::authorize('export', InventoryItem::class);
 
         $filters = $request->only(['item_type', 'status']);
 

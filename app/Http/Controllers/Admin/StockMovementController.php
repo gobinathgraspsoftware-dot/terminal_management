@@ -8,6 +8,7 @@ use App\Models\InventoryItem;
 use App\Models\StockMovement;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StockMovementController extends Controller
@@ -24,7 +25,7 @@ class StockMovementController extends Controller
      */
     public function index()
     {
-        $this->authorize('viewMovements', InventoryItem::class);
+        Gate::authorize('viewMovements', InventoryItem::class);
 
         $items = InventoryItem::active()->orderBy('item_name')->get(['id', 'item_code', 'item_name']);
         $movementTypes = StockMovement::getMovementTypes();
@@ -37,7 +38,7 @@ class StockMovementController extends Controller
      */
     public function datatable(Request $request)
     {
-        $this->authorize('viewMovements', InventoryItem::class);
+        Gate::authorize('viewMovements', InventoryItem::class);
 
         $result = $this->service->getMovementsDatatable($request->all());
         return response()->json($result);
@@ -48,7 +49,7 @@ class StockMovementController extends Controller
      */
     public function export(Request $request)
     {
-        $this->authorize('viewMovements', InventoryItem::class);
+        Gate::authorize('viewMovements', InventoryItem::class);
 
         $filters = $request->only(['movement_type', 'date_from', 'date_to', 'inventory_item_id']);
 
