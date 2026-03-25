@@ -81,8 +81,13 @@ class TicketService
      * NOTE: SLA is NOT set at creation. It is calculated when technician ACCEPTS the ticket.
      *
      * INVENTORY INTEGRATION:
-     * - Installation tickets: auto stock-out (deduct router from warehouse)
-     * - Replacement tickets: auto stock-return (return old router to warehouse)
+     * - Installation tickets with router_id: auto stock-out (deduct router from warehouse)
+     * - Replacement tickets with old_terminal_id: auto stock-return (return old router to warehouse)
+     *
+     * The ticket form sends:
+     *   - router_id (singular varchar) — existing field from ticket create form
+     *   - old_terminal_id (singular varchar) — existing field for replacement jobs
+     * We convert these to router_ids / old_router_ids JSON arrays for inventory tracking.
      */
     public function create(array $data): Ticket
     {
@@ -138,43 +143,133 @@ class TicketService
             ]);
 
             // ── AUTO STOCK OUT: Installation Ticket ──
-            // When an installation ticket is created with router_ids,
-            // auto-deduct quantity from inventory.
-            if ($ticket->isInstallationJob() && !empty($data['router_ids'])) {
-                $ticket->update(['router_ids' => $data['router_ids']]);
-
-                try {
-                    $inventoryService = app(InventoryService::class);
-                    $inventoryService->autoStockOutForInstallation($ticket->fresh());
-                } catch (\Exception $e) {
-                    Log::warning('Auto stock-out on ticket creation failed', [
-                        'ticket_id' => $ticket->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                    // Don't fail ticket creation if stock-out fails
-                }
-            }
+            // Ticket form sends router_id (singular varchar field).
+            // We convert it to router_ids JSON array for inventory tracking.
+            // Also supports router_ids[] array if passed directly.
+            $this->handleAutoStockOut($ticket, $data);
 
             // ── AUTO STOCK RETURN: Replacement Ticket ──
-            // When a replacement ticket is created with old_router_ids,
-            // auto-return old routers back to stock.
-            if ($ticket->isReplacementJob() && !empty($data['old_router_ids'])) {
-                $ticket->update(['old_router_ids' => $data['old_router_ids']]);
-
-                try {
-                    $inventoryService = app(InventoryService::class);
-                    $inventoryService->autoStockReturnForReplacement($ticket->fresh());
-                } catch (\Exception $e) {
-                    Log::warning('Auto stock-return on ticket creation failed', [
-                        'ticket_id' => $ticket->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                    // Don't fail ticket creation if stock-return fails
-                }
-            }
+            // Ticket form sends old_terminal_id (singular varchar field).
+            // We convert it to old_router_ids JSON array for inventory tracking.
+            // Also supports old_router_ids[] array if passed directly.
+            $this->handleAutoStockReturn($ticket, $data);
 
             return $ticket;
         });
+    }
+
+    /**
+     * Handle auto stock-out for installation tickets.
+     *
+     * Detects router IDs from:
+     *   1. $data['router_ids'] — if form sends array (future-proof)
+     *   2. $data['router_id'] — singular field from existing ticket form
+     *   3. $ticket->router_id — field already saved on ticket
+     */
+    protected function handleAutoStockOut(Ticket $ticket, array $data): void
+    {
+        if (!$ticket->isInstallationJob()) {
+            return;
+        }
+
+        // Build router_ids array from available sources
+        $routerIds = [];
+
+        // Source 1: router_ids array (if form sends it directly)
+        if (!empty($data['router_ids']) && is_array($data['router_ids'])) {
+            $routerIds = array_values(array_filter($data['router_ids'], fn($v) => !empty(trim($v))));
+        }
+
+        // Source 2: router_id singular field from existing ticket form
+        if (empty($routerIds) && !empty($data['router_id'])) {
+            $routerIds = [trim($data['router_id'])];
+        }
+
+        // Source 3: already saved on ticket
+        if (empty($routerIds) && !empty($ticket->router_id)) {
+            $routerIds = [trim($ticket->router_id)];
+        }
+
+        if (empty($routerIds)) {
+            return;
+        }
+
+        // Save router_ids JSON on ticket for tracking
+        $ticket->update(['router_ids' => $routerIds]);
+
+        try {
+            $inventoryService = app(InventoryService::class);
+            $inventoryService->autoStockOutForInstallation($ticket->fresh());
+
+            Log::info('Auto stock-out triggered for installation ticket', [
+                'ticket_id' => $ticket->id,
+                'ticket_no' => $ticket->ticket_no,
+                'router_ids' => $routerIds,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Auto stock-out on ticket creation failed', [
+                'ticket_id' => $ticket->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Don't fail ticket creation if stock-out fails
+        }
+    }
+
+    /**
+     * Handle auto stock-return for replacement tickets.
+     *
+     * Detects old router IDs from:
+     *   1. $data['old_router_ids'] — if form sends array (future-proof)
+     *   2. $data['old_terminal_id'] — singular field from existing ticket form
+     *   3. $ticket->old_terminal_id — field already saved on ticket
+     */
+    protected function handleAutoStockReturn(Ticket $ticket, array $data): void
+    {
+        if (!$ticket->isReplacementJob()) {
+            return;
+        }
+
+        // Build old_router_ids array from available sources
+        $oldRouterIds = [];
+
+        // Source 1: old_router_ids array (if form sends it directly)
+        if (!empty($data['old_router_ids']) && is_array($data['old_router_ids'])) {
+            $oldRouterIds = array_values(array_filter($data['old_router_ids'], fn($v) => !empty(trim($v))));
+        }
+
+        // Source 2: old_terminal_id singular field from existing ticket form
+        if (empty($oldRouterIds) && !empty($data['old_terminal_id'])) {
+            $oldRouterIds = [trim($data['old_terminal_id'])];
+        }
+
+        // Source 3: already saved on ticket
+        if (empty($oldRouterIds) && !empty($ticket->old_terminal_id)) {
+            $oldRouterIds = [trim($ticket->old_terminal_id)];
+        }
+
+        if (empty($oldRouterIds)) {
+            return;
+        }
+
+        // Save old_router_ids JSON on ticket for tracking
+        $ticket->update(['old_router_ids' => $oldRouterIds]);
+
+        try {
+            $inventoryService = app(InventoryService::class);
+            $inventoryService->autoStockReturnForReplacement($ticket->fresh());
+
+            Log::info('Auto stock-return triggered for replacement ticket', [
+                'ticket_id' => $ticket->id,
+                'ticket_no' => $ticket->ticket_no,
+                'old_router_ids' => $oldRouterIds,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Auto stock-return on ticket creation failed', [
+                'ticket_id' => $ticket->id,
+                'error' => $e->getMessage(),
+            ]);
+            // Don't fail ticket creation if stock-return fails
+        }
     }
 
     /**
@@ -211,6 +306,9 @@ class TicketService
                 $data['assigned_at'] = now();
             }
 
+            // Check if old_terminal_id is being set for the first time (replacement flow)
+            $hadOldRouterIds = !empty($ticket->old_router_ids);
+
             $ticket->update($data);
 
             if ($ticket->status !== $oldStatus) {
@@ -225,23 +323,9 @@ class TicketService
             }
 
             // ── AUTO STOCK RETURN ON UPDATE: Replacement Ticket ──
-            // If old_router_ids are being set during update (technician submits old router IDs)
-            $originalOldRouterIds = $ticket->getOriginal('old_router_ids');
-            if ($ticket->isReplacementJob()
-                && !empty($data['old_router_ids'])
-                && empty($originalOldRouterIds)) {
-
-                $ticket->update(['old_router_ids' => $data['old_router_ids']]);
-
-                try {
-                    $inventoryService = app(InventoryService::class);
-                    $inventoryService->autoStockReturnForReplacement($ticket->fresh());
-                } catch (\Exception $e) {
-                    Log::warning('Auto stock-return on ticket update failed', [
-                        'ticket_id' => $ticket->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+            // If old_terminal_id is being set during update and no previous stock-return was done
+            if (!$hadOldRouterIds && $ticket->isReplacementJob()) {
+                $this->handleAutoStockReturn($ticket->fresh(), $data);
             }
 
             return $ticket->fresh();

@@ -20,7 +20,6 @@ class InventoryService
 
     /**
      * Server-side DataTable for inventory items.
-     * Removed: job_category_id, serial_number references
      */
     public function getDatatable(array $params): array
     {
@@ -113,7 +112,6 @@ class InventoryService
 
     /**
      * Create a new inventory item.
-     * Removed: job_category_id, serial_number
      */
     public function createItem(array $data): InventoryItem
     {
@@ -121,14 +119,12 @@ class InventoryService
             $data['item_code'] = NumberSeries::getNextNumber('inventory_item');
             $data['created_by'] = Auth::id();
 
-            // Clear accessory_type for routers
             if ($data['item_type'] === InventoryItem::TYPE_ROUTER) {
                 $data['accessory_type'] = null;
             }
 
             $item = InventoryItem::create($data);
 
-            // Initialize warehouse stock balance
             StockBalance::create([
                 'inventory_item_id' => $item->id,
                 'holder_type' => 'warehouse',
@@ -144,7 +140,6 @@ class InventoryService
 
     /**
      * Update an inventory item.
-     * Removed: job_category_id, serial_number
      */
     public function updateItem(InventoryItem $item, array $data): InventoryItem
     {
@@ -187,10 +182,6 @@ class InventoryService
 
     /**
      * Stock In - Add items to warehouse.
-     * Changes:
-     *   - movement_date renamed to stockin_date (mapped to movement_date column)
-     *   - item_condition removed
-     *   - quantity + router_ids added (one router_id per quantity unit)
      */
     public function stockIn(array $data): StockMovement
     {
@@ -198,12 +189,10 @@ class InventoryService
             $item = InventoryItem::findOrFail($data['inventory_item_id']);
             $quantity = (int) ($data['quantity'] ?? 1);
 
-            // Validate router_ids count matches quantity
             $routerIds = $data['router_ids'] ?? [];
             if (is_string($routerIds)) {
                 $routerIds = json_decode($routerIds, true) ?? [];
             }
-            // Filter empty values
             $routerIds = array_values(array_filter($routerIds, fn($v) => !empty(trim($v))));
 
             if (!empty($routerIds) && count($routerIds) !== $quantity) {
@@ -214,7 +203,7 @@ class InventoryService
             $balance = StockBalance::getOrCreate($item->id, 'warehouse', null);
             $balance->increment('quantity', $quantity);
 
-            // Create movement record (stockin_date maps to movement_date)
+            // Create movement record
             $movement = StockMovement::create([
                 'movement_no' => NumberSeries::getNextNumber('stock_movement'),
                 'inventory_item_id' => $item->id,
@@ -230,7 +219,7 @@ class InventoryService
                 'reference_id' => $data['reference_id'] ?? null,
                 'reason' => $data['reason'] ?? 'Stock In',
                 'remarks' => $data['remarks'] ?? null,
-                'item_condition' => null, // condition removed for stock in
+                'item_condition' => null,
                 'movement_date' => $data['stockin_date'] ?? now()->toDateString(),
                 'performed_by' => Auth::id(),
             ]);
@@ -251,14 +240,8 @@ class InventoryService
     // ══════════════════════════════════════════════════════════
 
     /**
-     * Stock Out - Auto-deduct from warehouse when installation ticket is created.
-     * This is called automatically from TicketService, NOT manually from a form.
-     *
-     * Changes:
-     *   - No manual form (list-only view)
-     *   - Auto-triggered on ticket creation with job_type = installation
-     *   - Router IDs based on quantity
-     *   - movement_date renamed to stockout_date
+     * Stock Out - Deduct from warehouse.
+     * Called by autoStockOutForInstallation — not from a manual form.
      */
     public function stockOut(array $data): StockMovement
     {
@@ -285,7 +268,7 @@ class InventoryService
             // Deduct from warehouse
             $balance->decrement('quantity', $quantity);
 
-            // Create movement record (stockout_date maps to movement_date)
+            // Create movement record
             $movement = StockMovement::create([
                 'movement_no' => NumberSeries::getNextNumber('stock_movement'),
                 'inventory_item_id' => $item->id,
@@ -320,12 +303,38 @@ class InventoryService
 
     /**
      * Auto Stock Out triggered when an installation ticket is created.
-     * Finds a matching router item in stock and deducts 1 quantity.
+     * Finds a router item in stock and deducts quantity.
+     *
+     * Reads router IDs from (in priority order):
+     *   1. $ticket->router_ids  (JSON array — set by TicketService)
+     *   2. $ticket->router_id   (singular varchar — fallback from ticket form)
      */
     public function autoStockOutForInstallation(Ticket $ticket): ?StockMovement
     {
-        // Only auto stock-out for router items when ticket has router_ids
+        // Build router IDs from available sources
         $routerIds = $ticket->router_ids;
+
+        // Fallback: if router_ids JSON is empty, use router_id singular field
+        if (empty($routerIds) && !empty($ticket->router_id)) {
+            $routerIds = [trim($ticket->router_id)];
+        }
+
+        if (empty($routerIds)) {
+            Log::info('Auto stock-out skipped: No router IDs found on ticket', [
+                'ticket_id' => $ticket->id,
+            ]);
+            return null;
+        }
+
+        // Ensure it's an array
+        if (is_string($routerIds)) {
+            $routerIds = json_decode($routerIds, true) ?? [];
+        }
+        $routerIds = array_values(array_filter(
+            is_array($routerIds) ? $routerIds : [],
+            fn($v) => !empty(trim($v))
+        ));
+
         if (empty($routerIds)) {
             return null;
         }
@@ -346,7 +355,7 @@ class InventoryService
         }
 
         try {
-            $quantity = is_array($routerIds) ? count($routerIds) : 1;
+            $quantity = count($routerIds);
 
             return $this->stockOut([
                 'inventory_item_id' => $routerItem->id,
@@ -372,15 +381,6 @@ class InventoryService
 
     /**
      * Stock Return - Return items back to warehouse.
-     *
-     * Two flows:
-     * 1. Auto-triggered when replacement ticket is created (old router IDs returned)
-     * 2. Manual creation by user (same fields as stock out)
-     *
-     * Changes:
-     *   - movement_date renamed to stockreturn_date
-     *   - router_ids added (one per quantity)
-     *   - condition field retained for returns
      */
     public function stockReturn(array $data): StockMovement
     {
@@ -402,7 +402,7 @@ class InventoryService
             $balance = StockBalance::getOrCreate($item->id, 'warehouse', null);
             $balance->increment('quantity', $quantity);
 
-            // Create movement record (stockreturn_date maps to movement_date)
+            // Create movement record
             $movement = StockMovement::create([
                 'movement_no' => NumberSeries::getNextNumber('stock_movement'),
                 'inventory_item_id' => $item->id,
@@ -438,10 +438,37 @@ class InventoryService
     /**
      * Auto Stock Return triggered when a replacement ticket is created.
      * The old router IDs are returned to stock.
+     *
+     * Reads old router IDs from (in priority order):
+     *   1. $ticket->old_router_ids  (JSON array — set by TicketService)
+     *   2. $ticket->old_terminal_id (singular varchar — fallback from ticket form)
      */
     public function autoStockReturnForReplacement(Ticket $ticket): ?StockMovement
     {
+        // Build old router IDs from available sources
         $oldRouterIds = $ticket->old_router_ids;
+
+        // Fallback: if old_router_ids JSON is empty, use old_terminal_id singular field
+        if (empty($oldRouterIds) && !empty($ticket->old_terminal_id)) {
+            $oldRouterIds = [trim($ticket->old_terminal_id)];
+        }
+
+        if (empty($oldRouterIds)) {
+            Log::info('Auto stock-return skipped: No old router IDs found on ticket', [
+                'ticket_id' => $ticket->id,
+            ]);
+            return null;
+        }
+
+        // Ensure it's an array
+        if (is_string($oldRouterIds)) {
+            $oldRouterIds = json_decode($oldRouterIds, true) ?? [];
+        }
+        $oldRouterIds = array_values(array_filter(
+            is_array($oldRouterIds) ? $oldRouterIds : [],
+            fn($v) => !empty(trim($v))
+        ));
+
         if (empty($oldRouterIds)) {
             return null;
         }
@@ -456,7 +483,7 @@ class InventoryService
         }
 
         try {
-            $quantity = is_array($oldRouterIds) ? count($oldRouterIds) : 1;
+            $quantity = count($oldRouterIds);
 
             return $this->stockReturn([
                 'inventory_item_id' => $routerItem->id,
