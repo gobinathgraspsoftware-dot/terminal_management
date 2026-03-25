@@ -7,9 +7,6 @@ use Illuminate\Support\Facades\Gate;
 
 // Models
 use App\Models\User;
-use App\Models\ChargeCatalog;
-use App\Models\TerminalCategory;
-use App\Models\TerminalModel;
 use App\Models\Vendor;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -23,9 +20,6 @@ use App\Models\InventoryItem;
 use App\Policies\PermissionPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\UserPolicy;
-use App\Policies\ChargeCatalogPolicy;
-use App\Policies\TerminalCategoryPolicy;
-use App\Policies\TerminalModelPolicy;
 use App\Policies\VendorPolicy;
 use App\Policies\VendorTypePolicy;
 use App\Policies\ClaimPolicy;
@@ -52,17 +46,6 @@ class AuthServiceProvider extends ServiceProvider
         // USER MANAGEMENT
         // ==========================================
         User::class => UserPolicy::class,
-
-        // ==========================================
-        // TERMINAL MODELS & CATEGORIES
-        // ==========================================
-        TerminalModel::class => TerminalModelPolicy::class,
-        TerminalCategory::class => TerminalCategoryPolicy::class,
-
-        // ==========================================
-        // PRICING & CHARGES
-        // ==========================================
-        ChargeCatalog::class => ChargeCatalogPolicy::class,
 
         // ==========================================
         // REMOVED: Partner, Client, Site, Depot, RateCard policies

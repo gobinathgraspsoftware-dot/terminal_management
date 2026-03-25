@@ -14,15 +14,6 @@ use App\Http\Controllers\Technician\ProfileController as TechnicianProfileContro
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\VendorController as AdminVendorController;
-use App\Http\Controllers\Admin\TerminalCategoryController as AdminTerminalCategoryController;
-use App\Http\Controllers\Supervisor\TerminalCategoryController as SupervisorTerminalCategoryController;
-use App\Http\Controllers\Technician\TerminalCategoryController as TechnicianTerminalCategoryController;
-use App\Http\Controllers\Admin\TerminalModelController as AdminTerminalModelController;
-use App\Http\Controllers\Supervisor\TerminalModelController as SupervisorTerminalModelController;
-use App\Http\Controllers\Technician\TerminalModelController as TechnicianTerminalModelController;
-use App\Http\Controllers\Admin\ChargeCatalogController as AdminChargeCatalogController;
-use App\Http\Controllers\Supervisor\ChargeCatalogController as SupervisorChargeCatalogController;
-use App\Http\Controllers\Technician\ChargeCatalogController as TechnicianChargeCatalogController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\Admin\JobTypeController as AdminJobTypeController;
 use App\Http\Controllers\Admin\TicketController as AdminTicketController;
@@ -205,44 +196,6 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::delete('/{vendor}', [AdminVendorController::class, 'destroy'])->name('destroy');
         Route::post('/{vendor}/restore', [AdminVendorController::class, 'restore'])->name('restore');
         Route::post('/{vendor}/toggle-status', [AdminVendorController::class, 'toggleStatus'])->name('toggle-status');
-    });
-
-    /* Terminal categories routes */
-    Route::prefix('terminal-categories')->name('terminal-categories.')->group(function () {
-        Route::get('/', [AdminTerminalCategoryController::class, 'index'])->name('index');
-        Route::get('/datatable', [AdminTerminalCategoryController::class, 'datatable'])->name('datatable');
-        Route::get('/create', [AdminTerminalCategoryController::class, 'create'])->name('create');
-        Route::post('/', [AdminTerminalCategoryController::class, 'store'])->name('store');
-        Route::get('/{terminalCategory}/edit', [AdminTerminalCategoryController::class, 'edit'])->name('edit');
-        Route::put('/{terminalCategory}', [AdminTerminalCategoryController::class, 'update'])->name('update');
-        Route::delete('/{terminalCategory}', [AdminTerminalCategoryController::class, 'destroy'])->name('destroy');
-        Route::post('/{terminalCategory}/toggle-status', [AdminTerminalCategoryController::class, 'toggleStatus'])->name('toggle-status');
-        Route::post('/{terminalCategory}/toggle-serial-tracking', [AdminTerminalCategoryController::class, 'toggleSerialTracking'])->name('toggle-serial-tracking');
-        Route::post('/update-sort-order', [AdminTerminalCategoryController::class, 'updateSortOrder'])->name('update-sort-order');
-    });
-
-    /* Terminal model routes */
-    Route::prefix('terminal-models')->name('terminal-models.')->group(function () {
-        Route::get('/datatable', [AdminTerminalModelController::class, 'datatable'])->name('datatable');
-        Route::post('/toggle-status/{terminalModel}', [AdminTerminalModelController::class, 'toggleStatus'])->name('toggle-status');
-        Route::delete('/{terminalModel}/delete-image', [AdminTerminalModelController::class, 'deleteImage'])->name('delete-image');
-        Route::get('/export', [AdminTerminalModelController::class, 'export'])->name('export');
-        Route::post('/import', [AdminTerminalModelController::class, 'import'])->name('import');
-        Route::resource('', AdminTerminalModelController::class)->parameters(['' => 'terminalModel']);
-    });
-
-    /* Charge Catalog Routes */
-    Route::prefix('charge-catalog')->name('charge-catalog.')->group(function () {
-        Route::get('/', [AdminChargeCatalogController::class, 'index'])->name('index');
-        Route::get('/datatable', [AdminChargeCatalogController::class, 'datatable'])->name('datatable');
-        Route::get('/ajax/job-types', [AdminChargeCatalogController::class, 'ajaxJobTypes'])->name('ajax.job-types');
-        Route::get('/create', [AdminChargeCatalogController::class, 'create'])->name('create');
-        Route::post('/', [AdminChargeCatalogController::class, 'store'])->name('store');
-        Route::get('/{chargeCatalog}/edit', [AdminChargeCatalogController::class, 'edit'])->name('edit');
-        Route::put('/{chargeCatalog}', [AdminChargeCatalogController::class, 'update'])->name('update');
-        Route::delete('/{chargeCatalog}', [AdminChargeCatalogController::class, 'destroy'])->name('destroy');
-        Route::post('/{chargeCatalog}/toggle-status', [AdminChargeCatalogController::class, 'toggleStatus'])->name('toggle-status');
-        Route::get('/search', [AdminChargeCatalogController::class, 'searchCharges'])->name('search');
     });
 
     /* Job Types Routes */
@@ -441,28 +394,6 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/login-history', [SupervisorProfileController::class, 'loginHistory'])->name('login-history');
     });
 
-    /* Terminal categories Management Routes */
-    Route::prefix('terminal-categories')->name('terminal-categories.')->group(function () {
-        Route::get('/', [SupervisorTerminalCategoryController::class, 'index'])->name('index');
-        Route::get('/datatable', [SupervisorTerminalCategoryController::class, 'datatable'])->name('datatable');
-    });
-
-    /* Terminal Model Routes */
-    Route::prefix('terminal-models')->name('terminal-models.')->group(function () {
-        Route::get('/datatable', [SupervisorTerminalModelController::class, 'datatable'])->name('datatable');
-        Route::get('/', [SupervisorTerminalModelController::class, 'index'])->name('index');
-        Route::get('/{terminalModel}', [SupervisorTerminalModelController::class, 'show'])->name('show');
-    });
-
-    /* Charge Catalog Routes */
-    Route::prefix('charge-catalog')->name('charge-catalog.')->group(function () {
-        Route::get('/', [SupervisorChargeCatalogController::class, 'index'])->name('index');
-        Route::get('/datatable', [SupervisorChargeCatalogController::class, 'datatable'])->name('datatable');
-
-        // AJAX endpoint for quotations
-        Route::get('/search', [SupervisorChargeCatalogController::class, 'searchCharges'])->name('search');
-    });
-
     /* Ticket Management Routes */
     Route::prefix('tickets')->name('tickets.')->group(function () {
         Route::get('/', [SupervisorTicketController::class, 'index'])->name('index');
@@ -554,26 +485,6 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/bank-details', [TechnicianProfileController::class, 'bankDetails'])->name('bank-details');
         Route::put('/bank-details', [TechnicianProfileController::class, 'updateBankDetails'])->name('bank-details.update');
         Route::get('/login-history', [TechnicianProfileController::class, 'loginHistory'])->name('login-history');
-    });
-
-    /* Terminal Categories Management Routes */
-    Route::prefix('terminal-categories')->name('terminal-categories.')->group(function () {
-        Route::get('/', [TechnicianTerminalCategoryController::class, 'index'])->name('index');
-        Route::get('/datatable', [TechnicianTerminalCategoryController::class, 'datatable'])->name('datatable');
-    });
-
-    /* Terminal model Management Routes */
-    Route::prefix('terminal-models')->name('terminal-models.')->group(function () {
-        Route::get('/datatable', [TechnicianTerminalModelController::class, 'datatable'])->name('datatable');
-        Route::get('/', [TechnicianTerminalModelController::class, 'index'])->name('index');
-        Route::get('/{terminalModel}', [TechnicianTerminalModelController::class, 'show'])->name('show');
-    });
-
-    /* Charge Catalog Routes */
-    Route::prefix('charge-catalog')->name('charge-catalog.')->group(function () {
-        Route::get('/', [TechnicianChargeCatalogController::class, 'index'])->name('index');
-        Route::get('/by-type', [TechnicianChargeCatalogController::class, 'getByType'])->name('by-type');
-        Route::get('/search', [TechnicianChargeCatalogController::class, 'search'])->name('search');
     });
 
     /* My Jobs */

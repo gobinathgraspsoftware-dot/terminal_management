@@ -43,15 +43,6 @@ class PermissionSeeder extends Seeder
             // Master Data - Depots
             'depots' => ['view', 'create', 'edit', 'delete'],
 
-            // Master Data - Terminal Models
-            'models' => ['view', 'create', 'edit', 'delete'],
-
-            // Master Data - Categories
-            'categories' => ['view', 'create', 'edit', 'delete'],
-
-            // Master Data - Charge Catalog
-            'charges' => ['view', 'create', 'edit', 'delete'],
-
             // Master Data - Rate Cards
             'rate_cards' => ['view', 'create', 'edit', 'delete'],
 

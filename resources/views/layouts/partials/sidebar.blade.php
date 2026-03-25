@@ -136,9 +136,6 @@
             <!-- Master Data Section (Cleaned: Removed Partners, Clients, Sites, Depots, Rate Cards) -->
             @php
                 $isVendorRoute = str_contains($currentRoute ?? '', 'admin.vendors');
-                $ischargeCatelogRoute = str_contains($currentRoute ?? '', 'admin.charge-catalog');
-                $isTerminalRoute = str_contains($currentRoute ?? '', 'admin.terminal-models');
-                $isCategoryRoute = str_contains($currentRoute ?? '', 'admin.terminal-categories');
                 $isJobTypeRoute = str_contains($currentRoute ?? '', 'admin.job-types');
                 $isVendorTypeRoute = str_contains($currentRoute ?? '', 'admin.vendor-types');
                 $isJobCategoryRoute = str_contains($currentRoute ?? '', 'admin.job-categories');
@@ -158,27 +155,6 @@
                         <a class="nav-link {{ $isVendorRoute ? 'active' : '' }}"
                            href="{{ route('admin.vendors.index') }}">
                             <i class="bi bi-truck me-2"></i> Vendors
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('admin.charge-catalog.index') }}"
-                        class="nav-link {{ $ischargeCatelogRoute ? 'active' : '' }}">
-                            <i class="bi bi-tag"></i> Job Catalog
-                        </a>
-                    </li>
-                    @can('view_models')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isTerminalRoute ? 'active' : '' }}"
-                        href="{{ route('admin.terminal-models.index') }}">
-                            <i class="bi bi-box-seam"></i>
-                            <span>Terminal Models</span>
-                        </a>
-                    </li>
-                    @endcan
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isCategoryRoute ? 'active' : '' }}"
-                        href="{{ route('admin.terminal-categories.index') }}">
-                            <i class="bi bi-grid-3x3-gap me-2"></i> Categories
                         </a>
                     </li>
                     @can('view_job_types')
@@ -406,9 +382,6 @@
 
             <!-- Master Data Section (Cleaned: Removed Partners, Clients, Sites, Depots, Rate Cards) -->
             @php
-                $isChargeCatelogRoute = str_contains($currentRoute ?? '', 'supervisor.charge-catalog');
-                $isTerminalRoute = str_contains($currentRoute ?? '', 'supervisor.terminal-models');
-                $isCategoryRoute = str_contains($currentRoute ?? '', 'supervisor.terminal-categories');
                 $isVendorRoute = str_contains($currentRoute ?? '', 'supervisor.vendors');
             @endphp
             @can('view_vendors')
@@ -419,27 +392,6 @@
                         <a class="nav-link {{ $isVendorRoute ? 'active' : '' }}"
                             href="{{ route('supervisor.vendors.index') }}">
                             <i class="bi bi-truck me-2"></i> Vendors
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('supervisor.charge-catalog.index') }}"
-                        class="nav-link {{ $isChargeCatelogRoute ? 'active' : '' }}">
-                            <i class="bi bi-tag"></i> Job Catalog
-                        </a>
-                    </li>
-                    @can('view_models')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isTerminalRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.terminal-models.index') }}">
-                            <i class="bi bi-box-seam"></i>
-                            <span>Terminal Models</span>
-                        </a>
-                    </li>
-                    @endcan
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isCategoryRoute ? 'active' : '' }}"
-                        href="{{ route('supervisor.terminal-categories.index') }}">
-                            <i class="bi bi-grid-3x3-gap me-2"></i> Categories
                         </a>
                     </li>
                 </ul>
@@ -595,41 +547,6 @@
                 </ul>
             </div>
             @endcan
-
-            <!-- Reference Data (Cleaned: Removed Partners, Clients, Sites, Depots, Rate Cards) -->
-            @php
-                $isChargeCatelogRoute = str_contains($currentRoute ?? '', 'technician.charge-catalog');
-                $isTerminalRoute = str_contains($currentRoute ?? '', 'technician.terminal-models');
-                $isCategoryRoute = str_contains($currentRoute ?? '', 'technician.terminal-categories');
-            @endphp
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Reference Data</small>
-                <ul class="nav flex-column mt-2">
-                    @can('view_models')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isTerminalRoute ? 'active' : '' }}"
-                        href="{{ route('technician.terminal-models.index') }}">
-                            <i class="bi bi-box-seam"></i>
-                            <span>Terminal Models</span>
-                        </a>
-                    </li>
-                    @endcan
-                    <li class="nav-item">
-                        <a href="{{ route('technician.charge-catalog.index') }}"
-                        class="nav-link {{ $isChargeCatelogRoute ? 'active' : '' }}">
-                            <i class="bi bi-tag"></i> Job Catalog
-                        </a>
-                    </li>
-                    @can('view_categories')
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isCategoryRoute ? 'active' : '' }}"
-                        href="{{ route('technician.terminal-categories.index') }}">
-                            <i class="bi bi-grid-3x3-gap me-2"></i> Categories
-                        </a>
-                    </li>
-                    @endcan
-                </ul>
-            </div>
 
             <!-- Claims & Payouts Section -->
             <div class="nav-section mb-3">
