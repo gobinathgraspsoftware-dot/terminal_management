@@ -5,7 +5,7 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1"><i class="bi bi-box-arrow-in-down text-success me-2"></i>Stock In</h4>
+            <h4 class="mb-1">Stock In</h4>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
@@ -16,163 +16,99 @@
         </div>
     </div>
 
-    @php $roleName = explode('.', Route::currentRouteName())[0]; @endphp
-
     <div class="card border-0 shadow-sm">
         <div class="card-body">
-            {{-- Stock Type Selection --}}
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Stock Category <span class="text-danger">*</span></label>
-                    <div class="d-flex gap-3">
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="stock_type_toggle" id="type_router" value="router" checked>
-                            <label class="form-check-label fw-semibold" for="type_router">
-                                <i class="bi bi-router text-primary"></i> Router
-                            </label>
-                        </div>
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="stock_type_toggle" id="type_accessory" value="accessory">
-                            <label class="form-check-label fw-semibold" for="type_accessory">
-                                <i class="bi bi-sim text-info"></i> Accessory
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {{-- ═══════════ ROUTER FORM ═══════════ --}}
-            <form action="{{ route($roleName . '.inventory.stock-in.process') }}" method="POST" id="routerStockInForm">
+            <form action="{{ route('admin.inventory.stock-in.process') }}" method="POST" id="stockInForm">
                 @csrf
-                <input type="hidden" name="stock_type" value="router">
-                <div id="router_section">
-                    <div class="alert alert-info d-flex align-items-center mb-3">
-                        <i class="bi bi-info-circle me-2"></i>
-                        <small>Each router is individually tracked. Key in the Terminal ID and details for each router.</small>
+
+                <div class="row g-3">
+                    <!-- Stock Type -->
+                    <div class="col-md-4">
+                        <label for="stock_type" class="form-label">Stock Type <span class="text-danger">*</span></label>
+                        <select name="stock_type" id="stock_type" class="form-select @error('stock_type') is-invalid @enderror" required>
+                            <option value="">-- Select --</option>
+                            <option value="router" {{ old('stock_type') === 'router' ? 'selected' : '' }}>Router</option>
+                            <option value="accessory" {{ old('stock_type') === 'accessory' ? 'selected' : '' }}>Accessory</option>
+                        </select>
+                        @error('stock_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
-                    <div class="row g-3">
-                        {{-- Existing or New --}}
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Router Item</label>
-                            <select name="inventory_item_id" id="router_item_select" class="form-select select2">
-                                <option value="">-- Create New Router --</option>
-                                @foreach($routerItems as $item)
-                                    <option value="{{ $item->id }}">{{ $item->item_code }} - {{ $item->item_name }} ({{ $item->serial_number }})</option>
-                                @endforeach
-                            </select>
-                            <div class="form-text">Select existing router to restock, or leave blank to create new.</div>
-                        </div>
+                    <!-- Existing Item (for accessories or existing routers) -->
+                    <div class="col-md-4" id="existing-item-group">
+                        <label for="inventory_item_id" class="form-label">Select Item <span class="text-danger">*</span></label>
+                        <select name="inventory_item_id" id="inventory_item_id" class="form-select select2 @error('inventory_item_id') is-invalid @enderror">
+                            <option value="">-- Select Item --</option>
+                        </select>
+                        @error('inventory_item_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <div id="current-stock-info" class="mt-1 small text-muted"></div>
+                    </div>
 
-                        <div id="new_router_fields">
-                            <div class="row g-3">
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Terminal ID <span class="text-danger">*</span></label>
-                                    <input type="text" name="serial_number" class="form-control" placeholder="Enter Terminal ID" required>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Item Name <span class="text-danger">*</span></label>
-                                    <input type="text" name="item_name" class="form-control" placeholder="e.g., TP-Link Router" required>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
-                                    <select name="job_category_id" class="form-select" required>
-                                        <option value="">-- Select --</option>
-                                        @foreach($jobCategories as $cat)
-                                            @if($cat->slug === 'router')
-                                            <option value="{{ $cat->id }}" selected>{{ $cat->category_name }}</option>
-                                            @else
-                                            <option value="{{ $cat->id }}">{{ $cat->category_name }}</option>
-                                            @endif
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Brand</label>
-                                    <input type="text" name="brand" class="form-control" placeholder="e.g., TP-Link">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Model</label>
-                                    <input type="text" name="model" class="form-control" placeholder="e.g., Archer C6">
-                                </div>
+                    <!-- New Router Fields (hidden by default) -->
+                    <div id="new-router-fields" style="display:none;">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="item_name" class="form-label">Router Name <span class="text-danger">*</span></label>
+                                <input type="text" name="item_name" id="item_name" class="form-control @error('item_name') is-invalid @enderror"
+                                       value="{{ old('item_name') }}" maxlength="150">
+                                @error('item_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-md-4">
+                                <label for="brand" class="form-label">Brand</label>
+                                <input type="text" name="brand" id="brand" class="form-control" value="{{ old('brand') }}" maxlength="100">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="model" class="form-label">Model</label>
+                                <input type="text" name="model" id="model" class="form-control" value="{{ old('model') }}" maxlength="100">
                             </div>
                         </div>
+                    </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Movement Date</label>
-                            <input type="date" name="movement_date" class="form-control" value="{{ date('Y-m-d') }}">
-                        </div>
+                    <!-- Stock In Date -->
+                    <div class="col-md-4">
+                        <label for="stockin_date" class="form-label">Stock In Date <span class="text-danger">*</span></label>
+                        <input type="date" name="stockin_date" id="stockin_date" class="form-control @error('stockin_date') is-invalid @enderror"
+                               value="{{ old('stockin_date', date('Y-m-d')) }}" max="{{ date('Y-m-d') }}" required>
+                        @error('stockin_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Condition</label>
-                            <select name="item_condition" class="form-select">
-                                <option value="good">Good</option>
-                                <option value="faulty">Faulty</option>
-                            </select>
-                        </div>
+                    <!-- Quantity -->
+                    <div class="col-md-4">
+                        <label for="quantity" class="form-label">Quantity <span class="text-danger">*</span></label>
+                        <input type="number" name="quantity" id="quantity" class="form-control @error('quantity') is-invalid @enderror"
+                               value="{{ old('quantity', 1) }}" min="1" required>
+                        @error('quantity') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
 
-                        <div class="col-12">
-                            <label class="form-label fw-semibold">Remarks</label>
-                            <textarea name="remarks" class="form-control" rows="2" placeholder="Optional remarks..."></textarea>
+                    <!-- Router IDs (dynamic based on quantity) -->
+                    <div class="col-12" id="router-ids-section" style="display:none;">
+                        <label class="form-label fw-bold">Router IDs <small class="text-muted">(one per quantity unit)</small></label>
+                        <div id="router-ids-container">
+                            <!-- Dynamic fields generated by JS -->
                         </div>
                     </div>
 
-                    <hr class="my-4">
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-box-arrow-in-down me-1"></i> Process Stock In (Router)
-                    </button>
+                    <!-- Reason -->
+                    <div class="col-md-6">
+                        <label for="reason" class="form-label">Reason</label>
+                        <input type="text" name="reason" id="reason" class="form-control @error('reason') is-invalid @enderror"
+                               value="{{ old('reason', 'Stock In') }}" maxlength="500">
+                        @error('reason') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
+
+                    <!-- Remarks -->
+                    <div class="col-md-6">
+                        <label for="remarks" class="form-label">Remarks</label>
+                        <textarea name="remarks" id="remarks" class="form-control @error('remarks') is-invalid @enderror"
+                                  rows="2" maxlength="1000">{{ old('remarks') }}</textarea>
+                        @error('remarks') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                    </div>
                 </div>
-            </form>
 
-            {{-- ═══════════ ACCESSORY FORM ═══════════ --}}
-            <form action="{{ route($roleName . '.inventory.stock-in.process') }}" method="POST" id="accessoryStockInForm" style="display:none;">
-                @csrf
-                <input type="hidden" name="stock_type" value="accessory">
-                <div id="accessory_section">
-                    <div class="alert alert-info d-flex align-items-center mb-3">
-                        <i class="bi bi-info-circle me-2"></i>
-                        <small>Accessories (SIM Card / Antenna) are quantity-based. Select the item and enter quantity to add.</small>
-                    </div>
-
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Accessory Item <span class="text-danger">*</span></label>
-                            <select name="inventory_item_id" id="accessory_item_select" class="form-select select2" required>
-                                <option value="">-- Select Accessory --</option>
-                                @foreach($accessoryItems as $item)
-                                    <option value="{{ $item->id }}">
-                                        {{ $item->item_code }} - {{ $item->item_name }}
-                                        ({{ $item->accessory_type === 'sim_card' ? 'SIM Card' : 'Antenna' }})
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Current Stock</label>
-                            <input type="text" id="current_stock_display" class="form-control" readonly value="-">
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Quantity to Add <span class="text-danger">*</span></label>
-                            <input type="number" name="quantity" class="form-control" min="1" value="1" required>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Movement Date</label>
-                            <input type="date" name="movement_date" class="form-control" value="{{ date('Y-m-d') }}">
-                        </div>
-
-                        <div class="col-12">
-                            <label class="form-label fw-semibold">Remarks</label>
-                            <textarea name="remarks" class="form-control" rows="2" placeholder="Optional remarks..."></textarea>
-                        </div>
-                    </div>
-
-                    <hr class="my-4">
+                <div class="mt-4">
                     <button type="submit" class="btn btn-success">
-                        <i class="bi bi-box-arrow-in-down me-1"></i> Process Stock In (Accessory)
+                        <i class="bi bi-box-arrow-in-down me-1"></i> Process Stock In
                     </button>
+                    <a href="{{ route('admin.inventory.index') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
                 </div>
             </form>
         </div>
@@ -182,43 +118,98 @@
 
 @push('scripts')
 <script>
-$(document).ready(function() {
-    $('.select2').select2({ theme: 'bootstrap-5', width: '100%', allowClear: true, placeholder: '-- Select --' });
+$(function() {
+    var routerItems = @json($routerItems);
+    var accessoryItems = @json($accessoryItems);
 
-    // Toggle stock type sections
-    $('input[name="stock_type_toggle"]').on('change', function() {
-        var val = $(this).val();
-        if (val === 'router') {
-            $('#routerStockInForm').show();
-            $('#accessoryStockInForm').hide();
-        } else {
-            $('#routerStockInForm').hide();
-            $('#accessoryStockInForm').show();
+    // Toggle UI based on stock type
+    function toggleStockType() {
+        var type = $('#stock_type').val();
+        var $select = $('#inventory_item_id');
+        $select.empty().append('<option value="">-- Select Item --</option>');
+
+        if (type === 'router') {
+            routerItems.forEach(function(item) {
+                $select.append('<option value="' + item.id + '">' + item.item_code + ' - ' + item.item_name + '</option>');
+            });
+            $select.append('<option value="">+ Create New Router</option>');
+            $('#new-router-fields').hide();
+        } else if (type === 'accessory') {
+            accessoryItems.forEach(function(item) {
+                var label = item.accessory_type === 'sim_card' ? '(SIM)' : '(Antenna)';
+                $select.append('<option value="' + item.id + '">' + item.item_code + ' - ' + item.item_name + ' ' + label + '</option>');
+            });
+            $('#new-router-fields').hide();
         }
-    });
+
+        if ($select.hasClass('select2-hidden-accessible')) {
+            $select.trigger('change.select2');
+        }
+
+        updateRouterIdFields();
+    }
 
     // Toggle new router fields
-    $('#router_item_select').on('change.select2', function() {
-        if ($(this).val()) {
-            $('#new_router_fields').hide();
-            $('#new_router_fields input, #new_router_fields select').removeAttr('required');
+    $('#inventory_item_id').on('change', function() {
+        var type = $('#stock_type').val();
+        if (type === 'router' && !$(this).val()) {
+            $('#new-router-fields').show();
         } else {
-            $('#new_router_fields').show();
-            $('#new_router_fields input[name="serial_number"], #new_router_fields input[name="item_name"]').attr('required', true);
+            $('#new-router-fields').hide();
         }
+        fetchItemStock();
     });
 
-    // Fetch current stock for accessory
-    $('#accessory_item_select').on('change.select2', function() {
-        var itemId = $(this).val();
+    // Fetch current stock
+    function fetchItemStock() {
+        var itemId = $('#inventory_item_id').val();
         if (!itemId) {
-            $('#current_stock_display').val('-');
+            $('#current-stock-info').html('');
             return;
         }
-        $.get('{{ route($roleName . ".inventory.get-item-stock") }}', { item_id: itemId }, function(data) {
-            $('#current_stock_display').val(data.warehouse_stock + ' in warehouse');
+        $.get('{{ route("admin.inventory.get-item-stock") }}', { item_id: itemId }, function(data) {
+            $('#current-stock-info').html(
+                '<i class="bi bi-box me-1"></i>Current warehouse stock: <strong>' + data.warehouse_stock + '</strong>'
+            );
         });
-    });
+    }
+
+    // Generate router ID fields based on quantity
+    function updateRouterIdFields() {
+        var qty = parseInt($('#quantity').val()) || 0;
+        var $container = $('#router-ids-container');
+        $container.empty();
+
+        if (qty > 0) {
+            $('#router-ids-section').show();
+            for (var i = 0; i < qty; i++) {
+                $container.append(
+                    '<div class="row mb-2">' +
+                    '<div class="col-md-6">' +
+                    '<div class="input-group input-group-sm">' +
+                    '<span class="input-group-text">Router ID #' + (i + 1) + '</span>' +
+                    '<input type="text" name="router_ids[]" class="form-control" placeholder="Enter Router ID" maxlength="100">' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>'
+                );
+            }
+        } else {
+            $('#router-ids-section').hide();
+        }
+    }
+
+    // Events
+    $('#stock_type').on('change', toggleStockType);
+    $('#quantity').on('change input', updateRouterIdFields);
+
+    // Init
+    toggleStockType();
+
+    // Initialize Select2
+    if ($.fn.select2) {
+        $('#inventory_item_id').select2({ theme: 'bootstrap-5', placeholder: '-- Select Item --', allowClear: true });
+    }
 });
 </script>
 @endpush

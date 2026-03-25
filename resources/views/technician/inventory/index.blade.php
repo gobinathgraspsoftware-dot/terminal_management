@@ -3,94 +3,62 @@
 
 @section('content')
 <div class="container-fluid">
-    <div class="mb-4">
-        <h4 class="mb-1">My Inventory</h4>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item"><a href="{{ route('technician.dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item active">My Inventory</li>
-            </ol>
-        </nav>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">My Inventory Movements</h4>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ route('technician.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Inventory</li>
+                </ol>
+            </nav>
+        </div>
     </div>
 
-    {{-- Summary Cards --}}
+    <!-- Summary -->
     <div class="row g-3 mb-4">
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-primary fs-3 fw-bold">{{ $summary['total_items'] }}</div>
-                    <small class="text-muted">Total Items Assigned</small>
+                    <div class="text-muted small">Warehouse Stock</div>
+                    <div class="fs-4 fw-bold text-primary">{{ $stats['total_warehouse_stock'] ?? 0 }}</div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-info fs-3 fw-bold">{{ $summary['router_count'] }}</div>
-                    <small class="text-muted">Routers</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="text-secondary fs-3 fw-bold">{{ $summary['accessory_count'] }}</div>
-                    <small class="text-muted">Accessories</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center">
-                    <div class="text-success fs-3 fw-bold">{{ $summary['movement_count'] }}</div>
-                    <small class="text-muted">Total Movements</small>
+                    <div class="text-muted small">Today's Movements</div>
+                    <div class="fs-4 fw-bold text-info">{{ $stats['today_movements'] ?? 0 }}</div>
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- Assigned Items Table --}}
+    <!-- DataTable -->
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white fw-semibold">
-            <i class="bi bi-box-seam me-2"></i>Items Assigned to Me
+        <div class="card-header bg-transparent fw-bold">
+            <i class="bi bi-arrow-left-right me-1"></i> Stock Movements (My Tickets)
         </div>
         <div class="card-body">
-            @if($assignedItems->count())
             <div class="table-responsive">
-                <table id="techInventoryTable" class="table table-hover table-sm align-middle" style="width:100%">
+                <table id="tech-inventory-table" class="table table-hover table-sm align-middle" style="width:100%">
                     <thead class="table-light">
                         <tr>
-                            <th width="50">#</th>
-                            <th>Item Code</th>
-                            <th>Item Name</th>
+                            <th>#</th>
+                            <th>Movement #</th>
+                            <th>Item</th>
                             <th>Type</th>
-                            <th>Terminal ID</th>
-                            <th>Category</th>
-                            <th class="text-end">Qty</th>
+                            <th>Qty</th>
+                            <th>Router IDs</th>
+                            <th>Ticket</th>
+                            <th>Condition</th>
+                            <th>Date</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @foreach($assignedItems as $index => $balance)
-                        @php $item = $balance->inventoryItem; @endphp
-                        <tr>
-                            <td>{{ $index + 1 }}</td>
-                            <td><code>{{ $item->item_code ?? 'N/A' }}</code></td>
-                            <td>{{ $item->item_name ?? 'N/A' }}</td>
-                            <td>{!! $item->getTypeBadge() !!}</td>
-                            <td>{{ $item->serial_number ?? '-' }}</td>
-                            <td>{{ $item->jobCategory->category_name ?? 'N/A' }}</td>
-                            <td class="text-end fw-semibold">{{ $balance->quantity }}</td>
-                        </tr>
-                        @endforeach
-                    </tbody>
+                    <tbody></tbody>
                 </table>
             </div>
-            @else
-            <div class="text-center py-5 text-muted">
-                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                <p>No items currently assigned to you.</p>
-            </div>
-            @endif
         </div>
     </div>
 </div>
@@ -98,15 +66,45 @@
 
 @push('scripts')
 <script>
-$(document).ready(function() {
-    @if($assignedItems->count() > 10)
-    $('#techInventoryTable').DataTable({
-        processing: false,
-        serverSide: false,
+$(function() {
+    $('#tech-inventory-table').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: '{{ route("technician.inventory.datatable") }}',
+        columns: [
+            { data: 'DT_RowIndex', orderable: false, searchable: false, width: '40px' },
+            { data: 'movement_no' },
+            { data: 'item_name' },
+            { data: 'movement_type', orderable: false },
+            {
+                data: 'quantity',
+                className: 'text-center fw-bold',
+                render: function(data) {
+                    var cls = data < 0 ? 'text-danger' : 'text-success';
+                    return '<span class="' + cls + '">' + data + '</span>';
+                }
+            },
+            {
+                data: 'router_ids',
+                render: function(data) {
+                    if (!data || data === '-') return '<span class="text-muted">-</span>';
+                    return '<small class="text-primary">' + data + '</small>';
+                }
+            },
+            {
+                data: 'ticket_no',
+                render: function(data) {
+                    if (!data || data === '-') return '-';
+                    return '<span class="badge bg-outline-primary border">' + data + '</span>';
+                }
+            },
+            { data: 'condition', orderable: false },
+            { data: 'movement_date' }
+        ],
+        order: [[1, 'desc']],
         pageLength: 25,
-        order: [[1, 'asc']],
+        language: { search: '', searchPlaceholder: 'Search movements...' }
     });
-    @endif
 });
 </script>
 @endpush

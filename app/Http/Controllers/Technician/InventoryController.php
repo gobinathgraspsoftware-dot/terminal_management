@@ -4,117 +4,88 @@ namespace App\Http\Controllers\Technician;
 
 use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
-use App\Models\StockBalance;
 use App\Models\StockMovement;
+use App\Services\InventoryService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class InventoryController extends Controller
 {
-    /**
-     * Technician's inventory index - items assigned to them.
-     */
-    public function index()
+    protected InventoryService $service;
+
+    public function __construct(InventoryService $service)
     {
-        $technicianId = auth()->id();
-
-        // Summary stats
-        $summary = $this->getSummary($technicianId);
-
-        // Items assigned to this technician
-        $assignedItems = StockBalance::where('holder_type', 'technician')
-            ->where('holder_id', $technicianId)
-            ->where('quantity', '>', 0)
-            ->with(['inventoryItem.jobCategory'])
-            ->get();
-
-        return view('technician.inventory.index', compact('summary', 'assignedItems'));
+        $this->service = $service;
     }
 
     /**
-     * DataTable AJAX endpoint for technician's items.
+     * Technician inventory view - shows stock movements related to their tickets.
+     */
+    public function index()
+    {
+        $stats = $this->service->getSummaryStats();
+
+        return view('technician.inventory.index', compact('stats'));
+    }
+
+    /**
+     * DataTable AJAX for technician view.
+     * Shows movements linked to technician's tickets.
      */
     public function datatable(Request $request)
     {
-        $technicianId = auth()->id();
+        $user = Auth::user();
 
-        $query = StockBalance::where('holder_type', 'technician')
-            ->where('holder_id', $technicianId)
-            ->where('quantity', '>', 0)
-            ->with(['inventoryItem.jobCategory']);
+        $query = StockMovement::with(['inventoryItem', 'performer', 'ticket'])
+            ->whereHas('ticket', function ($q) use ($user) {
+                $q->where('technician_id', $user->id);
+            });
 
         $totalRecords = (clone $query)->count();
 
-        // Search
         $search = $request->input('search.value', '');
         if ($search) {
-            $query->whereHas('inventoryItem', function ($q) use ($search) {
-                $q->where('item_name', 'like', "%{$search}%")
-                  ->orWhere('item_code', 'like', "%{$search}%")
-                  ->orWhere('serial_number', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->where('movement_no', 'like', "%{$search}%")
+                  ->orWhere('reason', 'like', "%{$search}%")
+                  ->orWhereHas('inventoryItem', fn($q2) => $q2->where('item_name', 'like', "%{$search}%")
+                      ->orWhere('item_code', 'like', "%{$search}%"))
+                  ->orWhereHas('ticket', fn($q2) => $q2->where('ticket_no', 'like', "%{$search}%"));
             });
         }
 
         $filteredRecords = $query->count();
 
-        // Pagination
+        $orderColumn = $request->input('order.0.column', 0);
+        $orderDir = $request->input('order.0.dir', 'desc');
+        $sortable = [0 => 'movement_no', 1 => 'movement_type', 2 => 'movement_date', 3 => 'quantity'];
+        $query->orderBy($sortable[$orderColumn] ?? 'created_at', $orderDir);
+
         $start = $request->input('start', 0);
         $length = $request->input('length', 10);
-        $balances = $query->skip($start)->take($length)->get();
+        $movements = $query->skip($start)->take($length)->get();
 
-        $data = $balances->map(function ($balance, $index) use ($start) {
-            $item = $balance->inventoryItem;
+        $data = $movements->map(function ($m, $index) use ($start) {
             return [
                 'DT_RowIndex' => $start + $index + 1,
-                'item_code' => $item->item_code ?? 'N/A',
-                'item_name' => $item->item_name ?? 'N/A',
-                'item_type' => $item->getTypeBadge(),
-                'serial_number' => $item->serial_number ?? '-',
-                'category' => $item->jobCategory->category_name ?? 'N/A',
-                'quantity' => $balance->quantity,
+                'id' => $m->id,
+                'movement_no' => $m->movement_no,
+                'item_name' => $m->inventoryItem->item_name ?? 'N/A',
+                'movement_type' => $m->getTypeBadge(),
+                'quantity' => $m->quantity,
+                'router_ids' => $m->getRouterIdsDisplay(),
+                'ticket_no' => $m->ticket->ticket_no ?? '-',
+                'condition' => $m->getConditionBadge(),
+                'movement_date' => $m->movement_date?->format('d M Y'),
+                'date_label' => $m->getDateLabel(),
             ];
         });
 
         return response()->json([
-            'draw' => intval($request->input('draw')),
+            'draw' => intval($request->input('draw', 1)),
             'recordsTotal' => $totalRecords,
             'recordsFiltered' => $filteredRecords,
             'data' => $data,
         ]);
-    }
-
-    /**
-     * Get summary statistics for technician.
-     */
-    protected function getSummary(int $technicianId): array
-    {
-        $balances = StockBalance::where('holder_type', 'technician')
-            ->where('holder_id', $technicianId)
-            ->where('quantity', '>', 0)
-            ->with('inventoryItem')
-            ->get();
-
-        $totalItems = $balances->sum('quantity');
-        $routerCount = $balances->filter(fn($b) => $b->inventoryItem?->isRouter())->sum('quantity');
-        $accessoryCount = $balances->filter(fn($b) => $b->inventoryItem?->isAccessory())->sum('quantity');
-
-        // Recent movements for this technician
-        $recentMovements = StockMovement::where(function ($q) use ($technicianId) {
-                $q->where(function ($q2) use ($technicianId) {
-                    $q2->where('from_holder_type', 'technician')
-                       ->where('from_holder_id', $technicianId);
-                })->orWhere(function ($q2) use ($technicianId) {
-                    $q2->where('to_holder_type', 'technician')
-                       ->where('to_holder_id', $technicianId);
-                });
-            })
-            ->count();
-
-        return [
-            'total_items' => $totalItems,
-            'router_count' => $routerCount,
-            'accessory_count' => $accessoryCount,
-            'movement_count' => $recentMovements,
-        ];
     }
 }

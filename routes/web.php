@@ -185,7 +185,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         // API list for dropdowns (MUST be before /{vendor})
         Route::get('/api/list', [AdminVendorController::class, 'getList'])->name('api.list');
 
-        // Vendor code suggestions (NEW — MUST be before /{vendor})
+        // Vendor code suggestions (MUST be before /{vendor})
         Route::get('/suggest-code', [AdminVendorController::class, 'suggestCode'])->name('suggest-code');
         Route::get('/check-code', [AdminVendorController::class, 'checkCode'])->name('check-code');
 
@@ -222,6 +222,11 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::delete('/{job_category}', [AdminJobCategoryController::class, 'destroy'])->name('destroy');
     });
 
+    /* ══════════════════════════════════════════════════════════
+     * INVENTORY MANAGEMENT (Updated)
+     * Stock Out = list-only (auto-triggered from tickets)
+     * Stock Return = list + manual create form
+     * ══════════════════════════════════════════════════════════ */
     Route::prefix('inventory')->name('inventory.')->group(function () {
         // DataTable + AJAX + Export (before parameterized routes)
         Route::get('/datatable', [AdminInventoryController::class, 'datatable'])->name('datatable');
@@ -232,15 +237,16 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/stock-in', [AdminInventoryController::class, 'stockInForm'])->name('stock-in');
         Route::post('/stock-in', [AdminInventoryController::class, 'stockIn'])->name('stock-in.process');
 
-        // Stock Out
-        Route::get('/stock-out', [AdminInventoryController::class, 'stockOutForm'])->name('stock-out');
-        Route::post('/stock-out', [AdminInventoryController::class, 'stockOut'])->name('stock-out.process');
+        // Stock Out (list-only — no POST route, auto-triggered from ticket creation)
+        Route::get('/stock-out', [AdminInventoryController::class, 'stockOutIndex'])->name('stock-out');
+        Route::get('/stock-out/datatable', [AdminInventoryController::class, 'stockOutDatatable'])->name('stock-out.datatable');
 
-        // Stock Return
-        Route::get('/stock-return', [AdminInventoryController::class, 'stockReturnForm'])->name('stock-return');
+        // Stock Return (list + manual create form)
+        Route::get('/stock-return', [AdminInventoryController::class, 'stockReturnIndex'])->name('stock-return');
+        Route::get('/stock-return/datatable', [AdminInventoryController::class, 'stockReturnDatatable'])->name('stock-return.datatable');
         Route::post('/stock-return', [AdminInventoryController::class, 'stockReturn'])->name('stock-return.process');
 
-        // Stock Adjustment (NEW)
+        // Stock Adjustment
         Route::get('/stock-adjustment', [AdminInventoryController::class, 'stockAdjustmentForm'])->name('stock-adjustment');
         Route::post('/stock-adjustment', [AdminInventoryController::class, 'stockAdjustment'])->name('stock-adjustment.process');
 
@@ -326,8 +332,6 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/{claim}/non-claimable', [AdminClaimController::class, 'markNonClaimable'])->name('non-claimable');
         Route::post('/{claim}/update-amount', [AdminClaimController::class, 'updateAmount'])->name('update-amount');
     });
-
-    /* Inventory Management Module removed */
 
     /* Settings (requires specific permission) */
     Route::middleware(['permission:settings.edit'])->group(function () {
@@ -421,6 +425,11 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{claim}', [SupervisorClaimController::class, 'show'])->name('show');
     });
 
+    /* ══════════════════════════════════════════════════════════
+     * SUPERVISOR INVENTORY (Updated)
+     * Stock Out = list-only (auto-triggered from tickets)
+     * Stock Return = list + manual create form
+     * ══════════════════════════════════════════════════════════ */
     Route::prefix('inventory')->name('inventory.')->group(function () {
         // DataTable + AJAX (before parameterized routes)
         Route::get('/datatable', [SupervisorInventoryController::class, 'datatable'])->name('datatable');
@@ -430,12 +439,13 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/stock-in', [SupervisorInventoryController::class, 'stockInForm'])->name('stock-in');
         Route::post('/stock-in', [SupervisorInventoryController::class, 'stockIn'])->name('stock-in.process');
 
-        // Stock Out
-        Route::get('/stock-out', [SupervisorInventoryController::class, 'stockOutForm'])->name('stock-out');
-        Route::post('/stock-out', [SupervisorInventoryController::class, 'stockOut'])->name('stock-out.process');
+        // Stock Out (list-only — no POST route, auto-triggered from ticket creation)
+        Route::get('/stock-out', [SupervisorInventoryController::class, 'stockOutIndex'])->name('stock-out');
+        Route::get('/stock-out/datatable', [SupervisorInventoryController::class, 'stockOutDatatable'])->name('stock-out.datatable');
 
-        // Stock Return
-        Route::get('/stock-return', [SupervisorInventoryController::class, 'stockReturnForm'])->name('stock-return');
+        // Stock Return (list + manual create form)
+        Route::get('/stock-return', [SupervisorInventoryController::class, 'stockReturnIndex'])->name('stock-return');
+        Route::get('/stock-return/datatable', [SupervisorInventoryController::class, 'stockReturnDatatable'])->name('stock-return.datatable');
         Route::post('/stock-return', [SupervisorInventoryController::class, 'stockReturn'])->name('stock-return.process');
 
         // Movements
@@ -445,8 +455,6 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         // Index
         Route::get('/', [SupervisorInventoryController::class, 'index'])->name('index');
     });
-
-    /* Inventory Management Module removed */
 
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
@@ -521,13 +529,11 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/{claim}', [TechnicianClaimController::class, 'show'])->name('show');
     });
 
+    /* Technician Inventory (view-only) */
     Route::prefix('inventory')->name('inventory.')->group(function () {
         Route::get('/datatable', [TechnicianInventoryController::class, 'datatable'])->name('datatable');
         Route::get('/', [TechnicianInventoryController::class, 'index'])->name('index');
     });
-
-    /* Inventory Management Module removed */
-
 });
 
 // =====================================================

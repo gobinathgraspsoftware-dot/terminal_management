@@ -9,6 +9,7 @@ use App\Models\TicketComment;
 use App\Models\TicketProof;
 use App\Models\TicketStatusHistory;
 use App\Models\User;
+use App\Services\InventoryService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -78,6 +79,10 @@ class TicketService
     /**
      * Create a new ticket with vendor-based ticket ID.
      * NOTE: SLA is NOT set at creation. It is calculated when technician ACCEPTS the ticket.
+     *
+     * INVENTORY INTEGRATION:
+     * - Installation tickets: auto stock-out (deduct router from warehouse)
+     * - Replacement tickets: auto stock-return (return old router to warehouse)
      */
     public function create(array $data): Ticket
     {
@@ -132,6 +137,42 @@ class TicketService
                 'created_at' => now(),
             ]);
 
+            // ── AUTO STOCK OUT: Installation Ticket ──
+            // When an installation ticket is created with router_ids,
+            // auto-deduct quantity from inventory.
+            if ($ticket->isInstallationJob() && !empty($data['router_ids'])) {
+                $ticket->update(['router_ids' => $data['router_ids']]);
+
+                try {
+                    $inventoryService = app(InventoryService::class);
+                    $inventoryService->autoStockOutForInstallation($ticket->fresh());
+                } catch (\Exception $e) {
+                    Log::warning('Auto stock-out on ticket creation failed', [
+                        'ticket_id' => $ticket->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Don't fail ticket creation if stock-out fails
+                }
+            }
+
+            // ── AUTO STOCK RETURN: Replacement Ticket ──
+            // When a replacement ticket is created with old_router_ids,
+            // auto-return old routers back to stock.
+            if ($ticket->isReplacementJob() && !empty($data['old_router_ids'])) {
+                $ticket->update(['old_router_ids' => $data['old_router_ids']]);
+
+                try {
+                    $inventoryService = app(InventoryService::class);
+                    $inventoryService->autoStockReturnForReplacement($ticket->fresh());
+                } catch (\Exception $e) {
+                    Log::warning('Auto stock-return on ticket creation failed', [
+                        'ticket_id' => $ticket->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Don't fail ticket creation if stock-return fails
+                }
+            }
+
             return $ticket;
         });
     }
@@ -181,6 +222,26 @@ class TicketService
                     'remarks' => $data['status_remarks'] ?? null,
                     'created_at' => now(),
                 ]);
+            }
+
+            // ── AUTO STOCK RETURN ON UPDATE: Replacement Ticket ──
+            // If old_router_ids are being set during update (technician submits old router IDs)
+            $originalOldRouterIds = $ticket->getOriginal('old_router_ids');
+            if ($ticket->isReplacementJob()
+                && !empty($data['old_router_ids'])
+                && empty($originalOldRouterIds)) {
+
+                $ticket->update(['old_router_ids' => $data['old_router_ids']]);
+
+                try {
+                    $inventoryService = app(InventoryService::class);
+                    $inventoryService->autoStockReturnForReplacement($ticket->fresh());
+                } catch (\Exception $e) {
+                    Log::warning('Auto stock-return on ticket update failed', [
+                        'ticket_id' => $ticket->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
             return $ticket->fresh();

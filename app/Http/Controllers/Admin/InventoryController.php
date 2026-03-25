@@ -5,14 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StockAdjustmentRequest;
 use App\Http\Requests\StockInRequest;
-use App\Http\Requests\StockOutRequest;
 use App\Http\Requests\StockReturnRequest;
 use App\Http\Requests\StoreInventoryItemRequest;
 use App\Http\Requests\UpdateInventoryItemRequest;
 use App\Models\InventoryItem;
-use App\Models\JobCategory;
 use App\Models\StockBalance;
-use App\Models\Ticket;
 use App\Models\User;
 use App\Exports\InventoryExport;
 use App\Services\InventoryService;
@@ -41,9 +38,8 @@ class InventoryController extends Controller
         Gate::authorize('viewAny', InventoryItem::class);
 
         $stats = $this->service->getSummaryStats();
-        $jobCategories = JobCategory::active()->orderBy('category_name')->get();
 
-        return view('admin.inventory.index', compact('stats', 'jobCategories'));
+        return view('admin.inventory.index', compact('stats'));
     }
 
     /**
@@ -74,14 +70,13 @@ class InventoryController extends Controller
 
     /**
      * Show create form.
+     * Removed: job_category_id, serial_number
      */
     public function create()
     {
         Gate::authorize('create', InventoryItem::class);
 
-        $jobCategories = JobCategory::active()->orderBy('category_name')->get();
-
-        return view('admin.inventory.create', compact('jobCategories'));
+        return view('admin.inventory.create');
     }
 
     /**
@@ -112,7 +107,7 @@ class InventoryController extends Controller
     {
         Gate::authorize('view', $inventory_item);
 
-        $inventory_item->load(['jobCategory', 'creator', 'updater']);
+        $inventory_item->load(['creator', 'updater']);
 
         $warehouseStock = $inventory_item->getWarehouseStock();
         $totalStock = $inventory_item->getTotalStock();
@@ -150,9 +145,7 @@ class InventoryController extends Controller
     {
         Gate::authorize('update', $inventory_item);
 
-        $jobCategories = JobCategory::active()->orderBy('category_name')->get();
-
-        return view('admin.inventory.edit', compact('inventory_item', 'jobCategories'));
+        return view('admin.inventory.edit', compact('inventory_item'));
     }
 
     /**
@@ -209,21 +202,21 @@ class InventoryController extends Controller
     }
 
     // ══════════════════════════════════════════════════════════
-    // STOCK IN
+    // STOCK IN (Updated)
     // ══════════════════════════════════════════════════════════
 
     /**
      * Stock In form.
+     * Changes: stockin_date, removed condition, quantity + router_ids
      */
     public function stockInForm()
     {
         Gate::authorize('stockIn', InventoryItem::class);
 
-        $jobCategories = JobCategory::active()->orderBy('category_name')->get();
         $routerItems = InventoryItem::routers()->active()->orderBy('item_name')->get();
         $accessoryItems = InventoryItem::accessories()->active()->orderBy('item_name')->get();
 
-        return view('admin.inventory.stock-in', compact('jobCategories', 'routerItems', 'accessoryItems'));
+        return view('admin.inventory.stock-in', compact('routerItems', 'accessoryItems'));
     }
 
     /**
@@ -238,12 +231,9 @@ class InventoryController extends Controller
 
             // If stock type is router and creating a new router item
             if ($data['stock_type'] === 'router' && empty($data['inventory_item_id'])) {
-                // Create the router item first
                 $item = $this->service->createItem([
                     'item_name' => $data['item_name'],
-                    'job_category_id' => $data['job_category_id'],
                     'item_type' => InventoryItem::TYPE_ROUTER,
-                    'serial_number' => $data['serial_number'],
                     'brand' => $data['brand'] ?? null,
                     'model' => $data['model'] ?? null,
                     'reorder_level' => 1,
@@ -266,84 +256,60 @@ class InventoryController extends Controller
     }
 
     // ══════════════════════════════════════════════════════════
-    // STOCK OUT (linked to Ticket)
+    // STOCK OUT (List-Only View)
     // ══════════════════════════════════════════════════════════
 
     /**
-     * Stock Out form.
+     * Stock Out list (view only - no manual create form).
+     * Stock out is auto-triggered when installation ticket is created.
      */
-    public function stockOutForm()
+    public function stockOutIndex()
     {
         Gate::authorize('stockOut', InventoryItem::class);
 
-        $availableRouters = $this->service->getAvailableRouters();
-        $availableAccessories = $this->service->getAvailableAccessories();
-
-        // Tickets that are open/assigned/in_progress for linking
-        $tickets = Ticket::whereIn('status', [
-                Ticket::STATUS_OPEN,
-                Ticket::STATUS_ASSIGNED,
-                Ticket::STATUS_ACCEPTED,
-                Ticket::STATUS_IN_PROGRESS,
-                Ticket::STATUS_SCHEDULED,
-            ])
-            ->select('id', 'ticket_no', 'merchant_name', 'technician_id')
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $technicians = User::role('technician')
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get(['id', 'name', 'employee_id']);
-
-        return view('admin.inventory.stock-out', compact(
-            'availableRouters', 'availableAccessories', 'tickets', 'technicians'
-        ));
+        return view('admin.inventory.stock-out');
     }
 
     /**
-     * Process Stock Out.
+     * Stock Out DataTable AJAX.
      */
-    public function stockOut(StockOutRequest $request)
+    public function stockOutDatatable(Request $request)
     {
         Gate::authorize('stockOut', InventoryItem::class);
 
-        try {
-            $movement = $this->service->stockOut($request->validated());
-
-            return redirect()
-                ->route('admin.inventory.stock-out')
-                ->with('success', "Stock Out {$movement->movement_no} processed successfully.");
-        } catch (\Exception $e) {
-            return redirect()
-                ->back()
-                ->withInput()
-                ->with('error', 'Stock Out failed: ' . $e->getMessage());
-        }
+        $result = $this->service->getStockOutDatatable($request->all());
+        return response()->json($result);
     }
 
     // ══════════════════════════════════════════════════════════
-    // STOCK RETURN
+    // STOCK RETURN (Manual + Auto from Replacement)
     // ══════════════════════════════════════════════════════════
 
     /**
-     * Stock Return form.
+     * Stock Return form + list.
      */
-    public function stockReturnForm()
+    public function stockReturnIndex()
     {
         Gate::authorize('stockReturn', InventoryItem::class);
 
         $allItems = InventoryItem::active()->orderBy('item_name')->get();
-        $technicians = User::role('technician')
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get(['id', 'name', 'employee_id']);
 
-        return view('admin.inventory.stock-return', compact('allItems', 'technicians'));
+        return view('admin.inventory.stock-return', compact('allItems'));
     }
 
     /**
-     * Process Stock Return.
+     * Stock Return DataTable AJAX.
+     */
+    public function stockReturnDatatable(Request $request)
+    {
+        Gate::authorize('stockReturn', InventoryItem::class);
+
+        $result = $this->service->getStockReturnDatatable($request->all());
+        return response()->json($result);
+    }
+
+    /**
+     * Process manual Stock Return.
      */
     public function stockReturn(StockReturnRequest $request)
     {
@@ -364,7 +330,7 @@ class InventoryController extends Controller
     }
 
     // ══════════════════════════════════════════════════════════
-    // STOCK ADJUSTMENT
+    // STOCK ADJUSTMENT (unchanged)
     // ══════════════════════════════════════════════════════════
 
     /**

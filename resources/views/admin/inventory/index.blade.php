@@ -1,12 +1,12 @@
 @extends('layouts.app')
-@section('title', 'Inventory Management')
+@section('title', 'Inventory Items')
 
 @section('content')
 <div class="container-fluid">
-    {{-- Page Header --}}
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1">Inventory Management</h4>
+            <h4 class="mb-1">Inventory Items</h4>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
@@ -17,124 +17,122 @@
         <div>
             @can('export_inventory')
             <a href="{{ route('admin.inventory.export') }}" class="btn btn-outline-success btn-sm me-2">
-                <i class="bi bi-download me-1"></i> Export
+                <i class="bi bi-file-earmark-excel me-1"></i> Export
             </a>
             @endcan
             @can('create_inventory')
             <a href="{{ route('admin.inventory.create') }}" class="btn btn-primary btn-sm">
-                <i class="bi bi-plus-lg me-1"></i> Add Item
+                <i class="bi bi-plus-circle me-1"></i> Add Item
             </a>
             @endcan
         </div>
     </div>
 
-    {{-- Summary Cards --}}
+    <!-- Summary Cards -->
     <div class="row g-3 mb-4">
         <div class="col-md-2">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-primary fs-4 fw-bold">{{ $stats['total_items'] }}</div>
-                    <small class="text-muted">Total Items</small>
+                    <div class="text-muted small">Total Items</div>
+                    <div class="fs-4 fw-bold text-primary">{{ $stats['total_items'] ?? 0 }}</div>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-success fs-4 fw-bold">{{ $stats['active_items'] }}</div>
-                    <small class="text-muted">Active Items</small>
+                    <div class="text-muted small">Active</div>
+                    <div class="fs-4 fw-bold text-success">{{ $stats['active_items'] ?? 0 }}</div>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-info fs-4 fw-bold">{{ $stats['total_routers'] }}</div>
-                    <small class="text-muted">Routers</small>
+                    <div class="text-muted small">Routers</div>
+                    <div class="fs-4 fw-bold text-info">{{ $stats['total_routers'] ?? 0 }}</div>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-secondary fs-4 fw-bold">{{ $stats['total_accessories'] }}</div>
-                    <small class="text-muted">Accessories</small>
+                    <div class="text-muted small">Accessories</div>
+                    <div class="fs-4 fw-bold text-warning">{{ $stats['total_accessories'] ?? 0 }}</div>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-danger fs-4 fw-bold">{{ $stats['low_stock_count'] }}</div>
-                    <small class="text-muted">Low Stock</small>
+                    <div class="text-muted small">Low Stock</div>
+                    <div class="fs-4 fw-bold text-danger">{{ $stats['low_stock_count'] ?? 0 }}</div>
                 </div>
             </div>
         </div>
         <div class="col-md-2">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-warning fs-4 fw-bold">{{ $stats['today_movements'] }}</div>
-                    <small class="text-muted">Today's Movements</small>
+                    <div class="text-muted small">Warehouse Stock</div>
+                    <div class="fs-4 fw-bold text-secondary">{{ $stats['total_warehouse_stock'] ?? 0 }}</div>
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- Filters --}}
+    <!-- Filters -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
-            <div class="row g-3 align-items-end">
+            <div class="row g-3">
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold">Item Type</label>
-                    <select id="filter_item_type" class="form-select form-select-sm">
+                    <label class="form-label">Item Type</label>
+                    <select id="filter-item-type" class="form-select form-select-sm">
                         <option value="">All Types</option>
                         <option value="router">Router</option>
                         <option value="accessory">Accessory</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold">Category</label>
-                    <select id="filter_category" class="form-select form-select-sm">
-                        <option value="">All Categories</option>
-                        @foreach($jobCategories as $cat)
-                            <option value="{{ $cat->id }}">{{ $cat->category_name }}</option>
-                        @endforeach
+                    <label class="form-label">Accessory Type</label>
+                    <select id="filter-accessory-type" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        <option value="sim_card">SIM Card</option>
+                        <option value="antenna">Antenna</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold">Status</label>
-                    <select id="filter_status" class="form-select form-select-sm">
-                        <option value="">All Status</option>
+                    <label class="form-label">Status</label>
+                    <select id="filter-status" class="form-select form-select-sm">
+                        <option value="">All</option>
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
                     </select>
                 </div>
-                <div class="col-md-3 text-end">
-                    <button type="button" id="btn_reset_filters" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-x-circle me-1"></i> Reset
+                <div class="col-md-3 d-flex align-items-end">
+                    <button id="btn-reset-filters" class="btn btn-outline-secondary btn-sm w-100">
+                        <i class="bi bi-x-circle me-1"></i> Reset Filters
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- DataTable --}}
+    <!-- DataTable -->
     <div class="card border-0 shadow-sm">
         <div class="card-body">
             <div class="table-responsive">
-                <table id="inventoryTable" class="table table-hover table-sm align-middle" style="width:100%">
+                <table id="inventory-table" class="table table-hover table-sm align-middle" style="width:100%">
                     <thead class="table-light">
                         <tr>
-                            <th width="50">#</th>
+                            <th>#</th>
                             <th>Item Code</th>
                             <th>Item Name</th>
                             <th>Type</th>
-                            <th>Terminal ID</th>
-                            <th>Warehouse Stock</th>
-                            <th>Total Stock</th>
+                            <th>Brand</th>
+                            <th>Warehouse</th>
                             <th>Status</th>
                             <th>Created</th>
-                            <th width="120">Actions</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -147,69 +145,68 @@
 
 @push('scripts')
 <script>
-$(document).ready(function() {
-    var table = $('#inventoryTable').DataTable({
+$(function() {
+    var table = $('#inventory-table').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
             url: '{{ route("admin.inventory.datatable") }}',
             data: function(d) {
-                d.item_type = $('#filter_item_type').val();
-                d.job_category_id = $('#filter_category').val();
-                d.status = $('#filter_status').val();
+                d.item_type = $('#filter-item-type').val();
+                d.accessory_type = $('#filter-accessory-type').val();
+                d.status = $('#filter-status').val();
             }
         },
         columns: [
-            { data: 'DT_RowIndex', orderable: false, searchable: false },
+            { data: 'DT_RowIndex', orderable: false, searchable: false, width: '40px' },
             { data: 'item_code' },
             { data: 'item_name' },
             { data: 'item_type', orderable: false },
-            { data: 'serial_number' },
+            { data: 'brand' },
             {
                 data: 'warehouse_stock',
                 render: function(data, type, row) {
                     var cls = row.is_low_stock ? 'text-danger fw-bold' : '';
-                    var icon = row.is_low_stock ? ' <i class="bi bi-exclamation-triangle text-danger"></i>' : '';
+                    var icon = row.is_low_stock ? ' <i class="bi bi-exclamation-triangle-fill text-danger"></i>' : '';
                     return '<span class="' + cls + '">' + data + icon + '</span>';
                 }
             },
-            { data: 'total_stock' },
             { data: 'status', orderable: false },
             { data: 'created_at' },
             {
                 data: 'id',
                 orderable: false,
+                searchable: false,
+                className: 'text-center',
                 render: function(data, type, row) {
-                    var showUrl = '{{ route("admin.inventory.show", ":id") }}'.replace(':id', data);
-                    var editUrl = '{{ route("admin.inventory.edit", ":id") }}'.replace(':id', data);
                     var html = '<div class="btn-group btn-group-sm">';
-                    html += '<a href="' + showUrl + '" class="btn btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>';
+                    html += '<a href="{{ url("admin/inventory") }}/' + data + '" class="btn btn-outline-info btn-sm" title="View"><i class="bi bi-eye"></i></a>';
                     @can('edit_inventory')
-                    html += '<a href="' + editUrl + '" class="btn btn-outline-warning" title="Edit"><i class="bi bi-pencil"></i></a>';
+                    html += '<a href="{{ url("admin/inventory") }}/' + data + '/edit" class="btn btn-outline-primary btn-sm" title="Edit"><i class="bi bi-pencil"></i></a>';
                     @endcan
                     @can('delete_inventory')
-                    html += '<button type="button" class="btn btn-outline-danger btn-delete" data-id="' + data + '" title="Delete"><i class="bi bi-trash"></i></button>';
+                    html += '<button type="button" class="btn btn-outline-danger btn-sm btn-delete" data-id="' + data + '" title="Delete"><i class="bi bi-trash"></i></button>';
                     @endcan
                     html += '</div>';
                     return html;
                 }
             }
         ],
-        order: [[8, 'desc']],
+        order: [[7, 'desc']],
         pageLength: 25,
-        language: {
-            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading...',
-            emptyTable: 'No inventory items found.',
-        }
+        language: { search: '', searchPlaceholder: 'Search...' },
+        dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>"
     });
 
-    // Filters
-    $('#filter_item_type, #filter_category, #filter_status').on('change', function() {
+    // Filter events
+    $('#filter-item-type, #filter-accessory-type, #filter-status').on('change', function() {
         table.ajax.reload();
     });
 
-    $('#btn_reset_filters').on('click', function() {
-        $('#filter_item_type, #filter_category, #filter_status').val('');
+    $('#btn-reset-filters').on('click', function() {
+        $('#filter-item-type, #filter-accessory-type, #filter-status').val('');
         table.ajax.reload();
     });
 
@@ -217,18 +214,18 @@ $(document).ready(function() {
     $(document).on('click', '.btn-delete', function() {
         var id = $(this).data('id');
         Swal.fire({
-            title: 'Delete this item?',
+            title: 'Delete Item?',
             text: 'This action cannot be undone.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc3545',
-            confirmButtonText: 'Yes, delete it'
+            confirmButtonText: 'Yes, Delete'
         }).then(function(result) {
             if (result.isConfirmed) {
                 $.ajax({
-                    url: '{{ route("admin.inventory.destroy", ":id") }}'.replace(':id', id),
+                    url: '{{ url("admin/inventory") }}/' + id,
                     type: 'DELETE',
-                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
                     success: function(res) {
                         if (res.success) {
                             showToast('success', res.message);
@@ -238,8 +235,7 @@ $(document).ready(function() {
                         }
                     },
                     error: function(xhr) {
-                        var msg = xhr.responseJSON?.message || 'Delete failed.';
-                        showToast('error', msg);
+                        showToast('error', xhr.responseJSON?.message || 'Delete failed.');
                     }
                 });
             }

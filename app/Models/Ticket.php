@@ -36,7 +36,7 @@ class Ticket extends Model
     protected $fillable = [
         'ticket_no', 'vendor_ticket_ref_no',
         'vendor_id', 'vendor_branch_id', 'state_id', 'city_id',
-        'tid', 'terminal_id', 'router_id', 'old_terminal_id',
+        'tid', 'terminal_id', 'router_id', 'router_ids', 'old_terminal_id', 'old_router_ids',
         'merchant_name', 'merchant_address', 'contact_number',
         'supervisor_id', 'technician_id',
         'job_category_id', 'job_type_id', 'price',
@@ -74,6 +74,8 @@ class Ticket extends Model
             'total_claim_amount' => 'decimal:2',
             'price' => 'decimal:2',
             'sla_hours' => 'integer',
+            'router_ids' => 'array',
+            'old_router_ids' => 'array',
         ];
     }
 
@@ -95,6 +97,14 @@ class Ticket extends Model
     public function comments()      { return $this->hasMany(TicketComment::class)->orderBy('created_at', 'desc'); }
     public function statusHistory()  { return $this->hasMany(TicketStatusHistory::class)->orderBy('created_at', 'desc'); }
     public function proofs()        { return $this->hasMany(TicketProof::class); }
+
+    /**
+     * Stock movements linked to this ticket.
+     */
+    public function stockMovements()
+    {
+        return $this->hasMany(StockMovement::class, 'ticket_id');
+    }
 
     // ══════════════════════════════════════
     // Scopes
@@ -157,9 +167,6 @@ class Ticket extends Model
 
     /**
      * Status transitions updated with accept/reject flow.
-     * - assigned → accepted/rejected (by assignee)
-     * - accepted → in_progress
-     * - rejected → open (returns to pool) or closed
      */
     public static function getAllowedTransitions(string $currentStatus): array
     {
@@ -192,7 +199,7 @@ class Ticket extends Model
     }
 
     /**
-     * Transitions allowed for external supervisors (they act like assignees, no technician).
+     * Transitions allowed for external supervisors.
      */
     public static function getExternalSupervisorTransitions(string $currentStatus): array
     {
@@ -309,8 +316,6 @@ class Ticket extends Model
 
     /**
      * Check if claims are applicable for this ticket based on supervisor type.
-     * - Internal supervisor: claims NOT applicable (pricing goes to technician)
-     * - External supervisor: claims ARE applicable (pricing goes to supervisor)
      */
     public function isClaimApplicable(): bool
     {
@@ -347,5 +352,55 @@ class Ticket extends Model
             'service_form'         => 'Service Form Image',
             'other'                => 'Other',
         ];
+    }
+
+    // ══════════════════════════════════════
+    // Inventory Integration Helpers
+    // ══════════════════════════════════════
+
+    /**
+     * Get router_ids as comma-separated display string.
+     */
+    public function getRouterIdsDisplay(): string
+    {
+        $ids = $this->router_ids;
+        if (empty($ids)) return '-';
+        if (is_string($ids)) $ids = json_decode($ids, true);
+        return is_array($ids) ? implode(', ', $ids) : '-';
+    }
+
+    /**
+     * Get old_router_ids as comma-separated display string.
+     */
+    public function getOldRouterIdsDisplay(): string
+    {
+        $ids = $this->old_router_ids;
+        if (empty($ids)) return '-';
+        if (is_string($ids)) $ids = json_decode($ids, true);
+        return is_array($ids) ? implode(', ', $ids) : '-';
+    }
+
+    /**
+     * Check if this ticket's job type is installation.
+     * Used to auto-trigger stock out.
+     */
+    public function isInstallationJob(): bool
+    {
+        $jobType = $this->jobType;
+        if (!$jobType) return false;
+        return str_contains(strtolower($jobType->slug ?? ''), 'installation')
+            || str_contains(strtolower($jobType->job_title ?? ''), 'installation');
+    }
+
+    /**
+     * Check if this ticket's job type is replacement.
+     * Used to auto-trigger stock return.
+     */
+    public function isReplacementJob(): bool
+    {
+        $jobType = $this->jobType;
+        if (!$jobType) return false;
+        return str_contains(strtolower($jobType->slug ?? ''), 'replacement')
+            || str_contains(strtolower($jobType->job_title ?? ''), 'replacement');
     }
 }

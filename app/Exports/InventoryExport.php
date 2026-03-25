@@ -22,7 +22,7 @@ class InventoryExport implements FromCollection, WithHeadings, WithMapping, With
 
     public function collection()
     {
-        $query = InventoryItem::with(['jobCategory', 'creator']);
+        $query = InventoryItem::with(['creator']);
 
         if (!empty($this->filters['item_type'])) {
             $query->where('item_type', $this->filters['item_type']);
@@ -42,10 +42,8 @@ class InventoryExport implements FromCollection, WithHeadings, WithMapping, With
             'Item Name',
             'Item Type',
             'Accessory Type',
-            'Terminal ID',
             'Brand',
             'Model',
-            'Category',
             'Unit',
             'Warehouse Stock',
             'Total Stock',
@@ -72,10 +70,8 @@ class InventoryExport implements FromCollection, WithHeadings, WithMapping, With
             $item->item_name,
             ucfirst($item->item_type),
             $accessoryLabel,
-            $item->serial_number ?? '-',
             $item->brand ?? '-',
             $item->model ?? '-',
-            $item->jobCategory->category_name ?? 'N/A',
             $item->unit ?? 'unit',
             $item->getWarehouseStock(),
             $item->getTotalStock(),

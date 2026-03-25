@@ -27,12 +27,10 @@ class InventoryItem extends Model
     protected $fillable = [
         'item_code',
         'item_name',
-        'job_category_id',
         'item_type',
         'accessory_type',
         'description',
         'unit',
-        'serial_number',
         'brand',
         'model',
         'reorder_level',
@@ -51,14 +49,6 @@ class InventoryItem extends Model
     // ══════════════════════════════════════
     // RELATIONSHIPS
     // ══════════════════════════════════════
-
-    /**
-     * Job category (Router / Accessories).
-     */
-    public function jobCategory()
-    {
-        return $this->belongsTo(JobCategory::class, 'job_category_id');
-    }
 
     /**
      * Stock balance records for this item.
