@@ -5,10 +5,14 @@ namespace App\Services;
 use App\Models\Vendor;
 use App\Models\VendorBranch;
 use App\Models\VendorType;
-use App\Models\PurchaseOrder;
-use App\Models\Invoice;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+
+// ─────────────────────────────────────────────────────────────
+// REMOVED IMPORTS (models not yet built):
+// - App\Models\PurchaseOrder  → PO module not built yet
+// - App\Models\Invoice        → Invoice module not built yet
+// ─────────────────────────────────────────────────────────────
 
 class VendorService
 {
@@ -21,8 +25,6 @@ class VendorService
             'total' => Vendor::count(),
             'active' => Vendor::where('status', Vendor::STATUS_ACTIVE)->count(),
             'inactive' => Vendor::where('status', Vendor::STATUS_INACTIVE)->count(),
-            'total_purchase_orders' => PurchaseOrder::count(),
-            'active_purchase_orders' => PurchaseOrder::whereNotIn('status', ['closed', 'cancelled'])->count(),
             'total_branches' => VendorBranch::count(),
         ];
 
@@ -40,50 +42,48 @@ class VendorService
         $stats['subcontractors'] = Vendor::where('vendor_type', Vendor::TYPE_SUBCON)->count();
         $stats['couriers'] = Vendor::where('vendor_type', Vendor::TYPE_COURIER)->count();
 
+        // ─────────────────────────────────────────────────────────────
+        // TODO: Re-add when PO module is built:
+        // 'total_purchase_orders' => PurchaseOrder::count(),
+        // 'active_purchase_orders' => PurchaseOrder::whereNotIn('status', ['closed', 'cancelled'])->count(),
+        // ─────────────────────────────────────────────────────────────
+
         return $stats;
     }
 
     /**
      * Get specific vendor statistics
+     *
+     * NOTE: PO, GRN, Invoice stats commented out until those modules are built.
      */
     public function getVendorStatistics(Vendor $vendor): array
     {
         return [
-            'total_pos' => $vendor->purchaseOrders()->count(),
-            'active_pos' => $vendor->purchaseOrders()
-                ->whereNotIn('status', ['closed', 'cancelled'])
-                ->count(),
-            'total_grns' => $vendor->grns()->count(),
-            'total_invoices' => $vendor->invoices()
-                ->where('invoice_type', 'vendor')
-                ->count(),
-            'pending_invoices' => $vendor->invoices()
-                ->where('invoice_type', 'vendor')
-                ->where('status', '!=', 'paid')
-                ->count(),
-            'total_amount_po' => $vendor->purchaseOrders()->sum('total_amount'),
-            'outstanding_amount' => $vendor->invoices()
-                ->where('invoice_type', 'vendor')
-                ->where('status', '!=', 'paid')
-                ->sum('total_amount'),
             'total_branches' => $vendor->branches()->count(),
             'active_branches' => $vendor->branches()->where('status', 'active')->count(),
+
+            // ─────────────────────────────────────────────────────────────
+            // TODO: Re-add when PO/GRN/Invoice modules are built:
+            // 'total_pos' => $vendor->purchaseOrders()->count(),
+            // 'active_pos' => $vendor->purchaseOrders()->whereNotIn('status', ['closed', 'cancelled'])->count(),
+            // 'total_grns' => $vendor->grns()->count(),
+            // 'total_invoices' => $vendor->invoices()->where('invoice_type', 'vendor')->count(),
+            // 'pending_invoices' => $vendor->invoices()->where('invoice_type', 'vendor')->where('status', '!=', 'paid')->count(),
+            // 'total_amount_po' => $vendor->purchaseOrders()->sum('total_amount'),
+            // 'outstanding_amount' => $vendor->invoices()->where('invoice_type', 'vendor')->where('status', '!=', 'paid')->sum('total_amount'),
+            // ─────────────────────────────────────────────────────────────
         ];
     }
 
     /**
      * Get AP aging for vendor
+     *
+     * NOTE: Disabled until Invoice module is built.
+     * Returns empty aging structure for now.
      */
     public function getApAging(Vendor $vendor): array
     {
-        $today = now();
-
-        $invoices = $vendor->invoices()
-            ->where('invoice_type', 'vendor')
-            ->where('status', '!=', 'paid')
-            ->get();
-
-        $aging = [
+        return [
             'current' => 0,
             '1_30' => 0,
             '31_60' => 0,
@@ -92,26 +92,28 @@ class VendorService
             'total' => 0,
         ];
 
-        foreach ($invoices as $invoice) {
-            $daysOverdue = $today->diffInDays($invoice->due_date, false);
-            $amount = $invoice->total_amount - $invoice->paid_amount;
-
-            if ($daysOverdue >= 0) {
-                $aging['current'] += $amount;
-            } elseif ($daysOverdue >= -30) {
-                $aging['1_30'] += $amount;
-            } elseif ($daysOverdue >= -60) {
-                $aging['31_60'] += $amount;
-            } elseif ($daysOverdue >= -90) {
-                $aging['61_90'] += $amount;
-            } else {
-                $aging['over_90'] += $amount;
-            }
-
-            $aging['total'] += $amount;
-        }
-
-        return $aging;
+        // ─────────────────────────────────────────────────────────────
+        // TODO: Re-enable when Invoice module is built:
+        //
+        // $today = now();
+        // $invoices = $vendor->invoices()
+        //     ->where('invoice_type', 'vendor')
+        //     ->where('status', '!=', 'paid')
+        //     ->get();
+        //
+        // $aging = ['current' => 0, '1_30' => 0, '31_60' => 0, '61_90' => 0, 'over_90' => 0, 'total' => 0];
+        // foreach ($invoices as $invoice) {
+        //     $daysOverdue = $today->diffInDays($invoice->due_date, false);
+        //     $amount = $invoice->total_amount - $invoice->paid_amount;
+        //     if ($daysOverdue >= 0) { $aging['current'] += $amount; }
+        //     elseif ($daysOverdue >= -30) { $aging['1_30'] += $amount; }
+        //     elseif ($daysOverdue >= -60) { $aging['31_60'] += $amount; }
+        //     elseif ($daysOverdue >= -90) { $aging['61_90'] += $amount; }
+        //     else { $aging['over_90'] += $amount; }
+        //     $aging['total'] += $amount;
+        // }
+        // return $aging;
+        // ─────────────────────────────────────────────────────────────
     }
 
     /**
@@ -247,75 +249,64 @@ class VendorService
 
     /**
      * Get vendor payment history
+     *
+     * NOTE: Disabled until Invoice module is built.
      */
     public function getPaymentHistory(Vendor $vendor)
     {
-        return $vendor->invoices()
-            ->where('invoice_type', 'vendor')
-            ->where('status', 'paid')
-            ->with('payments')
-            ->latest()
-            ->limit(20)
-            ->get();
+        return collect(); // Empty collection until Invoice module is built
+
+        // ─────────────────────────────────────────────────────────────
+        // TODO: Re-enable when Invoice module is built:
+        // return $vendor->invoices()
+        //     ->where('invoice_type', 'vendor')
+        //     ->where('status', 'paid')
+        //     ->with('payments')
+        //     ->latest()
+        //     ->limit(20)
+        //     ->get();
+        // ─────────────────────────────────────────────────────────────
     }
 
     /**
      * Calculate vendor performance metrics
+     *
+     * NOTE: Disabled until PO/GRN modules are built.
      */
     public function getPerformanceMetrics(Vendor $vendor): array
     {
-        $totalPOs = $vendor->purchaseOrders()->count();
-
-        if ($totalPOs === 0) {
-            return [
-                'on_time_delivery_rate' => 0,
-                'quality_acceptance_rate' => 0,
-                'average_lead_time' => 0,
-            ];
-        }
-
-        $onTimeDeliveries = $vendor->purchaseOrders()
-            ->where('status', 'fully_received')
-            ->whereColumn('actual_delivery_date', '<=', 'expected_delivery_date')
-            ->count();
-
-        $qualityAcceptance = $vendor->grns()
-            ->where('quality_status', 'accepted')
-            ->count();
-
-        $totalGRNs = $vendor->grns()->count();
-
-        $avgLeadTime = $vendor->purchaseOrders()
-            ->where('status', 'fully_received')
-            ->selectRaw('AVG(DATEDIFF(actual_delivery_date, po_date)) as avg_days')
-            ->value('avg_days');
-
         return [
-            'on_time_delivery_rate' => $totalPOs > 0 ? round(($onTimeDeliveries / $totalPOs) * 100, 2) : 0,
-            'quality_acceptance_rate' => $totalGRNs > 0 ? round(($qualityAcceptance / $totalGRNs) * 100, 2) : 0,
-            'average_lead_time' => round($avgLeadTime ?? 0, 1),
+            'on_time_delivery_rate' => 0,
+            'quality_acceptance_rate' => 0,
+            'average_lead_time' => 0,
         ];
+
+        // ─────────────────────────────────────────────────────────────
+        // TODO: Re-enable when PO/GRN modules are built:
+        // $totalPOs = $vendor->purchaseOrders()->count();
+        // if ($totalPOs === 0) { return [...]; }
+        // ...
+        // ─────────────────────────────────────────────────────────────
     }
 
     /**
      * Get vendor's top purchased items
+     *
+     * NOTE: Disabled — terminal_models table removed, PO module not built.
      */
     public function getTopPurchasedItems(Vendor $vendor, int $limit = 10)
     {
-        return DB::table('purchase_order_lines as pol')
-            ->join('purchase_orders as po', 'pol.purchase_order_id', '=', 'po.id')
-            ->join('terminal_models as tm', 'pol.model_id', '=', 'tm.id')
-            ->where('po.vendor_id', $vendor->id)
-            ->select(
-                'tm.id',
-                'tm.model_code',
-                'tm.model_name',
-                DB::raw('SUM(pol.quantity_ordered) as total_quantity'),
-                DB::raw('SUM(pol.quantity_ordered * pol.unit_price) as total_value')
-            )
-            ->groupBy('tm.id', 'tm.model_code', 'tm.model_name')
-            ->orderByDesc('total_value')
-            ->limit($limit)
-            ->get();
+        return collect(); // Empty collection until PO module + inventory items are built
+
+        // ─────────────────────────────────────────────────────────────
+        // TODO: Rebuild using inventory_items table when PO module is built:
+        // return DB::table('purchase_order_lines as pol')
+        //     ->join('purchase_orders as po', 'pol.purchase_order_id', '=', 'po.id')
+        //     ->join('inventory_items as ii', 'pol.item_id', '=', 'ii.id')
+        //     ->where('po.vendor_id', $vendor->id)
+        //     ->select(...)
+        //     ->limit($limit)
+        //     ->get();
+        // ─────────────────────────────────────────────────────────────
     }
 }

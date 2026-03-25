@@ -58,9 +58,13 @@ class VendorController extends Controller implements HasMiddleware
     {
         $query = Vendor::select('vendors.*')
             ->with(['createdBy', 'vendorType'])
-            ->withCount('branches')
-            ->withCount('purchaseOrders')
-            ->withCount('grns');
+            ->withCount('branches');
+
+        // ─────────────────────────────────────────────────────────────
+        // TODO: Re-add when PO/GRN modules are built:
+        // ->withCount('purchaseOrders')
+        // ->withCount('grns')
+        // ─────────────────────────────────────────────────────────────
 
         return DataTables::of($query)
             ->addColumn('status_badge', function ($vendor) {
@@ -91,11 +95,15 @@ class VendorController extends Controller implements HasMiddleware
                 $count = $vendor->branches_count ?? 0;
                 return '<span class="badge bg-light text-dark">' . $count . ' branch' . ($count !== 1 ? 'es' : '') . '</span>';
             })
+            ->addColumn('purchase_orders_count', function ($vendor) {
+                // TODO: Re-enable when PO module is built
+                return 0;
+            })
             ->addColumn('actions', function ($vendor) {
                 return '<a href="' . route('supervisor.vendors.show', $vendor->id) . '"
-                    class="btn btn-sm btn-info" title="View">
-                    <i class="bi bi-eye"></i>
-                </a>';
+                            class="btn btn-sm btn-info" title="View">
+                            <i class="bi bi-eye"></i>
+                        </a>';
             })
             ->filter(function ($query) use ($request) {
                 if ($request->has('search') && $request->search['value']) {
@@ -150,15 +158,15 @@ class VendorController extends Controller implements HasMiddleware
             'branches.state',
             'branches.city',
             'vendorType',
-            'purchaseOrders' => function ($query) {
-                $query->latest()->limit(10);
-            },
-            'grns' => function ($query) {
-                $query->latest()->limit(10);
-            },
             'createdBy',
             'updatedBy'
         ]);
+
+        // ─────────────────────────────────────────────────────────────
+        // TODO: Re-add when PO/GRN modules are built:
+        // 'purchaseOrders' => function ($query) { $query->latest()->limit(10); },
+        // 'grns' => function ($query) { $query->latest()->limit(10); },
+        // ─────────────────────────────────────────────────────────────
 
         $statistics = $this->vendorService->getVendorStatistics($vendor);
 
@@ -186,18 +194,9 @@ class VendorController extends Controller implements HasMiddleware
     public function getList(Request $request): JsonResponse
     {
         $search = $request->get('search');
-        $type = $request->get('type');
 
         $query = Vendor::active()
             ->select('id', 'vendor_code', 'vendor_name', 'vendor_type', 'vendor_type_id');
-
-        if ($type) {
-            if (is_numeric($type)) {
-                $query->where('vendor_type_id', (int) $type);
-            } else {
-                $query->where('vendor_type', $type);
-            }
-        }
 
         if ($search) {
             $query->where(function ($q) use ($search) {

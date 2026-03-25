@@ -7,8 +7,6 @@ use App\Http\Requests\Admin\StoreVendorRequest;
 use App\Http\Requests\Admin\UpdateVendorRequest;
 use App\Models\Vendor;
 use App\Models\VendorType;
-use App\Models\PurchaseOrder;
-use App\Models\Invoice;
 use App\Services\VendorService;
 use App\Exports\VendorsExport;
 use App\Imports\VendorsImport;
@@ -19,6 +17,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
+
+// ─────────────────────────────────────────────────────────────
+// REMOVED IMPORTS (models not yet built):
+// - App\Models\PurchaseOrder
+// - App\Models\Invoice
+// ─────────────────────────────────────────────────────────────
 
 class VendorController extends Controller
 {
@@ -46,12 +50,16 @@ class VendorController extends Controller
     {
         $query = Vendor::select('vendors.*')
             ->with(['createdBy', 'updatedBy'])
-            ->withCount('purchaseOrders')
-            ->withCount('grns')
-            ->withCount('branches')
-            ->withCount(['invoices as invoices_count' => function ($q) {
-                $q->where('invoice_type', 'ap');
-            }]);
+            ->withCount('branches');
+
+        // ─────────────────────────────────────────────────────────────
+        // TODO: Re-add when PO/GRN/Invoice modules are built:
+        // ->withCount('purchaseOrders')
+        // ->withCount('grns')
+        // ->withCount(['invoices as invoices_count' => function ($q) {
+        //     $q->where('invoice_type', 'ap');
+        // }])
+        // ─────────────────────────────────────────────────────────────
 
         if ($request->get('show_trashed') === 'true') {
             $query->withTrashed();
@@ -101,7 +109,8 @@ class VendorController extends Controller
                 return $vendor->payment_terms . ' days';
             })
             ->addColumn('purchase_orders_count', function ($vendor) {
-                return $vendor->purchase_orders_count ?? 0;
+                // TODO: Re-enable when PO module is built
+                return 0;
             })
             ->addColumn('created_info', function ($vendor) {
                 $html = $vendor->created_at ? $vendor->created_at->format('Y-m-d H:i') : '-';
@@ -281,20 +290,16 @@ class VendorController extends Controller
             'branches.state',
             'branches.city',
             'vendorType',
-            'purchaseOrders' => function ($query) {
-                $query->latest()->limit(10);
-            },
-            'grns' => function ($query) {
-                $query->latest()->limit(10);
-            },
-            'invoices' => function ($query) {
-                $query->where('invoice_type', 'ap')
-                      ->latest()
-                      ->limit(10);
-            },
             'createdBy',
             'updatedBy'
         ]);
+
+        // ─────────────────────────────────────────────────────────────
+        // TODO: Re-add when PO/GRN/Invoice modules are built:
+        // 'purchaseOrders' => function ($query) { $query->latest()->limit(10); },
+        // 'grns' => function ($query) { $query->latest()->limit(10); },
+        // 'invoices' => function ($query) { $query->where('invoice_type', 'ap')->latest()->limit(10); },
+        // ─────────────────────────────────────────────────────────────
 
         $statistics = $this->vendorService->getVendorStatistics($vendor);
         $apAging = $this->vendorService->getApAging($vendor);
@@ -354,19 +359,15 @@ class VendorController extends Controller
     public function destroy(Vendor $vendor): JsonResponse
     {
         try {
-            if ($vendor->purchaseOrders()->whereNotIn('status', ['closed', 'cancelled'])->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot delete vendor with active purchase orders.'
-                ], 422);
-            }
-
-            if ($vendor->invoices()->where('status', '!=', 'paid')->exists()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot delete vendor with pending invoices.'
-                ], 422);
-            }
+            // ─────────────────────────────────────────────────────────────
+            // TODO: Re-add when PO/Invoice modules are built:
+            // if ($vendor->purchaseOrders()->whereNotIn('status', ['closed', 'cancelled'])->exists()) {
+            //     return response()->json(['success' => false, 'message' => 'Cannot delete vendor with active purchase orders.'], 422);
+            // }
+            // if ($vendor->invoices()->where('status', '!=', 'paid')->exists()) {
+            //     return response()->json(['success' => false, 'message' => 'Cannot delete vendor with pending invoices.'], 422);
+            // }
+            // ─────────────────────────────────────────────────────────────
 
             DB::beginTransaction();
 

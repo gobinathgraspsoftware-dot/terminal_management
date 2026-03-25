@@ -202,22 +202,24 @@ class Vendor extends Model
         return $this->hasOne(VendorBranch::class)->where('is_primary', true);
     }
 
-    public function purchaseOrders()
-    {
-        return $this->hasMany(PurchaseOrder::class);
-    }
-
-    public function grns()
-    {
-        return $this->hasMany(Grn::class);
-    }
-
-    public function invoices()
-    {
-        return $this->hasMany(Invoice::class);
-    }
-
-    // quotations() relationship removed — Quotation module removed
+    // ─────────────────────────────────────────────────────────────
+    // TODO: Re-add when PO/GRN/Invoice modules are built:
+    //
+    // public function purchaseOrders()
+    // {
+    //     return $this->hasMany(PurchaseOrder::class);
+    // }
+    //
+    // public function grns()
+    // {
+    //     return $this->hasMany(Grn::class);
+    // }
+    //
+    // public function invoices()
+    // {
+    //     return $this->hasMany(Invoice::class);
+    // }
+    // ─────────────────────────────────────────────────────────────
 
     public function createdBy()
     {
