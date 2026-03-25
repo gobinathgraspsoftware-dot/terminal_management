@@ -3,465 +3,421 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\Inventory\StoreInventoryItemRequest;
-use App\Http\Requests\Admin\Inventory\UpdateInventoryItemRequest;
-use App\Http\Requests\Admin\Inventory\StockInRequest;
-use App\Http\Requests\Admin\Inventory\StockOutRequest;
+use App\Http\Requests\StockAdjustmentRequest;
+use App\Http\Requests\StockInRequest;
+use App\Http\Requests\StockOutRequest;
+use App\Http\Requests\StockReturnRequest;
+use App\Http\Requests\StoreInventoryItemRequest;
+use App\Http\Requests\UpdateInventoryItemRequest;
 use App\Models\InventoryItem;
-use App\Models\StockBalance;
-use App\Models\StockMovement;
 use App\Models\JobCategory;
+use App\Models\StockBalance;
+use App\Models\Ticket;
 use App\Models\User;
-use App\Services\InventoryService;
 use App\Exports\InventoryExport;
-use Illuminate\Http\JsonResponse;
+use App\Services\InventoryService;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controllers\HasMiddleware;
-use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
-use Yajra\DataTables\Facades\DataTables;
 
-class InventoryController extends Controller implements HasMiddleware
+class InventoryController extends Controller
 {
-    protected InventoryService $inventoryService;
+    protected InventoryService $service;
 
-    public static function middleware(): array
+    public function __construct(InventoryService $service)
     {
-        return [
-            new Middleware('auth'),
-            new Middleware('role:admin'),
-        ];
+        $this->service = $service;
     }
 
-    public function __construct(InventoryService $inventoryService)
+    // ══════════════════════════════════════════════════════════
+    // INDEX + DATATABLE
+    // ══════════════════════════════════════════════════════════
+
+    /**
+     * List inventory items.
+     */
+    public function index()
     {
-        $this->inventoryService = $inventoryService;
+        $this->authorize('viewAny', InventoryItem::class);
+
+        $stats = $this->service->getSummaryStats();
+        $jobCategories = JobCategory::active()->orderBy('category_name')->get();
+
+        return view('admin.inventory.index', compact('stats', 'jobCategories'));
     }
 
     /**
-     * Inventory index page.
+     * DataTable AJAX endpoint.
      */
-    public function index(): View
+    public function datatable(Request $request)
     {
-        Gate::authorize('viewAny', InventoryItem::class);
+        $this->authorize('viewAny', InventoryItem::class);
 
-        $stats = [
-            'total'      => InventoryItem::count(),
-            'routers'    => InventoryItem::routers()->count(),
-            'accessories' => InventoryItem::accessories()->count(),
-            'active'     => InventoryItem::active()->count(),
-            'low_stock'  => $this->inventoryService->getLowStockItems()->count(),
-        ];
-
-        $categories = JobCategory::active()->orderBy('category_name')->get();
-
-        return view('admin.inventory.index', compact('stats', 'categories'));
+        $result = $this->service->getDatatable($request->all());
+        return response()->json($result);
     }
 
     /**
-     * DataTable data.
+     * AJAX - Get stock for a specific item.
      */
-    public function datatable(Request $request): JsonResponse
+    public function getItemStock(Request $request)
     {
-        Gate::authorize('viewAny', InventoryItem::class);
+        $request->validate(['item_id' => 'required|exists:inventory_items,id']);
 
-        $query = InventoryItem::with(['jobCategory'])
-            ->select('inventory_items.*');
+        $stock = $this->service->getItemStock($request->item_id);
+        return response()->json($stock);
+    }
 
-        if ($request->filled('item_type')) {
-            $query->where('item_type', $request->item_type);
-        }
-        if ($request->filled('job_category_id')) {
-            $query->where('job_category_id', $request->job_category_id);
-        }
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
+    // ══════════════════════════════════════════════════════════
+    // CRUD
+    // ══════════════════════════════════════════════════════════
 
-        return DataTables::of($query)
-            ->addColumn('category_name', fn($item) => $item->jobCategory->category_name ?? 'N/A')
-            ->addColumn('type_badge', function ($item) {
-                $color = $item->item_type === 'router' ? 'primary' : 'info';
-                return '<span class="badge bg-' . $color . '">' . ucfirst($item->item_type) . '</span>';
-            })
-            ->addColumn('warehouse_qty', fn($item) => $item->warehouse_stock)
-            ->addColumn('total_qty', fn($item) => $item->total_stock)
-            ->addColumn('stock_status', function ($item) {
-                if ($item->isLowStock()) {
-                    return '<span class="badge bg-danger">Low Stock</span>';
-                }
-                return '<span class="badge bg-success">OK</span>';
-            })
-            ->addColumn('status_badge', function ($item) {
-                $color = $item->status === InventoryItem::STATUS_ACTIVE ? 'success' : 'danger';
-                return '<span class="badge bg-' . $color . '">' . ucfirst($item->status) . '</span>';
-            })
-            ->addColumn('action', function ($item) {
-                $actions = '';
+    /**
+     * Show create form.
+     */
+    public function create()
+    {
+        $this->authorize('create', InventoryItem::class);
 
-                $actions .= '<a href="' . route('admin.inventory.show', $item->id) . '" class="btn btn-sm btn-outline-info me-1" title="View"><i class="bi bi-eye"></i></a>';
+        $jobCategories = JobCategory::active()->orderBy('category_name')->get();
 
-                if (auth()->user()->can('update', $item)) {
-                    $actions .= '<a href="' . route('admin.inventory.edit', $item->id) . '" class="btn btn-sm btn-primary me-1" title="Edit"><i class="bi bi-pencil"></i></a>';
-
-                    $statusIcon = $item->status === InventoryItem::STATUS_ACTIVE
-                        ? 'bi-toggle-on text-success' : 'bi-toggle-off text-secondary';
-                    $actions .= '<button type="button" class="btn btn-sm btn-outline-secondary me-1 btn-toggle-status" data-id="' . $item->id . '" data-status="' . $item->status . '" title="Toggle Status"><i class="bi ' . $statusIcon . '"></i></button>';
-                }
-
-                if (auth()->user()->can('delete', $item)) {
-                    $actions .= '<button type="button" class="btn btn-sm btn-danger btn-delete" data-id="' . $item->id . '" data-name="' . htmlspecialchars($item->item_name) . '" title="Delete"><i class="bi bi-trash"></i></button>';
-                }
-
-                return '<div class="d-flex flex-nowrap gap-1">' . $actions . '</div>';
-            })
-            ->rawColumns(['type_badge', 'stock_status', 'status_badge', 'action'])
-            ->make(true);
+        return view('admin.inventory.create', compact('jobCategories'));
     }
 
     /**
-     * Create form.
+     * Store new inventory item.
      */
-    public function create(): View
+    public function store(StoreInventoryItemRequest $request)
     {
-        Gate::authorize('create', InventoryItem::class);
+        $this->authorize('create', InventoryItem::class);
 
-        $categories = JobCategory::active()->orderBy('category_name')->get();
-
-        return view('admin.inventory.create', compact('categories'));
-    }
-
-    /**
-     * Store new item.
-     */
-    public function store(StoreInventoryItemRequest $request): JsonResponse
-    {
         try {
-            $item = $this->inventoryService->createItem($request->validated());
+            $item = $this->service->createItem($request->validated());
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Inventory item created successfully.',
-                'item'    => $item,
-            ]);
+            return redirect()
+                ->route('admin.inventory.index')
+                ->with('success', "Inventory item {$item->item_code} created successfully.");
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create item: ' . $e->getMessage(),
-            ], 500);
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Failed to create item: ' . $e->getMessage());
         }
     }
 
     /**
-     * Show item details with stock history.
+     * Show item details.
      */
-    public function show(InventoryItem $inventoryItem): View
+    public function show(InventoryItem $inventory_item)
     {
-        Gate::authorize('view', $inventoryItem);
+        $this->authorize('view', $inventory_item);
 
-        $inventoryItem->load(['jobCategory', 'stockBalances', 'createdBy']);
+        $inventory_item->load(['jobCategory', 'creator', 'updater']);
 
-        $balances = StockBalance::where('inventory_item_id', $inventoryItem->id)
-            ->where('quantity', '>', 0)
-            ->get()
-            ->map(function ($b) {
-                $b->holder_name = $b->holder_type === 'warehouse'
-                    ? 'Warehouse'
-                    : (User::find($b->holder_id)?->name ?? 'Unknown');
-                return $b;
-            });
+        $warehouseStock = $inventory_item->getWarehouseStock();
+        $totalStock = $inventory_item->getTotalStock();
 
-        $recentMovements = StockMovement::where('inventory_item_id', $inventoryItem->id)
-            ->with(['performedBy', 'ticket'])
-            ->orderByDesc('created_at')
-            ->limit(20)
+        // Recent movements for this item
+        $recentMovements = $inventory_item->stockMovements()
+            ->with(['performer', 'ticket'])
+            ->orderBy('created_at', 'desc')
+            ->take(20)
             ->get();
 
-        return view('admin.inventory.show', compact('inventoryItem', 'balances', 'recentMovements'));
+        // Stock balances across all locations
+        $balances = $inventory_item->stockBalances()
+            ->with('holder')
+            ->where('quantity', '>', 0)
+            ->get();
+
+        // Adjustments history
+        $adjustments = $inventory_item->stockAdjustments()
+            ->with('adjustedBy')
+            ->orderBy('adjusted_at', 'desc')
+            ->take(10)
+            ->get();
+
+        return view('admin.inventory.show', compact(
+            'inventory_item', 'warehouseStock', 'totalStock',
+            'recentMovements', 'balances', 'adjustments'
+        ));
     }
 
     /**
-     * Edit form.
+     * Show edit form.
      */
-    public function edit(InventoryItem $inventoryItem): View
+    public function edit(InventoryItem $inventory_item)
     {
-        Gate::authorize('update', $inventoryItem);
+        $this->authorize('update', $inventory_item);
 
-        $categories = JobCategory::active()->orderBy('category_name')->get();
+        $jobCategories = JobCategory::active()->orderBy('category_name')->get();
 
-        return view('admin.inventory.edit', compact('inventoryItem', 'categories'));
+        return view('admin.inventory.edit', compact('inventory_item', 'jobCategories'));
     }
 
     /**
-     * Update item.
+     * Update inventory item.
      */
-    public function update(UpdateInventoryItemRequest $request, InventoryItem $inventoryItem): JsonResponse
+    public function update(UpdateInventoryItemRequest $request, InventoryItem $inventory_item)
     {
+        $this->authorize('update', $inventory_item);
+
         try {
-            $item = $this->inventoryService->updateItem($inventoryItem, $request->validated());
+            $this->service->updateItem($inventory_item, $request->validated());
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Inventory item updated successfully.',
-                'item'    => $item,
-            ]);
+            return redirect()
+                ->route('admin.inventory.show', $inventory_item)
+                ->with('success', 'Inventory item updated successfully.');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update item: ' . $e->getMessage(),
-            ], 500);
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Failed to update item: ' . $e->getMessage());
         }
     }
 
     /**
-     * Delete item.
+     * Delete inventory item.
      */
-    public function destroy(InventoryItem $inventoryItem): JsonResponse
+    public function destroy(InventoryItem $inventory_item)
     {
-        Gate::authorize('delete', $inventoryItem);
+        $this->authorize('delete', $inventory_item);
 
         try {
-            $this->inventoryService->deleteItem($inventoryItem);
+            $this->service->deleteItem($inventory_item);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Inventory item deleted successfully.',
-            ]);
+            return response()->json(['success' => true, 'message' => 'Item deleted successfully.']);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
     }
 
     /**
-     * Toggle status.
+     * Toggle item status.
      */
-    public function toggleStatus(InventoryItem $inventoryItem): JsonResponse
+    public function toggleStatus(InventoryItem $inventory_item)
     {
-        Gate::authorize('update', $inventoryItem);
+        $this->authorize('update', $inventory_item);
 
-        try {
-            $item = $this->inventoryService->toggleStatus($inventoryItem);
+        $item = $this->service->toggleStatus($inventory_item);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Status updated successfully.',
-                'status'  => $item->status,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update status: ' . $e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => "Item status changed to {$item->status}.",
+            'status' => $item->status,
+        ]);
     }
+
+    // ══════════════════════════════════════════════════════════
+    // STOCK IN
+    // ══════════════════════════════════════════════════════════
 
     /**
      * Stock In form.
      */
-    public function stockInForm(): View
+    public function stockInForm()
     {
-        Gate::authorize('stockIn', InventoryItem::class);
+        $this->authorize('stockIn', InventoryItem::class);
 
-        $items = InventoryItem::active()->orderBy('item_name')->get();
+        $jobCategories = JobCategory::active()->orderBy('category_name')->get();
+        $routerItems = InventoryItem::routers()->active()->orderBy('item_name')->get();
+        $accessoryItems = InventoryItem::accessories()->active()->orderBy('item_name')->get();
 
-        return view('admin.inventory.stock-in', compact('items'));
+        return view('admin.inventory.stock-in', compact('jobCategories', 'routerItems', 'accessoryItems'));
     }
 
     /**
      * Process Stock In.
      */
-    public function stockIn(StockInRequest $request): JsonResponse
+    public function stockIn(StockInRequest $request)
     {
-        Gate::authorize('stockIn', InventoryItem::class);
+        $this->authorize('stockIn', InventoryItem::class);
 
         try {
-            $movement = $this->inventoryService->stockIn($request->validated());
+            $data = $request->validated();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Stock In processed successfully. Movement: ' . $movement->movement_no,
-            ]);
+            // If stock type is router and creating a new router item
+            if ($data['stock_type'] === 'router' && empty($data['inventory_item_id'])) {
+                // Create the router item first
+                $item = $this->service->createItem([
+                    'item_name' => $data['item_name'],
+                    'job_category_id' => $data['job_category_id'],
+                    'item_type' => InventoryItem::TYPE_ROUTER,
+                    'serial_number' => $data['serial_number'],
+                    'brand' => $data['brand'] ?? null,
+                    'model' => $data['model'] ?? null,
+                    'reorder_level' => 1,
+                    'status' => 'active',
+                ]);
+                $data['inventory_item_id'] = $item->id;
+            }
+
+            $movement = $this->service->stockIn($data);
+
+            return redirect()
+                ->route('admin.inventory.stock-in')
+                ->with('success', "Stock In {$movement->movement_no} processed successfully.");
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Stock In failed: ' . $e->getMessage(),
-            ], 500);
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Stock In failed: ' . $e->getMessage());
         }
     }
+
+    // ══════════════════════════════════════════════════════════
+    // STOCK OUT (linked to Ticket)
+    // ══════════════════════════════════════════════════════════
 
     /**
      * Stock Out form.
      */
-    public function stockOutForm(): View
+    public function stockOutForm()
     {
-        Gate::authorize('stockOut', InventoryItem::class);
+        $this->authorize('stockOut', InventoryItem::class);
 
-        $items = InventoryItem::active()->orderBy('item_name')->get();
-        $technicians = User::role('technician')->where('status', 'active')->orderBy('name')->get();
+        $availableRouters = $this->service->getAvailableRouters();
+        $availableAccessories = $this->service->getAvailableAccessories();
 
-        return view('admin.inventory.stock-out', compact('items', 'technicians'));
+        // Tickets that are open/assigned/in_progress for linking
+        $tickets = Ticket::whereIn('status', [
+                Ticket::STATUS_OPEN,
+                Ticket::STATUS_ASSIGNED,
+                Ticket::STATUS_ACCEPTED,
+                Ticket::STATUS_IN_PROGRESS,
+                Ticket::STATUS_SCHEDULED,
+            ])
+            ->select('id', 'ticket_no', 'merchant_name', 'technician_id')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $technicians = User::role('technician')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name', 'employee_id']);
+
+        return view('admin.inventory.stock-out', compact(
+            'availableRouters', 'availableAccessories', 'tickets', 'technicians'
+        ));
     }
 
     /**
      * Process Stock Out.
      */
-    public function stockOut(StockOutRequest $request): JsonResponse
+    public function stockOut(StockOutRequest $request)
     {
-        Gate::authorize('stockOut', InventoryItem::class);
+        $this->authorize('stockOut', InventoryItem::class);
 
         try {
-            $movement = $this->inventoryService->stockOut($request->validated());
+            $movement = $this->service->stockOut($request->validated());
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Stock Out processed successfully. Movement: ' . $movement->movement_no,
-            ]);
+            return redirect()
+                ->route('admin.inventory.stock-out')
+                ->with('success', "Stock Out {$movement->movement_no} processed successfully.");
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Stock Out failed: ' . $e->getMessage(),
-            ], 500);
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Stock Out failed: ' . $e->getMessage());
         }
     }
+
+    // ══════════════════════════════════════════════════════════
+    // STOCK RETURN
+    // ══════════════════════════════════════════════════════════
 
     /**
      * Stock Return form.
      */
-    public function stockReturnForm(): View
+    public function stockReturnForm()
     {
-        Gate::authorize('stockReturn', InventoryItem::class);
+        $this->authorize('stockReturn', InventoryItem::class);
 
-        $items = InventoryItem::active()->orderBy('item_name')->get();
-        $technicians = User::role('technician')->where('status', 'active')->orderBy('name')->get();
+        $allItems = InventoryItem::active()->orderBy('item_name')->get();
+        $technicians = User::role('technician')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name', 'employee_id']);
 
-        return view('admin.inventory.stock-out', [
-            'items'       => $items,
-            'technicians' => $technicians,
-            'mode'        => 'return',
-        ]);
+        return view('admin.inventory.stock-return', compact('allItems', 'technicians'));
     }
 
     /**
      * Process Stock Return.
      */
-    public function stockReturn(Request $request): JsonResponse
+    public function stockReturn(StockReturnRequest $request)
     {
-        Gate::authorize('stockReturn', InventoryItem::class);
-
-        $request->validate([
-            'inventory_item_id' => 'required|exists:inventory_items,id',
-            'technician_id'     => 'required|exists:users,id',
-            'quantity'          => 'required|integer|min:1',
-            'movement_date'     => 'required|date',
-            'ticket_id'         => 'nullable|exists:tickets,id',
-            'reason'            => 'nullable|string|max:500',
-            'remarks'           => 'nullable|string|max:1000',
-        ]);
+        $this->authorize('stockReturn', InventoryItem::class);
 
         try {
-            $movement = $this->inventoryService->stockReturn($request->all());
+            $movement = $this->service->stockReturn($request->validated());
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Stock Return processed successfully. Movement: ' . $movement->movement_no,
-            ]);
+            return redirect()
+                ->route('admin.inventory.stock-return')
+                ->with('success', "Stock Return {$movement->movement_no} processed successfully.");
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Stock Return failed: ' . $e->getMessage(),
-            ], 500);
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Stock Return failed: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Stock Adjustment form + process.
-     */
-    public function stockAdjustment(Request $request): JsonResponse
-    {
-        Gate::authorize('stockAdjustment', InventoryItem::class);
+    // ══════════════════════════════════════════════════════════
+    // STOCK ADJUSTMENT
+    // ══════════════════════════════════════════════════════════
 
-        $request->validate([
-            'inventory_item_id' => 'required|exists:inventory_items,id',
-            'quantity'          => 'required|integer|not_in:0',
-            'holder_type'       => 'required|in:warehouse,technician',
-            'holder_id'         => 'nullable|exists:users,id',
-            'movement_date'     => 'required|date',
-            'reason'            => 'required|string|max:500',
-            'remarks'           => 'nullable|string|max:1000',
-        ]);
+    /**
+     * Stock Adjustment form.
+     */
+    public function stockAdjustmentForm()
+    {
+        $this->authorize('stockAdjustment', InventoryItem::class);
+
+        $allItems = InventoryItem::active()
+            ->with(['stockBalances' => fn($q) => $q->warehouse()])
+            ->orderBy('item_name')
+            ->get();
+
+        return view('admin.inventory.stock-adjustment', compact('allItems'));
+    }
+
+    /**
+     * Process Stock Adjustment.
+     */
+    public function stockAdjustment(StockAdjustmentRequest $request)
+    {
+        $this->authorize('stockAdjustment', InventoryItem::class);
 
         try {
-            $movement = $this->inventoryService->stockAdjustment($request->all());
+            $adjustment = $this->service->stockAdjustment($request->validated());
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Stock Adjustment processed successfully. Movement: ' . $movement->movement_no,
-            ]);
+            return redirect()
+                ->route('admin.inventory.stock-adjustment')
+                ->with('success', "Stock Adjustment {$adjustment->adjustment_no} processed successfully.");
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Adjustment failed: ' . $e->getMessage(),
-            ], 500);
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Adjustment failed: ' . $e->getMessage());
         }
     }
 
-    /**
-     * AJAX: Get item warehouse stock.
-     */
-    public function getItemStock(Request $request): JsonResponse
-    {
-        $itemId = $request->input('item_id');
-        $item = InventoryItem::find($itemId);
-
-        if (!$item) {
-            return response()->json(['success' => false, 'message' => 'Item not found.'], 404);
-        }
-
-        $warehouseStock = $item->warehouse_stock;
-
-        // Get technician-held stock
-        $techStock = StockBalance::where('inventory_item_id', $itemId)
-            ->where('holder_type', 'technician')
-            ->where('quantity', '>', 0)
-            ->get()
-            ->map(function ($b) {
-                return [
-                    'technician_id'   => $b->holder_id,
-                    'technician_name' => User::find($b->holder_id)?->name ?? 'Unknown',
-                    'quantity'        => $b->quantity,
-                ];
-            });
-
-        return response()->json([
-            'success'         => true,
-            'warehouse_stock' => $warehouseStock,
-            'total_stock'     => $item->total_stock,
-            'tech_stock'      => $techStock,
-            'item_type'       => $item->item_type,
-        ]);
-    }
+    // ══════════════════════════════════════════════════════════
+    // EXPORT
+    // ══════════════════════════════════════════════════════════
 
     /**
-     * Export inventory items.
+     * Export inventory to Excel.
      */
     public function export(Request $request)
     {
-        Gate::authorize('export', InventoryItem::class);
+        $this->authorize('export', InventoryItem::class);
 
-        $fileName = 'inventory_items_' . date('Y_m_d_His') . '.xlsx';
+        $filters = $request->only(['item_type', 'status']);
 
         return Excel::download(
-            new InventoryExport(
-                $request->input('item_type'),
-                $request->input('status'),
-                $request->input('job_category_id')
-            ),
-            $fileName
+            new InventoryExport($filters),
+            'inventory_' . now()->format('Ymd_His') . '.xlsx'
         );
     }
 }

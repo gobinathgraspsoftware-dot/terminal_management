@@ -10,9 +10,17 @@ class InventoryItem extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $table = 'inventory_items';
+
+    // ── Item Type Constants ──
     const TYPE_ROUTER = 'router';
     const TYPE_ACCESSORY = 'accessory';
 
+    // ── Accessory Type Constants ──
+    const ACCESSORY_SIM_CARD = 'sim_card';
+    const ACCESSORY_ANTENNA = 'antenna';
+
+    // ── Status Constants ──
     const STATUS_ACTIVE = 'active';
     const STATUS_INACTIVE = 'inactive';
 
@@ -21,6 +29,7 @@ class InventoryItem extends Model
         'item_name',
         'job_category_id',
         'item_type',
+        'accessory_type',
         'description',
         'unit',
         'serial_number',
@@ -32,38 +41,68 @@ class InventoryItem extends Model
         'updated_by',
     ];
 
-    // =========================================================
-    // Relationships
-    // =========================================================
+    protected function casts(): array
+    {
+        return [
+            'reorder_level' => 'integer',
+        ];
+    }
 
+    // ══════════════════════════════════════
+    // RELATIONSHIPS
+    // ══════════════════════════════════════
+
+    /**
+     * Job category (Router / Accessories).
+     */
     public function jobCategory()
     {
         return $this->belongsTo(JobCategory::class, 'job_category_id');
     }
 
+    /**
+     * Stock balance records for this item.
+     */
     public function stockBalances()
     {
         return $this->hasMany(StockBalance::class, 'inventory_item_id');
     }
 
+    /**
+     * Stock movements for this item.
+     */
     public function stockMovements()
     {
         return $this->hasMany(StockMovement::class, 'inventory_item_id');
     }
 
-    public function createdBy()
+    /**
+     * Stock adjustments for this item.
+     */
+    public function stockAdjustments()
+    {
+        return $this->hasMany(StockAdjustment::class, 'inventory_item_id');
+    }
+
+    /**
+     * Creator user.
+     */
+    public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function updatedBy()
+    /**
+     * Updater user.
+     */
+    public function updater()
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
 
-    // =========================================================
-    // Scopes
-    // =========================================================
+    // ══════════════════════════════════════
+    // SCOPES
+    // ══════════════════════════════════════
 
     public function scopeActive($query)
     {
@@ -80,14 +119,21 @@ class InventoryItem extends Model
         return $query->where('item_type', self::TYPE_ACCESSORY);
     }
 
-    public function scopeByCategory($query, $categoryId)
+    public function scopeSimCards($query)
     {
-        return $query->where('job_category_id', $categoryId);
+        return $query->where('item_type', self::TYPE_ACCESSORY)
+                     ->where('accessory_type', self::ACCESSORY_SIM_CARD);
     }
 
-    // =========================================================
-    // Helpers
-    // =========================================================
+    public function scopeAntennas($query)
+    {
+        return $query->where('item_type', self::TYPE_ACCESSORY)
+                     ->where('accessory_type', self::ACCESSORY_ANTENNA);
+    }
+
+    // ══════════════════════════════════════
+    // HELPERS
+    // ══════════════════════════════════════
 
     public function isRouter(): bool
     {
@@ -105,22 +151,22 @@ class InventoryItem extends Model
     }
 
     /**
-     * Get total warehouse stock quantity.
+     * Get warehouse stock balance for this item.
      */
-    public function getWarehouseStockAttribute(): int
+    public function getWarehouseStock(): int
     {
-        return $this->stockBalances()
+        return (int) $this->stockBalances()
             ->where('holder_type', 'warehouse')
             ->whereNull('holder_id')
-            ->sum('quantity');
+            ->value('quantity') ?? 0;
     }
 
     /**
-     * Get total stock across all holders.
+     * Get total stock across all locations.
      */
-    public function getTotalStockAttribute(): int
+    public function getTotalStock(): int
     {
-        return $this->stockBalances()->sum('quantity');
+        return (int) $this->stockBalances()->sum('quantity');
     }
 
     /**
@@ -128,6 +174,51 @@ class InventoryItem extends Model
      */
     public function isLowStock(): bool
     {
-        return $this->warehouse_stock <= $this->reorder_level;
+        return $this->getWarehouseStock() <= $this->reorder_level;
+    }
+
+    /**
+     * Get item type badge HTML.
+     */
+    public function getTypeBadge(): string
+    {
+        if ($this->isRouter()) {
+            return '<span class="badge bg-primary">Router</span>';
+        }
+
+        $label = $this->accessory_type === self::ACCESSORY_SIM_CARD ? 'SIM Card' : 'Antenna';
+        return '<span class="badge bg-info">' . $label . '</span>';
+    }
+
+    /**
+     * Get status badge HTML.
+     */
+    public function getStatusBadge(): string
+    {
+        return $this->isActive()
+            ? '<span class="badge bg-success">Active</span>'
+            : '<span class="badge bg-secondary">Inactive</span>';
+    }
+
+    /**
+     * Get available item types.
+     */
+    public static function getItemTypes(): array
+    {
+        return [
+            self::TYPE_ROUTER => 'Router',
+            self::TYPE_ACCESSORY => 'Accessory',
+        ];
+    }
+
+    /**
+     * Get available accessory types.
+     */
+    public static function getAccessoryTypes(): array
+    {
+        return [
+            self::ACCESSORY_SIM_CARD => 'SIM Card',
+            self::ACCESSORY_ANTENNA => 'Antenna',
+        ];
     }
 }

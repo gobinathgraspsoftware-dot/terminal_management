@@ -3,279 +3,251 @@
 namespace App\Http\Controllers\Supervisor;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StockInRequest;
+use App\Http\Requests\StockOutRequest;
+use App\Http\Requests\StockReturnRequest;
 use App\Models\InventoryItem;
+use App\Models\JobCategory;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
-use App\Models\JobCategory;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Services\InventoryService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controllers\HasMiddleware;
-use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\View\View;
-use Yajra\DataTables\Facades\DataTables;
+use Illuminate\Support\Facades\DB;
 
-class InventoryController extends Controller implements HasMiddleware
+class InventoryController extends Controller
 {
-    protected InventoryService $inventoryService;
+    protected InventoryService $service;
 
-    public static function middleware(): array
+    public function __construct(InventoryService $service)
     {
-        return [
-            new Middleware('auth'),
-            new Middleware('role:supervisor'),
-        ];
+        $this->service = $service;
     }
 
-    public function __construct(InventoryService $inventoryService)
+    // ══════════════════════════════════════════════════════════
+    // INDEX + DATATABLE
+    // ══════════════════════════════════════════════════════════
+
+    /**
+     * Inventory items list (view-only for supervisors).
+     */
+    public function index()
     {
-        $this->inventoryService = $inventoryService;
+        $this->authorize('viewAny', InventoryItem::class);
+
+        $stats = $this->service->getSummaryStats();
+        $jobCategories = JobCategory::active()->orderBy('category_name')->get();
+
+        return view('supervisor.inventory.index', compact('stats', 'jobCategories'));
     }
 
     /**
-     * Get team technician IDs for scoping.
-     * NOTE: Uses supervisor_id column — team_id does NOT exist in users table.
+     * DataTable AJAX endpoint.
      */
-    protected function getTeamTechnicianIds(): array
+    public function datatable(Request $request)
     {
-        return User::where('supervisor_id', auth()->id())
-            ->pluck('id')
-            ->toArray();
+        $this->authorize('viewAny', InventoryItem::class);
+
+        $result = $this->service->getDatatable($request->all());
+        return response()->json($result);
     }
 
     /**
-     * Inventory index - view items + team stock.
+     * AJAX - Get stock for a specific item.
      */
-    public function index(): View
+    public function getItemStock(Request $request)
     {
-        $techIds = $this->getTeamTechnicianIds();
+        $request->validate(['item_id' => 'required|exists:inventory_items,id']);
 
-        $stats = [
-            'total_items'   => InventoryItem::active()->count(),
-            'team_members'  => count($techIds),
-            'team_stock'    => StockBalance::where('holder_type', 'technician')
-                                ->whereIn('holder_id', $techIds)
-                                ->sum('quantity'),
-            'warehouse'     => StockBalance::where('holder_type', 'warehouse')
-                                ->whereNull('holder_id')
-                                ->sum('quantity'),
-        ];
-
-        $categories = JobCategory::active()->orderBy('category_name')->get();
-        $items = InventoryItem::active()->orderBy('item_name')->get();
-        $technicians = User::whereIn('id', $techIds)->where('status', 'active')->orderBy('name')->get();
-
-        return view('supervisor.inventory.index', compact('stats', 'categories', 'items', 'technicians'));
+        $stock = $this->service->getItemStock($request->item_id);
+        return response()->json($stock);
     }
 
-    /**
-     * DataTable data - inventory items with stock info.
-     */
-    public function datatable(Request $request): JsonResponse
-    {
-        $query = InventoryItem::with(['jobCategory'])
-            ->active()
-            ->select('inventory_items.*');
-
-        if ($request->filled('item_type')) {
-            $query->where('item_type', $request->item_type);
-        }
-        if ($request->filled('job_category_id')) {
-            $query->where('job_category_id', $request->job_category_id);
-        }
-
-        return DataTables::of($query)
-            ->addColumn('category_name', fn($item) => $item->jobCategory->category_name ?? 'N/A')
-            ->addColumn('type_badge', function ($item) {
-                $color = $item->item_type === 'router' ? 'primary' : 'info';
-                return '<span class="badge bg-' . $color . '">' . ucfirst($item->item_type) . '</span>';
-            })
-            ->addColumn('warehouse_qty', fn($item) => $item->warehouse_stock)
-            ->addColumn('total_qty', fn($item) => $item->total_stock)
-            ->addColumn('status_badge', function ($item) {
-                $color = $item->status === InventoryItem::STATUS_ACTIVE ? 'success' : 'danger';
-                return '<span class="badge bg-' . $color . '">' . ucfirst($item->status) . '</span>';
-            })
-            ->addColumn('action', function ($item) {
-                return '<button type="button" class="btn btn-sm btn-outline-info btn-view-stock" data-id="' . $item->id . '" data-name="' . htmlspecialchars($item->item_name) . '" title="View Stock"><i class="bi bi-eye"></i> Stock</button>';
-            })
-            ->rawColumns(['type_badge', 'status_badge', 'action'])
-            ->make(true);
-    }
+    // ══════════════════════════════════════════════════════════
+    // STOCK IN
+    // ══════════════════════════════════════════════════════════
 
     /**
      * Stock In form.
      */
-    public function stockInForm(): View
+    public function stockInForm()
     {
-        $items = InventoryItem::active()->orderBy('item_name')->get();
+        $this->authorize('stockIn', InventoryItem::class);
 
-        return view('supervisor.inventory.stock-in', compact('items'));
+        $jobCategories = JobCategory::active()->orderBy('category_name')->get();
+        $routerItems = InventoryItem::routers()->active()->orderBy('item_name')->get();
+        $accessoryItems = InventoryItem::accessories()->active()->orderBy('item_name')->get();
+
+        return view('supervisor.inventory.stock-in', compact('jobCategories', 'routerItems', 'accessoryItems'));
     }
 
     /**
      * Process Stock In.
      */
-    public function stockIn(Request $request): JsonResponse
+    public function stockIn(StockInRequest $request)
     {
-        $request->validate([
-            'inventory_item_id' => 'required|exists:inventory_items,id',
-            'quantity'          => 'required|integer|min:1',
-            'movement_date'     => 'required|date',
-            'reason'            => 'nullable|string|max:500',
-            'remarks'           => 'nullable|string|max:1000',
-        ]);
+        $this->authorize('stockIn', InventoryItem::class);
 
         try {
-            $movement = $this->inventoryService->stockIn($request->all());
+            $data = $request->validated();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Stock In processed: ' . $movement->movement_no,
-            ]);
+            if ($data['stock_type'] === 'router' && empty($data['inventory_item_id'])) {
+                $item = $this->service->createItem([
+                    'item_name' => $data['item_name'],
+                    'job_category_id' => $data['job_category_id'],
+                    'item_type' => InventoryItem::TYPE_ROUTER,
+                    'serial_number' => $data['serial_number'],
+                    'brand' => $data['brand'] ?? null,
+                    'model' => $data['model'] ?? null,
+                    'reorder_level' => 1,
+                    'status' => 'active',
+                ]);
+                $data['inventory_item_id'] = $item->id;
+            }
+
+            $movement = $this->service->stockIn($data);
+
+            return redirect()
+                ->route('supervisor.inventory.stock-in')
+                ->with('success', "Stock In {$movement->movement_no} processed successfully.");
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Stock In failed: ' . $e->getMessage(),
-            ], 500);
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Stock In failed: ' . $e->getMessage());
         }
     }
+
+    // ══════════════════════════════════════════════════════════
+    // STOCK OUT (linked to Ticket)
+    // ══════════════════════════════════════════════════════════
 
     /**
      * Stock Out form.
      */
-    public function stockOutForm(): View
+    public function stockOutForm()
     {
-        $items = InventoryItem::active()->orderBy('item_name')->get();
-        $techIds = $this->getTeamTechnicianIds();
-        $technicians = User::whereIn('id', $techIds)->where('status', 'active')->orderBy('name')->get();
+        $this->authorize('stockOut', InventoryItem::class);
 
-        return view('supervisor.inventory.stock-out', compact('items', 'technicians'));
+        $availableRouters = $this->service->getAvailableRouters();
+        $availableAccessories = $this->service->getAvailableAccessories();
+
+        // Tickets visible to this supervisor
+        $supervisorId = auth()->id();
+        $tickets = Ticket::where('supervisor_id', $supervisorId)
+            ->whereIn('status', [
+                Ticket::STATUS_OPEN,
+                Ticket::STATUS_ASSIGNED,
+                Ticket::STATUS_ACCEPTED,
+                Ticket::STATUS_IN_PROGRESS,
+                Ticket::STATUS_SCHEDULED,
+            ])
+            ->select('id', 'ticket_no', 'merchant_name', 'technician_id')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Technicians in this supervisor's team (NOT using team_id)
+        $technicians = User::where('supervisor_id', $supervisorId)
+            ->role('technician')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name', 'employee_id']);
+
+        return view('supervisor.inventory.stock-out', compact(
+            'availableRouters', 'availableAccessories', 'tickets', 'technicians'
+        ));
     }
 
     /**
      * Process Stock Out.
      */
-    public function stockOut(Request $request): JsonResponse
+    public function stockOut(StockOutRequest $request)
     {
-        $request->validate([
-            'inventory_item_id' => 'required|exists:inventory_items,id',
-            'technician_id'     => 'required|exists:users,id',
-            'quantity'          => 'required|integer|min:1',
-            'movement_date'     => 'required|date',
-            'ticket_id'         => 'nullable|exists:tickets,id',
-            'reason'            => 'nullable|string|max:500',
-            'remarks'           => 'nullable|string|max:1000',
-        ]);
-
-        // Validate technician is in team
-        $techIds = $this->getTeamTechnicianIds();
-        if (!in_array($request->technician_id, $techIds)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Selected technician is not in your team.',
-            ], 403);
-        }
+        $this->authorize('stockOut', InventoryItem::class);
 
         try {
-            $movement = $this->inventoryService->stockOut($request->all());
+            $movement = $this->service->stockOut($request->validated());
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Stock Out processed: ' . $movement->movement_no,
-            ]);
+            return redirect()
+                ->route('supervisor.inventory.stock-out')
+                ->with('success', "Stock Out {$movement->movement_no} processed successfully.");
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Stock Out failed: ' . $e->getMessage(),
-            ], 500);
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Stock Out failed: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Stock Return form (return from technician to warehouse).
-     * FIX: This method was missing in the original delivery.
-     */
-    public function stockReturnForm(): View
-    {
-        $items = InventoryItem::active()->orderBy('item_name')->get();
-        $techIds = $this->getTeamTechnicianIds();
-        $technicians = User::whereIn('id', $techIds)->where('status', 'active')->orderBy('name')->get();
+    // ══════════════════════════════════════════════════════════
+    // STOCK RETURN
+    // ══════════════════════════════════════════════════════════
 
-        return view('supervisor.inventory.stock-out', [
-            'items'       => $items,
-            'technicians' => $technicians,
-            'mode'        => 'return',
-        ]);
+    /**
+     * Process Stock Return (POST only, form is in stock-return blade).
+     */
+    public function stockReturnForm()
+    {
+        $this->authorize('stockReturn', InventoryItem::class);
+
+        $allItems = InventoryItem::active()->orderBy('item_name')->get();
+        $supervisorId = auth()->id();
+        $technicians = User::where('supervisor_id', $supervisorId)
+            ->role('technician')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name', 'employee_id']);
+
+        return view('supervisor.inventory.stock-return', compact('allItems', 'technicians'));
     }
 
     /**
      * Process Stock Return.
      */
-    public function stockReturn(Request $request): JsonResponse
+    public function stockReturn(StockReturnRequest $request)
     {
-        $request->validate([
-            'inventory_item_id' => 'required|exists:inventory_items,id',
-            'technician_id'     => 'required|exists:users,id',
-            'quantity'          => 'required|integer|min:1',
-            'movement_date'     => 'required|date',
-            'reason'            => 'nullable|string|max:500',
-            'remarks'           => 'nullable|string|max:1000',
-        ]);
-
-        $techIds = $this->getTeamTechnicianIds();
-        if (!in_array($request->technician_id, $techIds)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Selected technician is not in your team.',
-            ], 403);
-        }
+        $this->authorize('stockReturn', InventoryItem::class);
 
         try {
-            $movement = $this->inventoryService->stockReturn($request->all());
+            $movement = $this->service->stockReturn($request->validated());
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Stock Return processed: ' . $movement->movement_no,
-            ]);
+            return redirect()
+                ->route('supervisor.inventory.stock-return')
+                ->with('success', "Stock Return {$movement->movement_no} processed successfully.");
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Stock Return failed: ' . $e->getMessage(),
-            ], 500);
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Stock Return failed: ' . $e->getMessage());
         }
     }
 
+    // ══════════════════════════════════════════════════════════
+    // MOVEMENTS
+    // ══════════════════════════════════════════════════════════
+
     /**
-     * AJAX: Get item stock for team.
+     * Movements list page.
      */
-    public function getItemStock(Request $request): JsonResponse
+    public function movementsIndex()
     {
-        $itemId = $request->input('item_id');
-        $item = InventoryItem::find($itemId);
+        $this->authorize('viewMovements', InventoryItem::class);
 
-        if (!$item) {
-            return response()->json(['success' => false, 'message' => 'Item not found.'], 404);
-        }
+        $items = InventoryItem::active()->orderBy('item_name')->get(['id', 'item_code', 'item_name']);
+        $movementTypes = StockMovement::getMovementTypes();
 
-        $techIds = $this->getTeamTechnicianIds();
-        $techStock = StockBalance::where('inventory_item_id', $itemId)
-            ->where('holder_type', 'technician')
-            ->whereIn('holder_id', $techIds)
-            ->where('quantity', '>', 0)
-            ->get()
-            ->map(fn($b) => [
-                'technician_id'   => $b->holder_id,
-                'technician_name' => User::find($b->holder_id)?->name ?? 'Unknown',
-                'quantity'        => $b->quantity,
-            ]);
+        return view('supervisor.inventory.movements', compact('items', 'movementTypes'));
+    }
 
-        return response()->json([
-            'success'         => true,
-            'warehouse_stock' => $item->warehouse_stock,
-            'tech_stock'      => $techStock,
-            'item_type'       => $item->item_type,
-        ]);
+    /**
+     * Movements DataTable AJAX.
+     */
+    public function movementsDatatable(Request $request)
+    {
+        $this->authorize('viewMovements', InventoryItem::class);
+
+        $result = $this->service->getMovementsDatatable($request->all());
+        return response()->json($result);
     }
 }

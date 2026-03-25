@@ -223,7 +223,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
     });
 
     Route::prefix('inventory')->name('inventory.')->group(function () {
-        // DataTable + AJAX (before parameterized routes)
+        // DataTable + AJAX + Export (before parameterized routes)
         Route::get('/datatable', [AdminInventoryController::class, 'datatable'])->name('datatable');
         Route::get('/export', [AdminInventoryController::class, 'export'])->name('export');
         Route::get('/ajax/item-stock', [AdminInventoryController::class, 'getItemStock'])->name('get-item-stock');
@@ -240,18 +240,14 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/stock-return', [AdminInventoryController::class, 'stockReturnForm'])->name('stock-return');
         Route::post('/stock-return', [AdminInventoryController::class, 'stockReturn'])->name('stock-return.process');
 
-        // Stock Adjustment
+        // Stock Adjustment (NEW)
+        Route::get('/stock-adjustment', [AdminInventoryController::class, 'stockAdjustmentForm'])->name('stock-adjustment');
         Route::post('/stock-adjustment', [AdminInventoryController::class, 'stockAdjustment'])->name('stock-adjustment.process');
 
         // Stock Movements
         Route::get('/movements', [AdminStockMovementController::class, 'index'])->name('movements');
         Route::get('/movements/datatable', [AdminStockMovementController::class, 'datatable'])->name('movements.datatable');
-
-        // Stock Transfer
-        Route::get('/transfer', [AdminStockMovementController::class, 'transferForm'])->name('transfer');
-        Route::post('/transfer', [AdminStockMovementController::class, 'createTransfer'])->name('transfer.create');
-        Route::post('/transfer/{stockTransfer}/approve', [AdminStockMovementController::class, 'approveTransfer'])->name('transfer.approve');
-        Route::post('/transfer/{stockTransfer}/reject', [AdminStockMovementController::class, 'rejectTransfer'])->name('transfer.reject');
+        Route::get('/movements/export', [AdminStockMovementController::class, 'export'])->name('movements.export');
 
         // CRUD (parameterized routes LAST)
         Route::get('/', [AdminInventoryController::class, 'index'])->name('index');
@@ -439,15 +435,12 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::post('/stock-out', [SupervisorInventoryController::class, 'stockOut'])->name('stock-out.process');
 
         // Stock Return
+        Route::get('/stock-return', [SupervisorInventoryController::class, 'stockReturnForm'])->name('stock-return');
         Route::post('/stock-return', [SupervisorInventoryController::class, 'stockReturn'])->name('stock-return.process');
 
         // Movements
-        Route::get('/movements', [SupervisorStockMovementController::class, 'index'])->name('movements');
-        Route::get('/movements/datatable', [SupervisorStockMovementController::class, 'datatable'])->name('movements.datatable');
-
-        // Transfer
-        Route::get('/transfer', [SupervisorStockMovementController::class, 'transferForm'])->name('transfer');
-        Route::post('/transfer', [SupervisorStockMovementController::class, 'createTransfer'])->name('transfer.create');
+        Route::get('/movements', [SupervisorInventoryController::class, 'movementsIndex'])->name('movements');
+        Route::get('/movements/datatable', [SupervisorInventoryController::class, 'movementsDatatable'])->name('movements.datatable');
 
         // Index
         Route::get('/', [SupervisorInventoryController::class, 'index'])->name('index');

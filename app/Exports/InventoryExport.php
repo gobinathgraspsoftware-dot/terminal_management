@@ -3,76 +3,82 @@
 namespace App\Exports;
 
 use App\Models\InventoryItem;
-use Maatwebsite\Excel\Concerns\FromQuery;
+use App\Models\StockBalance;
+use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class InventoryExport implements FromQuery, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
+class InventoryExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
 {
-    protected ?string $itemType;
-    protected ?string $status;
-    protected ?int $categoryId;
+    protected array $filters;
 
-    public function __construct(?string $itemType = null, ?string $status = null, ?int $categoryId = null)
+    public function __construct(array $filters = [])
     {
-        $this->itemType   = $itemType;
-        $this->status     = $status;
-        $this->categoryId = $categoryId;
+        $this->filters = $filters;
     }
 
-    public function query()
+    public function collection()
     {
-        $query = InventoryItem::with(['jobCategory', 'stockBalances'])
-            ->select('inventory_items.*');
+        $query = InventoryItem::with(['jobCategory', 'creator']);
 
-        if ($this->itemType) {
-            $query->where('item_type', $this->itemType);
+        if (!empty($this->filters['item_type'])) {
+            $query->where('item_type', $this->filters['item_type']);
         }
-        if ($this->status) {
-            $query->where('status', $this->status);
-        }
-        if ($this->categoryId) {
-            $query->where('job_category_id', $this->categoryId);
+        if (!empty($this->filters['status'])) {
+            $query->where('status', $this->filters['status']);
         }
 
-        return $query->orderBy('item_code');
+        return $query->orderBy('item_code')->get();
     }
 
     public function headings(): array
     {
         return [
+            '#',
             'Item Code',
             'Item Name',
-            'Category',
-            'Type',
+            'Item Type',
+            'Accessory Type',
             'Terminal ID',
             'Brand',
             'Model',
+            'Category',
             'Unit',
             'Warehouse Stock',
             'Total Stock',
             'Reorder Level',
             'Status',
-            'Created At',
+            'Created Date',
         ];
     }
 
     public function map($item): array
     {
+        static $row = 0;
+        $row++;
+
+        $accessoryLabel = match ($item->accessory_type) {
+            'sim_card' => 'SIM Card',
+            'antenna' => 'Antenna',
+            default => '-',
+        };
+
         return [
+            $row,
             $item->item_code,
             $item->item_name,
-            $item->jobCategory->category_name ?? 'N/A',
             ucfirst($item->item_type),
+            $accessoryLabel,
             $item->serial_number ?? '-',
             $item->brand ?? '-',
             $item->model ?? '-',
-            $item->unit,
-            $item->warehouse_stock,
-            $item->total_stock,
+            $item->jobCategory->category_name ?? 'N/A',
+            $item->unit ?? 'unit',
+            $item->getWarehouseStock(),
+            $item->getTotalStock(),
             $item->reorder_level,
             ucfirst($item->status),
             $item->created_at?->format('d M Y'),

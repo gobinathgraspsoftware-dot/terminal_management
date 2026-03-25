@@ -9,11 +9,18 @@ class StockMovement extends Model
 {
     use HasFactory;
 
+    protected $table = 'stock_movements';
+
+    // ── Movement Type Constants ──
     const TYPE_STOCK_IN = 'stock_in';
     const TYPE_STOCK_OUT = 'stock_out';
     const TYPE_STOCK_RETURN = 'stock_return';
     const TYPE_STOCK_ADJUSTMENT = 'stock_adjustment';
-    const TYPE_STOCK_TRANSFER = 'stock_transfer';
+
+    // ── Item Condition Constants ──
+    const CONDITION_GOOD = 'good';
+    const CONDITION_FAULTY = 'faulty';
+    const CONDITION_DAMAGED = 'damaged';
 
     protected $fillable = [
         'movement_no',
@@ -25,11 +32,11 @@ class StockMovement extends Model
         'to_holder_type',
         'to_holder_id',
         'ticket_id',
-        'transfer_id',
         'reference_type',
         'reference_id',
         'reason',
         'remarks',
+        'item_condition',
         'movement_date',
         'performed_by',
     ];
@@ -37,14 +44,14 @@ class StockMovement extends Model
     protected function casts(): array
     {
         return [
-            'movement_date' => 'date',
             'quantity' => 'integer',
+            'movement_date' => 'date',
         ];
     }
 
-    // =========================================================
-    // Relationships
-    // =========================================================
+    // ══════════════════════════════════════
+    // RELATIONSHIPS
+    // ══════════════════════════════════════
 
     public function inventoryItem()
     {
@@ -56,76 +63,150 @@ class StockMovement extends Model
         return $this->belongsTo(Ticket::class, 'ticket_id');
     }
 
-    public function transfer()
-    {
-        return $this->belongsTo(StockTransfer::class, 'transfer_id');
-    }
-
-    public function performedBy()
+    public function performer()
     {
         return $this->belongsTo(User::class, 'performed_by');
     }
 
+    /**
+     * From holder (technician or null for warehouse).
+     */
     public function fromHolder()
     {
-        if ($this->from_holder_type === 'technician' && $this->from_holder_id) {
-            return $this->belongsTo(User::class, 'from_holder_id');
-        }
-        return null;
+        return $this->belongsTo(User::class, 'from_holder_id');
     }
 
+    /**
+     * To holder (technician or null for warehouse).
+     */
     public function toHolder()
     {
-        if ($this->to_holder_type === 'technician' && $this->to_holder_id) {
-            return $this->belongsTo(User::class, 'to_holder_id');
-        }
-        return null;
+        return $this->belongsTo(User::class, 'to_holder_id');
     }
 
-    // =========================================================
-    // Scopes
-    // =========================================================
+    /**
+     * Stock adjustment record (if movement_type = stock_adjustment).
+     */
+    public function stockAdjustment()
+    {
+        return $this->hasOne(StockAdjustment::class, 'stock_movement_id');
+    }
 
-    public function scopeByType($query, $type)
+    // ══════════════════════════════════════
+    // SCOPES
+    // ══════════════════════════════════════
+
+    public function scopeOfType($query, string $type)
     {
         return $query->where('movement_type', $type);
     }
 
-    public function scopeByDateRange($query, $from, $to)
+    public function scopeDateRange($query, $from, $to)
     {
-        return $query->whereBetween('movement_date', [$from, $to]);
+        if ($from) $query->where('movement_date', '>=', $from);
+        if ($to) $query->where('movement_date', '<=', $to);
+        return $query;
     }
 
-    public function scopeByItem($query, $itemId)
+    public function scopeForItem($query, int $itemId)
     {
         return $query->where('inventory_item_id', $itemId);
     }
 
-    // =========================================================
-    // Helpers
-    // =========================================================
+    // ══════════════════════════════════════
+    // HELPERS
+    // ══════════════════════════════════════
 
-    public static function getTypeLabel(string $type): string
+    /**
+     * Get movement type label.
+     */
+    public function getTypeLabel(): string
     {
-        return match ($type) {
-            self::TYPE_STOCK_IN         => 'Stock In',
-            self::TYPE_STOCK_OUT        => 'Stock Out',
-            self::TYPE_STOCK_RETURN     => 'Stock Return',
+        return match ($this->movement_type) {
+            self::TYPE_STOCK_IN => 'Stock In',
+            self::TYPE_STOCK_OUT => 'Stock Out',
+            self::TYPE_STOCK_RETURN => 'Stock Return',
             self::TYPE_STOCK_ADJUSTMENT => 'Stock Adjustment',
-            self::TYPE_STOCK_TRANSFER   => 'Stock Transfer',
-            default => ucfirst(str_replace('_', ' ', $type)),
+            default => ucfirst(str_replace('_', ' ', $this->movement_type)),
         };
     }
 
-    public static function getTypeBadgeColor(string $type): string
+    /**
+     * Get movement type badge HTML.
+     */
+    public function getTypeBadge(): string
     {
-        return match ($type) {
-            self::TYPE_STOCK_IN         => 'success',
-            self::TYPE_STOCK_OUT        => 'danger',
-            self::TYPE_STOCK_RETURN     => 'info',
+        $colors = [
+            self::TYPE_STOCK_IN => 'success',
+            self::TYPE_STOCK_OUT => 'danger',
+            self::TYPE_STOCK_RETURN => 'info',
             self::TYPE_STOCK_ADJUSTMENT => 'warning',
-            self::TYPE_STOCK_TRANSFER   => 'primary',
-            default => 'secondary',
-        };
+        ];
+
+        $color = $colors[$this->movement_type] ?? 'secondary';
+        return '<span class="badge bg-' . $color . '">' . $this->getTypeLabel() . '</span>';
+    }
+
+    /**
+     * Get condition badge HTML.
+     */
+    public function getConditionBadge(): string
+    {
+        $colors = [
+            self::CONDITION_GOOD => 'success',
+            self::CONDITION_FAULTY => 'warning',
+            self::CONDITION_DAMAGED => 'danger',
+        ];
+
+        $color = $colors[$this->item_condition] ?? 'secondary';
+        $label = ucfirst($this->item_condition ?? 'N/A');
+        return '<span class="badge bg-' . $color . '">' . $label . '</span>';
+    }
+
+    /**
+     * Get from location display text.
+     */
+    public function getFromLocation(): string
+    {
+        if ($this->from_holder_type === 'warehouse') {
+            return 'Warehouse';
+        }
+        return $this->fromHolder?->name ?? 'Unknown Technician';
+    }
+
+    /**
+     * Get to location display text.
+     */
+    public function getToLocation(): string
+    {
+        if ($this->to_holder_type === 'warehouse') {
+            return 'Warehouse';
+        }
+        return $this->toHolder?->name ?? 'Unknown Technician';
+    }
+
+    /**
+     * Get available movement types.
+     */
+    public static function getMovementTypes(): array
+    {
+        return [
+            self::TYPE_STOCK_IN => 'Stock In',
+            self::TYPE_STOCK_OUT => 'Stock Out',
+            self::TYPE_STOCK_RETURN => 'Stock Return',
+            self::TYPE_STOCK_ADJUSTMENT => 'Stock Adjustment',
+        ];
+    }
+
+    /**
+     * Get available conditions.
+     */
+    public static function getConditions(): array
+    {
+        return [
+            self::CONDITION_GOOD => 'Good',
+            self::CONDITION_FAULTY => 'Faulty',
+            self::CONDITION_DAMAGED => 'Damaged',
+        ];
     }
 }

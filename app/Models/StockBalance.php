@@ -9,6 +9,11 @@ class StockBalance extends Model
 {
     use HasFactory;
 
+    protected $table = 'stock_balances';
+
+    const HOLDER_WAREHOUSE = 'warehouse';
+    const HOLDER_TECHNICIAN = 'technician';
+
     protected $fillable = [
         'inventory_item_id',
         'holder_type',
@@ -23,62 +28,69 @@ class StockBalance extends Model
         ];
     }
 
-    // =========================================================
-    // Relationships
-    // =========================================================
+    // ══════════════════════════════════════
+    // RELATIONSHIPS
+    // ══════════════════════════════════════
 
     public function inventoryItem()
     {
         return $this->belongsTo(InventoryItem::class, 'inventory_item_id');
     }
 
+    /**
+     * Holder user (technician). NULL for warehouse.
+     */
     public function holder()
     {
-        if ($this->holder_type === 'technician' && $this->holder_id) {
-            return $this->belongsTo(User::class, 'holder_id');
-        }
-        return null;
+        return $this->belongsTo(User::class, 'holder_id');
     }
 
-    // =========================================================
-    // Scopes
-    // =========================================================
+    // ══════════════════════════════════════
+    // SCOPES
+    // ══════════════════════════════════════
 
     public function scopeWarehouse($query)
     {
-        return $query->where('holder_type', 'warehouse')->whereNull('holder_id');
+        return $query->where('holder_type', self::HOLDER_WAREHOUSE)
+                     ->whereNull('holder_id');
     }
 
-    public function scopeTechnician($query, $technicianId = null)
+    public function scopeForTechnician($query, int $technicianId)
     {
-        $q = $query->where('holder_type', 'technician');
-        if ($technicianId) {
-            $q->where('holder_id', $technicianId);
-        }
-        return $q;
+        return $query->where('holder_type', self::HOLDER_TECHNICIAN)
+                     ->where('holder_id', $technicianId);
     }
 
-    public function scopeByItem($query, $itemId)
+    // ══════════════════════════════════════
+    // HELPERS
+    // ══════════════════════════════════════
+
+    public function isWarehouse(): bool
     {
-        return $query->where('inventory_item_id', $itemId);
+        return $this->holder_type === self::HOLDER_WAREHOUSE;
     }
-
-    // =========================================================
-    // Helpers
-    // =========================================================
 
     /**
-     * Get or create a balance record for the given item + holder.
+     * Get or create a balance record for item + location.
      */
-    public static function getOrCreate(int $itemId, string $holderType, ?int $holderId = null): self
+    public static function getOrCreate(int $itemId, string $holderType = 'warehouse', ?int $holderId = null): self
     {
-        return self::firstOrCreate(
-            [
-                'inventory_item_id' => $itemId,
-                'holder_type'       => $holderType,
-                'holder_id'         => $holderType === 'warehouse' ? null : $holderId,
-            ],
-            ['quantity' => 0]
-        );
+        return static::firstOrCreate([
+            'inventory_item_id' => $itemId,
+            'holder_type' => $holderType,
+            'holder_id' => $holderId,
+        ], [
+            'quantity' => 0,
+        ]);
+    }
+
+    /**
+     * Get warehouse balance for an item.
+     */
+    public static function warehouseBalance(int $itemId): int
+    {
+        return (int) static::where('inventory_item_id', $itemId)
+            ->warehouse()
+            ->value('quantity') ?? 0;
     }
 }

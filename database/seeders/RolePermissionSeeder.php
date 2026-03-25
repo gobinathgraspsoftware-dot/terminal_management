@@ -45,12 +45,12 @@ class RolePermissionSeeder extends Seeder
             'view_models', 'view_categories', 'view_charges', 'view_rate_cards',
 
             // ============================================================
-            // INVENTORY MANAGEMENT (NEW)
+            // INVENTORY MANAGEMENT
             // ============================================================
             'view_inventory', 'create_inventory', 'edit_inventory', 'export_inventory',
             'view_stock_movements',
             'create_stock_in', 'create_stock_out', 'create_stock_return',
-            'create_stock_transfer',
+            // NOTE: create_stock_transfer REMOVED — Transfer no longer in module
             // ============================================================
 
             // Job Orders - Full team access
@@ -112,7 +112,7 @@ class RolePermissionSeeder extends Seeder
             'view_clients', 'view_sites', 'view_models',
 
             // ============================================================
-            // INVENTORY MANAGEMENT (NEW) - View own stock only
+            // INVENTORY MANAGEMENT - View own stock only
             // ============================================================
             'view_own_inventory',
             'view_stock_movements',

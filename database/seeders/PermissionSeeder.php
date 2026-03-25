@@ -56,7 +56,7 @@ class PermissionSeeder extends Seeder
             'stock_out'        => ['create'],
             'stock_return'     => ['create'],
             'stock_adjustment' => ['create'],
-            'stock_transfer'   => ['create', 'approve'],
+            // NOTE: stock_transfer REMOVED — no longer part of the module
 
             // Job Orders
             'jobs' => ['view', 'create', 'edit', 'delete', 'assign', 'reassign', 'start', 'complete', 'fail', 'cancel', 'view_all', 'view_team', 'view_own'],

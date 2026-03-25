@@ -1,210 +1,195 @@
 @extends('layouts.app')
-@section('title', 'Inventory Item Details')
+@section('title', $inventory_item->item_name)
 
 @section('content')
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1">{{ $inventoryItem->item_name }}</h4>
+            <h4 class="mb-1">{{ $inventory_item->item_name }}</h4>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
                     <li class="breadcrumb-item"><a href="{{ route('admin.inventory.index') }}">Inventory</a></li>
-                    <li class="breadcrumb-item active">{{ $inventoryItem->item_code }}</li>
+                    <li class="breadcrumb-item active">{{ $inventory_item->item_code }}</li>
                 </ol>
             </nav>
         </div>
-        <div class="d-flex gap-2">
-            <a href="{{ route('admin.inventory.edit', $inventoryItem->id) }}" class="btn btn-primary">
+        <div>
+            @can('edit_inventory')
+            <a href="{{ route('admin.inventory.edit', $inventory_item) }}" class="btn btn-warning btn-sm">
                 <i class="bi bi-pencil me-1"></i> Edit
             </a>
-            <a href="{{ route('admin.inventory.index') }}" class="btn btn-outline-secondary">
+            @endcan
+            <a href="{{ route('admin.inventory.index') }}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i> Back
             </a>
         </div>
     </div>
 
     <div class="row g-4">
-        <!-- Item Details -->
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Item Details</h6>
-                </div>
+        {{-- Left: Details --}}
+        <div class="col-md-5">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white fw-semibold">Item Details</div>
                 <div class="card-body">
-                    <table class="table table-borderless mb-0">
-                        <tr>
-                            <th width="35%" class="text-muted">Item Code</th>
-                            <td><span class="badge bg-secondary">{{ $inventoryItem->item_code }}</span></td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted">Item Name</th>
-                            <td>{{ $inventoryItem->item_name }}</td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted">Type</th>
-                            <td>
-                                <span class="badge bg-{{ $inventoryItem->item_type === 'router' ? 'primary' : 'info' }}">
-                                    {{ ucfirst($inventoryItem->item_type) }}
-                                </span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted">Category</th>
-                            <td>{{ $inventoryItem->jobCategory->category_name ?? 'N/A' }}</td>
-                        </tr>
-                        @if($inventoryItem->serial_number)
-                        <tr>
-                            <th class="text-muted">Terminal ID</th>
-                            <td><code>{{ $inventoryItem->serial_number }}</code></td>
-                        </tr>
+                    <table class="table table-borderless table-sm mb-0">
+                        <tr><th class="text-muted" width="140">Item Code</th><td class="fw-semibold">{{ $inventory_item->item_code }}</td></tr>
+                        <tr><th class="text-muted">Item Name</th><td>{{ $inventory_item->item_name }}</td></tr>
+                        <tr><th class="text-muted">Type</th><td>{!! $inventory_item->getTypeBadge() !!}</td></tr>
+                        @if($inventory_item->isRouter())
+                        <tr><th class="text-muted">Terminal ID</th><td class="fw-semibold text-primary">{{ $inventory_item->serial_number ?? '-' }}</td></tr>
                         @endif
-                        <tr>
-                            <th class="text-muted">Brand / Model</th>
-                            <td>{{ $inventoryItem->brand ?? '-' }} / {{ $inventoryItem->model ?? '-' }}</td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted">Unit</th>
-                            <td>{{ ucfirst($inventoryItem->unit) }}</td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted">Reorder Level</th>
-                            <td>{{ $inventoryItem->reorder_level }}</td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted">Status</th>
-                            <td>
-                                <span class="badge bg-{{ $inventoryItem->status === 'active' ? 'success' : 'danger' }}">
-                                    {{ ucfirst($inventoryItem->status) }}
-                                </span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th class="text-muted">Created By</th>
-                            <td>{{ $inventoryItem->createdBy->name ?? 'System' }} — {{ $inventoryItem->created_at?->format('d M Y H:i') }}</td>
-                        </tr>
+                        @if($inventory_item->isAccessory())
+                        <tr><th class="text-muted">Accessory Type</th><td>{{ $inventory_item->accessory_type === 'sim_card' ? 'SIM Card' : 'Antenna' }}</td></tr>
+                        @endif
+                        <tr><th class="text-muted">Category</th><td>{{ $inventory_item->jobCategory->category_name ?? 'N/A' }}</td></tr>
+                        <tr><th class="text-muted">Brand</th><td>{{ $inventory_item->brand ?? '-' }}</td></tr>
+                        <tr><th class="text-muted">Model</th><td>{{ $inventory_item->model ?? '-' }}</td></tr>
+                        <tr><th class="text-muted">Unit</th><td>{{ $inventory_item->unit ?? 'unit' }}</td></tr>
+                        <tr><th class="text-muted">Reorder Level</th><td>{{ $inventory_item->reorder_level }}</td></tr>
+                        <tr><th class="text-muted">Status</th><td>{!! $inventory_item->getStatusBadge() !!}</td></tr>
+                        <tr><th class="text-muted">Description</th><td>{{ $inventory_item->description ?? '-' }}</td></tr>
+                        <tr><th class="text-muted">Created</th><td>{{ $inventory_item->created_at?->format('d M Y H:i') }} by {{ $inventory_item->creator->name ?? 'N/A' }}</td></tr>
+                        @if($inventory_item->updater)
+                        <tr><th class="text-muted">Updated</th><td>{{ $inventory_item->updated_at?->format('d M Y H:i') }} by {{ $inventory_item->updater->name }}</td></tr>
+                        @endif
                     </table>
                 </div>
             </div>
-        </div>
 
-        <!-- Stock Balances -->
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0"><i class="bi bi-box-seam me-2"></i>Stock Balances</h6>
-                </div>
+            {{-- Stock Balances --}}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-semibold">Stock Balances</div>
                 <div class="card-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <div class="border rounded p-3 text-center {{ $inventory_item->isLowStock() ? 'border-danger' : '' }}">
+                                <div class="fs-3 fw-bold {{ $inventory_item->isLowStock() ? 'text-danger' : 'text-primary' }}">{{ $warehouseStock }}</div>
+                                <small class="text-muted">Warehouse</small>
+                                @if($inventory_item->isLowStock())
+                                <div><small class="text-danger"><i class="bi bi-exclamation-triangle"></i> Low Stock</small></div>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="border rounded p-3 text-center">
+                                <div class="fs-3 fw-bold text-success">{{ $totalStock }}</div>
+                                <small class="text-muted">Total (All Locations)</small>
+                            </div>
+                        </div>
+                    </div>
+
                     @if($balances->count())
-                    <table class="table table-sm">
+                    <table class="table table-sm table-hover">
                         <thead class="table-light">
-                            <tr>
-                                <th>Holder</th>
-                                <th class="text-center">Quantity</th>
-                            </tr>
+                            <tr><th>Location</th><th>Holder</th><th class="text-end">Qty</th></tr>
                         </thead>
                         <tbody>
-                            @foreach($balances as $balance)
+                            @foreach($balances as $bal)
                             <tr>
-                                <td>
-                                    @if($balance->holder_type === 'warehouse')
-                                        <i class="bi bi-building me-1 text-primary"></i> {{ $balance->holder_name }}
-                                    @else
-                                        <i class="bi bi-person me-1 text-info"></i> {{ $balance->holder_name }}
-                                    @endif
-                                </td>
-                                <td class="text-center fw-bold">{{ $balance->quantity }}</td>
+                                <td><span class="badge bg-{{ $bal->isWarehouse() ? 'primary' : 'info' }}">{{ ucfirst($bal->holder_type) }}</span></td>
+                                <td>{{ $bal->isWarehouse() ? 'Main Warehouse' : ($bal->holder->name ?? 'Unknown') }}</td>
+                                <td class="text-end fw-semibold">{{ $bal->quantity }}</td>
                             </tr>
                             @endforeach
                         </tbody>
-                        <tfoot class="table-light">
-                            <tr>
-                                <th>Total</th>
-                                <th class="text-center">{{ $balances->sum('quantity') }}</th>
-                            </tr>
-                        </tfoot>
                     </table>
                     @else
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-inbox fs-1"></i>
-                        <p class="mt-2">No stock balances found.</p>
-                    </div>
-                    @endif
-
-                    @if($inventoryItem->isLowStock())
-                    <div class="alert alert-warning mt-3 mb-0">
-                        <i class="bi bi-exclamation-triangle me-1"></i>
-                        <strong>Low Stock Alert!</strong> Warehouse stock is at or below reorder level ({{ $inventoryItem->reorder_level }}).
-                    </div>
+                    <p class="text-muted mb-0">No stock balances found.</p>
                     @endif
                 </div>
             </div>
         </div>
 
-        <!-- Recent Movements -->
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
+        {{-- Right: Movements & Adjustments --}}
+        <div class="col-md-7">
+            {{-- Recent Movements --}}
+            <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="bi bi-arrow-left-right me-2"></i>Recent Movements</h6>
-                    <a href="{{ route('admin.inventory.movements') }}?inventory_item_id={{ $inventoryItem->id }}" class="btn btn-sm btn-outline-primary">View All</a>
+                    <span class="fw-semibold">Recent Movements</span>
+                    <a href="{{ route('admin.inventory.movements') }}?inventory_item_id={{ $inventory_item->id }}" class="btn btn-outline-primary btn-sm">View All</a>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     @if($recentMovements->count())
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover">
+                        <table class="table table-sm table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Movement #</th>
+                                    <th>Movement No</th>
                                     <th>Type</th>
                                     <th>Qty</th>
-                                    <th>From</th>
-                                    <th>To</th>
                                     <th>Ticket</th>
-                                    <th>Performed By</th>
                                     <th>Date</th>
+                                    <th>By</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($recentMovements as $m)
+                                @foreach($recentMovements as $mv)
                                 <tr>
-                                    <td><code>{{ $m->movement_no }}</code></td>
-                                    <td>
-                                        <span class="badge bg-{{ \App\Models\StockMovement::getTypeBadgeColor($m->movement_type) }}">
-                                            {{ \App\Models\StockMovement::getTypeLabel($m->movement_type) }}
-                                        </span>
-                                    </td>
-                                    <td class="fw-bold {{ $m->quantity > 0 ? 'text-success' : 'text-danger' }}">
-                                        {{ $m->quantity > 0 ? '+' : '' }}{{ $m->quantity }}
+                                    <td><code>{{ $mv->movement_no }}</code></td>
+                                    <td>{!! $mv->getTypeBadge() !!}</td>
+                                    <td class="{{ $mv->quantity > 0 ? 'text-success' : 'text-danger' }} fw-semibold">
+                                        {{ $mv->quantity > 0 ? '+' : '' }}{{ $mv->quantity }}
                                     </td>
                                     <td>
-                                        @if($m->from_holder_type === 'warehouse') Warehouse
-                                        @elseif($m->from_holder_id) {{ \App\Models\User::find($m->from_holder_id)?->name ?? '-' }}
-                                        @else -
+                                        @if($mv->ticket)
+                                        <a href="{{ route('admin.tickets.show', $mv->ticket_id) }}">{{ $mv->ticket->ticket_no }}</a>
+                                        @else
+                                        -
                                         @endif
                                     </td>
-                                    <td>
-                                        @if($m->to_holder_type === 'warehouse') Warehouse
-                                        @elseif($m->to_holder_id) {{ \App\Models\User::find($m->to_holder_id)?->name ?? '-' }}
-                                        @else -
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if($m->ticket)
-                                        <a href="{{ route('admin.tickets.show', $m->ticket_id) }}">{{ $m->ticket->ticket_no }}</a>
-                                        @else - @endif
-                                    </td>
-                                    <td>{{ $m->performedBy->name ?? 'N/A' }}</td>
-                                    <td>{{ $m->movement_date?->format('d M Y') }}</td>
+                                    <td>{{ $mv->movement_date?->format('d M Y') }}</td>
+                                    <td>{{ $mv->performer->name ?? 'N/A' }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
                     @else
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-arrow-left-right fs-1"></i>
-                        <p class="mt-2">No movements recorded yet.</p>
+                    <div class="p-3 text-muted">No movements recorded yet.</div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- Adjustment History --}}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-semibold">Adjustment History</div>
+                <div class="card-body p-0">
+                    @if($adjustments->count())
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Adj. No</th>
+                                    <th>Type</th>
+                                    <th>Old Qty</th>
+                                    <th>New Qty</th>
+                                    <th>Diff</th>
+                                    <th>Reason</th>
+                                    <th>By</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($adjustments as $adj)
+                                <tr>
+                                    <td><code>{{ $adj->adjustment_no }}</code></td>
+                                    <td>{!! $adj->getTypeBadge() !!}</td>
+                                    <td>{{ $adj->old_quantity }}</td>
+                                    <td class="fw-semibold">{{ $adj->new_quantity }}</td>
+                                    <td class="{{ $adj->difference > 0 ? 'text-success' : 'text-danger' }}">
+                                        {{ $adj->difference > 0 ? '+' : '' }}{{ $adj->difference }}
+                                    </td>
+                                    <td>{{ \Illuminate\Support\Str::limit($adj->reason, 40) }}</td>
+                                    <td>{{ $adj->adjustedBy->name ?? 'N/A' }}</td>
+                                    <td>{{ $adj->adjusted_at?->format('d M Y H:i') }}</td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
+                    @else
+                    <div class="p-3 text-muted">No adjustments recorded.</div>
                     @endif
                 </div>
             </div>

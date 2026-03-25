@@ -5,67 +5,65 @@ namespace App\Policies;
 use App\Models\InventoryItem;
 use App\Models\User;
 
-/**
- * InventoryItemPolicy
- *
- * IMPORTANT: Named InventoryItemPolicy (not InventoryPolicy) to match
- * Laravel's auto-discovery convention: {ModelName}Policy.
- * Also explicitly registered in AuthServiceProvider::$policies.
- */
 class InventoryItemPolicy
 {
     /**
-     * View any inventory items.
+     * View inventory items list.
      */
     public function viewAny(User $user): bool
     {
         if ($user->hasRole('admin')) {
             return true;
         }
-        return $user->hasPermissionTo('view_inventory') || $user->hasPermissionTo('view_own_inventory');
+
+        return $user->hasAnyPermission(['view_inventory', 'view_own_inventory']);
     }
 
     /**
-     * View a specific inventory item.
+     * View a single inventory item.
      */
     public function view(User $user, InventoryItem $item): bool
     {
         if ($user->hasRole('admin')) {
             return true;
         }
-        return $user->hasPermissionTo('view_inventory') || $user->hasPermissionTo('view_own_inventory');
+
+        return $user->hasPermissionTo('view_inventory');
     }
 
     /**
-     * Create inventory items.
+     * Create an inventory item.
      */
     public function create(User $user): bool
     {
         if ($user->hasRole('admin')) {
             return true;
         }
+
         return $user->hasPermissionTo('create_inventory');
     }
 
     /**
-     * Update inventory items.
+     * Update an inventory item.
      */
     public function update(User $user, InventoryItem $item): bool
     {
         if ($user->hasRole('admin')) {
             return true;
         }
+
         return $user->hasPermissionTo('edit_inventory');
     }
 
     /**
-     * Delete inventory items.
+     * Delete an inventory item.
      */
     public function delete(User $user, InventoryItem $item): bool
     {
         if ($user->hasRole('admin')) {
             return true;
         }
+
         return $user->hasPermissionTo('delete_inventory');
     }
 
@@ -77,6 +75,7 @@ class InventoryItemPolicy
         if ($user->hasRole('admin')) {
             return true;
         }
+
         return $user->hasPermissionTo('export_inventory');
     }
 
@@ -88,6 +87,7 @@ class InventoryItemPolicy
         if ($user->hasRole('admin')) {
             return true;
         }
+
         return $user->hasPermissionTo('create_stock_in');
     }
 
@@ -99,6 +99,7 @@ class InventoryItemPolicy
         if ($user->hasRole('admin')) {
             return true;
         }
+
         return $user->hasPermissionTo('create_stock_out');
     }
 
@@ -110,6 +111,7 @@ class InventoryItemPolicy
         if ($user->hasRole('admin')) {
             return true;
         }
+
         return $user->hasPermissionTo('create_stock_return');
     }
 
@@ -121,29 +123,8 @@ class InventoryItemPolicy
         if ($user->hasRole('admin')) {
             return true;
         }
+
         return $user->hasPermissionTo('create_stock_adjustment');
-    }
-
-    /**
-     * Create stock transfer.
-     */
-    public function stockTransfer(User $user): bool
-    {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-        return $user->hasPermissionTo('create_stock_transfer');
-    }
-
-    /**
-     * Approve stock transfer.
-     */
-    public function approveTransfer(User $user): bool
-    {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-        return $user->hasPermissionTo('approve_stock_transfer');
     }
 
     /**
@@ -154,6 +135,7 @@ class InventoryItemPolicy
         if ($user->hasRole('admin')) {
             return true;
         }
+
         return $user->hasPermissionTo('view_stock_movements');
     }
 }
