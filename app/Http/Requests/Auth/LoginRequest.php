@@ -24,7 +24,12 @@ class LoginRequest extends FormRequest
         return [
             'email' => ['required', 'string', 'email', 'max:255'],
             'password' => ['required', 'string', 'min:8'],
-            'remember' => ['sometimes', 'boolean'],
+            // FIX: Changed from ['sometimes', 'boolean'] to ['nullable']
+            // HTML checkbox sends "on" when checked, which FAILS Laravel's
+            // 'boolean' validation rule (only accepts true/false/1/0/"1"/"0").
+            // The controller uses $request->boolean('remember') which correctly
+            // converts "on" → true, so validation just needs to allow the field.
+            'remember' => ['nullable'],
         ];
     }
 

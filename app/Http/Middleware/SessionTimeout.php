@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class SessionTimeout
@@ -33,19 +34,29 @@ class SessionTimeout
             // Session has timed out
             $user = Auth::user();
 
-            // Log the timeout
-            activity()
-                ->causedBy($user)
-                ->withProperties([
-                    'ip' => $request->ip(),
-                    'last_activity' => date('Y-m-d H:i:s', $lastActivity),
-                    'timeout_minutes' => $timeout,
-                ])
-                ->log('Session timeout - user logged out');
+            // ============================================================
+            // FIX: Wrap activity log in try-catch
+            // When remember-me re-authenticates on a fresh session,
+            // the activity log call could fail and throw an exception,
+            // which causes a 500 error that gets caught by the exception
+            // handler and redirected (302) to login, creating a loop.
+            // ============================================================
+            try {
+                activity()
+                    ->causedBy($user)
+                    ->withProperties([
+                        'ip' => $request->ip(),
+                        'last_activity' => date('Y-m-d H:i:s', $lastActivity),
+                        'timeout_minutes' => $timeout,
+                    ])
+                    ->log('Session timeout - user logged out');
+            } catch (\Exception $e) {
+                Log::warning('Activity log failed during session timeout: ' . $e->getMessage());
+            }
 
             // Logout the user
             Auth::logout();
-            
+
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 

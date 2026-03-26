@@ -7,6 +7,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -47,7 +48,7 @@ class AuthController extends Controller
         $user = Auth::user();
         if ($user->status !== 'active') {
             Auth::logout();
-            
+
             throw ValidationException::withMessages([
                 'email' => __('Your account has been suspended. Please contact administrator.'),
             ]);
@@ -62,20 +63,39 @@ class AuthController extends Controller
         // Regenerate session
         $request->session()->regenerate();
 
-        // Create Sanctum token for API access
-        $token = $user->createToken('auth-token')->plainTextToken;
-        
-        // Store token in session (optional, for API usage)
-        $request->session()->put('api_token', $token);
+        // ============================================================
+        // FIX #1: Clean up old Sanctum tokens BEFORE creating new one
+        // Prevents token accumulation on remember-me re-logins
+        // ============================================================
+        try {
+            $user->tokens()->delete();
+        } catch (\Exception $e) {
+            Log::warning('Token cleanup failed: ' . $e->getMessage());
+        }
 
-        // Log successful login
-        activity()
-            ->causedBy($user)
-            ->withProperties([
-                'ip' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ])
-            ->log('User logged in');
+        // Create Sanctum token for API access
+        try {
+            $token = $user->createToken('auth-token')->plainTextToken;
+            $request->session()->put('api_token', $token);
+        } catch (\Exception $e) {
+            Log::warning('Sanctum token creation failed: ' . $e->getMessage());
+        }
+
+        // ============================================================
+        // FIX #2: Wrap activity log in try-catch
+        // Prevents silent 500 errors if activity log package has issues
+        // ============================================================
+        try {
+            activity()
+                ->causedBy($user)
+                ->withProperties([
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ])
+                ->log('User logged in');
+        } catch (\Exception $e) {
+            Log::warning('Activity log failed on login: ' . $e->getMessage());
+        }
 
         // Redirect based on user role
         return $this->redirectBasedOnRole($user);
@@ -90,15 +110,23 @@ class AuthController extends Controller
 
         // Log logout activity
         if ($user) {
-            activity()
-                ->causedBy($user)
-                ->withProperties([
-                    'ip' => $request->ip(),
-                ])
-                ->log('User logged out');
+            try {
+                activity()
+                    ->causedBy($user)
+                    ->withProperties([
+                        'ip' => $request->ip(),
+                    ])
+                    ->log('User logged out');
+            } catch (\Exception $e) {
+                Log::warning('Activity log failed on logout: ' . $e->getMessage());
+            }
 
             // Revoke all tokens for this user
-            $user->tokens()->delete();
+            try {
+                $user->tokens()->delete();
+            } catch (\Exception $e) {
+                Log::warning('Token cleanup failed on logout: ' . $e->getMessage());
+            }
         }
 
         Auth::guard('web')->logout();
@@ -111,6 +139,20 @@ class AuthController extends Controller
 
     /**
      * Redirect user based on their role.
+     *
+     * ============================================================
+     * FIX #3: Use redirect()->route() instead of redirect()->intended()
+     *
+     * WHY: redirect()->intended() stores/reads from session flash data
+     *      ('url.intended'). When remember-me cookie re-authenticates
+     *      after session expiry, the flash data is EMPTY (session was
+     *      cleared). On cPanel reverse proxy, this causes 302 redirect
+     *      loops because intended() falls back to the raw path argument
+     *      which may not match the proxy's URL scheme.
+     *
+     *      redirect()->route() generates a proper named route URL
+     *      every time, independent of session state.
+     * ============================================================
      */
     protected function redirectBasedOnRole($user): RedirectResponse
     {
@@ -118,10 +160,10 @@ class AuthController extends Controller
         $role = $user->roles->first()?->name;
 
         return match ($role) {
-            'admin' => redirect()->intended('/admin/dashboard'),
-            'supervisor' => redirect()->intended('/supervisor/dashboard'),
-            'technician' => redirect()->intended('/technician/dashboard'),
-            default => redirect()->intended('/dashboard'),
+            'admin' => redirect()->route('admin.dashboard'),
+            'supervisor' => redirect()->route('supervisor.dashboard'),
+            'technician' => redirect()->route('technician.dashboard'),
+            default => redirect()->route('dashboard'),
         };
     }
 
