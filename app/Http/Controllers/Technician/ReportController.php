@@ -61,7 +61,7 @@ class ReportController extends Controller
             'merchant_name' => $t->merchant_name ?? '-',
             'state'         => $t->state->name ?? '-',
             'city'          => $t->city->name ?? '-',
-            'job_category'  => $t->jobCategory->category_name ?? '-',
+            'job_category'  => $t->jobCategory?->category_name ?? '-',
             'job_type'      => $t->jobType->job_title ?? '-',
             'status'        => $this->statusBadge($t->status),
             'priority'      => ucfirst($t->priority),

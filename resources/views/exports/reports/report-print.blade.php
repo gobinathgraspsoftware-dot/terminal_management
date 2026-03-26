@@ -263,7 +263,7 @@
                     <td>{{ $item->item_code }}</td>
                     <td>{{ $item->item_name }}</td>
                     <td>{{ ucfirst($item->item_type) }}</td>
-                    <td>{{ $item->jobCategory?->category_name ?? '-' }}</td>
+                    <td>{{ \App\Models\JobCategory::find($item->job_category_id)?->category_name ?? '-' }}</td>
                     <td>{{ $item->serial_number ?? '-' }}</td>
                     <td>{{ $item->model ?? '-' }}</td>
                     <td class="text-right">{{ $wQty }}</td>

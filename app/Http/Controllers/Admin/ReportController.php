@@ -594,7 +594,7 @@ class ReportController extends Controller
             'item_code'      => $item->item_code ?? '-',
             'item_name'      => $item->item_name ?? '-',
             'item_type'      => ucfirst($item->item_type ?? '-'),
-            'category'       => $item->jobCategory?->category_name ?? '-',
+            'category'       => \App\Models\JobCategory::find($item->job_category_id)?->category_name ?? '-',
             'serial_number'  => $item->serial_number ?? '-',
             'model'          => $item->model ?? '-',
             'warehouse_qty'  => $warehouseQty,

@@ -52,7 +52,7 @@ class InventoryBalanceReportExport implements FromQuery, WithHeadings, WithMappi
             $item->item_code,
             $item->item_name,
             ucfirst($item->item_type),
-            $item->jobCategory?->category_name ?? '',
+            \App\Models\JobCategory::find($item->job_category_id)?->category_name ?? '',
             $item->serial_number ?? '',
             $item->model ?? '',
             $wQty,

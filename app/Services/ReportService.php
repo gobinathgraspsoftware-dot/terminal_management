@@ -343,7 +343,7 @@ class ReportService
 
     public function inventoryBalanceQuery(array $filters, ?User $user = null): Builder
     {
-        $query = InventoryItem::with(['jobCategory', 'stockBalances', 'stockBalances.holder'])
+        $query = InventoryItem::with(['stockBalances', 'stockBalances.holder'])
             ->where('status', 'active');
 
         // Item type
@@ -392,7 +392,7 @@ class ReportService
     public function routerMovementQuery(array $filters, ?User $user = null): Builder
     {
         $query = StockMovement::with([
-            'inventoryItem', 'inventoryItem.jobCategory',
+            'inventoryItem',
             'fromHolder', 'toHolder', 'ticket', 'performer',
         ])->whereHas('inventoryItem', function ($q) {
             $q->where('item_type', 'router');
@@ -447,7 +447,7 @@ class ReportService
     public function accessoriesUsageQuery(array $filters, ?User $user = null): Builder
     {
         $query = StockMovement::with([
-            'inventoryItem', 'inventoryItem.jobCategory',
+            'inventoryItem',
             'fromHolder', 'toHolder', 'ticket', 'performer',
         ])->whereHas('inventoryItem', function ($q) {
             $q->where('item_type', 'accessory');
