@@ -22,7 +22,7 @@ class InventoryService
      */
     public function getDatatable(array $params): array
     {
-        $query = InventoryItem::with(['jobCategory', 'creator'])
+        $query = InventoryItem::with(['creator'])
             ->select('inventory_items.*')
             ->leftJoin('stock_balances', function ($join) {
                 $join->on('stock_balances.inventory_item_id', '=', 'inventory_items.id')
@@ -53,7 +53,6 @@ class InventoryService
             $query->where(function ($q) use ($search) {
                 $q->where('inventory_items.item_code', 'like', "%{$search}%")
                   ->orWhere('inventory_items.item_name', 'like', "%{$search}%")
-                  ->orWhere('inventory_items.serial_number', 'like', "%{$search}%")
                   ->orWhere('inventory_items.brand', 'like', "%{$search}%")
                   ->orWhere('inventory_items.model', 'like', "%{$search}%");
             });
@@ -66,7 +65,7 @@ class InventoryService
             0 => 'inventory_items.item_code',
             1 => 'inventory_items.item_name',
             2 => 'inventory_items.item_type',
-            3 => 'inventory_items.serial_number',
+            3 => 'inventory_items.brand',
             4 => 'warehouse_qty',
             5 => 'inventory_items.status',
             6 => 'inventory_items.created_at',
@@ -89,10 +88,9 @@ class InventoryService
                 'item_code' => $item->item_code,
                 'item_name' => $item->item_name,
                 'item_type' => $item->getTypeBadge(),
-                'serial_number' => $item->serial_number ?? '-',
                 'brand' => $item->brand ?? '-',
                 'model' => $item->model ?? '-',
-                'category' => $item->jobCategory?->category_name ?? 'N/A',
+                'category' => \App\Models\JobCategory::find($item->job_category_id)?->category_name ?? '-',
                 'warehouse_stock' => (int) $item->warehouse_qty,
                 'total_stock' => $item->getTotalStock(),
                 'reorder_level' => $item->reorder_level,
@@ -459,7 +457,6 @@ class InventoryService
             'item_code' => $item->item_code,
             'item_name' => $item->item_name,
             'item_type' => $item->item_type,
-            'serial_number' => $item->serial_number,
             'warehouse_stock' => $warehouseBalance,
             'total_stock' => $item->getTotalStock(),
         ];
@@ -475,7 +472,7 @@ class InventoryService
             ->whereHas('stockBalances', function ($q) {
                 $q->warehouse()->where('quantity', '>', 0);
             })
-            ->with(['jobCategory', 'stockBalances' => function ($q) {
+            ->with(['stockBalances' => function ($q) {
                 $q->warehouse();
             }])
             ->orderBy('item_name')
@@ -492,7 +489,7 @@ class InventoryService
             ->whereHas('stockBalances', function ($q) {
                 $q->warehouse()->where('quantity', '>', 0);
             })
-            ->with(['jobCategory', 'stockBalances' => function ($q) {
+            ->with(['stockBalances' => function ($q) {
                 $q->warehouse();
             }])
             ->orderBy('item_name')
@@ -527,8 +524,7 @@ class InventoryService
                   ->orWhere('reason', 'like', "%{$search}%")
                   ->orWhere('remarks', 'like', "%{$search}%")
                   ->orWhereHas('inventoryItem', fn($q2) => $q2->where('item_name', 'like', "%{$search}%")
-                      ->orWhere('item_code', 'like', "%{$search}%")
-                      ->orWhere('serial_number', 'like', "%{$search}%"));
+                      ->orWhere('item_code', 'like', "%{$search}%"));
             });
         }
 
@@ -583,6 +579,139 @@ class InventoryService
                 'remarks' => $m->remarks ?? '-',
                 'movement_date' => $m->movement_date?->format('d M Y'),
                 'performed_by' => $m->performer?->name ?? 'N/A',
+                'created_at' => $m->created_at?->format('d M Y H:i'),
+            ];
+        });
+
+        return [
+            'draw' => intval($params['draw'] ?? 1),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $filteredRecords,
+            'data' => $data,
+        ];
+    }
+
+
+    // ══════════════════════════════════════════════════════════
+    // STOCK OUT DATATABLE
+    // ══════════════════════════════════════════════════════════
+
+    /**
+     * Server-side DataTable for Stock Out movements.
+     */
+    public function getStockOutDatatable(array $params): array
+    {
+        return $this->getFilteredMovementsDatatable($params, 'stock_out');
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // STOCK RETURN DATATABLE
+    // ══════════════════════════════════════════════════════════
+
+    /**
+     * Server-side DataTable for Stock Return movements.
+     */
+    public function getStockReturnDatatable(array $params): array
+    {
+        return $this->getFilteredMovementsDatatable($params, 'stock_return');
+    }
+
+    /**
+     * Shared filtered movement datatable for Stock Out / Stock Return.
+     */
+    protected function getFilteredMovementsDatatable(array $params, string $movementType): array
+    {
+        $query = StockMovement::with(['inventoryItem', 'performer', 'ticket'])
+            ->where('movement_type', $movementType);
+
+        // Filters
+        if (!empty($params['inventory_item_id'])) {
+            $query->forItem($params['inventory_item_id']);
+        }
+        if (!empty($params['date_from']) || !empty($params['date_to'])) {
+            $query->dateRange($params['date_from'] ?? null, $params['date_to'] ?? null);
+        }
+
+        $totalRecords = StockMovement::where('movement_type', $movementType)->count();
+
+        // Search
+        $search = $params['search']['value'] ?? '';
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('movement_no', 'like', "%{$search}%")
+                  ->orWhere('reason', 'like', "%{$search}%")
+                  ->orWhere('remarks', 'like', "%{$search}%")
+                  ->orWhereHas('inventoryItem', fn($q2) => $q2->where('item_name', 'like', "%{$search}%")
+                      ->orWhere('item_code', 'like', "%{$search}%"));
+            });
+        }
+
+        $filteredRecords = $query->count();
+
+        // Sorting
+        $orderColumn = $params['order'][0]['column'] ?? 0;
+        $orderDir = $params['order'][0]['dir'] ?? 'desc';
+        $sortable = [
+            0 => 'movement_no',
+            1 => 'movement_date',
+            2 => 'quantity',
+        ];
+        $query->orderBy($sortable[$orderColumn] ?? 'created_at', $orderDir);
+
+        $start = $params['start'] ?? 0;
+        $length = $params['length'] ?? 10;
+        $movements = $query->skip($start)->take($length)->get();
+
+        $data = $movements->map(function ($m, $index) use ($start) {
+            // Build Router ID
+            $routerId = '-';
+            $rawIds = $m->router_ids ?? null;
+            if ($rawIds) {
+                $decoded = is_array($rawIds) ? $rawIds : json_decode($rawIds, true);
+                if (!empty($decoded) && is_array($decoded)) $routerId = implode(', ', $decoded);
+            }
+            if ($routerId === '-' && $m->ticket) {
+                if (!empty($m->ticket->router_id)) {
+                    $routerId = $m->ticket->router_id;
+                } elseif (!empty($m->ticket->router_ids)) {
+                    $arr = is_array($m->ticket->router_ids) ? $m->ticket->router_ids : json_decode($m->ticket->router_ids, true);
+                    if (!empty($arr) && is_array($arr)) $routerId = implode(', ', $arr);
+                }
+            }
+
+            $formattedDate = $m->movement_date?->format('d M Y');
+
+            return [
+                'DT_RowIndex' => $start + $index + 1,
+                'id' => $m->id,
+                'movement_no' => $m->movement_no,
+                'item_code' => $m->inventoryItem?->item_code ?? 'N/A',
+                'item_name' => $m->inventoryItem?->item_name ?? 'N/A',
+                'item' => ($m->inventoryItem?->item_code ?? '') . ' - ' . ($m->inventoryItem?->item_name ?? ''),
+                'serial_number' => $routerId,
+                'router_id' => $routerId,
+                'router_ids' => $routerId,
+                'movement_type' => $m->getTypeBadge(),
+                'quantity' => $m->quantity,
+                'from_location' => $m->getFromLocation(),
+                'to_location' => $m->getToLocation(),
+                'from' => $m->getFromLocation(),
+                'to' => $m->getToLocation(),
+                'ticket_no' => $m->ticket?->ticket_no ?? '-',
+                'ticket_id' => $m->ticket_id,
+                'condition' => $m->getConditionBadge(),
+                'item_condition' => ucfirst($m->item_condition ?? 'good'),
+                'reason' => $m->reason ?? '-',
+                'remarks' => $m->remarks ?? '-',
+                'movement_date' => $formattedDate,
+                'stockout_date' => $formattedDate,
+                'return_date' => $formattedDate,
+                'stockreturn_date' => $formattedDate,
+                'date' => $formattedDate,
+                'performed_by' => $m->performer?->name ?? 'N/A',
+                'technician' => $m->to_holder_type === 'technician'
+                    ? ($m->toHolder?->name ?? '-')
+                    : ($m->from_holder_type === 'technician' ? ($m->fromHolder?->name ?? '-') : '-'),
                 'created_at' => $m->created_at?->format('d M Y H:i'),
             ];
         });
