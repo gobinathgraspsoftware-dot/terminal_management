@@ -137,9 +137,10 @@
                 <h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Location & Mileage Rate</h6>
             </div>
             <div class="card-body">
+                {{-- CHANGED: Updated info text — only mileage is inherited, not location --}}
                 <div class="alert alert-info d-none" id="techLocationInfo">
                     <i class="bi bi-info-circle me-1"></i>
-                    Technician's location and mileage rate are <strong>auto-filled</strong> from the assigned supervisor.
+                    Mileage rate is <strong>auto-filled</strong> from the assigned supervisor. Location (state/city) is set independently by the technician.
                 </div>
                 <div class="row g-3">
                     <div class="col-md-4">
@@ -217,13 +218,12 @@
                         <i class="bi bi-info-circle me-1"></i> Only <strong>Internal</strong> supervisors are shown. Select location first.
                     </div>
                 </div>
+                {{-- CHANGED: Inherited info panel now shows ONLY mileage rate --}}
                 <div class="d-none" id="inheritedInfoPanel">
                     <div class="alert alert-success mb-3">
                         <h6 class="alert-heading mb-2"><i class="bi bi-arrow-repeat me-1"></i> Inherited from Supervisor</h6>
                         <div class="row">
-                            <div class="col-md-4"><small class="text-muted d-block">State</small><strong id="inheritedState">-</strong></div>
-                            <div class="col-md-4"><small class="text-muted d-block">City</small><strong id="inheritedCity">-</strong></div>
-                            <div class="col-md-4"><small class="text-muted d-block">Mileage Rate</small><strong id="inheritedMileage">-</strong></div>
+                            <div class="col-md-12"><small class="text-muted d-block">Mileage Rate</small><strong id="inheritedMileage">-</strong></div>
                         </div>
                     </div>
                 </div>
@@ -292,7 +292,17 @@ $(document).ready(function() {
 
     // Select2 init
     $('#roleSelect').select2({ theme: 'bootstrap-5', placeholder: 'Select a role', width: '100%' });
-    $('#coverageStates').select2({ theme: 'bootstrap-5', placeholder: 'Select coverage states', width: '100%' });
+    $('#coverageStates').select2({
+        theme: 'bootstrap-5', placeholder: 'Select coverage states', width: '100%',
+        ajax: {
+            url: '{{ route("admin.ajax.states") }}', dataType: 'json', delay: 250,
+            data: function(params) { return { search: params.term, page: params.page || 1 }; },
+            processResults: function(data) {
+                // Map id→state name so coverage_states stores names, not numeric IDs
+                return { results: data.results.map(function(s) { return { id: s.text, text: s.text }; }), pagination: data.pagination };
+            }, cache: true
+        }
+    });
     $('#skillTags').select2({ theme: 'bootstrap-5', placeholder: 'Select skills', width: '100%', tags: true });
 
     $('#stateSelect').select2({
@@ -327,7 +337,10 @@ $(document).ready(function() {
         });
     }
 
-    // Supervisor selected — inherit location
+    // ============================================================
+    // CHANGED: Supervisor selected — inherit ONLY mileage rate
+    // Location (state/city) is NOT auto-filled; technician sets independently
+    // ============================================================
     $('#supervisorSelect').on('select2:select', function(e) {
         isFetchingSupervisor = true;
         $.ajax({
@@ -337,18 +350,10 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.success) {
                     var sup = response;
-                    if (sup.state_id && sup.state_name) {
-                        $('#stateSelect').append(new Option(sup.state_name, sup.state_id, true, true)).trigger('change.select2');
-                    }
-                    if (sup.city_id && sup.city_name) {
-                        $('#citySelect').append(new Option(sup.city_name, sup.city_id, true, true)).trigger('change.select2');
-                    }
+                    // CHANGED: Only auto-fill mileage rate — NOT state/city
                     if (sup.mileage_rate) { $('#mileageRate').val(sup.mileage_rate); }
-                    $('#stateSelect').prop('disabled', true);
-                    $('#citySelect').prop('disabled', true);
+                    // CHANGED: Do NOT disable state/city — technician picks independently
                     $('#mileageRate').prop('readonly', true);
-                    $('#inheritedState').text(sup.state_name || '-');
-                    $('#inheritedCity').text(sup.city_name || '-');
                     $('#inheritedMileage').text(sup.mileage_rate ? 'RM ' + parseFloat(sup.mileage_rate).toFixed(2) + ' /KM' : '-');
                     $('#inheritedInfoPanel').removeClass('d-none');
                     $('#techLocationInfo').removeClass('d-none');
@@ -359,21 +364,22 @@ $(document).ready(function() {
         });
     });
 
-    $('#supervisorSelect').on('select2:clear', function() { clearInheritedInfo(); enableLocationFields(); applyMileageReadonly(); });
+    $('#supervisorSelect').on('select2:clear', function() { clearInheritedInfo(); applyMileageReadonly(); });
 
-    function clearInheritedInfo() { $('#inheritedInfoPanel, #techLocationInfo').addClass('d-none'); $('#inheritedState, #inheritedCity, #inheritedMileage').text('-'); }
-    function enableLocationFields() { $('#stateSelect, #citySelect').prop('disabled', false); }
+    function clearInheritedInfo() { $('#inheritedInfoPanel, #techLocationInfo').addClass('d-none'); $('#inheritedMileage').text('-'); }
     function applyMileageReadonly() { $('#mileageRate').prop('readonly', $('#roleSelect').val() === 'technician'); }
 
+    // CHANGED: State/city change resets supervisor (supervisor is filtered by location)
+    // but does NOT touch location fields since they are technician-owned
     $('#stateSelect').on('change', function() {
         if (isFetchingSupervisor) return;
         $('#citySelect').val(null).trigger('change.select2');
-        if ($('#roleSelect').val() === 'technician') { $('#supervisorSelect').val(null).trigger('change'); clearInheritedInfo(); enableLocationFields(); applyMileageReadonly(); initSupervisorSelect2(); }
+        if ($('#roleSelect').val() === 'technician') { $('#supervisorSelect').val(null).trigger('change'); clearInheritedInfo(); applyMileageReadonly(); initSupervisorSelect2(); }
     });
 
     $('#citySelect').on('change', function() {
         if (isFetchingSupervisor) return;
-        if ($('#roleSelect').val() === 'technician') { $('#supervisorSelect').val(null).trigger('change'); clearInheritedInfo(); enableLocationFields(); applyMileageReadonly(); initSupervisorSelect2(); }
+        if ($('#roleSelect').val() === 'technician') { $('#supervisorSelect').val(null).trigger('change'); clearInheritedInfo(); applyMileageReadonly(); initSupervisorSelect2(); }
     });
 
     // Avatar preview
@@ -394,10 +400,9 @@ $(document).ready(function() {
             $('#supervisorTypeField').removeClass('d-none');
             $('#locationSection, #pricingSection').removeClass('d-none');
             $('#technicianSection, #bankSection').addClass('d-none');
-            enableLocationFields(); clearInheritedInfo(); applyMileageReadonly();
+            clearInheritedInfo(); applyMileageReadonly();
             $('#mileageHelp').text('Set the mileage rate for this supervisor and their team');
             updatePricingInfo();
-            // Toggle required: supervisor needs location, NOT supervisor_id
             $('#stateSelect, #citySelect').prop('required', true);
             $('#supervisorSelect').prop('required', false);
         } else if (role === 'technician') {
@@ -405,17 +410,15 @@ $(document).ready(function() {
             $('#supervisorTypeSelect').val('');
             $('#locationSection, #technicianSection, #bankSection').removeClass('d-none');
             $('#mileageHelp').text('Mileage rate is managed by the supervisor (read-only)');
-            enableLocationFields(); applyMileageReadonly(); initSupervisorSelect2();
-            // Toggle required: technician needs supervisor + location
+            applyMileageReadonly(); initSupervisorSelect2();
             $('#stateSelect, #citySelect').prop('required', true);
             $('#supervisorSelect').prop('required', true);
         } else {
             $('#supervisorTypeField, #pricingSection, #locationSection, #technicianSection, #bankSection').addClass('d-none');
             $('#supervisorTypeSelect').val('');
-            enableLocationFields(); clearInheritedInfo();
+            clearInheritedInfo();
             $('#stateSelect, #citySelect').val(null).trigger('change');
-            $('#mileageRate').val('');
-            // Toggle required: admin needs none of these
+            $('#mileageRate').val('').prop('readonly', false);
             $('#stateSelect, #citySelect, #supervisorSelect').prop('required', false);
         }
     });
@@ -443,7 +446,6 @@ $(document).ready(function() {
     // Form submission
     $('#createUserForm').on('submit', function(e) {
         e.preventDefault();
-        $('#stateSelect, #citySelect').prop('disabled', false);
         var formData = new FormData(this);
         var role = $('#roleSelect').val();
 
@@ -475,7 +477,7 @@ $(document).ready(function() {
             },
             complete: function() {
                 $('#submitBtn').prop('disabled', false).html('<i class="bi bi-check-circle me-1"></i> Create User');
-                if ($('#roleSelect').val() === 'technician' && $('#supervisorSelect').val()) { $('#stateSelect, #citySelect').prop('disabled', true); }
+                // CHANGED: No longer re-disable state/city — they stay enabled always
             }
         });
     });

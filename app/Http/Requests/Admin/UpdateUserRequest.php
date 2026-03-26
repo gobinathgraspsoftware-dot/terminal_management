@@ -47,9 +47,14 @@ class UpdateUserRequest extends FormRequest
                 'required_if:role,supervisor',
             ],
 
-            // Technician-specific fields
-            'has_supervisor' => ['nullable', 'boolean'],
-            'supervisor_id' => ['nullable', 'exists:users,id', 'different:id'],
+            // FIX: supervisor_id is required when role is technician
+            // (independent technician concept removed — all technicians must have a supervisor)
+            'supervisor_id' => [
+                'nullable',
+                'exists:users,id',
+                'required_if:role,technician',
+                'different:id',
+            ],
 
             'coverage_states' => ['nullable', 'array'],
             'coverage_states.*' => ['string', 'max:100'],
@@ -98,6 +103,7 @@ class UpdateUserRequest extends FormRequest
             'status.required' => 'Please select a status.',
             'supervisor_type.required_if' => 'Please select a supervisor type (Internal or External).',
             'supervisor_type.in' => 'Supervisor type must be Internal or External.',
+            'supervisor_id.required_if' => 'Please select a supervisor for this technician.',
             'supervisor_id.exists' => 'The selected supervisor is invalid.',
             'supervisor_id.different' => 'A user cannot be their own supervisor.',
             'avatar.image' => 'Avatar must be an image file.',
@@ -108,20 +114,18 @@ class UpdateUserRequest extends FormRequest
 
     /**
      * Prepare data for validation
+     *
+     * FIX: Removed has_supervisor logic entirely.
+     * The "independent technician" concept was removed — all technicians
+     * MUST have a supervisor. The old code checked for a has_supervisor
+     * checkbox that no longer exists in the form, so it always evaluated
+     * to false, which forced supervisor_id to null every time.
      */
     protected function prepareForValidation(): void
     {
-        // Convert has_supervisor checkbox to boolean
-        if ($this->has('has_supervisor')) {
-            $this->merge([
-                'has_supervisor' => filter_var($this->has_supervisor, FILTER_VALIDATE_BOOLEAN)
-            ]);
-        } else {
-            $this->merge(['has_supervisor' => false]);
-        }
-
-        // If has_supervisor is false OR role is not technician, clear supervisor_id
-        if (!$this->has_supervisor || $this->role !== 'technician') {
+        // FIX: Clear supervisor_id only if role is NOT technician
+        // (technicians MUST have a supervisor — keep supervisor_id as-is)
+        if ($this->role !== 'technician') {
             $this->merge(['supervisor_id' => null]);
         }
 
