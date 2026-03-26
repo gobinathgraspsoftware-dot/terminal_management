@@ -15,6 +15,7 @@
         <div class="btn-group">
             <button class="btn btn-success btn-sm" id="btnExportExcel"><i class="bi bi-file-earmark-excel me-1"></i> Excel</button>
             <button class="btn btn-danger btn-sm" id="btnExportPdf"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
+            <button class="btn btn-secondary btn-sm" id="btnPrint"><i class="bi bi-printer me-1"></i> Print</button>
         </div>
     </div>
 
@@ -134,6 +135,7 @@ $(document).ready(function() {
         var params = $.param(getReportFilters());
         window.location.href = '{{ route("admin.reports.ticket-summary.export") }}?' + params + '&format=pdf';
     });
+    $('#btnPrint').on('click', function() { openPrintView('ticket-summary'); });
 });
 </script>
 @endpush

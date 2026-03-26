@@ -9,9 +9,13 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use App\Exports\Reports\ReportExportStyles;
 
-class SlaReportExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithTitle
+class SlaReportExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithTitle, WithStyles
 {
+    use ReportExportStyles;
+
     protected array $filters;
     protected ?User $user;
 

@@ -58,6 +58,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/api/widget/data', [DashboardController::class, 'getWidgetData'])->name('api.widget.data');
+    Route::get('/location/cities', [LocationController::class, 'cities'])->name('location.cities');
 
     // Clear Cache Route — accessible by all authenticated roles
     Route::get('/clear-cache', function () {
@@ -228,6 +229,9 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
     /* Reporting Module */
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [AdminReportController::class, 'index'])->name('index');
+
+        // Print (opens new tab with filtered data + auto print dialog)
+        Route::get('/print', [AdminReportController::class, 'printReport'])->name('print');
 
         // 1. Ticket Summary
         Route::get('/ticket-summary', [AdminReportController::class, 'ticketSummary'])->name('ticket-summary');
@@ -487,6 +491,9 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [SupervisorReportController::class, 'index'])->name('index');
 
+        // Print
+        Route::get('/print', [SupervisorReportController::class, 'printReport'])->name('print');
+
         Route::get('/ticket-summary', [SupervisorReportController::class, 'ticketSummary'])->name('ticket-summary');
         Route::get('/ticket-summary/data', [SupervisorReportController::class, 'ticketSummaryData'])->name('ticket-summary.data');
         Route::get('/ticket-summary/export', [SupervisorReportController::class, 'ticketSummaryExport'])->name('ticket-summary.export');
@@ -627,6 +634,9 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
     /* Reporting Module (Own-scoped) */
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [TechnicianReportController::class, 'index'])->name('index');
+
+        // Print
+        Route::get('/print', [TechnicianReportController::class, 'printReport'])->name('print');
 
         Route::get('/ticket-summary', [TechnicianReportController::class, 'ticketSummary'])->name('ticket-summary');
         Route::get('/ticket-summary/data', [TechnicianReportController::class, 'ticketSummaryData'])->name('ticket-summary.data');

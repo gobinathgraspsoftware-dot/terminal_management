@@ -8,9 +8,13 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use App\Exports\Reports\ReportExportStyles;
 
-class PaymentReportExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithTitle
+class PaymentReportExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithTitle, WithStyles
 {
+    use ReportExportStyles;
+
     protected array $filters;
 
     public function __construct(array $filters = [])

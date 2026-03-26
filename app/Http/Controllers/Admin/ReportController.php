@@ -18,8 +18,12 @@ use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
 
+use App\Http\Controllers\Traits\ReportPrintable;
+
 class ReportController extends Controller
 {
+    use ReportPrintable;
+
     protected ReportService $service;
 
     public function __construct(ReportService $service)
@@ -57,12 +61,21 @@ class ReportController extends Controller
 
     public function ticketSummaryData(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view_reports')) abort(403);
+        if (!auth()->user()->hasPermissionTo('view_reports')) {
+            return response()->json(['draw' => 1, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => []], 403);
+        }
 
-        $result = $this->service->ticketSummaryData($request);
-        $result['data'] = $result['data']->map(fn($t) => $this->mapTicketRow($t));
-
-        return response()->json($result);
+        try {
+            $result = $this->service->ticketSummaryData($request);
+            $result['data'] = $result['data']->map(fn($t) => $this->mapTicketRow($t));
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'draw' => intval($request->input('draw', 1)),
+                'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [],
+                'error' => config('app.debug') ? $e->getMessage() : 'Failed to load data.',
+            ]);
+        }
     }
 
     public function ticketSummaryExport(Request $request)
@@ -94,12 +107,21 @@ class ReportController extends Controller
 
     public function statusReportData(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view_reports')) abort(403);
+        if (!auth()->user()->hasPermissionTo('view_reports')) {
+            return response()->json(['draw' => 1, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => []], 403);
+        }
 
-        $result = $this->service->statusReportData($request);
-        $result['data'] = $result['data']->map(fn($t) => $this->mapTicketRow($t));
-
-        return response()->json($result);
+        try {
+            $result = $this->service->statusReportData($request);
+            $result['data'] = $result['data']->map(fn($t) => $this->mapTicketRow($t));
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'draw' => intval($request->input('draw', 1)),
+                'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [],
+                'error' => config('app.debug') ? $e->getMessage() : 'Failed to load data.',
+            ]);
+        }
     }
 
     public function statusReportExport(Request $request)
@@ -131,12 +153,21 @@ class ReportController extends Controller
 
     public function slaReportData(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view_reports')) abort(403);
+        if (!auth()->user()->hasPermissionTo('view_reports')) {
+            return response()->json(['draw' => 1, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => []], 403);
+        }
 
-        $result = $this->service->slaReportData($request);
-        $result['data'] = $result['data']->map(fn($t) => $this->mapTicketRow($t, true));
-
-        return response()->json($result);
+        try {
+            $result = $this->service->slaReportData($request);
+            $result['data'] = $result['data']->map(fn($t) => $this->mapTicketRow($t, true));
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'draw' => intval($request->input('draw', 1)),
+                'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [],
+                'error' => config('app.debug') ? $e->getMessage() : 'Failed to load data.',
+            ]);
+        }
     }
 
     public function slaReportExport(Request $request)
@@ -168,20 +199,29 @@ class ReportController extends Controller
 
     public function supervisorPricingData(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view_reports')) abort(403);
+        if (!auth()->user()->hasPermissionTo('view_reports')) {
+            return response()->json(['draw' => 1, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => []], 403);
+        }
 
-        $result = $this->service->supervisorPricingData($request);
-        $result['data'] = $result['data']->map(function ($p) {
-            return [
-                'id'            => $p->id,
-                'supervisor'    => $p->supervisor->name ?? '-',
-                'job_category'  => $p->jobCategory->category_name ?? '-',
-                'job_type'      => $p->jobType->job_title ?? '-',
-                'price'         => number_format((float) $p->price, 2),
-            ];
-        });
-
-        return response()->json($result);
+        try {
+            $result = $this->service->supervisorPricingData($request);
+            $result['data'] = $result['data']->map(function ($p) {
+                return [
+                    'id'            => $p->id,
+                    'supervisor'    => $p->supervisor?->name ?? '-',
+                    'job_category'  => $p->jobCategory?->category_name ?? '-',
+                    'job_type'      => $p->jobType?->job_title ?? '-',
+                    'price'         => number_format((float) $p->price, 2),
+                ];
+            });
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'draw' => intval($request->input('draw', 1)),
+                'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [],
+                'error' => config('app.debug') ? $e->getMessage() : 'Failed to load data.',
+            ]);
+        }
     }
 
     public function supervisorPricingExport(Request $request)
@@ -215,12 +255,21 @@ class ReportController extends Controller
 
     public function claimReportData(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view_reports')) abort(403);
+        if (!auth()->user()->hasPermissionTo('view_reports')) {
+            return response()->json(['draw' => 1, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => []], 403);
+        }
 
-        $result = $this->service->claimReportData($request);
-        $result['data'] = $result['data']->map(fn($c) => $this->mapClaimRow($c));
-
-        return response()->json($result);
+        try {
+            $result = $this->service->claimReportData($request);
+            $result['data'] = $result['data']->map(fn($c) => $this->mapClaimRow($c));
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'draw' => intval($request->input('draw', 1)),
+                'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [],
+                'error' => config('app.debug') ? $e->getMessage() : 'Failed to load data.',
+            ]);
+        }
     }
 
     public function claimReportExport(Request $request)
@@ -252,12 +301,21 @@ class ReportController extends Controller
 
     public function paymentReportData(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view_reports')) abort(403);
+        if (!auth()->user()->hasPermissionTo('view_reports')) {
+            return response()->json(['draw' => 1, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => []], 403);
+        }
 
-        $result = $this->service->paymentReportData($request);
-        $result['data'] = $result['data']->map(fn($c) => $this->mapClaimRow($c, true));
-
-        return response()->json($result);
+        try {
+            $result = $this->service->paymentReportData($request);
+            $result['data'] = $result['data']->map(fn($c) => $this->mapClaimRow($c, true));
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'draw' => intval($request->input('draw', 1)),
+                'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [],
+                'error' => config('app.debug') ? $e->getMessage() : 'Failed to load data.',
+            ]);
+        }
     }
 
     public function paymentReportExport(Request $request)
@@ -289,12 +347,22 @@ class ReportController extends Controller
 
     public function inventoryBalanceData(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view_reports')) abort(403);
+        if (!auth()->user()->hasPermissionTo('view_reports')) {
+            return response()->json(['draw' => 1, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => []], 403);
+        }
 
-        $result = $this->service->inventoryBalanceData($request);
-        $result['data'] = $result['data']->map(fn($item) => $this->mapInventoryRow($item));
-
-        return response()->json($result);
+        try {
+            $result = $this->service->inventoryBalanceData($request);
+            $result['data'] = $result['data']->map(fn($item) => $this->mapInventoryRow($item));
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            \Log::error('Inventory Balance Report Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'draw' => intval($request->input('draw', 1)),
+                'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [],
+                'error' => config('app.debug') ? $e->getMessage() : 'Failed to load data.',
+            ]);
+        }
     }
 
     public function inventoryBalanceExport(Request $request)
@@ -326,12 +394,22 @@ class ReportController extends Controller
 
     public function routerMovementData(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view_reports')) abort(403);
+        if (!auth()->user()->hasPermissionTo('view_reports')) {
+            return response()->json(['draw' => 1, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => []], 403);
+        }
 
-        $result = $this->service->routerMovementData($request);
-        $result['data'] = $result['data']->map(fn($m) => $this->mapMovementRow($m));
-
-        return response()->json($result);
+        try {
+            $result = $this->service->routerMovementData($request);
+            $result['data'] = $result['data']->map(fn($m) => $this->mapMovementRow($m));
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            \Log::error('Router Movement Report Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'draw' => intval($request->input('draw', 1)),
+                'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [],
+                'error' => config('app.debug') ? $e->getMessage() : 'Failed to load data.',
+            ]);
+        }
     }
 
     public function routerMovementExport(Request $request)
@@ -363,12 +441,22 @@ class ReportController extends Controller
 
     public function accessoriesUsageData(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view_reports')) abort(403);
+        if (!auth()->user()->hasPermissionTo('view_reports')) {
+            return response()->json(['draw' => 1, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => []], 403);
+        }
 
-        $result = $this->service->accessoriesUsageData($request);
-        $result['data'] = $result['data']->map(fn($m) => $this->mapMovementRow($m));
-
-        return response()->json($result);
+        try {
+            $result = $this->service->accessoriesUsageData($request);
+            $result['data'] = $result['data']->map(fn($m) => $this->mapMovementRow($m));
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            \Log::error('Accessories Usage Report Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'draw' => intval($request->input('draw', 1)),
+                'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [],
+                'error' => config('app.debug') ? $e->getMessage() : 'Failed to load data.',
+            ]);
+        }
     }
 
     public function accessoriesUsageExport(Request $request)
@@ -400,12 +488,21 @@ class ReportController extends Controller
 
     public function rejectedRescheduledData(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('view_reports')) abort(403);
+        if (!auth()->user()->hasPermissionTo('view_reports')) {
+            return response()->json(['draw' => 1, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => []], 403);
+        }
 
-        $result = $this->service->rejectedRescheduledData($request);
-        $result['data'] = $result['data']->map(fn($t) => $this->mapRejectedRow($t));
-
-        return response()->json($result);
+        try {
+            $result = $this->service->rejectedRescheduledData($request);
+            $result['data'] = $result['data']->map(fn($t) => $this->mapRejectedRow($t));
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'draw' => intval($request->input('draw', 1)),
+                'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [],
+                'error' => config('app.debug') ? $e->getMessage() : 'Failed to load data.',
+            ]);
+        }
     }
 
     public function rejectedRescheduledExport(Request $request)
@@ -429,22 +526,22 @@ class ReportController extends Controller
     protected function mapTicketRow($t, bool $showSla = false): array
     {
         $row = [
-            'ticket_no'     => $t->ticket_no,
-            'vendor'        => $t->vendor->vendor_name ?? '-',
+            'ticket_no'     => $t->ticket_no ?? '-',
+            'vendor'        => $t->vendor?->vendor_name ?? '-',
             'merchant_name' => $t->merchant_name ?? '-',
-            'state'         => $t->state->name ?? '-',
-            'city'          => $t->city->name ?? '-',
-            'job_category'  => $t->jobCategory->category_name ?? '-',
-            'job_type'      => $t->jobType->job_title ?? '-',
-            'supervisor'    => $t->supervisor->name ?? '-',
-            'technician'    => $t->technician->name ?? 'Unassigned',
-            'status'        => $this->ticketStatusBadge($t->status),
-            'priority'      => ucfirst($t->priority),
-            'created_at'    => $t->created_at?->format('d/m/Y'),
+            'state'         => $t->state?->name ?? '-',
+            'city'          => $t->city?->name ?? '-',
+            'job_category'  => $t->jobCategory?->category_name ?? '-',
+            'job_type'      => $t->jobType?->job_title ?? '-',
+            'supervisor'    => $t->supervisor?->name ?? '-',
+            'technician'    => $t->technician?->name ?? 'Unassigned',
+            'status'        => $this->ticketStatusBadge($t->status ?? 'open'),
+            'priority'      => ucfirst($t->priority ?? 'normal'),
+            'created_at'    => $t->created_at?->format('d/m/Y') ?? '-',
         ];
 
         if ($showSla) {
-            $row['sla_hours']    = $t->sla_hours . 'h';
+            $row['sla_hours']    = ($t->sla_hours ?? 0) . 'h';
             $row['sla_deadline'] = $t->sla_deadline?->format('d/m/Y H:i') ?? '-';
             $row['sla_status']   = $this->slaBadge($t->sla_status);
             $row['rescheduled']  = $t->rescheduled_at ? '<span class="badge bg-warning">Yes</span>' : 'No';
@@ -456,21 +553,21 @@ class ReportController extends Controller
     protected function mapClaimRow($c, bool $showPayment = false): array
     {
         $row = [
-            'claim_no'       => $c->claim_no,
-            'claim_category' => ucfirst($c->claim_category),
-            'ticket_no'      => $c->ticket->ticket_no ?? '-',
-            'technician'     => $c->technician->name ?? '-',
-            'vendor'         => $c->ticket->vendor->vendor_name ?? '-',
-            'claim_date'     => $c->claim_date?->format('d/m/Y'),
-            'total_mileage'  => number_format((float) $c->total_mileage_amount, 2),
-            'total_allowance'=> number_format((float) $c->total_allowance_amount, 2),
-            'total_amount'   => number_format((float) $c->total_amount, 2),
-            'status'         => $this->claimStatusBadge($c->status),
+            'claim_no'       => $c->claim_no ?? '-',
+            'claim_category' => ucfirst($c->claim_category ?? 'other'),
+            'ticket_no'      => $c->ticket?->ticket_no ?? '-',
+            'technician'     => $c->technician?->name ?? '-',
+            'vendor'         => $c->ticket?->vendor?->vendor_name ?? '-',
+            'claim_date'     => $c->claim_date?->format('d/m/Y') ?? '-',
+            'total_mileage'  => number_format((float) ($c->total_mileage_amount ?? 0), 2),
+            'total_allowance'=> number_format((float) ($c->total_allowance_amount ?? 0), 2),
+            'total_amount'   => number_format((float) ($c->total_amount ?? 0), 2),
+            'status'         => $this->claimStatusBadge($c->status ?? 'draft'),
         ];
 
         if ($showPayment) {
             $row['paid_at']    = $c->paid_at?->format('d/m/Y') ?? '-';
-            $row['batch_no']   = $c->payoutBatch->batch_no ?? '-';
+            $row['batch_no']   = $c->payoutBatch?->batch_no ?? '-';
         }
 
         return $row;
@@ -484,45 +581,75 @@ class ReportController extends Controller
         if ($item->relationLoaded('stockBalances')) {
             foreach ($item->stockBalances as $bal) {
                 if ($bal->holder_type === 'warehouse') {
-                    $warehouseQty += $bal->quantity;
+                    $warehouseQty += (int) $bal->quantity;
                 } else {
-                    $techQty += $bal->quantity;
+                    $techQty += (int) $bal->quantity;
                 }
             }
         }
 
-        $isLow = $warehouseQty <= $item->reorder_level;
+        $isLow = $warehouseQty <= ($item->reorder_level ?? 0);
 
         return [
-            'item_code'      => $item->item_code,
-            'item_name'      => $item->item_name,
-            'item_type'      => ucfirst($item->item_type),
-            'category'       => $item->jobCategory->category_name ?? '-',
+            'item_code'      => $item->item_code ?? '-',
+            'item_name'      => $item->item_name ?? '-',
+            'item_type'      => ucfirst($item->item_type ?? '-'),
+            'category'       => $item->jobCategory?->category_name ?? '-',
             'serial_number'  => $item->serial_number ?? '-',
             'model'          => $item->model ?? '-',
             'warehouse_qty'  => $warehouseQty,
             'technician_qty' => $techQty,
             'total_qty'      => $warehouseQty + $techQty,
-            'reorder_level'  => $item->reorder_level,
+            'reorder_level'  => $item->reorder_level ?? 0,
             'low_stock'      => $isLow ? '<span class="badge bg-danger">Low</span>' : '<span class="badge bg-success">OK</span>',
         ];
     }
 
     protected function mapMovementRow($m): array
     {
+        // Format movement_date as string explicitly (Carbon → string)
+        $movementDate = '-';
+        if ($m->movement_date) {
+            try {
+                $movementDate = $m->movement_date instanceof \Carbon\Carbon
+                    ? $m->movement_date->format('d/m/Y')
+                    : $m->movement_date;
+            } catch (\Throwable $e) {
+                $movementDate = (string) $m->movement_date;
+            }
+        }
+
+        // Build from/to display safely
+        $from = '-';
+        if ($m->from_holder_type) {
+            $from = ucfirst($m->from_holder_type);
+            if ($m->from_holder_type === 'technician' && $m->fromHolder) {
+                $from .= ': ' . $m->fromHolder->name;
+            }
+        }
+
+        $to = '-';
+        if ($m->to_holder_type) {
+            $to = ucfirst($m->to_holder_type);
+            if ($m->to_holder_type === 'technician' && $m->toHolder) {
+                $to .= ': ' . $m->toHolder->name;
+            }
+        }
+
         return [
-            'movement_no'    => $m->movement_no,
-            'movement_date'  => $m->movement_date,
-            'item_code'      => $m->inventoryItem->item_code ?? '-',
-            'item_name'      => $m->inventoryItem->item_name ?? '-',
-            'serial_number'  => $m->inventoryItem->serial_number ?? '-',
-            'movement_type'  => ucfirst(str_replace('_', ' ', $m->movement_type)),
-            'quantity'        => $m->quantity,
-            'from'           => $m->from_holder_type ? ucfirst($m->from_holder_type) . ($m->fromHolder ? ': ' . $m->fromHolder->name : '') : '-',
-            'to'             => $m->to_holder_type ? ucfirst($m->to_holder_type) . ($m->toHolder ? ': ' . $m->toHolder->name : '') : '-',
-            'ticket_no'      => $m->ticket->ticket_no ?? '-',
+            'movement_no'    => $m->movement_no ?? '-',
+            'movement_date'  => $movementDate,
+            'item_code'      => $m->inventoryItem?->item_code ?? '-',
+            'item_name'      => $m->inventoryItem?->item_name ?? '-',
+            'serial_number'  => $m->inventoryItem?->serial_number ?? '-',
+            'accessory_type' => ucfirst(str_replace('_', ' ', $m->inventoryItem?->accessory_type ?? '-')),
+            'movement_type'  => ucfirst(str_replace('_', ' ', $m->movement_type ?? '-')),
+            'quantity'       => (int) ($m->quantity ?? 0),
+            'from'           => $from,
+            'to'             => $to,
+            'ticket_no'      => $m->ticket?->ticket_no ?? '-',
             'condition'      => ucfirst($m->item_condition ?? 'good'),
-            'performed_by'   => $m->performer->name ?? '-',
+            'performed_by'   => $m->performer?->name ?? '-',
             'remarks'        => $m->remarks ?? '-',
         ];
     }
@@ -530,18 +657,18 @@ class ReportController extends Controller
     protected function mapRejectedRow($t): array
     {
         return [
-            'ticket_no'        => $t->ticket_no,
-            'vendor'           => $t->vendor->vendor_name ?? '-',
+            'ticket_no'        => $t->ticket_no ?? '-',
+            'vendor'           => $t->vendor?->vendor_name ?? '-',
             'merchant_name'    => $t->merchant_name ?? '-',
-            'job_type'         => $t->jobType->job_title ?? '-',
-            'supervisor'       => $t->supervisor->name ?? '-',
-            'technician'       => $t->technician->name ?? 'Unassigned',
-            'status'           => $this->ticketStatusBadge($t->status),
-            'type'             => $t->status === 'rejected' ? '<span class="badge bg-danger">Rejected</span>' : '<span class="badge bg-warning">Rescheduled</span>',
+            'job_type'         => $t->jobType?->job_title ?? '-',
+            'supervisor'       => $t->supervisor?->name ?? '-',
+            'technician'       => $t->technician?->name ?? 'Unassigned',
+            'status'           => $this->ticketStatusBadge($t->status ?? 'open'),
+            'type'             => ($t->status === 'rejected') ? '<span class="badge bg-danger">Rejected</span>' : '<span class="badge bg-warning">Rescheduled</span>',
             'reason'           => $t->reschedule_reason ?? '-',
             'rejected_at'      => $t->rejected_at?->format('d/m/Y H:i') ?? '-',
             'rescheduled_at'   => $t->rescheduled_at?->format('d/m/Y H:i') ?? '-',
-            'created_at'       => $t->created_at?->format('d/m/Y'),
+            'created_at'       => $t->created_at?->format('d/m/Y') ?? '-',
         ];
     }
 

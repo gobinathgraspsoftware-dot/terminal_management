@@ -1,17 +1,6 @@
 {{--
     Shared Report Filter Panel Component
-    Usage: @include('components.reports.filter-panel', ['filters' => [...], 'ajaxUrl' => '...'])
-
-    Supported filter keys:
-    'date_range', 'state', 'city', 'vendor', 'job_category', 'job_type',
-    'supervisor', 'technician', 'status', 'merchant', 'ticket_no', 'created_by',
-    'sla_status', 'sla_breach', 'sla_time_range', 'rescheduled',
-    'claim_type', 'claim_status', 'claim_category',
-    'payment_status', 'amount_range',
-    'item_type', 'low_stock', 'item_search',
-    'terminal_id', 'movement_type',
-    'accessory_type', 'usage_type',
-    'report_type', 'reason'
+    Usage: @include('components.reports.filter-panel', ['filters' => [...], 'filterOptions' => $filterOptions])
 --}}
 
 @php
@@ -67,7 +56,6 @@
                 <div class="col-md-3">
                     <label class="form-label fw-semibold small">District / City</label>
                     <select class="form-select form-select-sm filter-select2-city" name="city_id[]" id="filterCity" multiple>
-                        {{-- Populated dynamically based on state selection --}}
                     </select>
                 </div>
                 @endif
@@ -152,7 +140,7 @@
                 </div>
                 @endif
 
-                {{-- Merchant Name --}}
+                {{-- Merchant --}}
                 @if(in_array('merchant', $filters))
                 <div class="col-md-3">
                     <label class="form-label fw-semibold small">Merchant</label>
@@ -194,7 +182,7 @@
                 </div>
                 @endif
 
-                {{-- SLA Breach Yes/No --}}
+                {{-- SLA Breach --}}
                 @if(in_array('sla_breach', $filters))
                 <div class="col-md-3">
                     <label class="form-label fw-semibold small">SLA Breach</label>
@@ -353,7 +341,7 @@
                 </div>
                 @endif
 
-                {{-- Ticket ID (for inventory reports) --}}
+                {{-- Ticket ID --}}
                 @if(in_array('ticket_id', $filters))
                 <div class="col-md-3">
                     <label class="form-label fw-semibold small">Ticket ID</label>
@@ -411,17 +399,11 @@
     </div>
 </div>
 
-{{-- Filter Panel JS (included once per page via @push) --}}
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Initialize Select2 for multi-select filters
-    $('.filter-select2').select2({
-        theme: 'bootstrap-5',
-        placeholder: 'Select...',
-        allowClear: true,
-        width: '100%'
-    });
+    // Initialize Select2
+    $('.filter-select2').select2({ theme: 'bootstrap-5', placeholder: 'Select...', allowClear: true, width: '100%' });
 
     // City dropdown — dependent on state
     @if(in_array('city', $filters))
@@ -432,12 +414,8 @@ $(document).ready(function() {
         var stateIds = $(this).val();
         $citySelect.empty().trigger('change.select2');
         if (stateIds && stateIds.length > 0) {
-            // LocationController expects state_id (singular) — fetch for each selected state
             var promises = stateIds.map(function(stateId) {
-                return $.ajax({
-                    url: '{{ route($roleName . ".ajax.cities") }}',
-                    data: { state_id: stateId }
-                });
+                return $.ajax({ url: '{{ route($roleName . ".ajax.cities") }}', data: { state_id: stateId } });
             });
             $.when.apply($, promises).done(function() {
                 var results = stateIds.length === 1 ? [arguments] : Array.from(arguments);
@@ -457,9 +435,7 @@ $(document).ready(function() {
 
     // Apply Filter
     $('#btnApplyFilter').on('click', function() {
-        if (typeof reportTable !== 'undefined') {
-            reportTable.ajax.reload();
-        }
+        if (typeof reportTable !== 'undefined') { reportTable.ajax.reload(); }
     });
 
     // Reset Filter
@@ -469,40 +445,41 @@ $(document).ready(function() {
         @if(in_array('city', $filters))
         $citySelect.empty().trigger('change.select2');
         @endif
-        // Reset date to current month
         @if(in_array('date_range', $filters))
         $('#filterDateFrom').val('{{ now()->startOfMonth()->format("Y-m-d") }}');
         $('#filterDateTo').val('{{ now()->format("Y-m-d") }}');
         @endif
-        if (typeof reportTable !== 'undefined') {
-            reportTable.ajax.reload();
-        }
+        if (typeof reportTable !== 'undefined') { reportTable.ajax.reload(); }
     });
 });
 
 /**
  * Collect all filter values for AJAX requests.
- * Used by DataTable ajax.data and export buttons.
  */
 function getReportFilters() {
     var data = {};
-    // Standard inputs
     $('#reportFilterForm').find('.filter-input').each(function() {
         var name = $(this).attr('name');
         var val  = $(this).val();
-        if (val && val !== '') {
-            data[name] = val;
-        }
+        if (val && val !== '') { data[name] = val; }
     });
-    // Select2 multi-selects (array values)
     $('#reportFilterForm').find('.filter-select2, .filter-select2-city').each(function() {
         var name = $(this).attr('name');
         var val  = $(this).val();
-        if (val && val.length > 0) {
-            data[name] = val;
-        }
+        if (val && val.length > 0) { data[name] = val; }
     });
     return data;
+}
+
+/**
+ * Open print-friendly page in new tab with current filters.
+ * Usage in view: openPrintView('ticket-summary')
+ * @param {string} reportType — e.g. 'ticket-summary', 'claim', 'sla'
+ */
+function openPrintView(reportType) {
+    var params = $.param(getReportFilters());
+    var printUrl = '{{ route($roleName . ".reports.print") }}?type=' + reportType + '&' + params;
+    window.open(printUrl, '_blank');
 }
 </script>
 @endpush

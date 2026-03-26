@@ -14,6 +14,7 @@
         <div class="btn-group">
             <button class="btn btn-success btn-sm" id="btnExportExcel"><i class="bi bi-file-earmark-excel me-1"></i> Excel</button>
             <button class="btn btn-danger btn-sm" id="btnExportPdf"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
+            <button class="btn btn-secondary btn-sm" id="btnPrint"><i class="bi bi-printer me-1"></i> Print</button>
         </div>
     </div>
 
@@ -29,7 +30,7 @@
                     <thead class="table-light">
                         <tr>
                             <th>#</th><th>Movement No</th><th>Date</th><th>Item Code</th><th>Item Name</th><th>Accessory Type</th>
-                            <th>Type</th><th class="text-end">Qty</th><th>From</th><th>To</th><th>Ticket</th><th>Condition</th><th>By</th>
+                            <th>Movement</th><th class="text-end">Qty</th><th>From</th><th>To</th><th>Ticket</th><th>Condition</th><th>By</th>
                         </tr>
                     </thead>
                 </table>
@@ -45,11 +46,19 @@ var reportTable;
 $(document).ready(function() {
     reportTable = $('#reportTable').DataTable({
         processing: true, serverSide: true, searching: false,
-        ajax: { url: '{{ route("supervisor.reports.accessories-usage.data") }}', type: 'GET', data: function(d) { return $.extend(d, getReportFilters()); } },
+        ajax: {
+            url: '{{ route("supervisor.reports.accessories-usage.data") }}',
+            type: 'GET',
+            data: function(d) { return $.extend(d, getReportFilters()); },
+            error: function(xhr, error, thrown) {
+                console.error('Report AJAX Error:', xhr.responseText);
+                showToast('Failed to load report data. Check console for details.', 'error');
+            }
+        },
         columns: [
             { data: null, orderable: false, render: function(d,t,r,m) { return m.row + m.settings._iDisplayStart + 1; } },
             { data: 'movement_no' }, { data: 'movement_date' }, { data: 'item_code' }, { data: 'item_name' },
-            { data: 'serial_number' }, { data: 'movement_type' }, { data: 'quantity', className: 'text-end' },
+            { data: 'accessory_type' }, { data: 'movement_type' }, { data: 'quantity', className: 'text-end' },
             { data: 'from' }, { data: 'to' }, { data: 'ticket_no' }, { data: 'condition' }, { data: 'performed_by' },
         ],
         order: [], pageLength: 25, language: { emptyTable: 'No accessory movements found.' }
@@ -57,6 +66,7 @@ $(document).ready(function() {
 
     $('#btnExportExcel').on('click', function() { window.location.href = '{{ route("supervisor.reports.accessories-usage.export") }}?' + $.param(getReportFilters()) + '&format=xlsx'; });
     $('#btnExportPdf').on('click', function() { window.location.href = '{{ route("supervisor.reports.accessories-usage.export") }}?' + $.param(getReportFilters()) + '&format=pdf'; });
+    $('#btnPrint').on('click', function() { openPrintView('accessories-usage'); });
 });
 </script>
 @endpush

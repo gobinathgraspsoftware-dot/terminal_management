@@ -11,8 +11,12 @@ use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
 
+use App\Http\Controllers\Traits\ReportPrintable;
+
 class ReportController extends Controller
 {
+    use ReportPrintable;
+
     protected ReportService $service;
 
     public function __construct(ReportService $service)

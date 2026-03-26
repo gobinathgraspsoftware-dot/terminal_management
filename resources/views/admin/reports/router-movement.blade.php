@@ -14,6 +14,7 @@
         <div class="btn-group">
             <button class="btn btn-success btn-sm" id="btnExportExcel"><i class="bi bi-file-earmark-excel me-1"></i> Excel</button>
             <button class="btn btn-danger btn-sm" id="btnExportPdf"><i class="bi bi-file-earmark-pdf me-1"></i> PDF</button>
+            <button class="btn btn-secondary btn-sm" id="btnPrint"><i class="bi bi-printer me-1"></i> Print</button>
         </div>
     </div>
 
@@ -45,7 +46,17 @@ var reportTable;
 $(document).ready(function() {
     reportTable = $('#reportTable').DataTable({
         processing: true, serverSide: true, searching: false,
-        ajax: { url: '{{ route("admin.reports.router-movement.data") }}', type: 'GET', data: function(d) { return $.extend(d, getReportFilters()); } },
+        ajax: {
+            url: '{{ route("admin.reports.router-movement.data") }}',
+            type: 'GET',
+            data: function(d) { return $.extend(d, getReportFilters()); },
+            error: function(xhr, error, thrown) {
+                console.error('Report AJAX Error:', xhr.status, xhr.responseText);
+                if (typeof showToast === 'function') {
+                    showToast('Failed to load report data. Check browser console (F12) for details.', 'error');
+                }
+            }
+        },
         columns: [
             { data: null, orderable: false, render: function(d,t,r,m) { return m.row + m.settings._iDisplayStart + 1; } },
             { data: 'movement_no' }, { data: 'movement_date' }, { data: 'item_code' }, { data: 'item_name' },
@@ -57,6 +68,7 @@ $(document).ready(function() {
 
     $('#btnExportExcel').on('click', function() { window.location.href = '{{ route("admin.reports.router-movement.export") }}?' + $.param(getReportFilters()) + '&format=xlsx'; });
     $('#btnExportPdf').on('click', function() { window.location.href = '{{ route("admin.reports.router-movement.export") }}?' + $.param(getReportFilters()) + '&format=pdf'; });
+    $('#btnPrint').on('click', function() { openPrintView('router-movement'); });
 });
 </script>
 @endpush
