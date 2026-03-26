@@ -223,7 +223,7 @@
                     <td>{{ $m->movement_no }}</td>
                     <td>{{ $m->movement_date instanceof \Carbon\Carbon ? $m->movement_date->format('d/m/Y') : $m->movement_date }}</td>
                     <td>{{ $m->inventoryItem?->item_name ?? '-' }}</td>
-                    <td>{{ $m->inventoryItem?->serial_number ?? ucfirst(str_replace('_',' ',$m->inventoryItem?->accessory_type ?? '')) }}</td>
+                    <td>{{ $reportType === 'accessories-usage' ? ucfirst(str_replace('_',' ',$m->inventoryItem?->accessory_type ?? '-')) : (!empty($m->router_ids) ? (is_array($m->router_ids) ? implode(', ', $m->router_ids) : implode(', ', json_decode($m->router_ids, true) ?: [])) : ($m->ticket?->router_id ?? '-')) }}</td>
                     <td>{{ ucfirst(str_replace('_', ' ', $m->movement_type)) }}</td>
                     <td class="text-right">{{ $m->quantity }}</td>
                     <td>{{ $m->fromHolder?->name ?? ($m->from_holder_type ? ucfirst($m->from_holder_type) : '-') }}</td>

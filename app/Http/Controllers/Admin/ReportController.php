@@ -641,7 +641,23 @@ class ReportController extends Controller
             'movement_date'  => $movementDate,
             'item_code'      => $m->inventoryItem?->item_code ?? '-',
             'item_name'      => $m->inventoryItem?->item_name ?? '-',
-            'serial_number'  => $m->inventoryItem?->serial_number ?? '-',
+            'serial_number'  => (function() use ($m) {
+                // Router ID from movement's router_ids JSON, then ticket's router_id/router_ids
+                $raw = $m->router_ids ?? null;
+                if ($raw) {
+                    $decoded = is_array($raw) ? $raw : json_decode($raw, true);
+                    if (!empty($decoded) && is_array($decoded)) return implode(', ', $decoded);
+                }
+                if ($m->ticket) {
+                    if (!empty($m->ticket->router_id)) return $m->ticket->router_id;
+                    $tIds = $m->ticket->router_ids;
+                    if ($tIds) {
+                        $arr = is_array($tIds) ? $tIds : json_decode($tIds, true);
+                        if (!empty($arr) && is_array($arr)) return implode(', ', $arr);
+                    }
+                }
+                return '-';
+            })(),
             'accessory_type' => ucfirst(str_replace('_', ' ', $m->inventoryItem?->accessory_type ?? '-')),
             'movement_type'  => ucfirst(str_replace('_', ' ', $m->movement_type ?? '-')),
             'quantity'       => (int) ($m->quantity ?? 0),

@@ -27,7 +27,6 @@ class StockMovement extends Model
         'inventory_item_id',
         'movement_type',
         'quantity',
-        'router_ids',
         'from_holder_type',
         'from_holder_id',
         'to_holder_type',
@@ -39,6 +38,7 @@ class StockMovement extends Model
         'remarks',
         'item_condition',
         'movement_date',
+        'router_ids',
         'performed_by',
     ];
 
@@ -95,62 +95,6 @@ class StockMovement extends Model
     }
 
     // ══════════════════════════════════════
-    // CONTEXTUAL DATE ACCESSORS
-    // ══════════════════════════════════════
-
-    /**
-     * Get stockin_date (alias for movement_date on stock_in type).
-     */
-    public function getStockinDateAttribute()
-    {
-        return $this->movement_date;
-    }
-
-    /**
-     * Get stockout_date (alias for movement_date on stock_out type).
-     */
-    public function getStockoutDateAttribute()
-    {
-        return $this->movement_date;
-    }
-
-    /**
-     * Get stockreturn_date (alias for movement_date on stock_return type).
-     */
-    public function getStockreturnDateAttribute()
-    {
-        return $this->movement_date;
-    }
-
-    /**
-     * Contextual date label based on movement type.
-     */
-    public function getDateLabel(): string
-    {
-        return match ($this->movement_type) {
-            self::TYPE_STOCK_IN => 'Stock In Date',
-            self::TYPE_STOCK_OUT => 'Stock Out Date',
-            self::TYPE_STOCK_RETURN => 'Stock Return Date',
-            default => 'Movement Date',
-        };
-    }
-
-    /**
-     * Get router IDs as comma-separated string for display.
-     */
-    public function getRouterIdsDisplay(): string
-    {
-        $ids = $this->router_ids;
-        if (empty($ids)) {
-            return '-';
-        }
-        if (is_string($ids)) {
-            $ids = json_decode($ids, true);
-        }
-        return is_array($ids) ? implode(', ', $ids) : '-';
-    }
-
-    // ══════════════════════════════════════
     // SCOPES
     // ══════════════════════════════════════
 
@@ -161,8 +105,10 @@ class StockMovement extends Model
 
     public function scopeDateRange($query, $from, $to)
     {
-        if ($from) $query->where('movement_date', '>=', $from);
-        if ($to) $query->where('movement_date', '<=', $to);
+        if ($from) $query->where('movement_date',
+        'router_ids', '>=', $from);
+        if ($to) $query->where('movement_date',
+        'router_ids', '<=', $to);
         return $query;
     }
 

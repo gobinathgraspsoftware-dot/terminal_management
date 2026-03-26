@@ -47,7 +47,22 @@ class RouterMovementReportExport implements FromQuery, WithHeadings, WithMapping
             $m->movement_date,
             $m->inventoryItem?->item_code ?? '',
             $m->inventoryItem?->item_name ?? '',
-            $m->inventoryItem?->serial_number ?? '',
+            (function() use ($m) {
+                $raw = $m->router_ids ?? null;
+                if ($raw) {
+                    $decoded = is_array($raw) ? $raw : json_decode($raw, true);
+                    if (!empty($decoded) && is_array($decoded)) return implode(', ', $decoded);
+                }
+                if ($m->ticket) {
+                    if (!empty($m->ticket->router_id)) return $m->ticket->router_id;
+                    $tIds = $m->ticket->router_ids;
+                    if ($tIds) {
+                        $arr = is_array($tIds) ? $tIds : json_decode($tIds, true);
+                        if (!empty($arr) && is_array($arr)) return implode(', ', $arr);
+                    }
+                }
+                return '';
+            })(),
             ucfirst(str_replace('_', ' ', $m->movement_type)),
             $m->quantity,
             $m->from_holder_type ? ucfirst($m->from_holder_type) . ($m->fromHolder ? ': ' . $m->fromHolder->name : '') : '',
