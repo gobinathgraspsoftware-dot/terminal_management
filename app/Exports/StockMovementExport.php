@@ -48,7 +48,7 @@ class StockMovementExport implements FromCollection, WithHeadings, WithMapping, 
             'Type',
             'Item Code',
             'Item Name',
-            'Router IDs',
+            'Router ID',
             'Quantity',
             'From',
             'To',
@@ -66,15 +66,20 @@ class StockMovementExport implements FromCollection, WithHeadings, WithMapping, 
         static $row = 0;
         $row++;
 
-        // Get router IDs display
-        $routerIds = $movement->router_ids;
-        if (empty($routerIds)) {
-            $routerIdsDisplay = '-';
-        } else {
-            if (is_string($routerIds)) {
-                $routerIds = json_decode($routerIds, true) ?? [];
+        // Build Router ID
+        $routerId = '-';
+        $rawIds = $movement->router_ids ?? null;
+        if ($rawIds) {
+            $decoded = is_array($rawIds) ? $rawIds : json_decode($rawIds, true);
+            if (!empty($decoded) && is_array($decoded)) $routerId = implode(', ', $decoded);
+        }
+        if ($routerId === '-' && $movement->ticket) {
+            if (!empty($movement->ticket->router_id)) {
+                $routerId = $movement->ticket->router_id;
+            } elseif (!empty($movement->ticket->router_ids)) {
+                $arr = is_array($movement->ticket->router_ids) ? $movement->ticket->router_ids : json_decode($movement->ticket->router_ids, true);
+                if (!empty($arr) && is_array($arr)) $routerId = implode(', ', $arr);
             }
-            $routerIdsDisplay = is_array($routerIds) ? implode(', ', $routerIds) : '-';
         }
 
         return [
@@ -82,17 +87,17 @@ class StockMovementExport implements FromCollection, WithHeadings, WithMapping, 
             $movement->movement_no,
             $movement->movement_date?->format('d M Y'),
             $movement->getTypeLabel(),
-            $movement->inventoryItem->item_code ?? 'N/A',
-            $movement->inventoryItem->item_name ?? 'N/A',
-            $routerIdsDisplay,
+            $movement->inventoryItem?->item_code ?? 'N/A',
+            $movement->inventoryItem?->item_name ?? 'N/A',
+            $routerId,
             $movement->quantity,
             $movement->getFromLocation(),
             $movement->getToLocation(),
-            $movement->ticket->ticket_no ?? '-',
+            $movement->ticket?->ticket_no ?? '-',
             ucfirst($movement->item_condition ?? '-'),
             $movement->reason ?? '-',
             $movement->remarks ?? '-',
-            $movement->performer->name ?? 'N/A',
+            $movement->performer?->name ?? 'N/A',
             $movement->created_at?->format('d M Y H:i'),
         ];
     }

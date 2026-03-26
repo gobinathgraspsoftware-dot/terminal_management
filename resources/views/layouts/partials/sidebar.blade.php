@@ -307,6 +307,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.reports.rejected-rescheduled') ? 'active' : '' }}"
+                           href="{{ route('admin.reports.rejected-rescheduled') }}">
+                            <i class="bi bi-x-octagon me-2"></i> Rejected / Rescheduled
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {{ str_contains($currentRoute, 'admin.reports.supervisor-pricing') ? 'active' : '' }}"
                            href="{{ route('admin.reports.supervisor-pricing') }}">
                             <i class="bi bi-tags me-2"></i> Supervisor Pricing
@@ -340,12 +346,6 @@
                         <a class="nav-link {{ str_contains($currentRoute, 'admin.reports.accessories-usage') ? 'active' : '' }}"
                            href="{{ route('admin.reports.accessories-usage') }}">
                             <i class="bi bi-sim me-2"></i> Accessories Usage
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'admin.reports.rejected-rescheduled') ? 'active' : '' }}"
-                           href="{{ route('admin.reports.rejected-rescheduled') }}">
-                            <i class="bi bi-x-octagon me-2"></i> Rejected / Rescheduled
                         </a>
                     </li>
                 </ul>
@@ -593,6 +593,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.reports.rejected-rescheduled') ? 'active' : '' }}"
+                           href="{{ route('supervisor.reports.rejected-rescheduled') }}">
+                            <i class="bi bi-x-octagon me-2"></i> Rejected / Rescheduled
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {{ str_contains($currentRoute, 'supervisor.reports.claim') ? 'active' : '' }}"
                            href="{{ route('supervisor.reports.claim') }}">
                             <i class="bi bi-receipt me-2"></i> Claim Report
@@ -614,12 +620,6 @@
                         <a class="nav-link {{ str_contains($currentRoute, 'supervisor.reports.accessories-usage') ? 'active' : '' }}"
                            href="{{ route('supervisor.reports.accessories-usage') }}">
                             <i class="bi bi-sim me-2"></i> Accessories Usage
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.reports.rejected-rescheduled') ? 'active' : '' }}"
-                           href="{{ route('supervisor.reports.rejected-rescheduled') }}">
-                            <i class="bi bi-x-octagon me-2"></i> Rejected / Rescheduled
                         </a>
                     </li>
                 </ul>
