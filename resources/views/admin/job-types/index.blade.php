@@ -15,18 +15,7 @@
                 </ol>
             </nav>
         </div>
-        @can('create', App\Models\JobType::class)
-        <a href="{{ route('admin.job-types.create') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i> Add Job Type
-        </a>
-        @endcan
-    </div>
-
-    <div class="card bg-info-subtle">
-        <div class="card-body">
-            <i class="bi bi-info-circle me-2"></i>
-            Add a Job Type first. Once created, you can proceed to Charge Catalog Management to configure charges.
-        </div>
+        {{-- Add button removed — re-enable when CRUD is needed --}}
     </div>
 
     <!-- Stats Cards -->
@@ -88,8 +77,6 @@
                         <th>Slug</th>
                         <th>Description</th>
                         <th>Status</th>
-                        <th>Created</th>
-                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
             </table>
@@ -101,7 +88,6 @@
 @push('scripts')
 <script>
 $(function() {
-    // DataTable
     var table = $('#job-types-table').DataTable({
         processing: true,
         serverSide: true,
@@ -123,13 +109,6 @@ $(function() {
                 }
             },
             { data: 'status_badge', name: 'status', searchable: false, orderable: false },
-            {
-                data: 'created_at', name: 'created_at',
-                render: function(data) {
-                    return data ? new Date(data).toLocaleDateString('en-MY') : '—';
-                }
-            },
-            { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' }
         ],
         order: [[1, 'asc']],
         responsive: true,
@@ -138,76 +117,8 @@ $(function() {
         }
     });
 
-    // Filter
     $('#filter-status').on('change', function() { table.draw(); });
-    $('#btn-reset-filter').on('click', function() {
-        $('#filter-status').val('');
-        table.draw();
-    });
-
-    // Toggle Status
-    $(document).on('click', '.btn-toggle-status', function() {
-        var id = $(this).data('id');
-        var currentStatus = $(this).data('status');
-        var newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-
-        Swal.fire({
-            title: 'Toggle Status?',
-            text: 'Change status to ' + newStatus + '?',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, change it',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: '/admin/job-types/' + id + '/toggle-status',
-                    type: 'PATCH',
-                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                    success: function(response) {
-                        if (response.success) {
-                            showToast('success', response.message);
-                            table.draw(false);
-                        }
-                    },
-                    error: function(xhr) {
-                        showToast('error', xhr.responseJSON?.message || 'Failed to update status');
-                    }
-                });
-            }
-        });
-    });
-
-    // Delete
-    $(document).on('click', '.btn-delete', function() {
-        var id = $(this).data('id');
-        var name = $(this).data('name');
-
-        Swal.fire({
-            title: 'Delete Job Type?',
-            html: 'Are you sure you want to delete <strong>' + name + '</strong>?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            confirmButtonText: 'Yes, delete it',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: '/admin/job-types/' + id,
-                    type: 'DELETE',
-                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                    success: function(response) {
-                        if (response.success) {
-                            showToast('success', response.message);
-                            table.draw(false);
-                        }
-                    },
-                    error: function(xhr) {
-                        showToast('error', xhr.responseJSON?.message || 'Failed to delete job type');
-                    }
-                });
-            }
-        });
-    });
+    $('#btn-reset-filter').on('click', function() { $('#filter-status').val(''); table.draw(); });
 });
 </script>
 @endpush

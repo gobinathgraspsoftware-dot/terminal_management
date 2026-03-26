@@ -15,11 +15,7 @@
                 </ol>
             </nav>
         </div>
-        @can('create_job_categories')
-        <a href="{{ route('admin.job-categories.create') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i> Add Job Category
-        </a>
-        @endcan
+        {{-- Add button removed — re-enable when CRUD is needed --}}
     </div>
 
     {{-- Stats Cards --}}
@@ -82,8 +78,6 @@
                         <th>Slug</th>
                         <th>Description</th>
                         <th width="10%">Status</th>
-                        <th width="12%">Created</th>
-                        <th width="15%" class="text-nowrap">Actions</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -96,7 +90,6 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // DataTable
     var table = $('#jobCategoriesTable').DataTable({
         processing: true,
         serverSide: true,
@@ -129,17 +122,6 @@ $(document).ready(function() {
                 }
             },
             { data: 'status_badge', name: 'status', orderable: true, searchable: false },
-            {
-                data: 'created_at',
-                name: 'created_at',
-                render: function(data) {
-                    if (!data) return '—';
-                    return new Date(data).toLocaleDateString('en-GB', {
-                        day: '2-digit', month: 'short', year: 'numeric'
-                    });
-                }
-            },
-            { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-nowrap' }
         ],
         order: [[0, 'desc']],
         language: {
@@ -148,84 +130,8 @@ $(document).ready(function() {
         }
     });
 
-    // Filter change
-    $('#filterStatus').on('change', function() {
-        table.ajax.reload();
-    });
-
-    // Reset filter
-    $('#btnResetFilter').on('click', function() {
-        $('#filterStatus').val('');
-        table.ajax.reload();
-    });
-
-    // Toggle Status
-    $(document).on('click', '.btn-toggle-status', function() {
-        var id = $(this).data('id');
-        var currentStatus = $(this).data('status');
-        var newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-
-        Swal.fire({
-            title: 'Toggle Status?',
-            text: 'Change status to ' + newStatus + '?',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, change it',
-        }).then(function(result) {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: '/admin/job-categories/' + id + '/toggle-status',
-                    type: 'PATCH',
-                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                    success: function(response) {
-                        if (response.success) {
-                            showToast(response.message, 'success');
-                            table.ajax.reload(null, false);
-                        } else {
-                            showToast(response.message || 'Failed to update status.', 'error');
-                        }
-                    },
-                    error: function(xhr) {
-                        showToast(xhr.responseJSON?.message || 'An error occurred.', 'error');
-                    }
-                });
-            }
-        });
-    });
-
-    // Delete
-    $(document).on('click', '.btn-delete', function() {
-        var id = $(this).data('id');
-        var name = $(this).data('name');
-
-        Swal.fire({
-            title: 'Delete Job Category?',
-            html: 'Are you sure you want to delete <strong>' + name + '</strong>?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc3545',
-            confirmButtonText: 'Yes, delete it',
-        }).then(function(result) {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: '/admin/job-categories/' + id,
-                    type: 'DELETE',
-                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                    success: function(response) {
-                        if (response.success) {
-                            showToast(response.message, 'success');
-                            table.ajax.reload(null, false);
-                        } else {
-                            showToast(response.message || 'Failed to delete.', 'error');
-                        }
-                    },
-                    error: function(xhr) {
-                        showToast(xhr.responseJSON?.message || 'An error occurred.', 'error');
-                    }
-                });
-            }
-        });
-    });
+    $('#filterStatus').on('change', function() { table.ajax.reload(); });
+    $('#btnResetFilter').on('click', function() { $('#filterStatus').val(''); table.ajax.reload(); });
 });
 </script>
 @endpush
