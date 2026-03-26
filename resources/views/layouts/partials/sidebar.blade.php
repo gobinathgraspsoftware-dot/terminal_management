@@ -274,6 +274,84 @@
             </div>
             @endcanany
 
+            <!-- Reports Section -->
+            @canany(['view_reports', 'export_reports'])
+            @php
+                $isReportRoute = str_contains($currentRoute ?? '', 'admin.reports');
+            @endphp
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Reports</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $currentRoute === 'admin.reports.index' ? 'active' : '' }}"
+                           href="{{ route('admin.reports.index') }}">
+                            <i class="bi bi-bar-chart-line me-2"></i> Report Hub
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.reports.ticket-summary') ? 'active' : '' }}"
+                           href="{{ route('admin.reports.ticket-summary') }}">
+                            <i class="bi bi-clipboard-data me-2"></i> Ticket Summary
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ $currentRoute === 'admin.reports.status' || str_contains($currentRoute, 'admin.reports.status.') ? 'active' : '' }}"
+                           href="{{ route('admin.reports.status') }}">
+                            <i class="bi bi-pie-chart me-2"></i> Status Report
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.reports.sla') ? 'active' : '' }}"
+                           href="{{ route('admin.reports.sla') }}">
+                            <i class="bi bi-clock-history me-2"></i> SLA Report
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.reports.supervisor-pricing') ? 'active' : '' }}"
+                           href="{{ route('admin.reports.supervisor-pricing') }}">
+                            <i class="bi bi-tags me-2"></i> Supervisor Pricing
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.reports.claim') ? 'active' : '' }}"
+                           href="{{ route('admin.reports.claim') }}">
+                            <i class="bi bi-receipt me-2"></i> Claim Report
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.reports.payment') ? 'active' : '' }}"
+                           href="{{ route('admin.reports.payment') }}">
+                            <i class="bi bi-wallet2 me-2"></i> Payment Report
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.reports.inventory-balance') ? 'active' : '' }}"
+                           href="{{ route('admin.reports.inventory-balance') }}">
+                            <i class="bi bi-boxes me-2"></i> Inventory Balance
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.reports.router-movement') ? 'active' : '' }}"
+                           href="{{ route('admin.reports.router-movement') }}">
+                            <i class="bi bi-router me-2"></i> Router Movement
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.reports.accessories-usage') ? 'active' : '' }}"
+                           href="{{ route('admin.reports.accessories-usage') }}">
+                            <i class="bi bi-sim me-2"></i> Accessories Usage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.reports.rejected-rescheduled') ? 'active' : '' }}"
+                           href="{{ route('admin.reports.rejected-rescheduled') }}">
+                            <i class="bi bi-x-octagon me-2"></i> Rejected / Rescheduled
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            @endcanany
+
             <!-- Profile Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
@@ -482,6 +560,72 @@
             </div>
             @endcanany
 
+            <!-- Reports Section -->
+            @canany(['view_reports', 'export_reports'])
+            @php
+                $isReportRoute = str_contains($currentRoute ?? '', 'supervisor.reports');
+            @endphp
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Reports</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $currentRoute === 'supervisor.reports.index' ? 'active' : '' }}"
+                           href="{{ route('supervisor.reports.index') }}">
+                            <i class="bi bi-bar-chart-line me-2"></i> Report Hub
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.reports.ticket-summary') ? 'active' : '' }}"
+                           href="{{ route('supervisor.reports.ticket-summary') }}">
+                            <i class="bi bi-clipboard-data me-2"></i> Ticket Summary
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ $currentRoute === 'supervisor.reports.status' || str_contains($currentRoute, 'supervisor.reports.status.') ? 'active' : '' }}"
+                           href="{{ route('supervisor.reports.status') }}">
+                            <i class="bi bi-pie-chart me-2"></i> Status Report
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.reports.sla') ? 'active' : '' }}"
+                           href="{{ route('supervisor.reports.sla') }}">
+                            <i class="bi bi-clock-history me-2"></i> SLA Report
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.reports.claim') ? 'active' : '' }}"
+                           href="{{ route('supervisor.reports.claim') }}">
+                            <i class="bi bi-receipt me-2"></i> Claim Report
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.reports.inventory-balance') ? 'active' : '' }}"
+                           href="{{ route('supervisor.reports.inventory-balance') }}">
+                            <i class="bi bi-boxes me-2"></i> Inventory Balance
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.reports.router-movement') ? 'active' : '' }}"
+                           href="{{ route('supervisor.reports.router-movement') }}">
+                            <i class="bi bi-router me-2"></i> Router Movement
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.reports.accessories-usage') ? 'active' : '' }}"
+                           href="{{ route('supervisor.reports.accessories-usage') }}">
+                            <i class="bi bi-sim me-2"></i> Accessories Usage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.reports.rejected-rescheduled') ? 'active' : '' }}"
+                           href="{{ route('supervisor.reports.rejected-rescheduled') }}">
+                            <i class="bi bi-x-octagon me-2"></i> Rejected / Rescheduled
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            @endcanany
+
             <!-- Profile Section -->
             <div class="nav-section mb-3">
                 <small class="text-muted text-uppercase fw-bold px-3">My Profile</small>
@@ -595,6 +739,33 @@
                 </ul>
             </div>
             @endcanany
+
+            <!-- Reports Section -->
+            @can('view_reports')
+            <div class="nav-section mb-3">
+                <small class="text-muted text-uppercase fw-bold px-3">Reports</small>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link {{ $currentRoute === 'technician.reports.index' ? 'active' : '' }}"
+                           href="{{ route('technician.reports.index') }}">
+                            <i class="bi bi-bar-chart-line me-2"></i> My Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.reports.ticket-summary') ? 'active' : '' }}"
+                           href="{{ route('technician.reports.ticket-summary') }}">
+                            <i class="bi bi-clipboard-data me-2"></i> Ticket Summary
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.reports.claim') ? 'active' : '' }}"
+                           href="{{ route('technician.reports.claim') }}">
+                            <i class="bi bi-receipt me-2"></i> My Claims
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            @endcan
 
             <!-- Profile Section -->
             <div class="nav-section mb-3">

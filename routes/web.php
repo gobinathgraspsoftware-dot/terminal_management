@@ -30,6 +30,9 @@ use App\Http\Controllers\Admin\StockMovementController as AdminStockMovementCont
 use App\Http\Controllers\Supervisor\InventoryController as SupervisorInventoryController;
 use App\Http\Controllers\Supervisor\StockMovementController as SupervisorStockMovementController;
 use App\Http\Controllers\Technician\InventoryController as TechnicianInventoryController;
+use App\Http\Controllers\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Supervisor\ReportController as SupervisorReportController;
+use App\Http\Controllers\Technician\ReportController as TechnicianReportController;
 
 
 /*
@@ -220,6 +223,61 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/{job_category}/edit', [AdminJobCategoryController::class, 'edit'])->name('edit');
         Route::put('/{job_category}', [AdminJobCategoryController::class, 'update'])->name('update');
         Route::delete('/{job_category}', [AdminJobCategoryController::class, 'destroy'])->name('destroy');
+    });
+
+    /* Reporting Module */
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', [AdminReportController::class, 'index'])->name('index');
+
+        // 1. Ticket Summary
+        Route::get('/ticket-summary', [AdminReportController::class, 'ticketSummary'])->name('ticket-summary');
+        Route::get('/ticket-summary/data', [AdminReportController::class, 'ticketSummaryData'])->name('ticket-summary.data');
+        Route::get('/ticket-summary/export', [AdminReportController::class, 'ticketSummaryExport'])->name('ticket-summary.export');
+
+        // 2. Status Report
+        Route::get('/status', [AdminReportController::class, 'statusReport'])->name('status');
+        Route::get('/status/data', [AdminReportController::class, 'statusReportData'])->name('status.data');
+        Route::get('/status/export', [AdminReportController::class, 'statusReportExport'])->name('status.export');
+
+        // 3. SLA Report
+        Route::get('/sla', [AdminReportController::class, 'slaReport'])->name('sla');
+        Route::get('/sla/data', [AdminReportController::class, 'slaReportData'])->name('sla.data');
+        Route::get('/sla/export', [AdminReportController::class, 'slaReportExport'])->name('sla.export');
+
+        // 4. Supervisor Pricing
+        Route::get('/supervisor-pricing', [AdminReportController::class, 'supervisorPricing'])->name('supervisor-pricing');
+        Route::get('/supervisor-pricing/data', [AdminReportController::class, 'supervisorPricingData'])->name('supervisor-pricing.data');
+        Route::get('/supervisor-pricing/export', [AdminReportController::class, 'supervisorPricingExport'])->name('supervisor-pricing.export');
+
+        // 5. Claim Report
+        Route::get('/claim', [AdminReportController::class, 'claimReport'])->name('claim');
+        Route::get('/claim/data', [AdminReportController::class, 'claimReportData'])->name('claim.data');
+        Route::get('/claim/export', [AdminReportController::class, 'claimReportExport'])->name('claim.export');
+
+        // 6. Payment Report
+        Route::get('/payment', [AdminReportController::class, 'paymentReport'])->name('payment');
+        Route::get('/payment/data', [AdminReportController::class, 'paymentReportData'])->name('payment.data');
+        Route::get('/payment/export', [AdminReportController::class, 'paymentReportExport'])->name('payment.export');
+
+        // 7. Inventory Balance
+        Route::get('/inventory-balance', [AdminReportController::class, 'inventoryBalance'])->name('inventory-balance');
+        Route::get('/inventory-balance/data', [AdminReportController::class, 'inventoryBalanceData'])->name('inventory-balance.data');
+        Route::get('/inventory-balance/export', [AdminReportController::class, 'inventoryBalanceExport'])->name('inventory-balance.export');
+
+        // 8. Router Movement
+        Route::get('/router-movement', [AdminReportController::class, 'routerMovement'])->name('router-movement');
+        Route::get('/router-movement/data', [AdminReportController::class, 'routerMovementData'])->name('router-movement.data');
+        Route::get('/router-movement/export', [AdminReportController::class, 'routerMovementExport'])->name('router-movement.export');
+
+        // 9. Accessories Usage
+        Route::get('/accessories-usage', [AdminReportController::class, 'accessoriesUsage'])->name('accessories-usage');
+        Route::get('/accessories-usage/data', [AdminReportController::class, 'accessoriesUsageData'])->name('accessories-usage.data');
+        Route::get('/accessories-usage/export', [AdminReportController::class, 'accessoriesUsageExport'])->name('accessories-usage.export');
+
+        // 10. Rejected / Rescheduled
+        Route::get('/rejected-rescheduled', [AdminReportController::class, 'rejectedRescheduled'])->name('rejected-rescheduled');
+        Route::get('/rejected-rescheduled/data', [AdminReportController::class, 'rejectedRescheduledData'])->name('rejected-rescheduled.data');
+        Route::get('/rejected-rescheduled/export', [AdminReportController::class, 'rejectedRescheduledExport'])->name('rejected-rescheduled.export');
     });
 
     /* ══════════════════════════════════════════════════════════
@@ -425,6 +483,43 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/{claim}', [SupervisorClaimController::class, 'show'])->name('show');
     });
 
+    /* Reporting Module (Team-scoped) */
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', [SupervisorReportController::class, 'index'])->name('index');
+
+        Route::get('/ticket-summary', [SupervisorReportController::class, 'ticketSummary'])->name('ticket-summary');
+        Route::get('/ticket-summary/data', [SupervisorReportController::class, 'ticketSummaryData'])->name('ticket-summary.data');
+        Route::get('/ticket-summary/export', [SupervisorReportController::class, 'ticketSummaryExport'])->name('ticket-summary.export');
+
+        Route::get('/status', [SupervisorReportController::class, 'statusReport'])->name('status');
+        Route::get('/status/data', [SupervisorReportController::class, 'statusReportData'])->name('status.data');
+        Route::get('/status/export', [SupervisorReportController::class, 'statusReportExport'])->name('status.export');
+
+        Route::get('/sla', [SupervisorReportController::class, 'slaReport'])->name('sla');
+        Route::get('/sla/data', [SupervisorReportController::class, 'slaReportData'])->name('sla.data');
+        Route::get('/sla/export', [SupervisorReportController::class, 'slaReportExport'])->name('sla.export');
+
+        Route::get('/claim', [SupervisorReportController::class, 'claimReport'])->name('claim');
+        Route::get('/claim/data', [SupervisorReportController::class, 'claimReportData'])->name('claim.data');
+        Route::get('/claim/export', [SupervisorReportController::class, 'claimReportExport'])->name('claim.export');
+
+        Route::get('/inventory-balance', [SupervisorReportController::class, 'inventoryBalance'])->name('inventory-balance');
+        Route::get('/inventory-balance/data', [SupervisorReportController::class, 'inventoryBalanceData'])->name('inventory-balance.data');
+        Route::get('/inventory-balance/export', [SupervisorReportController::class, 'inventoryBalanceExport'])->name('inventory-balance.export');
+
+        Route::get('/router-movement', [SupervisorReportController::class, 'routerMovement'])->name('router-movement');
+        Route::get('/router-movement/data', [SupervisorReportController::class, 'routerMovementData'])->name('router-movement.data');
+        Route::get('/router-movement/export', [SupervisorReportController::class, 'routerMovementExport'])->name('router-movement.export');
+
+        Route::get('/accessories-usage', [SupervisorReportController::class, 'accessoriesUsage'])->name('accessories-usage');
+        Route::get('/accessories-usage/data', [SupervisorReportController::class, 'accessoriesUsageData'])->name('accessories-usage.data');
+        Route::get('/accessories-usage/export', [SupervisorReportController::class, 'accessoriesUsageExport'])->name('accessories-usage.export');
+
+        Route::get('/rejected-rescheduled', [SupervisorReportController::class, 'rejectedRescheduled'])->name('rejected-rescheduled');
+        Route::get('/rejected-rescheduled/data', [SupervisorReportController::class, 'rejectedRescheduledData'])->name('rejected-rescheduled.data');
+        Route::get('/rejected-rescheduled/export', [SupervisorReportController::class, 'rejectedRescheduledExport'])->name('rejected-rescheduled.export');
+    });
+
     /* ══════════════════════════════════════════════════════════
      * SUPERVISOR INVENTORY (Updated)
      * Stock Out = list-only (auto-triggered from tickets)
@@ -527,6 +622,19 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
 
         // Show (parameterized - MUST be last)
         Route::get('/{claim}', [TechnicianClaimController::class, 'show'])->name('show');
+    });
+
+    /* Reporting Module (Own-scoped) */
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', [TechnicianReportController::class, 'index'])->name('index');
+
+        Route::get('/ticket-summary', [TechnicianReportController::class, 'ticketSummary'])->name('ticket-summary');
+        Route::get('/ticket-summary/data', [TechnicianReportController::class, 'ticketSummaryData'])->name('ticket-summary.data');
+        Route::get('/ticket-summary/export', [TechnicianReportController::class, 'ticketSummaryExport'])->name('ticket-summary.export');
+
+        Route::get('/claim', [TechnicianReportController::class, 'claimReport'])->name('claim');
+        Route::get('/claim/data', [TechnicianReportController::class, 'claimReportData'])->name('claim.data');
+        Route::get('/claim/export', [TechnicianReportController::class, 'claimReportExport'])->name('claim.export');
     });
 
     /* Technician Inventory (view-only) */
