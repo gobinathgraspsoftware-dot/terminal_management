@@ -128,7 +128,7 @@
                     <div class="card-body text-center py-4">
                         <div class="mb-3"><i class="bi bi-router text-info" style="font-size: 2rem;"></i></div>
                         <h6 class="fw-bold">Router Movement</h6>
-                        <small class="text-muted">Track router movement by Terminal ID</small>
+                        <small class="text-muted">Track router movement by Router ID</small>
                     </div>
                 </div>
             </a>

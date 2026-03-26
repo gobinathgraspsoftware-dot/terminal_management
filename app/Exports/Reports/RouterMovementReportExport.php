@@ -34,7 +34,7 @@ class RouterMovementReportExport implements FromQuery, WithHeadings, WithMapping
     {
         return [
             'Movement No', 'Date', 'Item Code', 'Item Name',
-            'Terminal ID', 'Movement Type', 'Qty',
+            'Router ID', 'Movement Type', 'Qty',
             'From', 'To', 'Ticket No', 'Condition',
             'Performed By', 'Remarks',
         ];

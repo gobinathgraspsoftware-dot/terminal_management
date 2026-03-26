@@ -29,7 +29,7 @@
                 <table id="reportTable" class="table table-sm table-hover mb-0" style="width:100%">
                     <thead class="table-light">
                         <tr>
-                            <th>#</th><th>Movement No</th><th>Date</th><th>Item Code</th><th>Item Name</th><th>Terminal ID</th>
+                            <th>#</th><th>Movement No</th><th>Date</th><th>Item Code</th><th>Item Name</th><th>Router ID</th>
                             <th>Type</th><th class="text-end">Qty</th><th>From</th><th>To</th><th>Ticket</th><th>Condition</th><th>By</th>
                         </tr>
                     </thead>

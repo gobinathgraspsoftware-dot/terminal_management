@@ -283,7 +283,7 @@
         @if(in_array($reportType, ['router-movement', 'accessories-usage']))
         <table>
             <thead><tr>
-                <th>#</th><th>Movement No</th><th>Date</th><th>Item</th><th>{{ $reportType === 'accessories-usage' ? 'Accessory Type' : 'Terminal ID' }}</th>
+                <th>#</th><th>Movement No</th><th>Date</th><th>Item</th><th>{{ $reportType === 'accessories-usage' ? 'Accessory Type' : 'Router ID' }}</th>
                 <th>Movement</th><th class="text-right">Qty</th><th>From</th><th>To</th><th>Ticket</th><th>Condition</th><th>By</th>
             </tr></thead>
             <tbody>

@@ -322,9 +322,9 @@
                 {{-- Terminal ID --}}
                 @if(in_array('terminal_id', $filters))
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold small">Terminal ID</label>
+                    <label class="form-label fw-semibold small">Router ID</label>
                     <input type="text" class="form-control form-control-sm filter-input" name="terminal_id"
-                           id="filterTerminalId" placeholder="Terminal / Serial">
+                           id="filterTerminalId" placeholder="Router ID / Serial">
                 </div>
                 @endif
 
