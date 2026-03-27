@@ -202,4 +202,26 @@ class TicketController extends Controller
             return response()->json(['success' => false, 'message' => 'Failed to add comment.'], 500);
         }
     }
+
+    /**
+     * Update Old Router ID (replacement jobs).
+     */
+    public function updateOldRouterId(Request $request, Ticket $ticket)
+    {
+        $this->authorize('view', $ticket);
+        $request->validate([
+            'old_terminal_id' => 'nullable|string|max:100',
+        ]);
+
+        try {
+            $ticket->update([
+                'old_terminal_id' => $request->old_terminal_id,
+                'updated_by' => auth()->id(),
+            ]);
+
+            return response()->json(['success' => true, 'message' => 'Old Router ID updated successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 }

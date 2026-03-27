@@ -28,7 +28,7 @@
         </div>
         <div class="d-flex gap-2">
             @can('update', $ticket)
-            @if(!in_array($ticket->status, ['done_success','done_fail','closed']))
+            @if(!in_array($ticket->status, ['done_success','done_fail','closed']) && Route::has($roleName.'.tickets.edit'))
             <a href="{{ route($roleName.'.tickets.edit', $ticket->id) }}" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-pencil me-1"></i>Edit
             </a>
@@ -100,6 +100,40 @@
                 </div>
             </div>
 
+            {{-- Old Router ID — standalone editable by Admin, Supervisor, Technician --}}
+            @if($showOldRouterId && !in_array($ticket->status, ['closed']))
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-arrow-left-right me-2 text-warning"></i>Old Router ID (Replacement)</h6>
+                </div>
+                <div class="card-body">
+                    <form id="oldRouterIdForm">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-6">
+                                <label class="form-label">Old Router ID</label>
+                                <input type="text" name="old_terminal_id" id="oldRouterIdInput" class="form-control"
+                                    value="{{ $ticket->old_terminal_id }}"
+                                    placeholder="Enter old router ID being replaced">
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-warning w-100" id="btnUpdateOldRouterId">
+                                    <i class="bi bi-save me-1"></i>Update
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                @if($ticket->old_terminal_id)
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Saved</span>
+                                @else
+                                <span class="badge bg-secondary"><i class="bi bi-exclamation-circle me-1"></i>Not set</span>
+                                @endif
+                            </div>
+                        </div>
+                        <small class="text-muted mt-1 d-block">This is the router being replaced. Admin, Supervisor, or Technician can update this field.</small>
+                    </form>
+                </div>
+            </div>
+            @endif
+
             {{-- Status Change --}}
             @if(count($allowedTransitions) > 0)
             @can('changeStatus', $ticket)
@@ -125,14 +159,6 @@
                                 <label class="form-label">Reschedule Reason <span class="text-danger">*</span></label>
                                 <textarea name="reschedule_reason" class="form-control" rows="2"></textarea>
                             </div>
-                            {{-- Old Router ID: ONLY for router category + replacement --}}
-                            @if($showOldRouterId)
-                            <div class="col-md-6" id="oldRouterGroup" style="{{ $ticket->old_terminal_id ? '' : 'display:none;' }}">
-                                <label class="form-label">Old Router ID</label>
-                                <input type="text" name="old_terminal_id" class="form-control" value="{{ $ticket->old_terminal_id }}" placeholder="Enter old router ID for replacement">
-                                <small class="text-muted">Editable — update the old router ID if needed</small>
-                            </div>
-                            @endif
                             <div class="col-12" id="proofSection" style="display:none;">
                                 <label class="form-label">Proof Files</label>
                                 <input type="file" name="proof_files[]" class="form-control" multiple accept=".jpg,.jpeg,.png,.pdf">
@@ -341,10 +367,6 @@ $(function() {
         let st = $(this).val();
         $('#rescheduleGroup').toggle(st === 'scheduled');
         $('#proofSection').toggle(['scheduled','done_success','done_fail'].includes(st));
-        @if($showOldRouterId)
-        // Show Old Router ID field during relevant status transitions
-        $('#oldRouterGroup').toggle(['in_progress','done_success','accepted'].includes(st) || '{{ $ticket->old_terminal_id }}' !== '');
-        @endif
     });
 
     $('#statusForm').on('submit', function(e) {
@@ -362,10 +384,30 @@ $(function() {
         });
     });
 
+    // Old Router ID standalone update (replacement jobs — all roles)
+    $('#oldRouterIdForm').on('submit', function(e) {
+        e.preventDefault();
+        let btn = $('#btnUpdateOldRouterId');
+        let val = $('#oldRouterIdInput').val().trim();
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving...');
+        $.ajax({
+            url: '/' + roleName + '/tickets/{{ $ticket->id }}/update-old-router-id',
+            method: 'POST',
+            data: { old_terminal_id: val, _token: '{{ csrf_token() }}' },
+            success: function(res) {
+                if (res.success) { showToast(res.message, 'success'); setTimeout(() => location.reload(), 1000); }
+                else showToast(res.message || 'Failed', 'error');
+            },
+            error: function(xhr) { showToast(xhr.responseJSON?.message || 'Error updating Old Router ID', 'error'); },
+            complete: () => btn.prop('disabled', false).html('<i class="bi bi-save me-1"></i>Update')
+        });
+    });
+
     // Assign form
     $('#assignForm').on('submit', function(e) {
         e.preventDefault();
-        let url = '{{ $ticket->technician_id ? route($roleName.".tickets.reassign", $ticket->id) : route($roleName.".tickets.assign", $ticket->id) }}';
+        let action = '{{ $ticket->technician_id ? "reassign" : "assign" }}';
+        let url = '/' + roleName + '/tickets/{{ $ticket->id }}/' + action;
         $.ajax({
             url: url, method: 'POST',
             data: $(this).serialize() + '&_token={{ csrf_token() }}',
