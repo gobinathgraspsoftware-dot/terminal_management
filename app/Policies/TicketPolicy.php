@@ -55,7 +55,7 @@ class TicketPolicy
     /**
      * Assign a technician to a ticket.
      * Only admin and INTERNAL supervisors can assign tickets.
-     * External supervisors cannot assign technicians.
+     * External supervisors cannot assign technicians (they work alone).
      */
     public function assign(User $user, Ticket $ticket): bool
     {
@@ -63,9 +63,7 @@ class TicketPolicy
         if ($user->hasRole('admin')) return true;
 
         if ($user->hasRole('supervisor')) {
-            // External supervisors cannot assign technicians
             if ($user->isExternalSupervisor()) return false;
-            // Internal supervisors can assign their own tickets
             return $ticket->supervisor_id === $user->id || $ticket->created_by === $user->id;
         }
 
@@ -73,7 +71,7 @@ class TicketPolicy
     }
 
     /**
-     * Reassign technician — same rules as assign
+     * Reassign technician — same rules as assign.
      */
     public function reassign(User $user, Ticket $ticket): bool
     {
@@ -82,8 +80,8 @@ class TicketPolicy
 
     /**
      * Accept an assigned ticket.
-     * Technicians accept tickets assigned to them.
-     * External supervisors accept tickets assigned to them (no technician).
+     * - Technicians accept tickets assigned to them.
+     * - External supervisors accept tickets assigned to them (no technician).
      */
     public function accept(User $user, Ticket $ticket): bool
     {
@@ -102,8 +100,8 @@ class TicketPolicy
 
     /**
      * Reject an assigned ticket.
-     * Technicians reject tickets assigned to them.
-     * External supervisors reject tickets assigned to them.
+     * - Technicians reject tickets assigned to them.
+     * - External supervisors reject tickets assigned to them.
      */
     public function reject(User $user, Ticket $ticket): bool
     {
@@ -140,26 +138,30 @@ class TicketPolicy
 
     /**
      * Update claim information.
-     * Claims NOT applicable for internal supervisors.
-     * External supervisors and their assigned technicians can update claims.
+     *
+     * Rules:
+     * - Admin         → always allowed.
+     * - External Supervisor → works alone (no technician under them).
+     *                         Can claim directly on their own ticket.
+     * - Internal Supervisor → no claims applicable (they manage, not fieldwork).
+     * - Technician    → can claim on ANY ticket they are the assigned technician,
+     *                   regardless of whether the supervisor is internal or external.
+     *                   (Previously blocked on internal-supervisor tickets — this was wrong.)
      */
     public function updateClaim(User $user, Ticket $ticket): bool
     {
         if ($user->hasRole('admin')) return true;
 
-        // Check if supervisor is internal — claims not applicable
-        if ($ticket->supervisor_id) {
-            $supervisor = User::find($ticket->supervisor_id);
-            if ($supervisor && $supervisor->isInternalSupervisor()) {
-                // Only admin can override claim for internal supervisor tickets
-                return false;
-            }
-        }
-
         if ($user->hasRole('supervisor')) {
-            return $ticket->supervisor_id === $user->id;
+            // External supervisor: claims directly on their own ticket
+            if ($user->isExternalSupervisor()) {
+                return $ticket->supervisor_id === $user->id;
+            }
+            // Internal supervisor: no claims
+            return false;
         }
 
+        // Technician: can claim on any ticket they are assigned to
         return $ticket->technician_id === $user->id;
     }
 }
