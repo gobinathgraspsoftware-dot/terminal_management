@@ -103,12 +103,19 @@ class StockMovement extends Model
         return $query->where('movement_type', $type);
     }
 
+    /**
+     * FIX: scopeDateRange had malformed where() arguments.
+     * BEFORE: $query->where('movement_date', 'router_ids', '>=', $from);
+     * AFTER:  $query->where('movement_date', '>=', $from);
+     */
     public function scopeDateRange($query, $from, $to)
     {
-        if ($from) $query->where('movement_date',
-        'router_ids', '>=', $from);
-        if ($to) $query->where('movement_date',
-        'router_ids', '<=', $to);
+        if ($from) {
+            $query->where('movement_date', '>=', $from);
+        }
+        if ($to) {
+            $query->where('movement_date', '<=', $to);
+        }
         return $query;
     }
 
@@ -187,6 +194,33 @@ class StockMovement extends Model
             return 'Warehouse';
         }
         return $this->toHolder?->name ?? 'Unknown Technician';
+    }
+
+    /**
+     * FIX: This method was MISSING — caused "Call to undefined method"
+     * crash on inventory show page for accessories with movements.
+     *
+     * Display router_ids as comma-separated string.
+     * For accessories (quantity-based), router_ids is null/empty → returns '-'.
+     */
+    public function getRouterIdsDisplay(): string
+    {
+        if (empty($this->router_ids)) {
+            return '-';
+        }
+
+        $ids = is_array($this->router_ids) ? $this->router_ids : [];
+
+        if (count($ids) === 0) {
+            return '-';
+        }
+
+        // Show first 5 IDs, then "...+N more" if more than 5
+        if (count($ids) > 5) {
+            return implode(', ', array_slice($ids, 0, 5)) . ' ...+' . (count($ids) - 5) . ' more';
+        }
+
+        return implode(', ', $ids);
     }
 
     /**

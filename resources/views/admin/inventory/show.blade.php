@@ -39,8 +39,14 @@
                         @if($inventory_item->isAccessory())
                         <tr><td class="text-muted">Accessory Type</td><td>{{ $inventory_item->accessory_type === 'sim_card' ? 'SIM Card' : 'Antenna' }}</td></tr>
                         @endif
+                        @if($inventory_item->jobCategory)
+                        <tr><td class="text-muted">Job Category</td><td>{{ $inventory_item->jobCategory->category_name }}</td></tr>
+                        @endif
                         <tr><td class="text-muted">Brand</td><td>{{ $inventory_item->brand ?? '-' }}</td></tr>
                         <tr><td class="text-muted">Model</td><td>{{ $inventory_item->model ?? '-' }}</td></tr>
+                        @if($inventory_item->isRouter())
+                        <tr><td class="text-muted">Serial Number</td><td>{{ $inventory_item->serial_number ?? '-' }}</td></tr>
+                        @endif
                         <tr><td class="text-muted">Unit</td><td>{{ $inventory_item->unit ?? 'unit' }}</td></tr>
                         <tr><td class="text-muted">Reorder Level</td><td>{{ $inventory_item->reorder_level }}</td></tr>
                         <tr><td class="text-muted">Status</td><td>{!! $inventory_item->getStatusBadge() !!}</td></tr>
@@ -109,7 +115,10 @@
                                     <th>Movement #</th>
                                     <th>Type</th>
                                     <th>Qty</th>
+                                    {{-- FIX: Only show Router IDs column for router items --}}
+                                    @if($inventory_item->isRouter())
                                     <th>Router IDs</th>
+                                    @endif
                                     <th>From</th>
                                     <th>To</th>
                                     <th>Ticket</th>
@@ -123,7 +132,10 @@
                                     <td><span class="fw-semibold">{{ $m->movement_no }}</span></td>
                                     <td>{!! $m->getTypeBadge() !!}</td>
                                     <td>{{ $m->quantity }}</td>
+                                    {{-- FIX: Only show Router IDs data for router items --}}
+                                    @if($inventory_item->isRouter())
                                     <td><small>{{ $m->getRouterIdsDisplay() }}</small></td>
+                                    @endif
                                     <td>{{ $m->getFromLocation() }}</td>
                                     <td>{{ $m->getToLocation() }}</td>
                                     <td>{{ $m->ticket->ticket_no ?? '-' }}</td>
