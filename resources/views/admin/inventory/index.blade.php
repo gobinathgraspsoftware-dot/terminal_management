@@ -161,7 +161,7 @@ $(function() {
             { data: 'DT_RowIndex', orderable: false, searchable: false, width: '40px' },
             { data: 'item_code' },
             { data: 'item_name' },
-            { data: 'item_type', orderable: false },
+            { data: 'item_type', orderable: false, searchable: false },
             { data: 'brand' },
             {
                 data: 'warehouse_stock',
@@ -171,7 +171,7 @@ $(function() {
                     return '<span class="' + cls + '">' + data + icon + '</span>';
                 }
             },
-            { data: 'status', orderable: false },
+            { data: 'status', orderable: false, searchable: false },
             { data: 'created_at' },
             {
                 data: 'id',

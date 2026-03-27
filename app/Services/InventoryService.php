@@ -41,9 +41,6 @@ class InventoryService
         if (!empty($params['status'])) {
             $query->where('inventory_items.status', $params['status']);
         }
-        if (!empty($params['job_category_id'])) {
-            $query->where('inventory_items.job_category_id', $params['job_category_id']);
-        }
 
         $totalRecords = InventoryItem::count();
 
@@ -90,7 +87,6 @@ class InventoryService
                 'item_type' => $item->getTypeBadge(),
                 'brand' => $item->brand ?? '-',
                 'model' => $item->model ?? '-',
-                'category' => \App\Models\JobCategory::find($item->job_category_id)?->category_name ?? '-',
                 'warehouse_stock' => (int) $item->warehouse_qty,
                 'total_stock' => $item->getTotalStock(),
                 'reorder_level' => $item->reorder_level,
@@ -182,53 +178,104 @@ class InventoryService
     }
 
     // ══════════════════════════════════════════════════════════
+    // HELPER: Extract and clean router_ids from data
+    // ══════════════════════════════════════════════════════════
+
+    /**
+     * Extract, clean, and filter router IDs from request data.
+     * Returns a clean array of non-empty router ID strings, or null.
+     */
+    protected function extractRouterIds(array $data): ?array
+    {
+        // Priority 1: router_ids array from form
+        if (!empty($data['router_ids']) && is_array($data['router_ids'])) {
+            $cleaned = array_values(array_filter(
+                array_map('trim', $data['router_ids']),
+                function ($v) { return $v !== '' && $v !== null; }
+            ));
+            return !empty($cleaned) ? $cleaned : null;
+        }
+
+        // Priority 2: single router_id field (from ticket linking)
+        if (!empty($data['router_id'])) {
+            return [trim($data['router_id'])];
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve movement_date from multiple possible field names.
+     * Forms use stockin_date, stockreturn_date etc. but DB column is movement_date.
+     */
+    protected function resolveMovementDate(array $data): string
+    {
+        return $data['stockin_date']
+            ?? $data['stockreturn_date']
+            ?? $data['stockout_date']
+            ?? $data['movement_date']
+            ?? now()->toDateString();
+    }
+
+    // ══════════════════════════════════════════════════════════
     // STOCK IN
     // ══════════════════════════════════════════════════════════
 
     /**
      * Stock In - Add items to warehouse.
-     * Router: creates individual item + sets qty to 1
-     * Accessory: increments quantity on existing item
+     *
+     * FIX: Now properly saves router_ids JSON and uses router_ids count
+     *      as quantity for routers (supports multiple router stock-in).
      */
     public function stockIn(array $data): StockMovement
     {
         return DB::transaction(function () use ($data) {
             $item = InventoryItem::findOrFail($data['inventory_item_id']);
-            $quantity = (int) ($data['quantity'] ?? 1);
 
-            // For routers, quantity is always 1 (individually tracked)
-            if ($item->isRouter()) {
-                $quantity = 1;
+            // Extract and clean router IDs
+            $routerIds = $this->extractRouterIds($data);
+
+            // Determine quantity
+            if ($item->isRouter() && !empty($routerIds)) {
+                // For routers, quantity = number of router IDs provided
+                $quantity = count($routerIds);
+            } else {
+                $quantity = (int) ($data['quantity'] ?? 1);
             }
+
+            // Resolve movement date
+            $movementDate = $this->resolveMovementDate($data);
 
             // Update warehouse balance
             $balance = StockBalance::getOrCreate($item->id, 'warehouse', null);
             $balance->increment('quantity', $quantity);
 
-            // Create movement record
+            // Create movement record WITH router_ids
             $movement = StockMovement::create([
-                'movement_no' => NumberSeries::getNextNumber('stock_movement'),
+                'movement_no'       => NumberSeries::getNextNumber('stock_movement'),
                 'inventory_item_id' => $item->id,
-                'movement_type' => StockMovement::TYPE_STOCK_IN,
-                'quantity' => $quantity,
-                'from_holder_type' => null,
-                'from_holder_id' => null,
-                'to_holder_type' => 'warehouse',
-                'to_holder_id' => null,
-                'ticket_id' => null,
-                'reference_type' => $data['reference_type'] ?? 'manual',
-                'reference_id' => $data['reference_id'] ?? null,
-                'reason' => $data['reason'] ?? 'Stock In',
-                'remarks' => $data['remarks'] ?? null,
-                'item_condition' => $data['item_condition'] ?? 'good',
-                'movement_date' => $data['movement_date'] ?? now()->toDateString(),
-                'performed_by' => Auth::id(),
+                'movement_type'     => StockMovement::TYPE_STOCK_IN,
+                'quantity'          => $quantity,
+                'router_ids'        => $routerIds,
+                'from_holder_type'  => null,
+                'from_holder_id'    => null,
+                'to_holder_type'    => 'warehouse',
+                'to_holder_id'      => null,
+                'ticket_id'         => $data['ticket_id'] ?? null,
+                'reference_type'    => $data['reference_type'] ?? 'manual',
+                'reference_id'      => $data['reference_id'] ?? null,
+                'reason'            => $data['reason'] ?? 'Stock In',
+                'remarks'           => $data['remarks'] ?? null,
+                'item_condition'    => $data['item_condition'] ?? 'good',
+                'movement_date'     => $movementDate,
+                'performed_by'      => Auth::id(),
             ]);
 
             Log::info('Stock In processed', [
                 'movement_no' => $movement->movement_no,
-                'item_id' => $item->id,
-                'quantity' => $quantity,
+                'item_id'     => $item->id,
+                'quantity'    => $quantity,
+                'router_ids'  => $routerIds,
             ]);
 
             return $movement;
@@ -241,16 +288,26 @@ class InventoryService
 
     /**
      * Stock Out - Deduct from warehouse (linked to ticket).
+     *
+     * FIX: Now properly saves router_ids JSON.
      */
     public function stockOut(array $data): StockMovement
     {
         return DB::transaction(function () use ($data) {
             $item = InventoryItem::findOrFail($data['inventory_item_id']);
-            $quantity = (int) ($data['quantity'] ?? 1);
 
-            if ($item->isRouter()) {
-                $quantity = 1;
+            // Extract and clean router IDs
+            $routerIds = $this->extractRouterIds($data);
+
+            // Determine quantity
+            if ($item->isRouter() && !empty($routerIds)) {
+                $quantity = count($routerIds);
+            } else {
+                $quantity = (int) ($data['quantity'] ?? 1);
             }
+
+            // Resolve movement date
+            $movementDate = $this->resolveMovementDate($data);
 
             // Check availability
             $balance = StockBalance::getOrCreate($item->id, 'warehouse', null);
@@ -261,24 +318,25 @@ class InventoryService
             // Deduct from warehouse
             $balance->decrement('quantity', $quantity);
 
-            // Create movement record
+            // Create movement record WITH router_ids
             $movement = StockMovement::create([
-                'movement_no' => NumberSeries::getNextNumber('stock_movement'),
+                'movement_no'       => NumberSeries::getNextNumber('stock_movement'),
                 'inventory_item_id' => $item->id,
-                'movement_type' => StockMovement::TYPE_STOCK_OUT,
-                'quantity' => -$quantity,
-                'from_holder_type' => 'warehouse',
-                'from_holder_id' => null,
-                'to_holder_type' => isset($data['technician_id']) ? 'technician' : null,
-                'to_holder_id' => $data['technician_id'] ?? null,
-                'ticket_id' => $data['ticket_id'] ?? null,
-                'reference_type' => $data['ticket_id'] ? 'ticket' : 'manual',
-                'reference_id' => $data['ticket_id'] ?? null,
-                'reason' => $data['reason'] ?? 'Stock Out',
-                'remarks' => $data['remarks'] ?? null,
-                'item_condition' => 'good',
-                'movement_date' => $data['movement_date'] ?? now()->toDateString(),
-                'performed_by' => Auth::id(),
+                'movement_type'     => StockMovement::TYPE_STOCK_OUT,
+                'quantity'          => -$quantity,
+                'router_ids'        => $routerIds,
+                'from_holder_type'  => 'warehouse',
+                'from_holder_id'    => null,
+                'to_holder_type'    => isset($data['technician_id']) ? 'technician' : null,
+                'to_holder_id'      => $data['technician_id'] ?? null,
+                'ticket_id'         => $data['ticket_id'] ?? null,
+                'reference_type'    => $data['ticket_id'] ? 'ticket' : 'manual',
+                'reference_id'      => $data['ticket_id'] ?? null,
+                'reason'            => $data['reason'] ?? 'Stock Out',
+                'remarks'           => $data['remarks'] ?? null,
+                'item_condition'    => 'good',
+                'movement_date'     => $movementDate,
+                'performed_by'      => Auth::id(),
             ]);
 
             // If assigned to a technician, update technician balance
@@ -289,9 +347,10 @@ class InventoryService
 
             Log::info('Stock Out processed', [
                 'movement_no' => $movement->movement_no,
-                'item_id' => $item->id,
-                'quantity' => $quantity,
-                'ticket_id' => $data['ticket_id'] ?? null,
+                'item_id'     => $item->id,
+                'quantity'    => $quantity,
+                'router_ids'  => $routerIds,
+                'ticket_id'   => $data['ticket_id'] ?? null,
             ]);
 
             return $movement;
@@ -304,16 +363,26 @@ class InventoryService
 
     /**
      * Stock Return - Return items back to warehouse.
+     *
+     * FIX: Now properly saves router_ids JSON.
      */
     public function stockReturn(array $data): StockMovement
     {
         return DB::transaction(function () use ($data) {
             $item = InventoryItem::findOrFail($data['inventory_item_id']);
-            $quantity = (int) ($data['quantity'] ?? 1);
 
-            if ($item->isRouter()) {
-                $quantity = 1;
+            // Extract and clean router IDs
+            $routerIds = $this->extractRouterIds($data);
+
+            // Determine quantity
+            if ($item->isRouter() && !empty($routerIds)) {
+                $quantity = count($routerIds);
+            } else {
+                $quantity = (int) ($data['quantity'] ?? 1);
             }
+
+            // Resolve movement date
+            $movementDate = $this->resolveMovementDate($data);
 
             $fromType = $data['from_holder_type'] ?? 'technician';
             $fromId = $data['from_holder_id'] ?? null;
@@ -331,31 +400,33 @@ class InventoryService
             $balance = StockBalance::getOrCreate($item->id, 'warehouse', null);
             $balance->increment('quantity', $quantity);
 
-            // Create movement record
+            // Create movement record WITH router_ids
             $movement = StockMovement::create([
-                'movement_no' => NumberSeries::getNextNumber('stock_movement'),
+                'movement_no'       => NumberSeries::getNextNumber('stock_movement'),
                 'inventory_item_id' => $item->id,
-                'movement_type' => StockMovement::TYPE_STOCK_RETURN,
-                'quantity' => $quantity,
-                'from_holder_type' => $fromType,
-                'from_holder_id' => $fromId,
-                'to_holder_type' => 'warehouse',
-                'to_holder_id' => null,
-                'ticket_id' => $data['ticket_id'] ?? null,
-                'reference_type' => $data['ticket_id'] ? 'ticket' : ($data['reference_type'] ?? 'manual'),
-                'reference_id' => $data['ticket_id'] ?? ($data['reference_id'] ?? null),
-                'reason' => $data['reason'] ?? 'Stock Return',
-                'remarks' => $data['remarks'] ?? null,
-                'item_condition' => $data['item_condition'] ?? 'good',
-                'movement_date' => $data['movement_date'] ?? now()->toDateString(),
-                'performed_by' => Auth::id(),
+                'movement_type'     => StockMovement::TYPE_STOCK_RETURN,
+                'quantity'          => $quantity,
+                'router_ids'        => $routerIds,
+                'from_holder_type'  => $fromType,
+                'from_holder_id'    => $fromId,
+                'to_holder_type'    => 'warehouse',
+                'to_holder_id'      => null,
+                'ticket_id'         => $data['ticket_id'] ?? null,
+                'reference_type'    => $data['ticket_id'] ? 'ticket' : ($data['reference_type'] ?? 'manual'),
+                'reference_id'      => $data['ticket_id'] ?? ($data['reference_id'] ?? null),
+                'reason'            => $data['reason'] ?? 'Stock Return',
+                'remarks'           => $data['remarks'] ?? null,
+                'item_condition'    => $data['item_condition'] ?? 'good',
+                'movement_date'     => $movementDate,
+                'performed_by'      => Auth::id(),
             ]);
 
             Log::info('Stock Return processed', [
                 'movement_no' => $movement->movement_no,
-                'item_id' => $item->id,
-                'quantity' => $quantity,
-                'condition' => $data['item_condition'] ?? 'good',
+                'item_id'     => $item->id,
+                'quantity'    => $quantity,
+                'router_ids'  => $routerIds,
+                'condition'   => $data['item_condition'] ?? 'good',
             ]);
 
             return $movement;
@@ -389,39 +460,40 @@ class InventoryService
 
             // Create movement record
             $movement = StockMovement::create([
-                'movement_no' => NumberSeries::getNextNumber('stock_movement'),
+                'movement_no'       => NumberSeries::getNextNumber('stock_movement'),
                 'inventory_item_id' => $item->id,
-                'movement_type' => StockMovement::TYPE_STOCK_ADJUSTMENT,
-                'quantity' => $difference,
-                'from_holder_type' => 'warehouse',
-                'from_holder_id' => null,
-                'to_holder_type' => 'warehouse',
-                'to_holder_id' => null,
-                'ticket_id' => null,
-                'reference_type' => 'adjustment',
-                'reference_id' => null,
-                'reason' => $data['reason'],
-                'remarks' => $data['remarks'] ?? null,
-                'item_condition' => 'good',
-                'movement_date' => now()->toDateString(),
-                'performed_by' => Auth::id(),
+                'movement_type'     => StockMovement::TYPE_STOCK_ADJUSTMENT,
+                'quantity'          => $difference,
+                'router_ids'        => null,
+                'from_holder_type'  => 'warehouse',
+                'from_holder_id'    => null,
+                'to_holder_type'    => 'warehouse',
+                'to_holder_id'      => null,
+                'ticket_id'         => null,
+                'reference_type'    => 'adjustment',
+                'reference_id'      => null,
+                'reason'            => $data['reason'],
+                'remarks'           => $data['remarks'] ?? null,
+                'item_condition'    => 'good',
+                'movement_date'     => now()->toDateString(),
+                'performed_by'      => Auth::id(),
             ]);
 
             // Create adjustment audit record
             $adjustment = StockAdjustment::create([
-                'adjustment_no' => NumberSeries::getNextNumber('stock_adjustment'),
+                'adjustment_no'     => NumberSeries::getNextNumber('stock_adjustment'),
                 'inventory_item_id' => $item->id,
                 'stock_movement_id' => $movement->id,
-                'adjustment_type' => $difference > 0 ? StockAdjustment::TYPE_INCREASE : StockAdjustment::TYPE_DECREASE,
-                'old_quantity' => $oldQuantity,
-                'new_quantity' => $newQuantity,
-                'difference' => $difference,
-                'old_value' => $data['old_value'] ?? null,
-                'new_value' => $data['new_value'] ?? null,
-                'reason' => $data['reason'],
-                'remarks' => $data['remarks'] ?? null,
-                'adjusted_by' => Auth::id(),
-                'adjusted_at' => now(),
+                'adjustment_type'   => $difference > 0 ? StockAdjustment::TYPE_INCREASE : StockAdjustment::TYPE_DECREASE,
+                'old_quantity'      => $oldQuantity,
+                'new_quantity'      => $newQuantity,
+                'difference'        => $difference,
+                'old_value'         => $data['old_value'] ?? null,
+                'new_value'         => $data['new_value'] ?? null,
+                'reason'            => $data['reason'],
+                'remarks'           => $data['remarks'] ?? null,
+                'adjusted_by'       => Auth::id(),
+                'adjusted_at'       => now(),
             ]);
 
             // Link movement to adjustment
@@ -429,11 +501,11 @@ class InventoryService
 
             Log::info('Stock Adjustment processed', [
                 'adjustment_no' => $adjustment->adjustment_no,
-                'item_id' => $item->id,
-                'old_qty' => $oldQuantity,
-                'new_qty' => $newQuantity,
-                'difference' => $difference,
-                'reason' => $data['reason'],
+                'item_id'       => $item->id,
+                'old_qty'       => $oldQuantity,
+                'new_qty'       => $newQuantity,
+                'difference'    => $difference,
+                'reason'        => $data['reason'],
             ]);
 
             return $adjustment;
@@ -453,12 +525,12 @@ class InventoryService
         $warehouseBalance = StockBalance::warehouseBalance($itemId);
 
         return [
-            'item_id' => $item->id,
-            'item_code' => $item->item_code,
-            'item_name' => $item->item_name,
-            'item_type' => $item->item_type,
+            'item_id'         => $item->id,
+            'item_code'       => $item->item_code,
+            'item_name'       => $item->item_name,
+            'item_type'       => $item->item_type,
             'warehouse_stock' => $warehouseBalance,
-            'total_stock' => $item->getTotalStock(),
+            'total_stock'     => $item->getTotalStock(),
         ];
     }
 
@@ -496,8 +568,12 @@ class InventoryService
             ->get();
     }
 
+    // ══════════════════════════════════════════════════════════
+    // MOVEMENTS DATATABLE (All Types)
+    // ══════════════════════════════════════════════════════════
+
     /**
-     * Movements datatable.
+     * Server-side DataTable for all stock movements.
      */
     public function getMovementsDatatable(array $params): array
     {
@@ -523,82 +599,65 @@ class InventoryService
                 $q->where('movement_no', 'like', "%{$search}%")
                   ->orWhere('reason', 'like', "%{$search}%")
                   ->orWhere('remarks', 'like', "%{$search}%")
-                  ->orWhereHas('inventoryItem', fn($q2) => $q2->where('item_name', 'like', "%{$search}%")
-                      ->orWhere('item_code', 'like', "%{$search}%"));
+                  ->orWhereHas('inventoryItem', function ($q2) use ($search) {
+                      $q2->where('item_name', 'like', "%{$search}%")
+                         ->orWhere('item_code', 'like', "%{$search}%");
+                  });
             });
         }
 
         $filteredRecords = $query->count();
 
         // Sorting
-        $orderColumn = $params['order'][0]['column'] ?? 0;
-        $orderDir = $params['order'][0]['dir'] ?? 'desc';
-        $sortable = [
-            0 => 'movement_no',
-            1 => 'movement_type',
-            2 => 'movement_date',
-            3 => 'quantity',
+        $sortableColumns = [
+            0 => 'id',
+            1 => 'movement_no',
+            2 => 'movement_type',
+            10 => 'movement_date',
         ];
-        $query->orderBy($sortable[$orderColumn] ?? 'created_at', $orderDir);
+
+        $orderColumn = $params['order'][0]['column'] ?? 1;
+        $orderDir = $params['order'][0]['dir'] ?? 'desc';
+        $query->orderBy($sortableColumns[$orderColumn] ?? 'created_at', $orderDir);
 
         $start = $params['start'] ?? 0;
         $length = $params['length'] ?? 10;
         $movements = $query->skip($start)->take($length)->get();
 
         $data = $movements->map(function ($m, $index) use ($start) {
-            // Build Router ID from movement's router_ids JSON → ticket's router_id → ticket's router_ids
-            $routerId = '-';
-            $rawIds = $m->router_ids ?? null;
-            if ($rawIds) {
-                $decoded = is_array($rawIds) ? $rawIds : json_decode($rawIds, true);
-                if (!empty($decoded) && is_array($decoded)) $routerId = implode(', ', $decoded);
-            }
-            if ($routerId === '-' && $m->ticket) {
-                if (!empty($m->ticket->router_id)) {
-                    $routerId = $m->ticket->router_id;
-                } elseif (!empty($m->ticket->router_ids)) {
-                    $arr = is_array($m->ticket->router_ids) ? $m->ticket->router_ids : json_decode($m->ticket->router_ids, true);
-                    if (!empty($arr) && is_array($arr)) $routerId = implode(', ', $arr);
-                }
-            }
-
             return [
-                'DT_RowIndex' => $start + $index + 1,
-                'id' => $m->id,
-                'movement_no' => $m->movement_no,
-                'item_code' => $m->inventoryItem?->item_code ?? 'N/A',
-                'item_name' => $m->inventoryItem?->item_name ?? 'N/A',
-                'serial_number' => $routerId,
+                'DT_RowIndex'   => $start + $index + 1,
+                'id'            => $m->id,
+                'movement_no'   => $m->movement_no,
                 'movement_type' => $m->getTypeBadge(),
-                'quantity' => $m->quantity,
+                'item_code'     => $m->inventoryItem?->item_code ?? 'N/A',
+                'item_name'     => $m->inventoryItem?->item_name ?? 'N/A',
+                'router_ids'    => $m->getRouterIdsDisplay(),
+                'quantity'      => $m->quantity,
                 'from_location' => $m->getFromLocation(),
-                'to_location' => $m->getToLocation(),
-                'ticket_no' => $m->ticket?->ticket_no ?? '-',
-                'condition' => $m->getConditionBadge(),
-                'reason' => $m->reason ?? '-',
-                'remarks' => $m->remarks ?? '-',
+                'to_location'   => $m->getToLocation(),
+                'ticket_no'     => $m->ticket?->ticket_no ?? '-',
+                'condition'     => $m->getConditionBadge(),
+                'reason'        => $m->reason ?? '-',
+                'remarks'       => $m->remarks ?? '-',
                 'movement_date' => $m->movement_date?->format('d M Y'),
-                'performed_by' => $m->performer?->name ?? 'N/A',
-                'created_at' => $m->created_at?->format('d M Y H:i'),
+                'performed_by'  => $m->performer?->name ?? 'N/A',
+                'created_at'    => $m->created_at?->format('d M Y H:i'),
             ];
         });
 
         return [
-            'draw' => intval($params['draw'] ?? 1),
-            'recordsTotal' => $totalRecords,
+            'draw'            => intval($params['draw'] ?? 1),
+            'recordsTotal'    => $totalRecords,
             'recordsFiltered' => $filteredRecords,
-            'data' => $data,
+            'data'            => $data,
         ];
     }
-
 
     // ══════════════════════════════════════════════════════════
     // STOCK OUT DATATABLE
     // ══════════════════════════════════════════════════════════
 
-    /**
-     * Server-side DataTable for Stock Out movements.
-     */
     public function getStockOutDatatable(array $params): array
     {
         return $this->getFilteredMovementsDatatable($params, 'stock_out');
@@ -608,9 +667,6 @@ class InventoryService
     // STOCK RETURN DATATABLE
     // ══════════════════════════════════════════════════════════
 
-    /**
-     * Server-side DataTable for Stock Return movements.
-     */
     public function getStockReturnDatatable(array $params): array
     {
         return $this->getFilteredMovementsDatatable($params, 'stock_return');
@@ -641,21 +697,23 @@ class InventoryService
                 $q->where('movement_no', 'like', "%{$search}%")
                   ->orWhere('reason', 'like', "%{$search}%")
                   ->orWhere('remarks', 'like', "%{$search}%")
-                  ->orWhereHas('inventoryItem', fn($q2) => $q2->where('item_name', 'like', "%{$search}%")
-                      ->orWhere('item_code', 'like', "%{$search}%"));
+                  ->orWhereHas('inventoryItem', function ($q2) use ($search) {
+                      $q2->where('item_name', 'like', "%{$search}%")
+                         ->orWhere('item_code', 'like', "%{$search}%");
+                  });
             });
         }
 
         $filteredRecords = $query->count();
 
         // Sorting
-        $orderColumn = $params['order'][0]['column'] ?? 0;
-        $orderDir = $params['order'][0]['dir'] ?? 'desc';
         $sortable = [
             0 => 'movement_no',
             1 => 'movement_date',
             2 => 'quantity',
         ];
+        $orderColumn = $params['order'][0]['column'] ?? 0;
+        $orderDir = $params['order'][0]['dir'] ?? 'desc';
         $query->orderBy($sortable[$orderColumn] ?? 'created_at', $orderDir);
 
         $start = $params['start'] ?? 0;
@@ -663,66 +721,43 @@ class InventoryService
         $movements = $query->skip($start)->take($length)->get();
 
         $data = $movements->map(function ($m, $index) use ($start) {
-            // Build Router ID
-            $routerId = '-';
-            $rawIds = $m->router_ids ?? null;
-            if ($rawIds) {
-                $decoded = is_array($rawIds) ? $rawIds : json_decode($rawIds, true);
-                if (!empty($decoded) && is_array($decoded)) $routerId = implode(', ', $decoded);
-            }
-            if ($routerId === '-' && $m->ticket) {
-                if (!empty($m->ticket->router_id)) {
-                    $routerId = $m->ticket->router_id;
-                } elseif (!empty($m->ticket->router_ids)) {
-                    $arr = is_array($m->ticket->router_ids) ? $m->ticket->router_ids : json_decode($m->ticket->router_ids, true);
-                    if (!empty($arr) && is_array($arr)) $routerId = implode(', ', $arr);
-                }
-            }
-
             $formattedDate = $m->movement_date?->format('d M Y');
 
             return [
-                'DT_RowIndex' => $start + $index + 1,
-                'id' => $m->id,
-                'movement_no' => $m->movement_no,
-                'item_code' => $m->inventoryItem?->item_code ?? 'N/A',
-                'item_name' => $m->inventoryItem?->item_name ?? 'N/A',
-                'item' => ($m->inventoryItem?->item_code ?? '') . ' - ' . ($m->inventoryItem?->item_name ?? ''),
-                'serial_number' => $routerId,
-                'router_id' => $routerId,
-                'router_ids' => $routerId,
-                'movement_type' => $m->getTypeBadge(),
-                'quantity' => $m->quantity,
-                'from_location' => $m->getFromLocation(),
-                'to_location' => $m->getToLocation(),
-                'from' => $m->getFromLocation(),
-                'to' => $m->getToLocation(),
-                'ticket_no' => $m->ticket?->ticket_no ?? '-',
-                'ticket_id' => $m->ticket_id,
-                'condition' => $m->getConditionBadge(),
-                'item_condition' => ucfirst($m->item_condition ?? 'good'),
-                'reason' => $m->reason ?? '-',
-                'remarks' => $m->remarks ?? '-',
-                'movement_date' => $formattedDate,
-                'stockout_date' => $formattedDate,
-                'return_date' => $formattedDate,
-                'stockreturn_date' => $formattedDate,
-                'date' => $formattedDate,
-                'performed_by' => $m->performer?->name ?? 'N/A',
-                'technician' => $m->to_holder_type === 'technician'
-                    ? ($m->toHolder?->name ?? '-')
-                    : ($m->from_holder_type === 'technician' ? ($m->fromHolder?->name ?? '-') : '-'),
-                'created_at' => $m->created_at?->format('d M Y H:i'),
+                'DT_RowIndex'     => $start + $index + 1,
+                'id'              => $m->id,
+                'movement_no'     => $m->movement_no,
+                'item_code'       => $m->inventoryItem?->item_code ?? 'N/A',
+                'item_name'       => $m->inventoryItem?->item_name ?? 'N/A',
+                'router_ids'      => $m->getRouterIdsDisplay(),
+                'movement_type'   => $m->getTypeBadge(),
+                'quantity'        => $m->quantity,
+                'from_location'   => $m->getFromLocation(),
+                'to_location'     => $m->getToLocation(),
+                'ticket_no'       => $m->ticket?->ticket_no ?? '-',
+                'condition'       => $m->getConditionBadge(),
+                'item_condition'  => ucfirst($m->item_condition ?? 'good'),
+                'reason'          => $m->reason ?? '-',
+                'remarks'         => $m->remarks ?? '-',
+                'movement_date'   => $formattedDate,
+                'stockout_date'   => $formattedDate,
+                'stockreturn_date'=> $formattedDate,
+                'performed_by'    => $m->performer?->name ?? 'N/A',
+                'created_at'      => $m->created_at?->format('d M Y H:i'),
             ];
         });
 
         return [
-            'draw' => intval($params['draw'] ?? 1),
-            'recordsTotal' => $totalRecords,
+            'draw'            => intval($params['draw'] ?? 1),
+            'recordsTotal'    => $totalRecords,
             'recordsFiltered' => $filteredRecords,
-            'data' => $data,
+            'data'            => $data,
         ];
     }
+
+    // ══════════════════════════════════════════════════════════
+    // SUMMARY STATS
+    // ══════════════════════════════════════════════════════════
 
     /**
      * Get inventory summary statistics for dashboard.
@@ -730,13 +765,13 @@ class InventoryService
     public function getSummaryStats(): array
     {
         return [
-            'total_items' => InventoryItem::count(),
-            'active_items' => InventoryItem::active()->count(),
-            'total_routers' => InventoryItem::routers()->count(),
-            'total_accessories' => InventoryItem::accessories()->count(),
-            'low_stock_count' => $this->getLowStockCount(),
-            'total_warehouse_stock' => StockBalance::where('holder_type', 'warehouse')->sum('quantity'),
-            'today_movements' => StockMovement::whereDate('movement_date', today())->count(),
+            'total_items'          => InventoryItem::count(),
+            'active_items'         => InventoryItem::active()->count(),
+            'total_routers'        => InventoryItem::routers()->count(),
+            'total_accessories'    => InventoryItem::accessories()->count(),
+            'low_stock_count'      => $this->getLowStockCount(),
+            'total_warehouse_stock'=> StockBalance::where('holder_type', 'warehouse')->sum('quantity'),
+            'today_movements'      => StockMovement::whereDate('movement_date', today())->count(),
         ];
     }
 

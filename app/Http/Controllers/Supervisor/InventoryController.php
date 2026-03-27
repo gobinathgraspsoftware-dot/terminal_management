@@ -8,10 +8,8 @@ use App\Http\Requests\StockReturnRequest;
 use App\Models\InventoryItem;
 use App\Models\StockBalance;
 use App\Models\StockMovement;
-use App\Models\User;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 
 class InventoryController extends Controller
@@ -28,7 +26,7 @@ class InventoryController extends Controller
     // ══════════════════════════════════════════════════════════
 
     /**
-     * Inventory items list (supervisor view).
+     * Inventory items list (view-only for supervisors).
      */
     public function index()
     {
@@ -40,7 +38,7 @@ class InventoryController extends Controller
     }
 
     /**
-     * DataTable AJAX.
+     * DataTable AJAX endpoint.
      */
     public function datatable(Request $request)
     {
@@ -80,6 +78,9 @@ class InventoryController extends Controller
 
     /**
      * Process Stock In.
+     *
+     * FIX: router_ids[] are now included in validated data and passed
+     *      directly to service.
      */
     public function stockIn(StockInRequest $request)
     {
@@ -91,12 +92,12 @@ class InventoryController extends Controller
             // If stock type is router and creating a new router item
             if ($data['stock_type'] === 'router' && empty($data['inventory_item_id'])) {
                 $item = $this->service->createItem([
-                    'item_name' => $data['item_name'],
-                    'item_type' => InventoryItem::TYPE_ROUTER,
-                    'brand' => $data['brand'] ?? null,
-                    'model' => $data['model'] ?? null,
+                    'item_name'     => $data['item_name'],
+                    'item_type'     => InventoryItem::TYPE_ROUTER,
+                    'brand'         => $data['brand'] ?? null,
+                    'model'         => $data['model'] ?? null,
                     'reorder_level' => 1,
-                    'status' => 'active',
+                    'status'        => 'active',
                 ]);
                 $data['inventory_item_id'] = $item->id;
             }
@@ -119,7 +120,7 @@ class InventoryController extends Controller
     // ══════════════════════════════════════════════════════════
 
     /**
-     * Stock Out list view (no manual create).
+     * Stock Out list (view only).
      */
     public function stockOutIndex()
     {
@@ -140,7 +141,7 @@ class InventoryController extends Controller
     }
 
     // ══════════════════════════════════════════════════════════
-    // STOCK RETURN (Manual + List)
+    // STOCK RETURN (Manual + Auto from Replacement)
     // ══════════════════════════════════════════════════════════
 
     /**
@@ -188,20 +189,20 @@ class InventoryController extends Controller
     }
 
     // ══════════════════════════════════════════════════════════
-    // MOVEMENTS (unchanged)
+    // MOVEMENTS (Read-Only)
     // ══════════════════════════════════════════════════════════
 
     /**
-     * Stock movements list.
+     * Movements listing page.
      */
     public function movementsIndex()
     {
         Gate::authorize('viewMovements', InventoryItem::class);
 
-        $items = InventoryItem::active()->orderBy('item_name')->get(['id', 'item_code', 'item_name']);
         $movementTypes = StockMovement::getMovementTypes();
+        $items = InventoryItem::active()->orderBy('item_name')->get();
 
-        return view('supervisor.inventory.movements', compact('items', 'movementTypes'));
+        return view('supervisor.inventory.movements', compact('movementTypes', 'items'));
     }
 
     /**

@@ -90,6 +90,7 @@
 @push('scripts')
 <script>
 $(function() {
+    // Initialize Select2
     if ($.fn.select2) {
         $('#filter-item').select2({ theme: 'bootstrap-5', placeholder: 'All Items', allowClear: true });
     }
@@ -109,10 +110,11 @@ $(function() {
         columns: [
             { data: 'DT_RowIndex', orderable: false, searchable: false, width: '40px' },
             { data: 'movement_no' },
-            { data: 'movement_type', orderable: false },
+            { data: 'movement_type', orderable: false, searchable: false },
             {
                 data: null,
                 orderable: false,
+                searchable: false,
                 render: function(data) {
                     return '<span class="fw-semibold">' + data.item_code + '</span><br><small class="text-muted">' + data.item_name + '</small>';
                 }
@@ -120,6 +122,7 @@ $(function() {
             {
                 data: 'router_ids',
                 orderable: false,
+                searchable: false,
                 render: function(data) {
                     if (!data || data === '-') return '<span class="text-muted">-</span>';
                     return '<small class="text-primary">' + data + '</small>';
@@ -138,20 +141,26 @@ $(function() {
             { data: 'to_location' },
             {
                 data: 'ticket_no',
+                orderable: false,
+                searchable: false,
                 render: function(data) {
                     if (!data || data === '-') return '<span class="text-muted">-</span>';
-                    return '<span class="badge bg-outline-primary border">' + data + '</span>';
+                    return '<span class="badge bg-primary border">' + data + '</span>';
                 }
             },
-            { data: 'condition', orderable: false },
+            { data: 'condition', orderable: false, searchable: false },
             { data: 'movement_date' },
             { data: 'performed_by' }
         ],
         order: [[1, 'desc']],
         pageLength: 25,
-        language: { search: '', searchPlaceholder: 'Search...' }
+        language: { search: '', searchPlaceholder: 'Search...' },
+        dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>"
     });
 
+    // Filter
     $('#btn-filter').on('click', function() { table.ajax.reload(); });
     $('#btn-reset').on('click', function() {
         $('#filter-type').val('');

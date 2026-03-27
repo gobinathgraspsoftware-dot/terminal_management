@@ -27,6 +27,7 @@ class StockMovement extends Model
         'inventory_item_id',
         'movement_type',
         'quantity',
+        'router_ids',
         'from_holder_type',
         'from_holder_id',
         'to_holder_type',
@@ -38,16 +39,15 @@ class StockMovement extends Model
         'remarks',
         'item_condition',
         'movement_date',
-        'router_ids',
         'performed_by',
     ];
 
     protected function casts(): array
     {
         return [
-            'quantity' => 'integer',
+            'quantity'      => 'integer',
             'movement_date' => 'date',
-            'router_ids' => 'array',
+            'router_ids'    => 'array',
         ];
     }
 
@@ -104,9 +104,8 @@ class StockMovement extends Model
     }
 
     /**
-     * FIX: scopeDateRange had malformed where() arguments.
-     * BEFORE: $query->where('movement_date', 'router_ids', '>=', $from);
-     * AFTER:  $query->where('movement_date', '>=', $from);
+     * Filter by date range.
+     * FIX: Previously had 'router_ids' string instead of comparison operators.
      */
     public function scopeDateRange($query, $from, $to)
     {
@@ -182,7 +181,10 @@ class StockMovement extends Model
         if ($this->from_holder_type === 'warehouse') {
             return 'Warehouse';
         }
-        return $this->fromHolder?->name ?? 'Unknown Technician';
+        if ($this->from_holder_type === 'technician') {
+            return $this->fromHolder?->name ?? 'Technician #' . $this->from_holder_id;
+        }
+        return '-';
     }
 
     /**
@@ -193,34 +195,46 @@ class StockMovement extends Model
         if ($this->to_holder_type === 'warehouse') {
             return 'Warehouse';
         }
-        return $this->toHolder?->name ?? 'Unknown Technician';
+        if ($this->to_holder_type === 'technician') {
+            return $this->toHolder?->name ?? 'Technician #' . $this->to_holder_id;
+        }
+        return '-';
     }
 
     /**
-     * FIX: This method was MISSING — caused "Call to undefined method"
-     * crash on inventory show page for accessories with movements.
-     *
-     * Display router_ids as comma-separated string.
-     * For accessories (quantity-based), router_ids is null/empty → returns '-'.
+     * Display router IDs as a comma-separated string.
+     * Reads from the movement's own router_ids JSON column.
+     * Falls back to linked ticket's router_id / router_ids if empty.
      */
     public function getRouterIdsDisplay(): string
     {
-        if (empty($this->router_ids)) {
-            return '-';
+        // 1) Movement's own router_ids
+        $ids = $this->router_ids;
+        if (!empty($ids) && is_array($ids)) {
+            $filtered = array_filter($ids, function ($v) {
+                return !empty(trim((string) $v));
+            });
+            if (!empty($filtered)) {
+                return implode(', ', $filtered);
+            }
         }
 
-        $ids = is_array($this->router_ids) ? $this->router_ids : [];
-
-        if (count($ids) === 0) {
-            return '-';
+        // 2) Fallback to ticket's router_id (singular)
+        if ($this->ticket) {
+            if (!empty($this->ticket->router_id)) {
+                return $this->ticket->router_id;
+            }
+            // 3) Fallback to ticket's router_ids (JSON)
+            $ticketIds = $this->ticket->router_ids;
+            if (!empty($ticketIds)) {
+                $arr = is_array($ticketIds) ? $ticketIds : json_decode($ticketIds, true);
+                if (!empty($arr) && is_array($arr)) {
+                    return implode(', ', $arr);
+                }
+            }
         }
 
-        // Show first 5 IDs, then "...+N more" if more than 5
-        if (count($ids) > 5) {
-            return implode(', ', array_slice($ids, 0, 5)) . ' ...+' . (count($ids) - 5) . ' more';
-        }
-
-        return implode(', ', $ids);
+        return '-';
     }
 
     /**

@@ -16,14 +16,16 @@
         </div>
     </div>
 
+    <!-- Info Banner -->
     <div class="alert alert-info border-0 shadow-sm d-flex align-items-center mb-4">
         <i class="bi bi-info-circle-fill fs-5 me-3"></i>
         <div>
             <strong>Auto-Triggered:</strong> Stock out is automatically processed when an <strong>Installation</strong> ticket is created.
-            Each installation deducts router quantity from warehouse stock.
+            Each installation deducts router quantity from warehouse stock. This page shows all stock-out records.
         </div>
     </div>
 
+    <!-- Filters -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <div class="row g-3 align-items-end">
@@ -43,6 +45,7 @@
         </div>
     </div>
 
+    <!-- DataTable -->
     <div class="card border-0 shadow-sm">
         <div class="card-body">
             <div class="table-responsive">
@@ -57,7 +60,7 @@
                             <th>Ticket</th>
                             <th>Reason</th>
                             <th>Stock Out Date</th>
-                            <th>By</th>
+                            <th>Performed By</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -84,10 +87,33 @@ $(function() {
         columns: [
             { data: 'DT_RowIndex', orderable: false, searchable: false, width: '40px' },
             { data: 'movement_no' },
-            { data: null, render: function(data) { return '<span class="fw-semibold">' + data.item_code + '</span><br><small class="text-muted">' + data.item_name + '</small>'; } },
+            {
+                data: null,
+                orderable: false,
+                searchable: false,
+                render: function(data) {
+                    return '<span class="fw-semibold">' + data.item_code + '</span><br><small class="text-muted">' + data.item_name + '</small>';
+                }
+            },
             { data: 'quantity', className: 'text-center fw-bold text-danger' },
-            { data: 'router_ids', render: function(data) { return (!data || data === '-') ? '<span class="text-muted">-</span>' : '<small class="text-primary">' + data + '</small>'; } },
-            { data: 'ticket_no', render: function(data) { return (!data || data === '-') ? '-' : '<span class="badge bg-outline-primary border">' + data + '</span>'; } },
+            {
+                data: 'router_ids',
+                orderable: false,
+                searchable: false,
+                render: function(data) {
+                    if (!data || data === '-') return '<span class="text-muted">-</span>';
+                    return '<small class="text-primary">' + data + '</small>';
+                }
+            },
+            {
+                data: 'ticket_no',
+                orderable: false,
+                searchable: false,
+                render: function(data) {
+                    if (!data || data === '-') return '<span class="text-muted">-</span>';
+                    return '<span class="badge bg-primary border">' + data + '</span>';
+                }
+            },
             { data: 'reason' },
             { data: 'stockout_date' },
             { data: 'performed_by' }
@@ -98,7 +124,10 @@ $(function() {
     });
 
     $('#btn-filter').on('click', function() { table.ajax.reload(); });
-    $('#btn-reset').on('click', function() { $('#filter-date-from, #filter-date-to').val(''); table.ajax.reload(); });
+    $('#btn-reset').on('click', function() {
+        $('#filter-date-from, #filter-date-to').val('');
+        table.ajax.reload();
+    });
 });
 </script>
 @endpush

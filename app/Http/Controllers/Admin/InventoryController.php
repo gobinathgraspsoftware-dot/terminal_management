@@ -70,7 +70,6 @@ class InventoryController extends Controller
 
     /**
      * Show create form.
-     * Removed: job_category_id, serial_number
      */
     public function create()
     {
@@ -197,17 +196,16 @@ class InventoryController extends Controller
         return response()->json([
             'success' => true,
             'message' => "Item status changed to {$item->status}.",
-            'status' => $item->status,
+            'status'  => $item->status,
         ]);
     }
 
     // ══════════════════════════════════════════════════════════
-    // STOCK IN (Updated)
+    // STOCK IN
     // ══════════════════════════════════════════════════════════
 
     /**
      * Stock In form.
-     * Changes: stockin_date, removed condition, quantity + router_ids
      */
     public function stockInForm()
     {
@@ -221,6 +219,10 @@ class InventoryController extends Controller
 
     /**
      * Process Stock In.
+     *
+     * FIX: router_ids[] are now included in validated data and passed
+     *      directly to service. The service handles quantity derivation
+     *      from router_ids count for router items.
      */
     public function stockIn(StockInRequest $request)
     {
@@ -232,16 +234,17 @@ class InventoryController extends Controller
             // If stock type is router and creating a new router item
             if ($data['stock_type'] === 'router' && empty($data['inventory_item_id'])) {
                 $item = $this->service->createItem([
-                    'item_name' => $data['item_name'],
-                    'item_type' => InventoryItem::TYPE_ROUTER,
-                    'brand' => $data['brand'] ?? null,
-                    'model' => $data['model'] ?? null,
+                    'item_name'     => $data['item_name'],
+                    'item_type'     => InventoryItem::TYPE_ROUTER,
+                    'brand'         => $data['brand'] ?? null,
+                    'model'         => $data['model'] ?? null,
                     'reorder_level' => 1,
-                    'status' => 'active',
+                    'status'        => 'active',
                 ]);
                 $data['inventory_item_id'] = $item->id;
             }
 
+            // Service reads router_ids, stockin_date directly from $data
             $movement = $this->service->stockIn($data);
 
             return redirect()
@@ -310,6 +313,9 @@ class InventoryController extends Controller
 
     /**
      * Process manual Stock Return.
+     *
+     * FIX: router_ids[] and stockreturn_date are now included in
+     *      validated data and passed directly to service.
      */
     public function stockReturn(StockReturnRequest $request)
     {
@@ -330,7 +336,7 @@ class InventoryController extends Controller
     }
 
     // ══════════════════════════════════════════════════════════
-    // STOCK ADJUSTMENT (unchanged)
+    // STOCK ADJUSTMENT
     // ══════════════════════════════════════════════════════════
 
     /**
@@ -341,7 +347,9 @@ class InventoryController extends Controller
         Gate::authorize('stockAdjustment', InventoryItem::class);
 
         $allItems = InventoryItem::active()
-            ->with(['stockBalances' => fn($q) => $q->warehouse()])
+            ->with(['stockBalances' => function ($q) {
+                $q->warehouse();
+            }])
             ->orderBy('item_name')
             ->get();
 
