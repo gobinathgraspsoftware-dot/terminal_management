@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Claim;
+use App\Models\InventoryItem;
 use App\Models\SupervisorJobPricing;
 use App\Models\Ticket;
 use App\Models\TicketComment;
@@ -83,11 +84,7 @@ class TicketService
      * INVENTORY INTEGRATION:
      * - Installation tickets with router_id: auto stock-out (deduct router from warehouse)
      * - Replacement tickets with old_terminal_id: auto stock-return (return old router to warehouse)
-     *
-     * The ticket form sends:
-     *   - router_id (singular varchar) — existing field from ticket create form
-     *   - old_terminal_id (singular varchar) — existing field for replacement jobs
-     * We convert these to router_ids / old_router_ids JSON arrays for inventory tracking.
+     * - Accessories category with accessory_item_id: auto stock-out (deduct accessory from warehouse)
      */
     public function create(array $data): Ticket
     {
@@ -95,8 +92,6 @@ class TicketService
             $data['ticket_no'] = Ticket::generateVendorTicketNo($data['vendor_id']);
             $data['created_by'] = Auth::id();
             $data['updated_by'] = Auth::id();
-
-            // NO SLA at creation — SLA starts when ticket is accepted
 
             // Lookup price from SupervisorJobPricing
             if (!empty($data['supervisor_id']) && !empty($data['job_category_id']) && !empty($data['job_type_id'])) {
@@ -142,29 +137,21 @@ class TicketService
                 'created_at' => now(),
             ]);
 
-            // ── AUTO STOCK OUT: Installation Ticket ──
-            // Ticket form sends router_id (singular varchar field).
-            // We convert it to router_ids JSON array for inventory tracking.
-            // Also supports router_ids[] array if passed directly.
+            // ── AUTO STOCK OUT: Installation Ticket (Routers) ──
             $this->handleAutoStockOut($ticket, $data);
 
-            // ── AUTO STOCK RETURN: Replacement Ticket ──
-            // Ticket form sends old_terminal_id (singular varchar field).
-            // We convert it to old_router_ids JSON array for inventory tracking.
-            // Also supports old_router_ids[] array if passed directly.
+            // ── AUTO STOCK RETURN: Replacement Ticket (Old Routers) ──
             $this->handleAutoStockReturn($ticket, $data);
+
+            // ── AUTO STOCK OUT: Accessories Category ──
+            $this->handleAutoAccessoryStockOut($ticket, $data);
 
             return $ticket;
         });
     }
 
     /**
-     * Handle auto stock-out for installation tickets.
-     *
-     * Detects router IDs from:
-     *   1. $data['router_ids'] — if form sends array (future-proof)
-     *   2. $data['router_id'] — singular field from existing ticket form
-     *   3. $ticket->router_id — field already saved on ticket
+     * Handle auto stock-out for installation tickets (routers).
      */
     protected function handleAutoStockOut(Ticket $ticket, array $data): void
     {
@@ -172,20 +159,16 @@ class TicketService
             return;
         }
 
-        // Build router_ids array from available sources
         $routerIds = [];
 
-        // Source 1: router_ids array (if form sends it directly)
         if (!empty($data['router_ids']) && is_array($data['router_ids'])) {
             $routerIds = array_values(array_filter($data['router_ids'], fn($v) => !empty(trim($v))));
         }
 
-        // Source 2: router_id singular field from existing ticket form
         if (empty($routerIds) && !empty($data['router_id'])) {
             $routerIds = [trim($data['router_id'])];
         }
 
-        // Source 3: already saved on ticket
         if (empty($routerIds) && !empty($ticket->router_id)) {
             $routerIds = [trim($ticket->router_id)];
         }
@@ -194,7 +177,6 @@ class TicketService
             return;
         }
 
-        // Save router_ids JSON on ticket for tracking
         $ticket->update(['router_ids' => $routerIds]);
 
         try {
@@ -211,17 +193,11 @@ class TicketService
                 'ticket_id' => $ticket->id,
                 'error' => $e->getMessage(),
             ]);
-            // Don't fail ticket creation if stock-out fails
         }
     }
 
     /**
-     * Handle auto stock-return for replacement tickets.
-     *
-     * Detects old router IDs from:
-     *   1. $data['old_router_ids'] — if form sends array (future-proof)
-     *   2. $data['old_terminal_id'] — singular field from existing ticket form
-     *   3. $ticket->old_terminal_id — field already saved on ticket
+     * Handle auto stock-return for replacement tickets (old routers).
      */
     protected function handleAutoStockReturn(Ticket $ticket, array $data): void
     {
@@ -229,20 +205,16 @@ class TicketService
             return;
         }
 
-        // Build old_router_ids array from available sources
         $oldRouterIds = [];
 
-        // Source 1: old_router_ids array (if form sends it directly)
         if (!empty($data['old_router_ids']) && is_array($data['old_router_ids'])) {
             $oldRouterIds = array_values(array_filter($data['old_router_ids'], fn($v) => !empty(trim($v))));
         }
 
-        // Source 2: old_terminal_id singular field from existing ticket form
         if (empty($oldRouterIds) && !empty($data['old_terminal_id'])) {
             $oldRouterIds = [trim($data['old_terminal_id'])];
         }
 
-        // Source 3: already saved on ticket
         if (empty($oldRouterIds) && !empty($ticket->old_terminal_id)) {
             $oldRouterIds = [trim($ticket->old_terminal_id)];
         }
@@ -251,7 +223,6 @@ class TicketService
             return;
         }
 
-        // Save old_router_ids JSON on ticket for tracking
         $ticket->update(['old_router_ids' => $oldRouterIds]);
 
         try {
@@ -268,7 +239,52 @@ class TicketService
                 'ticket_id' => $ticket->id,
                 'error' => $e->getMessage(),
             ]);
-            // Don't fail ticket creation if stock-return fails
+        }
+    }
+
+    /**
+     * Handle auto stock-out for accessories category tickets.
+     * Deducts the selected accessory item from warehouse stock.
+     */
+    protected function handleAutoAccessoryStockOut(Ticket $ticket, array $data): void
+    {
+        if (empty($data['accessory_item_id']) || empty($data['accessory_qty'])) {
+            return;
+        }
+
+        $item = InventoryItem::find($data['accessory_item_id']);
+        if (!$item || !$item->isAccessory()) {
+            return;
+        }
+
+        try {
+            $inventoryService = app(InventoryService::class);
+            $inventoryService->stockOut([
+                'inventory_item_id' => $item->id,
+                'quantity'          => (int) $data['accessory_qty'],
+                'to_holder_type'    => 'technician',
+                'to_holder_id'      => $ticket->technician_id ?? $ticket->supervisor_id,
+                'ticket_id'         => $ticket->id,
+                'reference_type'    => 'ticket',
+                'reference_id'      => $ticket->id,
+                'reason'            => 'Auto stock-out for accessories ticket #' . $ticket->ticket_no,
+                'remarks'           => 'Accessory: ' . $item->item_name . ' x' . $data['accessory_qty'],
+                'movement_date'     => now()->toDateString(),
+            ]);
+
+            Log::info('Auto stock-out triggered for accessories ticket', [
+                'ticket_id'    => $ticket->id,
+                'ticket_no'    => $ticket->ticket_no,
+                'item_id'      => $item->id,
+                'item_name'    => $item->item_name,
+                'quantity'     => $data['accessory_qty'],
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Auto stock-out for accessories failed (non-blocking)', [
+                'ticket_id' => $ticket->id,
+                'error'     => $e->getMessage(),
+            ]);
+            // Don't fail ticket creation if stock-out fails
         }
     }
 
@@ -309,6 +325,16 @@ class TicketService
             // Check if old_terminal_id is being set for the first time (replacement flow)
             $hadOldRouterIds = !empty($ticket->old_router_ids);
 
+            // Clear accessory fields if category changed away from accessories
+            if (!empty($data['job_category_id'])) {
+                $category = \App\Models\JobCategory::find($data['job_category_id']);
+                if ($category && $category->slug !== \App\Models\JobCategory::SLUG_ACCESSORIES) {
+                    $data['accessory_type_selected'] = null;
+                    $data['accessory_item_id'] = null;
+                    $data['accessory_qty'] = null;
+                }
+            }
+
             $ticket->update($data);
 
             if ($ticket->status !== $oldStatus) {
@@ -323,7 +349,6 @@ class TicketService
             }
 
             // ── AUTO STOCK RETURN ON UPDATE: Replacement Ticket ──
-            // If old_terminal_id is being set during update and no previous stock-return was done
             if (!$hadOldRouterIds && $ticket->isReplacementJob()) {
                 $this->handleAutoStockReturn($ticket->fresh(), $data);
             }
@@ -558,7 +583,6 @@ class TicketService
                 'status' => Ticket::STATUS_ASSIGNED,
                 'assigned_at' => now(),
                 'accepted_at' => null,
-                // Reset SLA — new technician must accept, SLA restarts then
                 'sla_hours' => null,
                 'sla_deadline' => null,
                 'sla_status' => null,

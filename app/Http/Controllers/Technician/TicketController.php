@@ -68,13 +68,14 @@ class TicketController extends Controller
         $ticket->load([
             'vendor', 'vendorBranch', 'state', 'city', 'jobCategory',
             'supervisor', 'technician', 'jobType', 'creator',
+            'accessoryItem',
             'comments.user', 'statusHistory.changedBy', 'statusHistory.proofs', 'proofs',
         ]);
 
         $allowedTransitions = Ticket::getTechnicianTransitions($ticket->status);
         $statuses = Ticket::getStatuses();
 
-        // Check if job type is replacement (technician needs to key in old_terminal_id)
+        // Check if job type is replacement (technician needs to key in old router ID)
         $isReplacement = $ticket->jobType && $ticket->jobType->isReplacement();
 
         return view('technician.tickets.show', compact('ticket', 'allowedTransitions', 'statuses', 'isReplacement'));
@@ -92,7 +93,7 @@ class TicketController extends Controller
         ]);
 
         try {
-            // If technician provides old_terminal_id (replacement jobs)
+            // If technician provides old router ID (replacement jobs)
             if ($request->filled('old_terminal_id')) {
                 $ticket->update(['old_terminal_id' => $request->old_terminal_id]);
             }

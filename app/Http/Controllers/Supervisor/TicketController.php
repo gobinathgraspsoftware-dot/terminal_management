@@ -77,6 +77,7 @@ class TicketController extends Controller
         $ticket->load([
             'vendor', 'vendorBranch', 'state', 'city', 'jobCategory',
             'supervisor', 'technician', 'jobType', 'creator', 'updater',
+            'accessoryItem',
             'comments.user', 'statusHistory.changedBy', 'statusHistory.proofs', 'proofs',
         ]);
 

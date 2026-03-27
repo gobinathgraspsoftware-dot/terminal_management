@@ -103,21 +103,68 @@
                                 <select name="priority" class="form-select" required>@foreach(\App\Models\Ticket::getPriorities() as $key => $label)<option value="{{ $key }}" {{ $ticket->priority === $key ? 'selected' : '' }}>{{ $label }}</option>@endforeach</select>
                             </div>
                         </div>
+
                         {{-- Dynamic Device Fields --}}
                         <div class="row g-3 mb-3">
-                            <div class="col-md-4 device-field" id="terminalIdGroup">
-                                <label class="form-label">Terminal ID <span class="text-danger terminal-required-star">*</span></label>
+                            {{-- Terminal ID (text) — for terminal & project --}}
+                            <div class="col-md-4 device-field" id="terminalIdGroup" style="display:none;">
+                                <label class="form-label">Terminal ID <span class="text-danger terminal-required-star" style="display:none;">*</span></label>
                                 <input type="text" name="terminal_id" id="terminal_id" class="form-control" value="{{ $ticket->terminal_id }}"><div class="invalid-feedback"></div>
                             </div>
-                            <div class="col-md-4 device-field" id="routerIdGroup">
-                                <label class="form-label">Router ID <span class="text-danger router-required-star">*</span></label>
-                                <input type="text" name="router_id" id="router_id" class="form-control" value="{{ $ticket->router_id }}"><div class="invalid-feedback"></div>
+
+                            {{-- Router ID SELECT from inventory — ONLY for router category --}}
+                            <div class="col-md-4 device-field" id="routerIdSelectGroup" style="display:none;">
+                                <label class="form-label">Router ID <span class="text-danger router-required-star" style="display:none;">*</span></label>
+                                <select name="router_id" id="router_id_select" class="form-select select2" style="width:100%;" disabled>
+                                    <option value="">Select Router</option>
+                                    @if($ticket->router_id && $ticket->jobCategory?->slug === 'router')
+                                    <option value="{{ $ticket->router_id }}" selected>{{ $ticket->router_id }}</option>
+                                    @endif
+                                </select>
+                                <div class="invalid-feedback"></div>
                             </div>
-                            <div class="col-md-4 device-field" id="oldTerminalIdGroup">
-                                <label class="form-label">Old Terminal ID</label>
+
+                            {{-- Router ID TEXT input — ONLY for project category (NOT inventory-linked) --}}
+                            <div class="col-md-4 device-field" id="routerIdTextGroup" style="display:none;">
+                                <label class="form-label">Router ID</label>
+                                <input type="text" name="router_id" id="router_id_text" class="form-control" value="{{ $ticket->jobCategory?->slug === 'project' ? $ticket->router_id : '' }}" disabled><div class="invalid-feedback"></div>
+                            </div>
+
+                            {{-- Old Router ID — ONLY for router category + replacement job type --}}
+                            <div class="col-md-4 device-field" id="oldTerminalIdGroup" style="display:none;">
+                                <label class="form-label">Old Router ID</label>
                                 <input type="text" name="old_terminal_id" class="form-control" value="{{ $ticket->old_terminal_id }}"><div class="invalid-feedback"></div>
                             </div>
                         </div>
+
+                        {{-- Accessories Fields --}}
+                        <div class="row g-3 mb-3" id="accessoriesSection" style="display:none;">
+                            <div class="col-md-4">
+                                <label class="form-label">Accessory Type <span class="text-danger">*</span></label>
+                                <select name="accessory_type_selected" id="accessory_type_selected" class="form-select">
+                                    <option value="">Select Accessory Type</option>
+                                    <option value="sim_card" {{ $ticket->accessory_type_selected === 'sim_card' ? 'selected' : '' }}>SIM Card</option>
+                                    <option value="antenna" {{ $ticket->accessory_type_selected === 'antenna' ? 'selected' : '' }}>Antenna</option>
+                                </select>
+                                <div class="invalid-feedback"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Accessory Item <span class="text-danger">*</span></label>
+                                <select name="accessory_item_id" id="accessory_item_id" class="form-select select2" style="width:100%;">
+                                    <option value="">Select Accessory</option>
+                                    @if($ticket->accessory_item_id && $ticket->accessoryItem)
+                                    <option value="{{ $ticket->accessory_item_id }}" selected>{{ $ticket->accessoryItem->item_code }} - {{ $ticket->accessoryItem->item_name }}</option>
+                                    @endif
+                                </select>
+                                <div class="invalid-feedback"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Quantity <span class="text-danger">*</span></label>
+                                <input type="number" name="accessory_qty" id="accessory_qty" class="form-control" min="1" value="{{ $ticket->accessory_qty ?? 1 }}">
+                                <div class="invalid-feedback"></div>
+                            </div>
+                        </div>
+
                         <div class="row g-3 mb-4">
                             <div class="col-md-4">
                                 <label class="form-label">Supervisor <span class="text-danger">*</span></label>
@@ -177,10 +224,12 @@ $(function() {
 
     // Init on load
     initSupervisorType();
-    @if($ticket->jobCategory) toggleDeviceFields('{{ $ticket->jobCategory->slug }}'); @endif
-    @if($ticket->jobType && $ticket->jobType->isReplacement()) $('#oldTerminalIdGroup').show(); @endif
+    @if($ticket->jobCategory)
+        toggleDeviceFields('{{ $ticket->jobCategory->slug }}', true);
+    @endif
+    checkOldRouterId(); // Check on load
 
-    // Cache initial cities from server-rendered options
+    // Cache initial cities
     $('#city_id option').each(function() {
         let id = $(this).val();
         if (id) citiesCache[id] = { id: id, name: $(this).text(), postcode: $(this).data('postcode') || '' };
@@ -205,28 +254,20 @@ $(function() {
         });
     });
 
-    // ── Branch → State + City (fixed cascade) ──
     $('#vendor_branch_id').on('change', function() {
         let stateId = $(this).find(':selected').data('state');
         let cityId = $(this).find(':selected').data('city');
         if (!stateId) return;
         $('#state_id').val(stateId).trigger('change.select2');
         loadCities(stateId, function() {
-            if (cityId) {
-                $('#city_id').val(cityId).trigger('change.select2');
-                if (citiesCache[cityId]) {
-                    $('#postcode').val(citiesCache[cityId].postcode || '-');
-                }
-            }
+            if (cityId) { $('#city_id').val(cityId).trigger('change.select2'); if (citiesCache[cityId]) { $('#postcode').val(citiesCache[cityId].postcode || '-'); } }
         });
     });
 
-    // ── State → City + Supervisor ──
     $('#state_id').on('change', function() {
         let sid = $(this).val();
         if (!sid) { $('#city_id').html('<option value="">Select District</option>'); $('#postcode').val(''); return; }
         loadCities(sid);
-        // Reload supervisors filtered by new state
         $.get(baseUrl + '/ajax/supervisors', { state_id: sid }, function(data) {
             let o = '<option value="">Select Supervisor</option>';
             data.forEach(s => { let t = s.supervisor_type ? ` (${s.supervisor_type.charAt(0).toUpperCase()+s.supervisor_type.slice(1)})` : ''; o += `<option value="${s.id}" data-type="${s.supervisor_type}">${s.name}${t}</option>`; });
@@ -245,13 +286,11 @@ $(function() {
         });
     }
 
-    // ── City → Postcode ──
     $('#city_id').on('change', function() {
         let cid = $(this).val();
         $('#postcode').val(cid && citiesCache[cid] ? (citiesCache[cid].postcode || '-') : '');
     });
 
-    // ── Supervisor → type + technician + price ──
     $('#supervisor_id').on('change', function() {
         currentSupervisorType = $(this).find(':selected').data('type');
         initSupervisorType();
@@ -265,19 +304,103 @@ $(function() {
         refreshPrice();
     });
 
-    // ── Job Category → device fields + price ──
-    $('#job_category_id').on('change', function() { toggleDeviceFields($(this).find(':selected').data('slug')); refreshPrice(); });
-    $('#job_type_id').on('change', function() {
-        let slug = $(this).find(':selected').data('slug') || '';
-        if (slug.includes('replacement')) { $('#oldTerminalIdGroup').show(); } else { $('#oldTerminalIdGroup').hide(); }
+    // ══════════════════════════════════════════════════════════
+    // Job Category → toggle device fields
+    // ══════════════════════════════════════════════════════════
+    $('#job_category_id').on('change', function() {
+        toggleDeviceFields($(this).find(':selected').data('slug'), false);
+        checkOldRouterId();
         refreshPrice();
     });
 
-    function toggleDeviceFields(slug) {
-        $('.device-field').hide(); $('.terminal-required-star, .router-required-star').hide(); $('#terminal_id, #router_id').removeAttr('required');
-        if (slug === 'terminal') { $('#terminalIdGroup').show(); $('.terminal-required-star').show(); $('#terminal_id').attr('required', true); }
-        else if (slug === 'router') { $('#routerIdGroup').show(); $('.router-required-star').show(); $('#router_id').attr('required', true); }
-        else if (slug === 'project') { $('#terminalIdGroup, #routerIdGroup').show(); }
+    $('#job_type_id').on('change', function() {
+        checkOldRouterId();
+        refreshPrice();
+    });
+
+    function toggleDeviceFields(slug, isInit) {
+        $('.device-field').hide();
+        $('.terminal-required-star, .router-required-star').hide();
+        $('#terminal_id').removeAttr('required');
+        $('#router_id_select').val(null).trigger('change.select2').removeAttr('required').prop('disabled', true);
+        $('#router_id_text').removeAttr('required').prop('disabled', true);
+        $('#accessoriesSection').hide();
+
+        if (slug === 'terminal') {
+            $('#terminalIdGroup').show();
+            $('.terminal-required-star').show();
+            $('#terminal_id').attr('required', true);
+
+        } else if (slug === 'router') {
+            $('#routerIdSelectGroup').show();
+            $('.router-required-star').show();
+            $('#router_id_select').prop('disabled', false).attr('required', true);
+            loadAvailableRouters(isInit ? '{{ $ticket->router_id }}' : null);
+
+        } else if (slug === 'project') {
+            $('#terminalIdGroup').show();
+            $('#routerIdTextGroup').show();
+            $('#router_id_text').prop('disabled', false);
+
+        } else if (slug === 'accessories') {
+            $('#accessoriesSection').show();
+            if (isInit && '{{ $ticket->accessory_type_selected }}') {
+                loadAvailableAccessories('{{ $ticket->accessory_type_selected }}', '{{ $ticket->accessory_item_id }}');
+            }
+        }
+    }
+
+    // Old Router ID: ONLY for router category + replacement type
+    function checkOldRouterId() {
+        let catSlug = $('#job_category_id').find(':selected').data('slug') || '';
+        let typeSlug = ($('#job_type_id').find(':selected').data('slug') || '').toLowerCase();
+
+        if (catSlug === 'router' && typeSlug.includes('replacement')) {
+            $('#oldTerminalIdGroup').show();
+        } else {
+            $('#oldTerminalIdGroup').hide();
+        }
+    }
+
+    // ── Load available routers from inventory (grouped by Job Category) ──
+    function loadAvailableRouters(selectedValue) {
+        $.get(baseUrl + '/ajax/available-routers', function(groups) {
+            let o = '<option value="">Select Router</option>';
+            let found = false;
+            groups.forEach(function(group) {
+                o += '<optgroup label="' + group.category + '">';
+                group.items.forEach(function(r) {
+                    let sel = (selectedValue && r.id == selectedValue) ? ' selected' : '';
+                    if (sel) found = true;
+                    o += '<option value="' + r.id + '"' + sel + '>' + r.text + '</option>';
+                });
+                o += '</optgroup>';
+            });
+            // Keep existing value if not in available list (already assigned router)
+            if (selectedValue && !found) {
+                o += '<optgroup label="Currently Assigned">';
+                o += '<option value="' + selectedValue + '" selected>' + selectedValue + ' (Currently assigned)</option>';
+                o += '</optgroup>';
+            }
+            $('#router_id_select').html(o).trigger('change.select2');
+        });
+    }
+
+    $('#accessory_type_selected').on('change', function() {
+        let accType = $(this).val();
+        if (!accType) { $('#accessory_item_id').html('<option value="">Select Accessory</option>').trigger('change.select2'); return; }
+        loadAvailableAccessories(accType, null);
+    });
+
+    function loadAvailableAccessories(accType, selectedId) {
+        $.get(baseUrl + '/ajax/available-accessories', { accessory_type: accType }, function(data) {
+            let o = '<option value="">Select Accessory</option>';
+            data.forEach(a => {
+                let sel = (selectedId && a.id == selectedId) ? ' selected' : '';
+                o += `<option value="${a.id}"${sel}>${a.text}</option>`;
+            });
+            $('#accessory_item_id').html(o).trigger('change.select2');
+        });
     }
 
     function refreshPrice() {

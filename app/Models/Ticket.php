@@ -37,6 +37,8 @@ class Ticket extends Model
         'ticket_no', 'vendor_ticket_ref_no',
         'vendor_id', 'vendor_branch_id', 'state_id', 'city_id',
         'tid', 'terminal_id', 'router_id', 'router_ids', 'old_terminal_id', 'old_router_ids',
+        // Accessory inventory fields
+        'accessory_type_selected', 'accessory_item_id', 'accessory_qty',
         'merchant_name', 'merchant_address', 'contact_number',
         'supervisor_id', 'technician_id',
         'job_category_id', 'job_type_id', 'price',
@@ -74,6 +76,7 @@ class Ticket extends Model
             'total_claim_amount' => 'decimal:2',
             'price' => 'decimal:2',
             'sla_hours' => 'integer',
+            'accessory_qty' => 'integer',
             'router_ids' => 'array',
             'old_router_ids' => 'array',
         ];
@@ -93,6 +96,11 @@ class Ticket extends Model
     public function jobType()       { return $this->belongsTo(JobType::class); }
     public function creator()       { return $this->belongsTo(User::class, 'created_by'); }
     public function updater()       { return $this->belongsTo(User::class, 'updated_by'); }
+
+    /**
+     * Accessory item from inventory (for accessories job category).
+     */
+    public function accessoryItem() { return $this->belongsTo(InventoryItem::class, 'accessory_item_id'); }
 
     public function comments()      { return $this->hasMany(TicketComment::class)->orderBy('created_at', 'desc'); }
     public function statusHistory()  { return $this->hasMany(TicketStatusHistory::class)->orderBy('created_at', 'desc'); }
@@ -378,6 +386,18 @@ class Ticket extends Model
         if (empty($ids)) return '-';
         if (is_string($ids)) $ids = json_decode($ids, true);
         return is_array($ids) ? implode(', ', $ids) : '-';
+    }
+
+    /**
+     * Get accessory type display label.
+     */
+    public function getAccessoryTypeLabel(): string
+    {
+        return match ($this->accessory_type_selected) {
+            'sim_card' => 'SIM Card',
+            'antenna'  => 'Antenna',
+            default    => '-',
+        };
     }
 
     /**

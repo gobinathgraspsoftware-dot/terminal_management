@@ -8,6 +8,9 @@
     $isInternal = $sv && $sv->supervisor_type === 'internal';
     $isExternal = $sv && $sv->supervisor_type === 'external';
     $claimApplicable = $isExternal;
+    $isRouterCategory = $ticket->jobCategory && $ticket->jobCategory->slug === 'router';
+    $isReplacement = $ticket->jobType && $ticket->jobType->isReplacement();
+    $showOldRouterId = $isRouterCategory && $isReplacement;
 @endphp
 
 <div class="container-fluid">
@@ -72,8 +75,19 @@
                         @if($ticket->router_id)
                         <div class="col-md-4"><strong>Router ID:</strong><br>{{ $ticket->router_id }}</div>
                         @endif
-                        @if($ticket->old_terminal_id)
-                        <div class="col-md-4"><strong>Old Terminal ID:</strong><br><span class="text-warning">{{ $ticket->old_terminal_id }}</span></div>
+                        {{-- Old Router ID: ONLY show for router category + replacement --}}
+                        @if($ticket->old_terminal_id && $showOldRouterId)
+                        <div class="col-md-4"><strong>Old Router ID:</strong><br><span class="text-warning">{{ $ticket->old_terminal_id }}</span></div>
+                        @endif
+                        {{-- Accessory info --}}
+                        @if($ticket->accessory_type_selected)
+                        <div class="col-md-4"><strong>Accessory Type:</strong><br>{{ $ticket->getAccessoryTypeLabel() }}</div>
+                        @endif
+                        @if($ticket->accessoryItem)
+                        <div class="col-md-4"><strong>Accessory Item:</strong><br>{{ $ticket->accessoryItem->item_code }} - {{ $ticket->accessoryItem->item_name }}</div>
+                        @endif
+                        @if($ticket->accessory_qty)
+                        <div class="col-md-4"><strong>Accessory Qty:</strong><br>{{ $ticket->accessory_qty }}</div>
                         @endif
                         @if($ticket->expected_start_date)
                         <div class="col-md-4"><strong>Expected Start:</strong><br>{{ $ticket->expected_start_date->format('d M Y') }}</div>
@@ -111,11 +125,12 @@
                                 <label class="form-label">Reschedule Reason <span class="text-danger">*</span></label>
                                 <textarea name="reschedule_reason" class="form-control" rows="2"></textarea>
                             </div>
-                            {{-- Old Terminal ID for replacement jobs --}}
-                            @if($ticket->jobType && $ticket->jobType->isReplacement() && !$ticket->old_terminal_id)
-                            <div class="col-md-6" id="oldTerminalGroup" style="display:none;">
-                                <label class="form-label">Old Terminal ID <span class="text-danger">*</span></label>
-                                <input type="text" name="old_terminal_id" class="form-control" placeholder="Enter old terminal ID for replacement">
+                            {{-- Old Router ID: ONLY for router category + replacement --}}
+                            @if($showOldRouterId)
+                            <div class="col-md-6" id="oldRouterGroup" style="{{ $ticket->old_terminal_id ? '' : 'display:none;' }}">
+                                <label class="form-label">Old Router ID</label>
+                                <input type="text" name="old_terminal_id" class="form-control" value="{{ $ticket->old_terminal_id }}" placeholder="Enter old router ID for replacement">
+                                <small class="text-muted">Editable — update the old router ID if needed</small>
                             </div>
                             @endif
                             <div class="col-12" id="proofSection" style="display:none;">
@@ -136,7 +151,7 @@
             @endif
 
             {{-- Assign / Reassign Technician (Internal supervisor only) --}}
-            @if($isInternal && $technicians->count() > 0)
+            @if(isset($technicians) && $technicians->count() > 0 && $isInternal)
             @can('assign', $ticket)
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>{{ $ticket->technician_id ? 'Reassign' : 'Assign' }} Technician</h6></div>
@@ -266,7 +281,6 @@
 
         {{-- RIGHT sidebar --}}
         <div class="col-lg-4">
-            {{-- Quick Info --}}
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-white"><h6 class="mb-0">Summary</h6></div>
                 <div class="card-body">
@@ -295,7 +309,6 @@
                 </div>
             </div>
 
-            {{-- Proofs --}}
             @if($ticket->proofs->count() > 0)
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-white"><h6 class="mb-0"><i class="bi bi-paperclip me-2"></i>Proof Files</h6></div>
@@ -328,8 +341,9 @@ $(function() {
         let st = $(this).val();
         $('#rescheduleGroup').toggle(st === 'scheduled');
         $('#proofSection').toggle(['scheduled','done_success','done_fail'].includes(st));
-        @if($ticket->jobType && $ticket->jobType->isReplacement() && !$ticket->old_terminal_id)
-        $('#oldTerminalGroup').toggle(['in_progress','done_success'].includes(st));
+        @if($showOldRouterId)
+        // Show Old Router ID field during relevant status transitions
+        $('#oldRouterGroup').toggle(['in_progress','done_success','accepted'].includes(st) || '{{ $ticket->old_terminal_id }}' !== '');
         @endif
     });
 

@@ -342,6 +342,8 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/ajax/supervisor-mileage-rate', [AdminTicketController::class, 'getSupervisorMileageRate'])->name('ajax.supervisor-mileage-rate');
         Route::get('/ajax/price', [AdminTicketController::class, 'getPrice'])->name('ajax.price');
         Route::get('/ajax/job-category-details', [AdminTicketController::class, 'getJobCategoryDetails'])->name('ajax.job-category-details');
+        Route::get('/ajax/available-routers', [AdminTicketController::class, 'getAvailableRouters'])->name('ajax.available-routers');
+        Route::get('/ajax/available-accessories', [AdminTicketController::class, 'getAvailableAccessories'])->name('ajax.available-accessories');
         // Parameterized routes
         Route::get('/{ticket}', [AdminTicketController::class, 'show'])->name('show');
         Route::get('/{ticket}/edit', [AdminTicketController::class, 'edit'])->name('edit');

@@ -103,21 +103,58 @@
                                 <select name="priority" class="form-select" required>@foreach(\App\Models\Ticket::getPriorities() as $key => $label)<option value="{{ $key }}" {{ $key === 'normal' ? 'selected' : '' }}>{{ $label }}</option>@endforeach</select>
                             </div>
                         </div>
+
                         {{-- Dynamic Device Fields --}}
                         <div class="row g-3 mb-3">
+                            {{-- Terminal ID (text) — for terminal & project --}}
                             <div class="col-md-4 device-field" id="terminalIdGroup" style="display:none;">
                                 <label class="form-label">Terminal ID <span class="text-danger terminal-required-star" style="display:none;">*</span></label>
                                 <input type="text" name="terminal_id" id="terminal_id" class="form-control"><div class="invalid-feedback"></div>
                             </div>
-                            <div class="col-md-4 device-field" id="routerIdGroup" style="display:none;">
+
+                            {{-- Router ID SELECT from inventory — ONLY for router category --}}
+                            <div class="col-md-4 device-field" id="routerIdSelectGroup" style="display:none;">
                                 <label class="form-label">Router ID <span class="text-danger router-required-star" style="display:none;">*</span></label>
-                                <input type="text" name="router_id" id="router_id" class="form-control"><div class="invalid-feedback"></div>
+                                <select name="router_id" id="router_id_select" class="form-select select2" style="width:100%;" disabled><option value="">Select Router</option></select>
+                                <div class="invalid-feedback"></div>
                             </div>
+
+                            {{-- Router ID TEXT input — ONLY for project category (NOT inventory-linked) --}}
+                            <div class="col-md-4 device-field" id="routerIdTextGroup" style="display:none;">
+                                <label class="form-label">Router ID</label>
+                                <input type="text" name="router_id" id="router_id_text" class="form-control" disabled><div class="invalid-feedback"></div>
+                            </div>
+
+                            {{-- Old Router ID — ONLY for router category + replacement job type --}}
                             <div class="col-md-4 device-field" id="oldTerminalIdGroup" style="display:none;">
-                                <label class="form-label">Old Terminal ID <span class="text-danger">*</span></label>
-                                <input type="text" name="old_terminal_id" id="old_terminal_id" class="form-control"><div class="invalid-feedback"></div>
+                                <label class="form-label">Old Router ID</label>
+                                <input type="text" name="old_terminal_id" id="old_terminal_id" class="form-control" placeholder="Enter old router ID for replacement"><div class="invalid-feedback"></div>
                             </div>
                         </div>
+
+                        {{-- Accessories Fields (shown when job category = accessories) --}}
+                        <div class="row g-3 mb-3" id="accessoriesSection" style="display:none;">
+                            <div class="col-md-4">
+                                <label class="form-label">Accessory Type <span class="text-danger">*</span></label>
+                                <select name="accessory_type_selected" id="accessory_type_selected" class="form-select">
+                                    <option value="">Select Accessory Type</option>
+                                    <option value="sim_card">SIM Card</option>
+                                    <option value="antenna">Antenna</option>
+                                </select>
+                                <div class="invalid-feedback"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Accessory Item <span class="text-danger">*</span></label>
+                                <select name="accessory_item_id" id="accessory_item_id" class="form-select select2" style="width:100%;"><option value="">Select Accessory</option></select>
+                                <div class="invalid-feedback"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Quantity <span class="text-danger">*</span></label>
+                                <input type="number" name="accessory_qty" id="accessory_qty" class="form-control" min="1" value="1" placeholder="Qty">
+                                <div class="invalid-feedback"></div>
+                            </div>
+                        </div>
+
                         <div class="row g-3 mb-4">
                             <div class="col-md-4">
                                 <label class="form-label">Supervisor <span class="text-danger">*</span></label>
@@ -200,20 +237,16 @@ $(function() {
         });
     });
 
-    // ── Branch → State + City (fixed cascade) ──
+    // ── Branch → State + City ──
     $('#vendor_branch_id').on('change', function() {
         let stateId = $(this).find(':selected').data('state');
         let cityId = $(this).find(':selected').data('city');
         if (!stateId) return;
         $('#state_id').val(stateId).trigger('change.select2');
-        // Load cities THEN set city in callback — no setTimeout race condition
         loadCities(stateId, function() {
             if (cityId) {
                 $('#city_id').val(cityId).trigger('change.select2');
-                // Explicitly set postcode from cache after city set
-                if (citiesCache[cityId]) {
-                    $('#postcode').val(citiesCache[cityId].postcode || '-');
-                }
+                if (citiesCache[cityId]) { $('#postcode').val(citiesCache[cityId].postcode || '-'); }
             }
         });
         loadSupervisors(stateId);
@@ -238,7 +271,6 @@ $(function() {
         });
     }
 
-    // ── City → Postcode ──
     $('#city_id').on('change', function() {
         let cid = $(this).val();
         $('#postcode').val(cid && citiesCache[cid] ? (citiesCache[cid].postcode || '-') : '');
@@ -277,20 +309,99 @@ $(function() {
         refreshPrice();
     });
 
-    // ── Job Category → device fields + price ──
-    $('#job_category_id').on('change', function() { toggleDeviceFields($(this).find(':selected').data('slug')); refreshPrice(); });
+    // ══════════════════════════════════════════════════════════
+    // Job Category → toggle device fields
+    // ══════════════════════════════════════════════════════════
+    $('#job_category_id').on('change', function() {
+        toggleDeviceFields($(this).find(':selected').data('slug'));
+        checkOldRouterId();
+        refreshPrice();
+    });
+
+    // Job Type change → only affects Old Router ID visibility
     $('#job_type_id').on('change', function() {
-        let slug = $(this).find(':selected').data('slug') || '';
-        if (slug.includes('replacement')) { $('#oldTerminalIdGroup').show(); } else { $('#oldTerminalIdGroup').hide(); $('#old_terminal_id').val(''); }
+        checkOldRouterId();
         refreshPrice();
     });
 
     function toggleDeviceFields(slug) {
-        $('.device-field').hide(); $('.terminal-required-star, .router-required-star').hide(); $('#terminal_id, #router_id, #old_terminal_id').val('').removeAttr('required');
-        if (slug === 'terminal') { $('#terminalIdGroup').show(); $('.terminal-required-star').show(); $('#terminal_id').attr('required', true); }
-        else if (slug === 'router') { $('#routerIdGroup').show(); $('.router-required-star').show(); $('#router_id').attr('required', true); }
-        else if (slug === 'project') { $('#terminalIdGroup, #routerIdGroup').show(); }
+        // Reset ALL device fields
+        $('.device-field').hide();
+        $('.terminal-required-star, .router-required-star').hide();
+        $('#terminal_id').val('').removeAttr('required');
+        // Disable hidden selects/inputs so their name= doesn't submit
+        $('#router_id_select').val(null).trigger('change.select2').removeAttr('required').prop('disabled', true);
+        $('#router_id_text').val('').removeAttr('required').prop('disabled', true);
+        $('#old_terminal_id').val('');
+        // Reset accessories
+        $('#accessoriesSection').hide();
+        $('#accessory_type_selected').val('');
+        $('#accessory_item_id').html('<option value="">Select Accessory</option>').trigger('change.select2');
+        $('#accessory_qty').val(1);
+
+        if (slug === 'terminal') {
+            // Terminal: ONLY terminal_id text — no router, no inventory link
+            $('#terminalIdGroup').show();
+            $('.terminal-required-star').show();
+            $('#terminal_id').attr('required', true);
+
+        } else if (slug === 'router') {
+            // Router: inventory-linked Select2 dropdown — ONLY category with inventory router link
+            $('#routerIdSelectGroup').show();
+            $('.router-required-star').show();
+            $('#router_id_select').prop('disabled', false).attr('required', true);
+            loadAvailableRouters();
+
+        } else if (slug === 'project') {
+            // Project: terminal_id (text) + router_id (text) — NOT inventory linked
+            $('#terminalIdGroup').show();
+            $('#routerIdTextGroup').show();
+            $('#router_id_text').prop('disabled', false);
+
+        } else if (slug === 'accessories') {
+            // Accessories: type dropdown + item dropdown + qty — inventory linked
+            $('#accessoriesSection').show();
+        }
     }
+
+    // Old Router ID: ONLY visible when category=router AND type=replacement
+    function checkOldRouterId() {
+        let catSlug = $('#job_category_id').find(':selected').data('slug') || '';
+        let typeSlug = ($('#job_type_id').find(':selected').data('slug') || '').toLowerCase();
+
+        if (catSlug === 'router' && typeSlug.includes('replacement')) {
+            $('#oldTerminalIdGroup').show();
+        } else {
+            $('#oldTerminalIdGroup').hide();
+            $('#old_terminal_id').val('');
+        }
+    }
+
+    // ── Load available routers from inventory (grouped by Job Category) ──
+    function loadAvailableRouters() {
+        $.get(baseUrl + '/ajax/available-routers', function(groups) {
+            let o = '<option value="">Select Router</option>';
+            groups.forEach(function(group) {
+                o += '<optgroup label="' + group.category + '">';
+                group.items.forEach(function(r) {
+                    o += '<option value="' + r.id + '">' + r.text + '</option>';
+                });
+                o += '</optgroup>';
+            });
+            $('#router_id_select').html(o).trigger('change.select2');
+        });
+    }
+
+    // ── Accessory Type → load available accessories ──
+    $('#accessory_type_selected').on('change', function() {
+        let accType = $(this).val();
+        if (!accType) { $('#accessory_item_id').html('<option value="">Select Accessory</option>').trigger('change.select2'); return; }
+        $.get(baseUrl + '/ajax/available-accessories', { accessory_type: accType }, function(data) {
+            let o = '<option value="">Select Accessory</option>';
+            data.forEach(a => o += `<option value="${a.id}">${a.text}</option>`);
+            $('#accessory_item_id').html(o).trigger('change.select2');
+        });
+    });
 
     function refreshPrice() {
         let svId = $('#supervisor_id').val(), catId = $('#job_category_id').val(), typeId = $('#job_type_id').val();

@@ -22,7 +22,7 @@ class TicketsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoS
 
     public function query()
     {
-        $query = Ticket::with(['vendor', 'vendorBranch', 'state', 'city', 'supervisor', 'technician', 'jobCategory', 'jobType'])
+        $query = Ticket::with(['vendor', 'vendorBranch', 'state', 'city', 'supervisor', 'technician', 'jobCategory', 'jobType', 'accessoryItem'])
             ->visibleTo($this->user);
 
         if (!empty($this->filters['status']))         $query->where('status', $this->filters['status']);
@@ -47,7 +47,10 @@ class TicketsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoS
             'TID',
             'Terminal ID',
             'Router ID',
-            'Old Terminal ID',
+            'Old Router ID',
+            'Accessory Type',
+            'Accessory Item',
+            'Accessory Qty',
             'Merchant Name',
             'Contact',
             'Job Category',
@@ -88,6 +91,9 @@ class TicketsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoS
             $ticket->terminal_id ?? '',
             $ticket->router_id ?? '',
             $ticket->old_terminal_id ?? '',
+            $ticket->getAccessoryTypeLabel(),
+            $ticket->accessoryItem?->item_name ?? '',
+            $ticket->accessory_qty ?? '',
             $ticket->merchant_name ?? '',
             $ticket->contact_number ?? '',
             $ticket->jobCategory?->category_name ?? '',

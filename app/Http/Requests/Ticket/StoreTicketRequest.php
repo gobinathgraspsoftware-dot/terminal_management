@@ -58,6 +58,12 @@ class StoreTicketRequest extends FormRequest
                         $rules['router_id']   = 'nullable|string|max:100';
                         break;
                     case JobCategory::SLUG_ACCESSORIES:
+                        $rules['terminal_id']              = 'nullable';
+                        $rules['router_id']                = 'nullable';
+                        $rules['accessory_type_selected']  = 'required|in:sim_card,antenna';
+                        $rules['accessory_item_id']        = 'required|exists:inventory_items,id';
+                        $rules['accessory_qty']            = 'required|integer|min:1';
+                        break;
                     default:
                         $rules['terminal_id'] = 'nullable';
                         $rules['router_id']   = 'nullable';
@@ -87,6 +93,10 @@ class StoreTicketRequest extends FormRequest
             'description.required'          => 'Please enter the ticket description.',
             'terminal_id.required'          => 'Terminal ID is required for this job category.',
             'router_id.required'            => 'Router ID is required for this job category.',
+            'accessory_type_selected.required' => 'Please select an accessory type.',
+            'accessory_item_id.required'    => 'Please select an accessory item.',
+            'accessory_qty.required'        => 'Please enter the accessory quantity.',
+            'accessory_qty.min'             => 'Accessory quantity must be at least 1.',
             'expected_end_date.after_or_equal' => 'Expected end date must be after or equal to start date.',
         ];
     }

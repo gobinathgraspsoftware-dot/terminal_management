@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Ticket\StoreTicketRequest;
 use App\Http\Requests\Ticket\UpdateTicketRequest;
+use App\Models\InventoryItem;
+use App\Models\StockBalance;
+use App\Models\StockMovement;
 use App\Models\Ticket;
 use App\Models\Vendor;
 use App\Models\VendorBranch;
@@ -113,6 +116,7 @@ class TicketController extends Controller
         $ticket->load([
             'vendor', 'vendorBranch', 'state', 'city', 'jobCategory',
             'supervisor', 'technician', 'jobType', 'creator', 'updater',
+            'accessoryItem',
             'comments.user', 'statusHistory.changedBy', 'statusHistory.proofs', 'proofs',
         ]);
 
@@ -157,6 +161,9 @@ class TicketController extends Controller
                 $technicians = User::where('supervisor_id', $ticket->supervisor_id)->where('status', 'active')->orderBy('name')->get();
             }
         }
+
+        // Load accessory item for edit pre-fill
+        $ticket->load('accessoryItem');
 
         return view('admin.tickets.edit', compact(
             'ticket', 'vendors', 'states', 'cities', 'branches',
@@ -296,7 +303,9 @@ class TicketController extends Controller
         }
     }
 
-    // ── AJAX endpoints ──
+    // ══════════════════════════════════════════════════════════
+    // AJAX endpoints
+    // ══════════════════════════════════════════════════════════
 
     public function getVendorBranches(Request $request)
     {
@@ -380,5 +389,162 @@ class TicketController extends Controller
             'slug' => $category->slug,
             'category_name' => $category->category_name,
         ]);
+    }
+
+    /**
+     * Get available routers from inventory (warehouse stock > 0).
+     *
+     * Router IDs are stored individually in stock_movements.router_ids JSON column.
+     * Example: 1 Panasonic item stocked-in with 50 units → movement has
+     *          router_ids: ["RID001","RID002",...,"RID050"]
+     *
+     * This method:
+     *   1. Gets router items with warehouse stock > 0
+     *   2. Collects all Router IDs that came INTO warehouse (stock_in + stock_return)
+     *   3. Subtracts Router IDs that went OUT of warehouse (stock_out)
+     *   4. Falls back to serial_number if no router_ids in movements
+     *   5. Groups by item name, lists each individual Router ID separately
+     */
+    public function getAvailableRouters(Request $request)
+    {
+        // Get router items with warehouse stock > 0
+        $routerItems = InventoryItem::routers()
+            ->active()
+            ->whereHas('stockBalances', function ($q) {
+                $q->where('holder_type', 'warehouse')
+                  ->whereNull('holder_id')
+                  ->where('quantity', '>', 0);
+            })
+            ->orderBy('item_name')
+            ->get();
+
+        $grouped = [];
+
+        foreach ($routerItems as $item) {
+            // ── Collect Router IDs that came IN to warehouse ──
+            $inMovements = StockMovement::where('inventory_item_id', $item->id)
+                ->where('to_holder_type', 'warehouse')
+                ->whereIn('movement_type', [StockMovement::TYPE_STOCK_IN, StockMovement::TYPE_STOCK_RETURN])
+                ->whereNotNull('router_ids')
+                ->pluck('router_ids');
+
+            $inIds = collect();
+            foreach ($inMovements as $ids) {
+                $decoded = is_array($ids) ? $ids : json_decode($ids, true);
+                if (!empty($decoded) && is_array($decoded)) {
+                    $inIds = $inIds->merge($decoded);
+                }
+            }
+            $inIds = $inIds->filter(function ($v) {
+                return !empty(trim((string) $v));
+            })->values();
+
+            // ── Collect Router IDs that went OUT from warehouse ──
+            $outMovements = StockMovement::where('inventory_item_id', $item->id)
+                ->where('from_holder_type', 'warehouse')
+                ->where('movement_type', StockMovement::TYPE_STOCK_OUT)
+                ->whereNotNull('router_ids')
+                ->pluck('router_ids');
+
+            $outIds = collect();
+            foreach ($outMovements as $ids) {
+                $decoded = is_array($ids) ? $ids : json_decode($ids, true);
+                if (!empty($decoded) && is_array($decoded)) {
+                    $outIds = $outIds->merge($decoded);
+                }
+            }
+            $outIds = $outIds->filter(function ($v) {
+                return !empty(trim((string) $v));
+            })->values();
+
+            // ── Calculate available = IN - OUT ──
+            // Use counting for duplicates (same ID stocked-in multiple times)
+            $inCounts = array_count_values($inIds->toArray());
+            $outCounts = array_count_values($outIds->toArray());
+
+            $available = [];
+            foreach ($inCounts as $routerId => $inCount) {
+                $outCount = $outCounts[$routerId] ?? 0;
+                $remaining = $inCount - $outCount;
+                for ($i = 0; $i < $remaining; $i++) {
+                    $available[] = (string) $routerId;
+                }
+            }
+
+            // ── Fallback: if no router_ids in movements, use serial_number ──
+            if (empty($available) && $inIds->isEmpty()) {
+                $sn = trim($item->serial_number ?? '');
+                if ($sn !== '') {
+                    $available[] = $sn;
+                }
+            }
+
+            if (empty($available)) {
+                continue;
+            }
+
+            sort($available);
+
+            // Build group label
+            $label = $item->item_name;
+            $brand = trim($item->brand ?? '');
+            $model = trim($item->model ?? '');
+            if ($brand && $model) {
+                $label = $brand . ' ' . $model . ' — ' . $item->item_name;
+            } elseif ($brand) {
+                $label = $brand . ' — ' . $item->item_name;
+            }
+
+            $grouped[] = [
+                'category' => $label . ' (' . count($available) . ' available)',
+                'items'    => array_map(function ($rid) {
+                    return ['id' => $rid, 'text' => $rid];
+                }, array_values(array_unique($available))),
+            ];
+        }
+
+        return response()->json($grouped);
+    }
+
+    /**
+     * Get available accessories from inventory (warehouse stock > 0).
+     * Filtered by accessory_type if provided.
+     * Returns list for Select2 dropdown on ticket create/edit.
+     */
+    public function getAvailableAccessories(Request $request)
+    {
+        $query = InventoryItem::accessories()
+            ->active()
+            ->whereHas('stockBalances', function ($q) {
+                $q->where('holder_type', 'warehouse')
+                  ->whereNull('holder_id')
+                  ->where('quantity', '>', 0);
+            })
+            ->with(['stockBalances' => function ($q) {
+                $q->where('holder_type', 'warehouse')->whereNull('holder_id');
+            }]);
+
+        // Filter by accessory type if provided
+        if ($request->filled('accessory_type')) {
+            $query->where('accessory_type', $request->accessory_type);
+        }
+
+        $accessories = $query->orderBy('item_name')
+            ->get()
+            ->map(function ($item) {
+                $warehouseQty = $item->stockBalances->first()?->quantity ?? 0;
+                return [
+                    'id'             => $item->id,
+                    'item_id'        => $item->id,
+                    'item_code'      => $item->item_code,
+                    'item_name'      => $item->item_name,
+                    'accessory_type' => $item->accessory_type,
+                    'warehouse_qty'  => $warehouseQty,
+                    'text'           => $item->item_code . ' - ' . $item->item_name
+                        . ' [Stock: ' . $warehouseQty . ']',
+                ];
+            });
+
+        return response()->json($accessories->values());
     }
 }
