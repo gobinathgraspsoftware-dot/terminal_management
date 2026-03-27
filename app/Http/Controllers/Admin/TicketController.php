@@ -31,11 +31,11 @@ class TicketController extends Controller
     public function index(Request $request)
     {
         $this->authorize('viewAny', Ticket::class);
-        $user = auth()->user();
-        $stats = $this->ticketService->getStats($user);
-        $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
-        $supervisors = User::role('supervisor')->where('status', 'active')->orderBy('name')->get();
-        $jobCategories = JobCategory::active()->orderBy('category_name')->get();
+        $user               = auth()->user();
+        $stats              = $this->ticketService->getStats($user);
+        $vendors            = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
+        $supervisors        = User::role('supervisor')->where('status', 'active')->orderBy('name')->get();
+        $jobCategories      = JobCategory::active()->orderBy('category_name')->get();
         $slaBreachedTickets = $this->ticketService->getSlaBreachedTickets($user);
 
         return view('admin.tickets.index', compact('stats', 'vendors', 'supervisors', 'jobCategories', 'slaBreachedTickets'));
@@ -45,33 +45,33 @@ class TicketController extends Controller
     {
         $this->authorize('viewAny', Ticket::class);
         try {
-            $user = auth()->user();
+            $user   = auth()->user();
             $result = $this->ticketService->getDatatable($request->all(), $user);
 
             $result['data'] = $result['data']->map(function ($ticket) {
                 return [
-                    'id' => $ticket->id,
-                    'ticket_no' => $ticket->ticket_no,
+                    'id'                   => $ticket->id,
+                    'ticket_no'            => $ticket->ticket_no,
                     'vendor_ticket_ref_no' => $ticket->vendor_ticket_ref_no ?? '-',
-                    'vendor_name' => $ticket->vendor?->vendor_name ?? '-',
-                    'branch_name' => $ticket->vendorBranch?->branch_name ?? '-',
-                    'merchant_name' => $ticket->merchant_name ?? '-',
-                    'tid' => $ticket->tid ?? '-',
-                    'job_category' => $ticket->jobCategory?->category_name ?? '-',
-                    'job_type' => $ticket->jobType?->job_title ?? '-',
-                    'price' => number_format($ticket->price ?? 0, 2),
-                    'status' => $ticket->status,
-                    'status_badge' => Ticket::getStatusBadge($ticket->status),
-                    'priority' => $ticket->priority,
-                    'priority_badge' => Ticket::getPriorityBadge($ticket->priority),
-                    'supervisor_name' => $ticket->supervisor?->name ?? '-',
-                    'supervisor_type' => $ticket->supervisor?->supervisor_type ?? '-',
-                    'technician_name' => $ticket->technician?->name ?? 'Unassigned',
-                    'sla_deadline' => $ticket->sla_deadline?->format('d M Y H:i'),
-                    'sla_remaining' => $ticket->sla_remaining,
-                    'sla_breached' => $ticket->isSlaBreach(),
-                    'total_claim' => number_format($ticket->total_claim_amount ?? 0, 2),
-                    'created_at' => $ticket->created_at->format('d M Y H:i'),
+                    'vendor_name'          => $ticket->vendor?->vendor_name ?? '-',
+                    'branch_name'          => $ticket->vendorBranch?->branch_name ?? '-',
+                    'merchant_name'        => $ticket->merchant_name ?? '-',
+                    'tid'                  => $ticket->tid ?? '-',
+                    'job_category'         => $ticket->jobCategory?->category_name ?? '-',
+                    'job_type'             => $ticket->jobType?->job_title ?? '-',
+                    'price'                => number_format($ticket->price ?? 0, 2),
+                    'status'               => $ticket->status,
+                    'status_badge'         => Ticket::getStatusBadge($ticket->status),
+                    'priority'             => $ticket->priority,
+                    'priority_badge'       => Ticket::getPriorityBadge($ticket->priority),
+                    'supervisor_name'      => $ticket->supervisor?->name ?? '-',
+                    'supervisor_type'      => $ticket->supervisor?->supervisor_type ?? '-',
+                    'technician_name'      => $ticket->technician?->name ?? 'Unassigned',
+                    'sla_deadline'         => $ticket->sla_deadline?->format('d M Y H:i'),
+                    'sla_remaining'        => $ticket->sla_remaining,
+                    'sla_breached'         => $ticket->isSlaBreach(),
+                    'total_claim'          => number_format($ticket->total_claim_amount ?? 0, 2),
+                    'created_at'           => $ticket->created_at->format('d M Y H:i'),
                 ];
             });
 
@@ -85,12 +85,11 @@ class TicketController extends Controller
     public function create()
     {
         $this->authorize('create', Ticket::class);
-        $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
-        $states = State::orderBy('name')->get();
-        $supervisors = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))->where('status', 'active')->orderBy('name')->get();
-        // Job categories and job types are INDEPENDENT — both loaded fully
+        $vendors       = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
+        $states        = State::orderBy('name')->get();
+        $supervisors   = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))->where('status', 'active')->orderBy('name')->get();
         $jobCategories = JobCategory::active()->orderBy('category_name')->get();
-        $jobTypes = JobType::active()->orderBy('job_title')->get();
+        $jobTypes      = JobType::active()->orderBy('job_title')->get();
 
         return view('admin.tickets.create', compact('vendors', 'states', 'supervisors', 'jobCategories', 'jobTypes'));
     }
@@ -100,8 +99,8 @@ class TicketController extends Controller
         try {
             $ticket = $this->ticketService->create($request->validated());
             return response()->json([
-                'success' => true,
-                'message' => "Ticket {$ticket->ticket_no} created successfully!",
+                'success'  => true,
+                'message'  => "Ticket {$ticket->ticket_no} created successfully!",
                 'redirect' => route('admin.tickets.show', $ticket->id),
             ]);
         } catch (\Exception $e) {
@@ -121,10 +120,21 @@ class TicketController extends Controller
         ]);
 
         $allowedTransitions = Ticket::getAllowedTransitions($ticket->status);
-        $statuses = Ticket::getStatuses();
-        $technicians = User::role('technician')->where('status', 'active')->orderBy('name')->get();
+        $statuses           = Ticket::getStatuses();
+        $technicians        = User::role('technician')->where('status', 'active')->orderBy('name')->get();
 
-        return view('admin.tickets.show', compact('ticket', 'allowedTransitions', 'statuses', 'technicians'));
+        // FIX #4: Supervisor pricing for grand total breakdown
+        $supervisorPrice = null;
+        if ($ticket->supervisor_id && $ticket->job_category_id && $ticket->job_type_id) {
+            $supervisorPrice = SupervisorJobPricing::where('supervisor_id', $ticket->supervisor_id)
+                ->where('job_category_id', $ticket->job_category_id)
+                ->where('job_type_id', $ticket->job_type_id)
+                ->value('price');
+        }
+
+        return view('admin.tickets.show', compact(
+            'ticket', 'allowedTransitions', 'statuses', 'technicians', 'supervisorPrice'
+        ));
     }
 
     public function edit(Ticket $ticket)
@@ -135,15 +145,13 @@ class TicketController extends Controller
                 ->with('warning', 'Cannot edit a completed or closed ticket.');
         }
 
-        $vendors = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
-        $states = State::orderBy('name')->get();
-        $cities = $ticket->state_id ? City::where('state_id', $ticket->state_id)->orderBy('name')->get() : collect();
-        $branches = $ticket->vendor_id ? VendorBranch::where('vendor_id', $ticket->vendor_id)->where('status', 'active')->get() : collect();
-        // Both loaded fully — NOT cascading
+        $vendors       = Vendor::where('status', 'active')->orderBy('vendor_name')->get();
+        $states        = State::orderBy('name')->get();
+        $cities        = $ticket->state_id ? City::where('state_id', $ticket->state_id)->orderBy('name')->get() : collect();
+        $branches      = $ticket->vendor_id ? VendorBranch::where('vendor_id', $ticket->vendor_id)->where('status', 'active')->get() : collect();
         $jobCategories = JobCategory::active()->orderBy('category_name')->get();
-        $jobTypes = JobType::active()->orderBy('job_title')->get();
+        $jobTypes      = JobType::active()->orderBy('job_title')->get();
 
-        // Supervisors matching ticket's state
         $supervisorQuery = User::role('supervisor')->where('status', 'active');
         if ($ticket->state_id) {
             $supervisorQuery->where(function ($q) use ($ticket) {
@@ -153,7 +161,6 @@ class TicketController extends Controller
         }
         $supervisors = $supervisorQuery->orderBy('name')->get();
 
-        // Technicians for the selected supervisor (only if internal)
         $technicians = collect();
         if ($ticket->supervisor_id) {
             $supervisor = User::find($ticket->supervisor_id);
@@ -162,7 +169,6 @@ class TicketController extends Controller
             }
         }
 
-        // Load accessory item for edit pre-fill
         $ticket->load('accessoryItem');
 
         return view('admin.tickets.edit', compact(
@@ -177,8 +183,8 @@ class TicketController extends Controller
         try {
             $ticket = $this->ticketService->update($ticket, $request->validated());
             return response()->json([
-                'success' => true,
-                'message' => "Ticket {$ticket->ticket_no} updated successfully!",
+                'success'  => true,
+                'message'  => "Ticket {$ticket->ticket_no} updated successfully!",
                 'redirect' => route('admin.tickets.show', $ticket->id),
             ]);
         } catch (\Exception $e) {
@@ -198,15 +204,19 @@ class TicketController extends Controller
         }
     }
 
+    /**
+     * FIX #3: scheduled_date validation + forwarded to TicketService.
+     */
     public function changeStatus(Request $request, Ticket $ticket)
     {
         $this->authorize('changeStatus', $ticket);
         $request->validate([
-            'status' => 'required|in:open,assigned,accepted,rejected,in_progress,scheduled,done_success,done_fail,closed',
-            'remarks' => 'nullable|string|max:1000',
+            'status'            => 'required|in:open,assigned,accepted,rejected,in_progress,scheduled,done_success,done_fail,closed',
+            'remarks'           => 'nullable|string|max:1000',
             'reschedule_reason' => 'nullable|required_if:status,scheduled|string|max:1000',
-            'old_terminal_id' => 'nullable|string|max:100',
-            'proof_files.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
+            'scheduled_date'    => 'nullable|required_if:status,scheduled|date',
+            'old_terminal_id'   => 'nullable|string|max:100',
+            'proof_files.*'     => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:10240',
         ]);
 
         try {
@@ -221,7 +231,19 @@ class TicketController extends Controller
                 }
             }
 
-            $this->ticketService->changeStatus($ticket, $request->status, $request->remarks, $request->reschedule_reason, $proofFiles);
+            $scheduledDate = $request->filled('scheduled_date')
+                ? \Carbon\Carbon::parse($request->scheduled_date)
+                : null;
+
+            $this->ticketService->changeStatus(
+                $ticket,
+                $request->status,
+                $request->remarks,
+                $request->reschedule_reason,
+                $proofFiles,
+                $scheduledDate
+            );
+
             return response()->json(['success' => true, 'message' => 'Ticket status updated successfully.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
@@ -233,9 +255,8 @@ class TicketController extends Controller
         $this->authorize('assign', $ticket);
         $request->validate([
             'technician_id' => 'required|exists:users,id',
-            'remarks' => 'nullable|string|max:1000',
+            'remarks'       => 'nullable|string|max:1000',
         ]);
-
         try {
             $this->ticketService->assignTechnician($ticket, $request->technician_id, $request->remarks);
             return response()->json(['success' => true, 'message' => 'Technician assigned successfully.']);
@@ -249,9 +270,8 @@ class TicketController extends Controller
         $this->authorize('reassign', $ticket);
         $request->validate([
             'technician_id' => 'required|exists:users,id',
-            'remarks' => 'nullable|string|max:1000',
+            'remarks'       => 'nullable|string|max:1000',
         ]);
-
         try {
             $this->ticketService->reassignTechnician($ticket, $request->technician_id, $request->remarks);
             return response()->json(['success' => true, 'message' => 'Technician reassigned successfully.']);
@@ -264,12 +284,11 @@ class TicketController extends Controller
     {
         $this->authorize('updateClaim', $ticket);
         $request->validate([
-            'mileage' => 'nullable|numeric|min:0',
+            'mileage'         => 'nullable|numeric|min:0',
             'mileage_remarks' => 'nullable|string|max:500',
-            'toll' => 'nullable|numeric|min:0',
-            'standby_meal' => 'nullable|numeric|min:0',
+            'toll'            => 'nullable|numeric|min:0',
+            'standby_meal'    => 'nullable|numeric|min:0',
         ]);
-
         try {
             $this->ticketService->updateClaim($ticket, $request->all());
             return response()->json(['success' => true, 'message' => 'Claim updated successfully.']);
@@ -282,7 +301,6 @@ class TicketController extends Controller
     {
         $this->authorize('addComment', $ticket);
         $request->validate(['comment' => 'required|string|max:5000']);
-
         try {
             $comment = $this->ticketService->addComment($ticket, $request->comment);
             $comment->load('user');
@@ -290,12 +308,12 @@ class TicketController extends Controller
                 'success' => true,
                 'message' => 'Comment added.',
                 'comment' => [
-                    'id' => $comment->id,
-                    'comment' => $comment->comment,
-                    'user_name' => $comment->user->name,
-                    'user_role' => $comment->user->roles->first()?->name ?? 'user',
+                    'id'         => $comment->id,
+                    'comment'    => $comment->comment,
+                    'user_name'  => $comment->user->name,
+                    'user_role'  => $comment->user->roles->first()?->name ?? 'user',
                     'created_at' => $comment->created_at->format('d M Y H:i'),
-                    'is_own' => true,
+                    'is_own'     => true,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -303,39 +321,26 @@ class TicketController extends Controller
         }
     }
 
-    /**
-     * Update Old Router ID (replacement jobs).
-     * Accessible by Admin, Supervisor, and Technician roles.
-     */
     public function updateOldRouterId(Request $request, Ticket $ticket)
     {
         $this->authorize('view', $ticket);
-        $request->validate([
-            'old_terminal_id' => 'nullable|string|max:100',
-        ]);
-
+        $request->validate(['old_terminal_id' => 'nullable|string|max:100']);
         try {
-            $ticket->update([
-                'old_terminal_id' => $request->old_terminal_id,
-                'updated_by' => auth()->id(),
-            ]);
-
+            $ticket->update(['old_terminal_id' => $request->old_terminal_id, 'updated_by' => auth()->id()]);
             return response()->json(['success' => true, 'message' => 'Old Router ID updated successfully.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
-    // ══════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════
     // AJAX endpoints
-    // ══════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════
 
     public function getVendorBranches(Request $request)
     {
-        $branches = VendorBranch::where('vendor_id', $request->vendor_id)
-            ->where('status', 'active')
-            ->orderBy('branch_name')
-            ->get(['id', 'branch_name', 'state_id', 'city_id']);
+        $branches = VendorBranch::where('vendor_id', $request->vendor_id)->where('status', 'active')
+            ->orderBy('branch_name')->get(['id', 'branch_name', 'state_id', 'city_id']);
         return response()->json($branches);
     }
 
@@ -348,226 +353,115 @@ class TicketController extends Controller
     public function getTechnicians(Request $request)
     {
         $query = User::role('technician')->where('status', 'active');
-        if ($request->supervisor_id) {
-            $query->where('supervisor_id', $request->supervisor_id);
-        }
+        if ($request->supervisor_id) $query->where('supervisor_id', $request->supervisor_id);
         return response()->json($query->orderBy('name')->get(['id', 'name']));
     }
 
     public function getSupervisors(Request $request)
     {
-        $query = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
-            ->where('status', 'active');
-
-        // Filter by state only (state_id match OR coverage_states JSON contains)
+        $query = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))->where('status', 'active');
         if ($request->filled('state_id')) {
             $stateId = $request->state_id;
-            $query->where(function ($q) use ($stateId) {
-                $q->where('state_id', $stateId)
-                  ->orWhereJsonContains('coverage_states', (string) $stateId);
-            });
+            $query->where(fn($q) => $q->where('state_id', $stateId)->orWhereJsonContains('coverage_states', (string) $stateId));
         }
-
-        $supervisors = $query->orderBy('name')->get(['id', 'name', 'state_id', 'mileage_rate', 'supervisor_type']);
-        return response()->json($supervisors);
+        return response()->json($query->orderBy('name')->get(['id', 'name', 'state_id', 'mileage_rate', 'supervisor_type']));
     }
 
     public function getSupervisorMileageRate(Request $request)
     {
         $supervisor = User::find($request->supervisor_id);
         return response()->json([
-            'mileage_rate' => $supervisor?->mileage_rate ?? 0,
+            'mileage_rate'    => $supervisor?->mileage_rate ?? 0,
             'supervisor_type' => $supervisor?->supervisor_type ?? null,
         ]);
     }
 
-    /**
-     * Get price for supervisor + job_category + job_type combination.
-     * Job category and job type are INDEPENDENT — both must be selected.
-     */
     public function getPrice(Request $request)
     {
         $price = 0;
         if ($request->filled('supervisor_id') && $request->filled('job_category_id') && $request->filled('job_type_id')) {
-            $price = $this->ticketService->getPrice(
-                $request->supervisor_id,
-                $request->job_category_id,
-                $request->job_type_id
-            );
+            $price = $this->ticketService->getPrice($request->supervisor_id, $request->job_category_id, $request->job_type_id);
         }
         return response()->json(['price' => $price]);
     }
 
-    /**
-     * Get job category details (slug) for dynamic field control.
-     */
     public function getJobCategoryDetails(Request $request)
     {
         $category = JobCategory::find($request->job_category_id);
-        if (!$category) {
-            return response()->json(['error' => 'Category not found'], 404);
-        }
-        return response()->json([
-            'id' => $category->id,
-            'slug' => $category->slug,
-            'category_name' => $category->category_name,
-        ]);
+        if (!$category) return response()->json(['error' => 'Category not found'], 404);
+        return response()->json(['id' => $category->id, 'slug' => $category->slug, 'category_name' => $category->category_name]);
     }
 
-    /**
-     * Get available routers from inventory (warehouse stock > 0).
-     *
-     * Router IDs are stored individually in stock_movements.router_ids JSON column.
-     * Example: 1 Panasonic item stocked-in with 50 units → movement has
-     *          router_ids: ["RID001","RID002",...,"RID050"]
-     *
-     * This method:
-     *   1. Gets router items with warehouse stock > 0
-     *   2. Collects all Router IDs that came INTO warehouse (stock_in + stock_return)
-     *   3. Subtracts Router IDs that went OUT of warehouse (stock_out)
-     *   4. Falls back to serial_number if no router_ids in movements
-     *   5. Groups by item name, lists each individual Router ID separately
-     */
     public function getAvailableRouters(Request $request)
     {
-        // Get router items with warehouse stock > 0
-        $routerItems = InventoryItem::routers()
-            ->active()
-            ->whereHas('stockBalances', function ($q) {
-                $q->where('holder_type', 'warehouse')
-                  ->whereNull('holder_id')
-                  ->where('quantity', '>', 0);
-            })
-            ->orderBy('item_name')
-            ->get();
+        $routerItems = InventoryItem::routers()->active()
+            ->whereHas('stockBalances', fn($q) => $q->where('holder_type', 'warehouse')->whereNull('holder_id')->where('quantity', '>', 0))
+            ->orderBy('item_name')->get();
 
         $grouped = [];
-
         foreach ($routerItems as $item) {
-            // ── Collect Router IDs that came IN to warehouse ──
-            $inMovements = StockMovement::where('inventory_item_id', $item->id)
-                ->where('to_holder_type', 'warehouse')
-                ->whereIn('movement_type', [StockMovement::TYPE_STOCK_IN, StockMovement::TYPE_STOCK_RETURN])
-                ->whereNotNull('router_ids')
-                ->pluck('router_ids');
-
             $inIds = collect();
-            foreach ($inMovements as $ids) {
+            foreach (StockMovement::where('inventory_item_id', $item->id)->where('to_holder_type', 'warehouse')
+                ->whereIn('movement_type', [StockMovement::TYPE_STOCK_IN, StockMovement::TYPE_STOCK_RETURN])
+                ->whereNotNull('router_ids')->pluck('router_ids') as $ids) {
                 $decoded = is_array($ids) ? $ids : json_decode($ids, true);
-                if (!empty($decoded) && is_array($decoded)) {
-                    $inIds = $inIds->merge($decoded);
-                }
+                if (!empty($decoded)) $inIds = $inIds->merge($decoded);
             }
-            $inIds = $inIds->filter(function ($v) {
-                return !empty(trim((string) $v));
-            })->values();
-
-            // ── Collect Router IDs that went OUT from warehouse ──
-            $outMovements = StockMovement::where('inventory_item_id', $item->id)
-                ->where('from_holder_type', 'warehouse')
-                ->where('movement_type', StockMovement::TYPE_STOCK_OUT)
-                ->whereNotNull('router_ids')
-                ->pluck('router_ids');
+            $inIds = $inIds->filter(fn($v) => !empty(trim((string) $v)))->values();
 
             $outIds = collect();
-            foreach ($outMovements as $ids) {
+            foreach (StockMovement::where('inventory_item_id', $item->id)->where('from_holder_type', 'warehouse')
+                ->where('movement_type', StockMovement::TYPE_STOCK_OUT)
+                ->whereNotNull('router_ids')->pluck('router_ids') as $ids) {
                 $decoded = is_array($ids) ? $ids : json_decode($ids, true);
-                if (!empty($decoded) && is_array($decoded)) {
-                    $outIds = $outIds->merge($decoded);
-                }
+                if (!empty($decoded)) $outIds = $outIds->merge($decoded);
             }
-            $outIds = $outIds->filter(function ($v) {
-                return !empty(trim((string) $v));
-            })->values();
+            $outIds = $outIds->filter(fn($v) => !empty(trim((string) $v)))->values();
 
-            // ── Calculate available = IN - OUT ──
-            // Use counting for duplicates (same ID stocked-in multiple times)
             $inCounts = array_count_values($inIds->toArray());
             $outCounts = array_count_values($outIds->toArray());
-
             $available = [];
-            foreach ($inCounts as $routerId => $inCount) {
-                $outCount = $outCounts[$routerId] ?? 0;
-                $remaining = $inCount - $outCount;
-                for ($i = 0; $i < $remaining; $i++) {
-                    $available[] = (string) $routerId;
-                }
+            foreach ($inCounts as $rid => $cnt) {
+                $rem = $cnt - ($outCounts[$rid] ?? 0);
+                for ($i = 0; $i < $rem; $i++) $available[] = (string) $rid;
             }
 
-            // ── Fallback: if no router_ids in movements, use serial_number ──
             if (empty($available) && $inIds->isEmpty()) {
                 $sn = trim($item->serial_number ?? '');
-                if ($sn !== '') {
-                    $available[] = $sn;
-                }
+                if ($sn) $available[] = $sn;
             }
-
-            if (empty($available)) {
-                continue;
-            }
-
+            if (empty($available)) continue;
             sort($available);
 
-            // Build group label
             $label = $item->item_name;
-            $brand = trim($item->brand ?? '');
-            $model = trim($item->model ?? '');
-            if ($brand && $model) {
-                $label = $brand . ' ' . $model . ' — ' . $item->item_name;
-            } elseif ($brand) {
-                $label = $brand . ' — ' . $item->item_name;
-            }
+            $brand = trim($item->brand ?? ''); $model = trim($item->model ?? '');
+            if ($brand && $model) $label = "$brand $model — {$item->item_name}";
+            elseif ($brand)       $label = "$brand — {$item->item_name}";
 
             $grouped[] = [
                 'category' => $label . ' (' . count($available) . ' available)',
-                'items'    => array_map(function ($rid) {
-                    return ['id' => $rid, 'text' => $rid];
-                }, array_values(array_unique($available))),
+                'items'    => array_map(fn($rid) => ['id' => $rid, 'text' => $rid], array_values(array_unique($available))),
             ];
         }
-
         return response()->json($grouped);
     }
 
-    /**
-     * Get available accessories from inventory (warehouse stock > 0).
-     * Filtered by accessory_type if provided.
-     * Returns list for Select2 dropdown on ticket create/edit.
-     */
     public function getAvailableAccessories(Request $request)
     {
-        $query = InventoryItem::accessories()
-            ->active()
-            ->whereHas('stockBalances', function ($q) {
-                $q->where('holder_type', 'warehouse')
-                  ->whereNull('holder_id')
-                  ->where('quantity', '>', 0);
-            })
-            ->with(['stockBalances' => function ($q) {
-                $q->where('holder_type', 'warehouse')->whereNull('holder_id');
-            }]);
+        $query = InventoryItem::accessories()->active()
+            ->whereHas('stockBalances', fn($q) => $q->where('holder_type', 'warehouse')->whereNull('holder_id')->where('quantity', '>', 0))
+            ->with(['stockBalances' => fn($q) => $q->where('holder_type', 'warehouse')->whereNull('holder_id')]);
 
-        // Filter by accessory type if provided
-        if ($request->filled('accessory_type')) {
-            $query->where('accessory_type', $request->accessory_type);
-        }
+        if ($request->filled('accessory_type')) $query->where('accessory_type', $request->accessory_type);
 
-        $accessories = $query->orderBy('item_name')
-            ->get()
-            ->map(function ($item) {
-                $warehouseQty = $item->stockBalances->first()?->quantity ?? 0;
-                return [
-                    'id'             => $item->id,
-                    'item_id'        => $item->id,
-                    'item_code'      => $item->item_code,
-                    'item_name'      => $item->item_name,
-                    'accessory_type' => $item->accessory_type,
-                    'warehouse_qty'  => $warehouseQty,
-                    'text'           => $item->item_code . ' - ' . $item->item_name
-                        . ' [Stock: ' . $warehouseQty . ']',
-                ];
-            });
-
-        return response()->json($accessories->values());
+        return response()->json($query->orderBy('item_name')->get()->map(function ($item) {
+            $qty = $item->stockBalances->first()?->quantity ?? 0;
+            return [
+                'id' => $item->id, 'item_id' => $item->id,
+                'item_code' => $item->item_code, 'item_name' => $item->item_name,
+                'accessory_type' => $item->accessory_type, 'warehouse_qty' => $qty,
+                'text' => "{$item->item_code} - {$item->item_name} [Stock: $qty]",
+            ];
+        })->values());
     }
 }

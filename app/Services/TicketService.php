@@ -28,13 +28,13 @@ class TicketService
             'supervisor', 'technician', 'jobCategory', 'jobType', 'creator',
         ])->visibleTo($user);
 
-        if (!empty($params['status']))         $query->where('status', $params['status']);
-        if (!empty($params['priority']))       $query->where('priority', $params['priority']);
-        if (!empty($params['vendor_id']))      $query->where('vendor_id', $params['vendor_id']);
-        if (!empty($params['supervisor_id']))  $query->where('supervisor_id', $params['supervisor_id']);
+        if (!empty($params['status']))          $query->where('status', $params['status']);
+        if (!empty($params['priority']))        $query->where('priority', $params['priority']);
+        if (!empty($params['vendor_id']))       $query->where('vendor_id', $params['vendor_id']);
+        if (!empty($params['supervisor_id']))   $query->where('supervisor_id', $params['supervisor_id']);
         if (!empty($params['job_category_id'])) $query->where('job_category_id', $params['job_category_id']);
-        if (!empty($params['date_from']))      $query->whereDate('created_at', '>=', $params['date_from']);
-        if (!empty($params['date_to']))        $query->whereDate('created_at', '<=', $params['date_to']);
+        if (!empty($params['date_from']))       $query->whereDate('created_at', '>=', $params['date_from']);
+        if (!empty($params['date_to']))         $query->whereDate('created_at', '<=', $params['date_to']);
 
         if (!empty($params['sla_breach']) && $params['sla_breach'] === 'yes') {
             $query->slaBreach();
@@ -60,36 +60,30 @@ class TicketService
         $filteredRecords = $query->count();
 
         $orderColumn = $params['order'][0]['column'] ?? 0;
-        $orderDir = $params['order'][0]['dir'] ?? 'desc';
-        $columns = ['ticket_no', 'vendor_id', 'merchant_name', 'status', 'priority', 'supervisor_id', 'technician_id', 'sla_deadline', 'created_at'];
-        $sortBy = $columns[$orderColumn] ?? 'created_at';
+        $orderDir    = $params['order'][0]['dir']    ?? 'desc';
+        $columns     = ['ticket_no', 'vendor_id', 'merchant_name', 'status', 'priority', 'supervisor_id', 'technician_id', 'sla_deadline', 'created_at'];
+        $sortBy      = $columns[$orderColumn] ?? 'created_at';
         $query->orderBy($sortBy, $orderDir);
 
-        $start = $params['start'] ?? 0;
-        $length = $params['length'] ?? 25;
+        $start   = $params['start']  ?? 0;
+        $length  = $params['length'] ?? 25;
         $tickets = $query->skip($start)->take($length)->get();
 
         return [
-            'draw' => intval($params['draw'] ?? 1),
-            'recordsTotal' => $totalRecords,
+            'draw'            => intval($params['draw'] ?? 1),
+            'recordsTotal'    => $totalRecords,
             'recordsFiltered' => $filteredRecords,
-            'data' => $tickets,
+            'data'            => $tickets,
         ];
     }
 
     /**
-     * Create a new ticket with vendor-based ticket ID.
-     * NOTE: SLA is NOT set at creation. It is calculated when technician ACCEPTS the ticket.
-     *
-     * INVENTORY INTEGRATION:
-     * - Installation tickets with router_id: auto stock-out (deduct router from warehouse)
-     * - Replacement tickets with old_terminal_id: auto stock-return (return old router to warehouse)
-     * - Accessories category with accessory_item_id: auto stock-out (deduct accessory from warehouse)
+     * Create a new ticket.
      */
     public function create(array $data): Ticket
     {
         return DB::transaction(function () use ($data) {
-            $data['ticket_no'] = Ticket::generateVendorTicketNo($data['vendor_id']);
+            $data['ticket_no']  = Ticket::generateVendorTicketNo($data['vendor_id']);
             $data['created_by'] = Auth::id();
             $data['updated_by'] = Auth::id();
 
@@ -102,26 +96,23 @@ class TicketService
                 $data['price'] = $pricing ? $pricing->price : 0;
             }
 
-            // Pull mileage_rate from supervisor
             if (!empty($data['supervisor_id'])) {
                 $supervisor = User::find($data['supervisor_id']);
                 $data['mileage_rate'] = $supervisor?->mileage_rate ?? 0;
             }
 
-            // Calculate claim
-            $data['mileage_amount'] = ($data['mileage'] ?? 0) * ($data['mileage_rate'] ?? 0);
-            $data['total_claim_amount'] = ($data['mileage_amount'] ?? 0) + ($data['toll'] ?? 0) + ($data['standby_meal'] ?? 0);
+            $data['mileage_amount']      = ($data['mileage'] ?? 0) * ($data['mileage_rate'] ?? 0);
+            $data['total_claim_amount']  = ($data['mileage_amount'] ?? 0) + ($data['toll'] ?? 0) + ($data['standby_meal'] ?? 0);
 
-            // Auto-set status based on assignment
             $supervisor = !empty($data['supervisor_id']) ? User::find($data['supervisor_id']) : null;
 
             if (!empty($data['technician_id']) && $supervisor && $supervisor->isInternalSupervisor()) {
-                $data['status'] = Ticket::STATUS_ASSIGNED;
+                $data['status']      = Ticket::STATUS_ASSIGNED;
                 $data['assigned_at'] = now();
             } elseif ($supervisor && $supervisor->isExternalSupervisor()) {
                 $data['technician_id'] = null;
-                $data['status'] = Ticket::STATUS_ASSIGNED;
-                $data['assigned_at'] = now();
+                $data['status']        = Ticket::STATUS_ASSIGNED;
+                $data['assigned_at']   = now();
             } else {
                 $data['status'] = Ticket::STATUS_OPEN;
             }
@@ -129,21 +120,16 @@ class TicketService
             $ticket = Ticket::create($data);
 
             TicketStatusHistory::create([
-                'ticket_id' => $ticket->id,
+                'ticket_id'   => $ticket->id,
                 'from_status' => null,
-                'to_status' => $ticket->status,
-                'changed_by' => Auth::id(),
-                'remarks' => 'Ticket created',
-                'created_at' => now(),
+                'to_status'   => $ticket->status,
+                'changed_by'  => Auth::id(),
+                'remarks'     => 'Ticket created',
+                'created_at'  => now(),
             ]);
 
-            // ── AUTO STOCK OUT: Installation Ticket (Routers) ──
             $this->handleAutoStockOut($ticket, $data);
-
-            // ── AUTO STOCK RETURN: Replacement Ticket (Old Routers) ──
             $this->handleAutoStockReturn($ticket, $data);
-
-            // ── AUTO STOCK OUT: Accessories Category ──
             $this->handleAutoAccessoryStockOut($ticket, $data);
 
             return $ticket;
@@ -155,44 +141,30 @@ class TicketService
      */
     protected function handleAutoStockOut(Ticket $ticket, array $data): void
     {
-        if (!$ticket->isInstallationJob()) {
-            return;
-        }
+        if (!$ticket->isInstallationJob()) return;
 
         $routerIds = [];
-
         if (!empty($data['router_ids']) && is_array($data['router_ids'])) {
             $routerIds = array_values(array_filter($data['router_ids'], fn($v) => !empty(trim($v))));
         }
-
         if (empty($routerIds) && !empty($data['router_id'])) {
             $routerIds = [trim($data['router_id'])];
         }
-
         if (empty($routerIds) && !empty($ticket->router_id)) {
             $routerIds = [trim($ticket->router_id)];
         }
-
-        if (empty($routerIds)) {
-            return;
-        }
+        if (empty($routerIds)) return;
 
         $ticket->update(['router_ids' => $routerIds]);
 
         try {
-            $inventoryService = app(InventoryService::class);
-            $inventoryService->autoStockOutForInstallation($ticket->fresh());
-
+            app(InventoryService::class)->autoStockOutForInstallation($ticket->fresh());
             Log::info('Auto stock-out triggered for installation ticket', [
-                'ticket_id' => $ticket->id,
-                'ticket_no' => $ticket->ticket_no,
+                'ticket_id'  => $ticket->id,
                 'router_ids' => $routerIds,
             ]);
         } catch (\Exception $e) {
-            Log::warning('Auto stock-out on ticket creation failed', [
-                'ticket_id' => $ticket->id,
-                'error' => $e->getMessage(),
-            ]);
+            Log::warning('Auto stock-out on ticket creation failed', ['ticket_id' => $ticket->id, 'error' => $e->getMessage()]);
         }
     }
 
@@ -201,65 +173,45 @@ class TicketService
      */
     protected function handleAutoStockReturn(Ticket $ticket, array $data): void
     {
-        if (!$ticket->isReplacementJob()) {
-            return;
-        }
+        if (!$ticket->isReplacementJob()) return;
 
         $oldRouterIds = [];
-
         if (!empty($data['old_router_ids']) && is_array($data['old_router_ids'])) {
             $oldRouterIds = array_values(array_filter($data['old_router_ids'], fn($v) => !empty(trim($v))));
         }
-
         if (empty($oldRouterIds) && !empty($data['old_terminal_id'])) {
             $oldRouterIds = [trim($data['old_terminal_id'])];
         }
-
         if (empty($oldRouterIds) && !empty($ticket->old_terminal_id)) {
             $oldRouterIds = [trim($ticket->old_terminal_id)];
         }
-
-        if (empty($oldRouterIds)) {
-            return;
-        }
+        if (empty($oldRouterIds)) return;
 
         $ticket->update(['old_router_ids' => $oldRouterIds]);
 
         try {
-            $inventoryService = app(InventoryService::class);
-            $inventoryService->autoStockReturnForReplacement($ticket->fresh());
-
+            app(InventoryService::class)->autoStockReturnForReplacement($ticket->fresh());
             Log::info('Auto stock-return triggered for replacement ticket', [
-                'ticket_id' => $ticket->id,
-                'ticket_no' => $ticket->ticket_no,
+                'ticket_id'     => $ticket->id,
                 'old_router_ids' => $oldRouterIds,
             ]);
         } catch (\Exception $e) {
-            Log::warning('Auto stock-return on ticket creation failed', [
-                'ticket_id' => $ticket->id,
-                'error' => $e->getMessage(),
-            ]);
+            Log::warning('Auto stock-return on ticket creation failed', ['ticket_id' => $ticket->id, 'error' => $e->getMessage()]);
         }
     }
 
     /**
      * Handle auto stock-out for accessories category tickets.
-     * Deducts the selected accessory item from warehouse stock.
      */
     protected function handleAutoAccessoryStockOut(Ticket $ticket, array $data): void
     {
-        if (empty($data['accessory_item_id']) || empty($data['accessory_qty'])) {
-            return;
-        }
+        if (empty($data['accessory_item_id']) || empty($data['accessory_qty'])) return;
 
         $item = InventoryItem::find($data['accessory_item_id']);
-        if (!$item || !$item->isAccessory()) {
-            return;
-        }
+        if (!$item || !$item->isAccessory()) return;
 
         try {
-            $inventoryService = app(InventoryService::class);
-            $inventoryService->stockOut([
+            app(InventoryService::class)->stockOut([
                 'inventory_item_id' => $item->id,
                 'quantity'          => (int) $data['accessory_qty'],
                 'to_holder_type'    => 'technician',
@@ -271,20 +223,16 @@ class TicketService
                 'remarks'           => 'Accessory: ' . $item->item_name . ' x' . $data['accessory_qty'],
                 'movement_date'     => now()->toDateString(),
             ]);
-
             Log::info('Auto stock-out triggered for accessories ticket', [
-                'ticket_id'    => $ticket->id,
-                'ticket_no'    => $ticket->ticket_no,
-                'item_id'      => $item->id,
-                'item_name'    => $item->item_name,
-                'quantity'     => $data['accessory_qty'],
+                'ticket_id' => $ticket->id,
+                'item_id'   => $item->id,
+                'quantity'  => $data['accessory_qty'],
             ]);
         } catch (\Exception $e) {
             Log::warning('Auto stock-out for accessories failed (non-blocking)', [
                 'ticket_id' => $ticket->id,
                 'error'     => $e->getMessage(),
             ]);
-            // Don't fail ticket creation if stock-out fails
         }
     }
 
@@ -294,10 +242,9 @@ class TicketService
     public function update(Ticket $ticket, array $data): Ticket
     {
         return DB::transaction(function () use ($ticket, $data) {
-            $oldStatus = $ticket->status;
+            $oldStatus      = $ticket->status;
             $data['updated_by'] = Auth::id();
 
-            // Lookup price from SupervisorJobPricing
             if (!empty($data['supervisor_id']) && !empty($data['job_category_id']) && !empty($data['job_type_id'])) {
                 $pricing = SupervisorJobPricing::where('supervisor_id', $data['supervisor_id'])
                     ->where('job_category_id', $data['job_category_id'])
@@ -306,32 +253,27 @@ class TicketService
                 $data['price'] = $pricing ? $pricing->price : 0;
             }
 
-            // Recalculate mileage if supervisor changed
             if (!empty($data['supervisor_id'])) {
                 $supervisor = User::find($data['supervisor_id']);
                 $data['mileage_rate'] = $supervisor?->mileage_rate ?? 0;
             }
 
-            // Recalculate claim
-            $data['mileage_amount'] = ($data['mileage'] ?? $ticket->mileage ?? 0) * ($data['mileage_rate'] ?? $ticket->mileage_rate ?? 0);
+            $data['mileage_amount']     = ($data['mileage'] ?? $ticket->mileage ?? 0) * ($data['mileage_rate'] ?? $ticket->mileage_rate ?? 0);
             $data['total_claim_amount'] = ($data['mileage_amount'] ?? 0) + ($data['toll'] ?? $ticket->toll ?? 0) + ($data['standby_meal'] ?? $ticket->standby_meal ?? 0);
 
-            // Auto-assign status if technician first assigned
             if (!empty($data['technician_id']) && !$ticket->technician_id && $ticket->status === Ticket::STATUS_OPEN) {
-                $data['status'] = Ticket::STATUS_ASSIGNED;
+                $data['status']      = Ticket::STATUS_ASSIGNED;
                 $data['assigned_at'] = now();
             }
 
-            // Check if old_terminal_id is being set for the first time (replacement flow)
             $hadOldRouterIds = !empty($ticket->old_router_ids);
 
-            // Clear accessory fields if category changed away from accessories
             if (!empty($data['job_category_id'])) {
                 $category = \App\Models\JobCategory::find($data['job_category_id']);
                 if ($category && $category->slug !== \App\Models\JobCategory::SLUG_ACCESSORIES) {
                     $data['accessory_type_selected'] = null;
-                    $data['accessory_item_id'] = null;
-                    $data['accessory_qty'] = null;
+                    $data['accessory_item_id']       = null;
+                    $data['accessory_qty']            = null;
                 }
             }
 
@@ -339,16 +281,15 @@ class TicketService
 
             if ($ticket->status !== $oldStatus) {
                 TicketStatusHistory::create([
-                    'ticket_id' => $ticket->id,
+                    'ticket_id'   => $ticket->id,
                     'from_status' => $oldStatus,
-                    'to_status' => $ticket->status,
-                    'changed_by' => Auth::id(),
-                    'remarks' => $data['status_remarks'] ?? null,
-                    'created_at' => now(),
+                    'to_status'   => $ticket->status,
+                    'changed_by'  => Auth::id(),
+                    'remarks'     => $data['status_remarks'] ?? null,
+                    'created_at'  => now(),
                 ]);
             }
 
-            // ── AUTO STOCK RETURN ON UPDATE: Replacement Ticket ──
             if (!$hadOldRouterIds && $ticket->isReplacementJob()) {
                 $this->handleAutoStockReturn($ticket->fresh(), $data);
             }
@@ -359,10 +300,18 @@ class TicketService
 
     /**
      * Change ticket status with proof handling.
-     * SLA is calculated HERE when status changes to ACCEPTED (24 hours from accept time).
+     *
+     * FIX #1: sla_hours set to 0 (not null) on reject/reassign to avoid NOT NULL DB constraint.
+     * FIX #3: scheduled_date saved when status → scheduled.
      */
-    public function changeStatus(Ticket $ticket, string $newStatus, ?string $remarks = null, ?string $rescheduleReason = null, array $proofFiles = []): Ticket
-    {
+    public function changeStatus(
+        Ticket $ticket,
+        string $newStatus,
+        ?string $remarks          = null,
+        ?string $rescheduleReason = null,
+        array $proofFiles         = [],
+        ?\DateTimeInterface $scheduledDate = null
+    ): Ticket {
         $user = Auth::user();
 
         // Determine allowed transitions based on role
@@ -378,25 +327,27 @@ class TicketService
             throw new \Exception("Cannot transition from '{$ticket->status}' to '{$newStatus}'");
         }
 
-        return DB::transaction(function () use ($ticket, $newStatus, $remarks, $rescheduleReason, $proofFiles) {
-            $oldStatus = $ticket->status;
+        return DB::transaction(function () use ($ticket, $newStatus, $remarks, $rescheduleReason, $proofFiles, $scheduledDate) {
+            $oldStatus  = $ticket->status;
             $updateData = ['status' => $newStatus, 'updated_by' => Auth::id()];
 
             // ── ACCEPTED: Start SLA countdown (24 hours from now) ──
             if ($newStatus === Ticket::STATUS_ACCEPTED) {
-                $updateData['accepted_at'] = now();
-                $updateData['sla_hours'] = 24;
+                $updateData['accepted_at']  = now();
+                $updateData['sla_hours']    = 24;
                 $updateData['sla_deadline'] = now()->addHours(24);
-                $updateData['sla_status'] = Ticket::SLA_ON_TRACK;
+                $updateData['sla_status']   = Ticket::SLA_ON_TRACK;
             }
 
+            // ── REJECTED: Reset SLA — use 0 (NOT null) to satisfy NOT NULL constraint ──
+            // FIX #1: was previously null which caused SQLSTATE[23000] DB error
             if ($newStatus === Ticket::STATUS_REJECTED) {
-                $updateData['rejected_at'] = now();
-                $updateData['technician_id'] = null;
-                // Reset SLA since ticket goes back to pool
-                $updateData['sla_hours'] = null;
-                $updateData['sla_deadline'] = null;
-                $updateData['sla_status'] = null;
+                $updateData['rejected_at']    = now();
+                $updateData['technician_id']  = null;
+                $updateData['sla_hours']      = 0;        // ← FIX: was null
+                $updateData['sla_deadline']   = null;
+                $updateData['sla_status']     = null;
+                $updateData['accepted_at']    = null;
             }
 
             if ($newStatus === Ticket::STATUS_IN_PROGRESS && !$ticket->started_at) {
@@ -408,30 +359,32 @@ class TicketService
             if ($newStatus === Ticket::STATUS_CLOSED) {
                 $updateData['closed_at'] = now();
             }
+            // ── SCHEDULED: Save reschedule reason AND target date/time ──
+            // FIX #3: scheduledDate is the new field
             if ($newStatus === Ticket::STATUS_SCHEDULED) {
-                $updateData['rescheduled_at'] = now();
+                $updateData['rescheduled_at']    = now();
                 $updateData['reschedule_reason'] = $rescheduleReason;
+                if ($scheduledDate) {
+                    $updateData['scheduled_date'] = $scheduledDate;
+                }
             }
 
             $ticket->update($updateData);
 
-            // Log status history
             $history = TicketStatusHistory::create([
-                'ticket_id' => $ticket->id,
-                'from_status' => $oldStatus,
-                'to_status' => $newStatus,
-                'changed_by' => Auth::id(),
-                'remarks' => $remarks,
+                'ticket_id'        => $ticket->id,
+                'from_status'      => $oldStatus,
+                'to_status'        => $newStatus,
+                'changed_by'       => Auth::id(),
+                'remarks'          => $remarks,
                 'reschedule_reason' => $rescheduleReason,
-                'created_at' => now(),
+                'created_at'       => now(),
             ]);
 
-            // Upload proof files
             if (!empty($proofFiles)) {
                 $this->uploadProofs($ticket, $history, $proofFiles);
             }
 
-            // Auto-create Ticket Claim on completion
             if (in_array($newStatus, [Ticket::STATUS_DONE_SUCCESS, Ticket::STATUS_DONE_FAIL])) {
                 $this->autoCreateTicketClaim($ticket);
             }
@@ -442,7 +395,6 @@ class TicketService
 
     /**
      * Auto-create a ticket claim when ticket is completed.
-     * Claims are only for external supervisors.
      */
     protected function autoCreateTicketClaim(Ticket $ticket): void
     {
@@ -458,7 +410,7 @@ class TicketService
             $exists = Claim::ticketClaims()->where('ticket_id', $ticket->id)->exists();
             if ($exists) return;
 
-            $claimService = app(ClaimManagementService::class);
+            $claimService = app(\App\Services\ClaimManagementService::class);
             $claimService->createTicketClaim($ticket);
             Log::info("Auto-created ticket claim for Ticket #{$ticket->ticket_no}");
         } catch (\Exception $e) {
@@ -477,27 +429,28 @@ class TicketService
             foreach ($files as $file) {
                 if (!$file instanceof UploadedFile) continue;
 
-                $fileName = $file->getClientOriginalName();
-                $filePath = 'ticket-proofs/' . $ticket->id;
-                $fileSize = $file->getSize() ?: 0;
-                $mimeType = $file->getClientMimeType() ?: null;
-
+                $fileName        = $file->getClientOriginalName();
+                $filePath        = 'ticket-proofs/' . $ticket->id;
+                $fileSize        = $file->getSize() ?: 0;
+                $mimeType        = $file->getClientMimeType() ?: null;
                 $destinationPath = $_SERVER['DOCUMENT_ROOT'] . '/storage/' . $filePath;
+
                 if (!is_dir($destinationPath)) {
                     mkdir($destinationPath, 0755, true);
                 }
+
                 $storedName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $fileName);
                 $file->move($destinationPath, $storedName);
 
                 TicketProof::create([
-                    'ticket_id' => $ticket->id,
+                    'ticket_id'               => $ticket->id,
                     'ticket_status_history_id' => $history->id,
-                    'proof_type' => $proofType,
-                    'file_name' => $fileName,
-                    'file_path' => $filePath . '/' . $storedName,
-                    'file_size' => $fileSize,
-                    'mime_type' => $mimeType,
-                    'uploaded_by' => Auth::id(),
+                    'proof_type'              => $proofType,
+                    'file_name'               => $fileName,
+                    'file_path'               => $filePath . '/' . $storedName,
+                    'file_size'               => $fileSize,
+                    'mime_type'               => $mimeType,
+                    'uploaded_by'             => Auth::id(),
                 ]);
             }
         }
@@ -510,25 +463,25 @@ class TicketService
     {
         $mileageRate = $ticket->mileage_rate;
         if ($ticket->supervisor_id) {
-            $supervisor = User::find($ticket->supervisor_id);
+            $supervisor  = User::find($ticket->supervisor_id);
             $mileageRate = $supervisor?->mileage_rate ?? 0;
         }
 
-        $mileage = $data['mileage'] ?? 0;
-        $toll = $data['toll'] ?? 0;
-        $standbyMeal = $data['standby_meal'] ?? 0;
+        $mileage      = $data['mileage'] ?? 0;
+        $toll         = $data['toll'] ?? 0;
+        $standbyMeal  = $data['standby_meal'] ?? 0;
         $mileageAmount = $mileage * $mileageRate;
-        $totalClaim = $mileageAmount + $toll + $standbyMeal;
+        $totalClaim   = $mileageAmount + $toll + $standbyMeal;
 
         $ticket->update([
-            'mileage' => $mileage,
-            'mileage_remarks' => $data['mileage_remarks'] ?? null,
-            'mileage_rate' => $mileageRate,
-            'mileage_amount' => $mileageAmount,
-            'toll' => $toll,
-            'standby_meal' => $standbyMeal,
+            'mileage'            => $mileage,
+            'mileage_remarks'    => $data['mileage_remarks'] ?? null,
+            'mileage_rate'       => $mileageRate,
+            'mileage_amount'     => $mileageAmount,
+            'toll'               => $toll,
+            'standby_meal'       => $standbyMeal,
             'total_claim_amount' => $totalClaim,
-            'updated_by' => Auth::id(),
+            'updated_by'         => Auth::id(),
         ]);
 
         return $ticket->fresh();
@@ -548,19 +501,19 @@ class TicketService
             $oldStatus = $ticket->status;
             $ticket->update([
                 'technician_id' => $technicianId,
-                'status' => Ticket::STATUS_ASSIGNED,
-                'assigned_at' => now(),
-                'updated_by' => Auth::id(),
+                'status'        => Ticket::STATUS_ASSIGNED,
+                'assigned_at'   => now(),
+                'updated_by'    => Auth::id(),
             ]);
 
             if ($oldStatus !== Ticket::STATUS_ASSIGNED) {
                 TicketStatusHistory::create([
-                    'ticket_id' => $ticket->id,
+                    'ticket_id'   => $ticket->id,
                     'from_status' => $oldStatus,
-                    'to_status' => Ticket::STATUS_ASSIGNED,
-                    'changed_by' => Auth::id(),
-                    'remarks' => $remarks ?? 'Technician assigned',
-                    'created_at' => now(),
+                    'to_status'   => Ticket::STATUS_ASSIGNED,
+                    'changed_by'  => Auth::id(),
+                    'remarks'     => $remarks ?? 'Technician assigned',
+                    'created_at'  => now(),
                 ]);
             }
 
@@ -569,37 +522,38 @@ class TicketService
     }
 
     /**
-     * Reassign technician — resets SLA since new technician must accept again
+     * Reassign technician — resets SLA.
+     * FIX #1: sla_hours = 0 instead of null.
      */
     public function reassignTechnician(Ticket $ticket, int $technicianId, ?string $remarks = null): Ticket
     {
         return DB::transaction(function () use ($ticket, $technicianId, $remarks) {
             $oldTechId = $ticket->technician_id;
-            $oldTech = $oldTechId ? User::find($oldTechId) : null;
-            $newTech = User::find($technicianId);
+            $oldTech   = $oldTechId ? User::find($oldTechId) : null;
+            $newTech   = User::find($technicianId);
 
             $ticket->update([
                 'technician_id' => $technicianId,
-                'status' => Ticket::STATUS_ASSIGNED,
-                'assigned_at' => now(),
-                'accepted_at' => null,
-                'sla_hours' => null,
-                'sla_deadline' => null,
-                'sla_status' => null,
-                'updated_by' => Auth::id(),
+                'status'        => Ticket::STATUS_ASSIGNED,
+                'assigned_at'   => now(),
+                'accepted_at'   => null,
+                'sla_hours'     => 0,         // ← FIX: was null
+                'sla_deadline'  => null,
+                'sla_status'    => null,
+                'updated_by'    => Auth::id(),
             ]);
 
             TicketStatusHistory::create([
-                'ticket_id' => $ticket->id,
+                'ticket_id'   => $ticket->id,
                 'from_status' => $ticket->getOriginal('status'),
-                'to_status' => Ticket::STATUS_ASSIGNED,
-                'changed_by' => Auth::id(),
-                'remarks' => $remarks ?? sprintf(
+                'to_status'   => Ticket::STATUS_ASSIGNED,
+                'changed_by'  => Auth::id(),
+                'remarks'     => $remarks ?? sprintf(
                     'Reassigned from %s to %s',
                     $oldTech?->name ?? 'Unassigned',
                     $newTech?->name ?? 'Unknown'
                 ),
-                'created_at' => now(),
+                'created_at'  => now(),
             ]);
 
             return $ticket->fresh();
@@ -613,13 +567,13 @@ class TicketService
     {
         return TicketComment::create([
             'ticket_id' => $ticket->id,
-            'comment' => $comment,
-            'user_id' => Auth::id(),
+            'comment'   => $comment,
+            'user_id'   => Auth::id(),
         ]);
     }
 
     /**
-     * Get price for a supervisor + job_category + job_type combination
+     * Get price for supervisor + job_category + job_type
      */
     public function getPrice(int $supervisorId, int $jobCategoryId, int $jobTypeId): float
     {
@@ -679,9 +633,9 @@ class TicketService
         foreach ($activeTickets as $ticket) {
             $hoursLeft = now()->diffInHours($ticket->sla_deadline, false);
             $newStatus = match (true) {
-                $hoursLeft < 0 => Ticket::SLA_BREACHED,
+                $hoursLeft < 0  => Ticket::SLA_BREACHED,
                 $hoursLeft <= 4 => Ticket::SLA_AT_RISK,
-                default => Ticket::SLA_ON_TRACK,
+                default         => Ticket::SLA_ON_TRACK,
             };
 
             if ($ticket->sla_status !== $newStatus) {

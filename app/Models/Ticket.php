@@ -12,25 +12,25 @@ class Ticket extends Model
     use HasFactory, SoftDeletes;
 
     // ── Status constants ──
-    const STATUS_OPEN = 'open';
-    const STATUS_ASSIGNED = 'assigned';
-    const STATUS_ACCEPTED = 'accepted';
-    const STATUS_REJECTED = 'rejected';
-    const STATUS_IN_PROGRESS = 'in_progress';
-    const STATUS_SCHEDULED = 'scheduled';
+    const STATUS_OPEN         = 'open';
+    const STATUS_ASSIGNED     = 'assigned';
+    const STATUS_ACCEPTED     = 'accepted';
+    const STATUS_REJECTED     = 'rejected';
+    const STATUS_IN_PROGRESS  = 'in_progress';
+    const STATUS_SCHEDULED    = 'scheduled';
     const STATUS_DONE_SUCCESS = 'done_success';
-    const STATUS_DONE_FAIL = 'done_fail';
-    const STATUS_CLOSED = 'closed';
+    const STATUS_DONE_FAIL    = 'done_fail';
+    const STATUS_CLOSED       = 'closed';
 
     // ── Priority constants ──
-    const PRIORITY_LOW = 'low';
+    const PRIORITY_LOW    = 'low';
     const PRIORITY_NORMAL = 'normal';
-    const PRIORITY_HIGH = 'high';
+    const PRIORITY_HIGH   = 'high';
     const PRIORITY_URGENT = 'urgent';
 
     // ── SLA constants ──
     const SLA_ON_TRACK = 'on_track';
-    const SLA_AT_RISK = 'at_risk';
+    const SLA_AT_RISK  = 'at_risk';
     const SLA_BREACHED = 'breached';
 
     protected $fillable = [
@@ -49,6 +49,7 @@ class Ticket extends Model
         'started_at', 'completed_at', 'closed_at',
         'assigned_at', 'accepted_at', 'rejected_at',
         'rescheduled_at', 'reschedule_reason',
+        'scheduled_date',      // FIX #3: target reschedule date/time
         // Claim fields
         'mileage', 'mileage_remarks', 'mileage_rate', 'mileage_amount',
         'toll', 'standby_meal', 'total_claim_amount',
@@ -58,27 +59,28 @@ class Ticket extends Model
     protected function casts(): array
     {
         return [
-            'sla_deadline' => 'datetime',
-            'started_at' => 'datetime',
-            'completed_at' => 'datetime',
-            'closed_at' => 'datetime',
-            'assigned_at' => 'datetime',
-            'accepted_at' => 'datetime',
-            'rejected_at' => 'datetime',
-            'rescheduled_at' => 'datetime',
+            'sla_deadline'        => 'datetime',
+            'started_at'          => 'datetime',
+            'completed_at'        => 'datetime',
+            'closed_at'           => 'datetime',
+            'assigned_at'         => 'datetime',
+            'accepted_at'         => 'datetime',
+            'rejected_at'         => 'datetime',
+            'rescheduled_at'      => 'datetime',
+            'scheduled_date'      => 'datetime',   // FIX #3
             'expected_start_date' => 'date',
-            'expected_end_date' => 'date',
-            'mileage' => 'decimal:2',
-            'mileage_rate' => 'decimal:2',
-            'mileage_amount' => 'decimal:2',
-            'toll' => 'decimal:2',
-            'standby_meal' => 'decimal:2',
-            'total_claim_amount' => 'decimal:2',
-            'price' => 'decimal:2',
-            'sla_hours' => 'integer',
-            'accessory_qty' => 'integer',
-            'router_ids' => 'array',
-            'old_router_ids' => 'array',
+            'expected_end_date'   => 'date',
+            'mileage'             => 'decimal:2',
+            'mileage_rate'        => 'decimal:2',
+            'mileage_amount'      => 'decimal:2',
+            'toll'                => 'decimal:2',
+            'standby_meal'        => 'decimal:2',
+            'total_claim_amount'  => 'decimal:2',
+            'price'               => 'decimal:2',
+            'sla_hours'           => 'integer',
+            'accessory_qty'       => 'integer',
+            'router_ids'          => 'array',
+            'old_router_ids'      => 'array',
         ];
     }
 
@@ -86,29 +88,37 @@ class Ticket extends Model
     // Relationships
     // ══════════════════════════════════════
 
-    public function vendor()        { return $this->belongsTo(Vendor::class); }
-    public function vendorBranch()  { return $this->belongsTo(VendorBranch::class); }
-    public function state()         { return $this->belongsTo(State::class); }
-    public function city()          { return $this->belongsTo(City::class); }
-    public function supervisor()    { return $this->belongsTo(User::class, 'supervisor_id'); }
-    public function technician()    { return $this->belongsTo(User::class, 'technician_id'); }
-    public function jobCategory()   { return $this->belongsTo(JobCategory::class); }
-    public function jobType()       { return $this->belongsTo(JobType::class); }
-    public function creator()       { return $this->belongsTo(User::class, 'created_by'); }
-    public function updater()       { return $this->belongsTo(User::class, 'updated_by'); }
+    public function vendor()       { return $this->belongsTo(Vendor::class); }
+    public function vendorBranch() { return $this->belongsTo(VendorBranch::class); }
+    public function state()        { return $this->belongsTo(State::class); }
+    public function city()         { return $this->belongsTo(City::class); }
+    public function supervisor()   { return $this->belongsTo(User::class, 'supervisor_id'); }
+    public function technician()   { return $this->belongsTo(User::class, 'technician_id'); }
+    public function jobCategory()  { return $this->belongsTo(JobCategory::class); }
+    public function jobType()      { return $this->belongsTo(JobType::class); }
+    public function creator()      { return $this->belongsTo(User::class, 'created_by'); }
+    public function updater()      { return $this->belongsTo(User::class, 'updated_by'); }
 
-    /**
-     * Accessory item from inventory (for accessories job category).
-     */
-    public function accessoryItem() { return $this->belongsTo(InventoryItem::class, 'accessory_item_id'); }
+    public function accessoryItem()
+    {
+        return $this->belongsTo(InventoryItem::class, 'accessory_item_id');
+    }
 
-    public function comments()      { return $this->hasMany(TicketComment::class)->orderBy('created_at', 'desc'); }
-    public function statusHistory()  { return $this->hasMany(TicketStatusHistory::class)->orderBy('created_at', 'desc'); }
-    public function proofs()        { return $this->hasMany(TicketProof::class); }
+    public function comments()
+    {
+        return $this->hasMany(TicketComment::class)->orderBy('created_at', 'desc');
+    }
 
-    /**
-     * Stock movements linked to this ticket.
-     */
+    public function statusHistory()
+    {
+        return $this->hasMany(TicketStatusHistory::class)->orderBy('created_at', 'desc');
+    }
+
+    public function proofs()
+    {
+        return $this->hasMany(TicketProof::class);
+    }
+
     public function stockMovements()
     {
         return $this->hasMany(StockMovement::class, 'ticket_id');
@@ -173,9 +183,6 @@ class Ticket extends Model
         ];
     }
 
-    /**
-     * Status transitions updated with accept/reject flow.
-     */
     public static function getAllowedTransitions(string $currentStatus): array
     {
         return match ($currentStatus) {
@@ -192,28 +199,39 @@ class Ticket extends Model
         };
     }
 
-    /**
-     * Transitions allowed for technicians specifically.
-     */
     public static function getTechnicianTransitions(string $currentStatus): array
     {
         return match ($currentStatus) {
-            self::STATUS_ASSIGNED     => [self::STATUS_ACCEPTED, self::STATUS_REJECTED],
-            self::STATUS_ACCEPTED     => [self::STATUS_IN_PROGRESS],
-            self::STATUS_IN_PROGRESS  => [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
-            self::STATUS_SCHEDULED    => [self::STATUS_IN_PROGRESS, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
-            default                   => [],
+            self::STATUS_ASSIGNED    => [self::STATUS_ACCEPTED, self::STATUS_REJECTED],
+            self::STATUS_ACCEPTED    => [self::STATUS_IN_PROGRESS],
+            self::STATUS_IN_PROGRESS => [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
+            self::STATUS_SCHEDULED   => [self::STATUS_IN_PROGRESS, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
+            default                  => [],
+        };
+    }
+
+    public static function getExternalSupervisorTransitions(string $currentStatus): array
+    {
+        return match ($currentStatus) {
+            self::STATUS_ASSIGNED    => [self::STATUS_ACCEPTED, self::STATUS_REJECTED],
+            self::STATUS_ACCEPTED    => [self::STATUS_IN_PROGRESS, self::STATUS_SCHEDULED],
+            self::STATUS_IN_PROGRESS => [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
+            self::STATUS_SCHEDULED   => [self::STATUS_IN_PROGRESS, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
+            self::STATUS_DONE_SUCCESS => [self::STATUS_CLOSED],
+            self::STATUS_DONE_FAIL    => [self::STATUS_CLOSED, self::STATUS_IN_PROGRESS],
+            default                  => [],
         };
     }
 
     /**
-     * Transitions allowed for external supervisors.
+     * Internal supervisor transitions — same as getAllowedTransitions but limited
+     * to their own actions (no admin-level re-open/force-close).
      */
-    public static function getExternalSupervisorTransitions(string $currentStatus): array
+    public static function getInternalSupervisorTransitions(string $currentStatus): array
     {
         return match ($currentStatus) {
             self::STATUS_ASSIGNED     => [self::STATUS_ACCEPTED, self::STATUS_REJECTED],
-            self::STATUS_ACCEPTED     => [self::STATUS_IN_PROGRESS, self::STATUS_SCHEDULED],
+            self::STATUS_ACCEPTED     => [self::STATUS_IN_PROGRESS, self::STATUS_SCHEDULED, self::STATUS_CLOSED],
             self::STATUS_IN_PROGRESS  => [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
             self::STATUS_SCHEDULED    => [self::STATUS_IN_PROGRESS, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
             self::STATUS_DONE_SUCCESS => [self::STATUS_CLOSED],
@@ -298,19 +316,25 @@ class Ticket extends Model
         if (in_array($this->status, [self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL, self::STATUS_CLOSED])) {
             return 'Completed';
         }
-        if ($this->status === self::STATUS_SCHEDULED) {
-            return 'Rescheduled';
-        }
-        if ($this->status === self::STATUS_REJECTED) {
-            return 'Rejected';
-        }
+        if ($this->status === self::STATUS_SCHEDULED) return 'Rescheduled';
+        if ($this->status === self::STATUS_REJECTED)  return 'Rejected';
+
         if (now()->gt($this->sla_deadline)) {
             $diff = now()->diff($this->sla_deadline);
             return '-' . $diff->h . 'h ' . $diff->i . 'm (Breached)';
         }
-        $diff = now()->diff($this->sla_deadline);
+        $diff  = now()->diff($this->sla_deadline);
         $hours = ($diff->days * 24) + $diff->h;
         return $hours . 'h ' . $diff->i . 'm';
+    }
+
+    /**
+     * FIX #4: Grand total = job price + claim amount.
+     * Displayed in the ticket show view financial summary card.
+     */
+    public function getGrandTotalAttribute(): float
+    {
+        return (float) ($this->price ?? 0) + (float) ($this->total_claim_amount ?? 0);
     }
 
     /**
@@ -318,13 +342,10 @@ class Ticket extends Model
      */
     public function calculateClaim(): void
     {
-        $this->mileage_amount = ($this->mileage ?? 0) * ($this->mileage_rate ?? 0);
+        $this->mileage_amount     = ($this->mileage ?? 0) * ($this->mileage_rate ?? 0);
         $this->total_claim_amount = $this->mileage_amount + ($this->toll ?? 0) + ($this->standby_meal ?? 0);
     }
 
-    /**
-     * Check if claims are applicable for this ticket based on supervisor type.
-     */
     public function isClaimApplicable(): bool
     {
         if (!$this->supervisor_id) return false;
@@ -333,9 +354,6 @@ class Ticket extends Model
         return $supervisor->isExternalSupervisor();
     }
 
-    /**
-     * Status requires proof upload?
-     */
     public static function statusRequiresProof(string $status): bool
     {
         return in_array($status, [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL]);
@@ -354,11 +372,11 @@ class Ticket extends Model
     public static function getProofTypeLabels(): array
     {
         return [
-            'whatsapp_screenshot'  => 'WhatsApp Screenshot',
-            'call_log_screenshot'  => 'Call Log Screenshot',
-            'test_slip'            => 'Test Slip Image',
-            'service_form'         => 'Service Form Image',
-            'other'                => 'Other',
+            'whatsapp_screenshot' => 'WhatsApp Screenshot',
+            'call_log_screenshot' => 'Call Log Screenshot',
+            'test_slip'           => 'Test Slip Image',
+            'service_form'        => 'Service Form Image',
+            'other'               => 'Other',
         ];
     }
 
@@ -366,9 +384,6 @@ class Ticket extends Model
     // Inventory Integration Helpers
     // ══════════════════════════════════════
 
-    /**
-     * Get router_ids as comma-separated display string.
-     */
     public function getRouterIdsDisplay(): string
     {
         $ids = $this->router_ids;
@@ -377,9 +392,6 @@ class Ticket extends Model
         return is_array($ids) ? implode(', ', $ids) : '-';
     }
 
-    /**
-     * Get old_router_ids as comma-separated display string.
-     */
     public function getOldRouterIdsDisplay(): string
     {
         $ids = $this->old_router_ids;
@@ -388,9 +400,6 @@ class Ticket extends Model
         return is_array($ids) ? implode(', ', $ids) : '-';
     }
 
-    /**
-     * Get accessory type display label.
-     */
     public function getAccessoryTypeLabel(): string
     {
         return match ($this->accessory_type_selected) {
@@ -400,10 +409,6 @@ class Ticket extends Model
         };
     }
 
-    /**
-     * Check if this ticket's job type is installation.
-     * Used to auto-trigger stock out.
-     */
     public function isInstallationJob(): bool
     {
         $jobType = $this->jobType;
@@ -412,10 +417,6 @@ class Ticket extends Model
             || str_contains(strtolower($jobType->job_title ?? ''), 'installation');
     }
 
-    /**
-     * Check if this ticket's job type is replacement.
-     * Used to auto-trigger stock return.
-     */
     public function isReplacementJob(): bool
     {
         $jobType = $this->jobType;
