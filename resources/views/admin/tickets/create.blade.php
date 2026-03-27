@@ -125,10 +125,10 @@
                                 <input type="text" name="router_id" id="router_id_text" class="form-control" disabled><div class="invalid-feedback"></div>
                             </div>
 
-                            {{-- Old Router ID — ONLY for router category + replacement job type --}}
+                            {{-- Old Router/Terminal ID — for router or terminal category + replacement job type --}}
                             <div class="col-md-4 device-field" id="oldTerminalIdGroup" style="display:none;">
-                                <label class="form-label">Old Router ID</label>
-                                <input type="text" name="old_terminal_id" id="old_terminal_id" class="form-control" placeholder="Enter old router ID for replacement"><div class="invalid-feedback"></div>
+                                <label class="form-label" id="oldIdLabel">Old Router ID</label>
+                                <input type="text" name="old_terminal_id" id="old_terminal_id" class="form-control" placeholder="Enter old ID for replacement"><div class="invalid-feedback"></div>
                             </div>
                         </div>
 
@@ -364,12 +364,15 @@ $(function() {
         }
     }
 
-    // Old Router ID: ONLY visible when category=router AND type=replacement
+    // Old ID: visible when (category=router OR category=terminal) AND type=replacement
     function checkOldRouterId() {
         let catSlug = $('#job_category_id').find(':selected').data('slug') || '';
         let typeSlug = ($('#job_type_id').find(':selected').data('slug') || '').toLowerCase();
 
-        if (catSlug === 'router' && typeSlug.includes('replacement')) {
+        if ((catSlug === 'router' || catSlug === 'terminal') && typeSlug.includes('replacement')) {
+            let label = catSlug === 'terminal' ? 'Old Terminal ID' : 'Old Router ID';
+            $('#oldIdLabel').text(label);
+            $('#old_terminal_id').attr('placeholder', 'Enter ' + label.toLowerCase() + ' for replacement');
             $('#oldTerminalIdGroup').show();
         } else {
             $('#oldTerminalIdGroup').hide();

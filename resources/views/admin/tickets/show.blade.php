@@ -9,8 +9,10 @@
     $isExternal = $sv && $sv->supervisor_type === 'external';
     $claimApplicable = $isExternal;
     $isRouterCategory = $ticket->jobCategory && $ticket->jobCategory->slug === 'router';
+    $isTerminalCategory = $ticket->jobCategory && $ticket->jobCategory->slug === 'terminal';
     $isReplacement = $ticket->jobType && $ticket->jobType->isReplacement();
-    $showOldRouterId = $isRouterCategory && $isReplacement;
+    $showOldRouterId = ($isRouterCategory || $isTerminalCategory) && $isReplacement;
+    $oldIdLabel = $isTerminalCategory ? 'Old Terminal ID' : 'Old Router ID';
 @endphp
 
 <div class="container-fluid">
@@ -77,7 +79,7 @@
                         @endif
                         {{-- Old Router ID: ONLY show for router category + replacement --}}
                         @if($ticket->old_terminal_id && $showOldRouterId)
-                        <div class="col-md-4"><strong>Old Router ID:</strong><br><span class="text-warning">{{ $ticket->old_terminal_id }}</span></div>
+                        <div class="col-md-4"><strong>{{ $oldIdLabel }}:</strong><br><span class="text-warning">{{ $ticket->old_terminal_id }}</span></div>
                         @endif
                         {{-- Accessory info --}}
                         @if($ticket->accessory_type_selected)
@@ -104,16 +106,16 @@
             @if($showOldRouterId && !in_array($ticket->status, ['closed']))
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-white">
-                    <h6 class="mb-0"><i class="bi bi-arrow-left-right me-2 text-warning"></i>Old Router ID (Replacement)</h6>
+                    <h6 class="mb-0"><i class="bi bi-arrow-left-right me-2 text-warning"></i>{{ $oldIdLabel }} (Replacement)</h6>
                 </div>
                 <div class="card-body">
                     <form id="oldRouterIdForm">
                         <div class="row g-3 align-items-end">
                             <div class="col-md-6">
-                                <label class="form-label">Old Router ID</label>
+                                <label class="form-label">{{ $oldIdLabel }}</label>
                                 <input type="text" name="old_terminal_id" id="oldRouterIdInput" class="form-control"
                                     value="{{ $ticket->old_terminal_id }}"
-                                    placeholder="Enter old router ID being replaced">
+                                    placeholder="Enter {{ strtolower($oldIdLabel) }} being replaced">
                             </div>
                             <div class="col-md-3">
                                 <button type="submit" class="btn btn-warning w-100" id="btnUpdateOldRouterId">
@@ -128,7 +130,7 @@
                                 @endif
                             </div>
                         </div>
-                        <small class="text-muted mt-1 d-block">This is the router being replaced. Admin, Supervisor, or Technician can update this field.</small>
+                        <small class="text-muted mt-1 d-block">This is the {{ strtolower($oldIdLabel) }} being replaced. Admin, Supervisor, or Technician can update this field.</small>
                     </form>
                 </div>
             </div>
@@ -398,7 +400,7 @@ $(function() {
                 if (res.success) { showToast(res.message, 'success'); setTimeout(() => location.reload(), 1000); }
                 else showToast(res.message || 'Failed', 'error');
             },
-            error: function(xhr) { showToast(xhr.responseJSON?.message || 'Error updating Old Router ID', 'error'); },
+            error: function(xhr) { showToast(xhr.responseJSON?.message || 'Error updating', 'error'); },
             complete: () => btn.prop('disabled', false).html('<i class="bi bi-save me-1"></i>Update')
         });
     });
