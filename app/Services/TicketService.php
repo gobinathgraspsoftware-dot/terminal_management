@@ -340,11 +340,10 @@ class TicketService
             }
 
             // ── REJECTED: Reset SLA — use 0 (NOT null) to satisfy NOT NULL constraint ──
-            // FIX #1: was previously null which caused SQLSTATE[23000] DB error
             if ($newStatus === Ticket::STATUS_REJECTED) {
                 $updateData['rejected_at']    = now();
                 $updateData['technician_id']  = null;
-                $updateData['sla_hours']      = 0;        // ← FIX: was null
+                $updateData['sla_hours']      = 0;
                 $updateData['sla_deadline']   = null;
                 $updateData['sla_status']     = null;
                 $updateData['accepted_at']    = null;
@@ -360,7 +359,6 @@ class TicketService
                 $updateData['closed_at'] = now();
             }
             // ── SCHEDULED: Save reschedule reason AND target date/time ──
-            // FIX #3: scheduledDate is the new field
             if ($newStatus === Ticket::STATUS_SCHEDULED) {
                 $updateData['rescheduled_at']    = now();
                 $updateData['reschedule_reason'] = $rescheduleReason;
@@ -385,8 +383,10 @@ class TicketService
                 $this->uploadProofs($ticket, $history, $proofFiles);
             }
 
+            // BUG FIX: Always attempt to auto-create claim on completion
+            // regardless of claim amount (amount may be updated later)
             if (in_array($newStatus, [Ticket::STATUS_DONE_SUCCESS, Ticket::STATUS_DONE_FAIL])) {
-                $this->autoCreateTicketClaim($ticket);
+                $this->autoCreateTicketClaim($ticket->fresh());
             }
 
             return $ticket->fresh();
@@ -395,20 +395,28 @@ class TicketService
 
     /**
      * Auto-create a ticket claim when ticket is completed.
+     *
+     * BUG FIX: Removed the `if ($totalClaim <= 0) return` guard.
+     * Claims are now always created when a ticket is completed, even with RM 0
+     * amount — admin can update the amount afterwards.
+     * Also skips if claim already exists (idempotent).
      */
     protected function autoCreateTicketClaim(Ticket $ticket): void
     {
         try {
-            $totalClaim = (float) ($ticket->total_claim_amount ?? 0);
-            if ($totalClaim <= 0) return;
-
+            // Skip for internal supervisor tickets — internal supervisors do not claim
             if ($ticket->supervisor_id) {
                 $supervisor = User::find($ticket->supervisor_id);
-                if ($supervisor && $supervisor->isInternalSupervisor()) return;
+                if ($supervisor && $supervisor->isInternalSupervisor()) {
+                    return;
+                }
             }
 
+            // Skip if claim already exists (idempotent — prevent duplicates)
             $exists = Claim::ticketClaims()->where('ticket_id', $ticket->id)->exists();
-            if ($exists) return;
+            if ($exists) {
+                return;
+            }
 
             $claimService = app(\App\Services\ClaimManagementService::class);
             $claimService->createTicketClaim($ticket);
@@ -458,7 +466,10 @@ class TicketService
 
     /**
      * Update claim fields on ticket.
-     * FIX #3: logs every claim update into ticket_status_history for audit trail.
+     *
+     * BUG FIX: After updating the ticket's claim fields, also sync the
+     * associated Claim record (update if exists, or create if missing).
+     * This ensures the Claim module always reflects the latest claim amount.
      */
     public function updateClaim(Ticket $ticket, array $data): Ticket
     {
@@ -485,7 +496,7 @@ class TicketService
             'updated_by'         => Auth::id(),
         ]);
 
-        // Log claim update as a history entry (same from/to status — this is not a status change)
+        // Log claim update as a history entry
         $remarkParts = [
             'Claim updated',
             'Mileage: ' . number_format($mileage, 2) . ' km × RM ' . number_format($mileageRate, 2) . ' = RM ' . number_format($mileageAmount, 2),
@@ -506,7 +517,72 @@ class TicketService
             'created_at'  => now(),
         ]);
 
+        // BUG FIX: Sync claim amount back to the Claim record
+        // This ensures tickets appear in the Claim module after amount is updated
+        $this->syncClaimAmount($ticket->fresh(), $totalClaim, $mileage, $mileageAmount, $toll, $standbyMeal);
+
         return $ticket->fresh();
+    }
+
+    /**
+     * Sync the ticket claim amount to the associated Claim record.
+     *
+     * If the Claim record exists: update total_amount and allowance breakdowns.
+     * If no Claim record exists yet: attempt to create one (handles cases where
+     * ticket was completed with 0 amount and claim was skipped).
+     */
+    protected function syncClaimAmount(
+        Ticket $ticket,
+        float $totalClaim,
+        float $mileage,
+        float $mileageAmount,
+        float $toll,
+        float $standbyMeal
+    ): void {
+        try {
+            // Skip for internal supervisor tickets
+            if ($ticket->supervisor_id) {
+                $supervisor = User::find($ticket->supervisor_id);
+                if ($supervisor && $supervisor->isInternalSupervisor()) {
+                    return;
+                }
+            }
+
+            // Only sync for completed tickets
+            if (!in_array($ticket->status, [
+                Ticket::STATUS_DONE_SUCCESS,
+                Ticket::STATUS_DONE_FAIL,
+                Ticket::STATUS_CLOSED,
+            ])) {
+                return;
+            }
+
+            $existingClaim = Claim::ticketClaims()
+                ->where('ticket_id', $ticket->id)
+                ->first();
+
+            if ($existingClaim) {
+                // Update existing claim — only if still in editable/submitted state
+                if (in_array($existingClaim->status, [Claim::STATUS_DRAFT, Claim::STATUS_SUBMITTED])) {
+                    $existingClaim->update([
+                        'total_mileage_km'       => $mileage,
+                        'total_mileage_amount'   => $mileageAmount,
+                        'total_allowance_amount' => $toll + $standbyMeal,
+                        'total_amount'           => $totalClaim,
+                        'original_amount'        => $totalClaim,
+                        'updated_by'             => Auth::id(),
+                    ]);
+                    Log::info("Synced claim amount for Ticket #{$ticket->ticket_no}: RM {$totalClaim}");
+                }
+            } else {
+                // No claim exists — create one now (handles late amount updates)
+                $claimService = app(\App\Services\ClaimManagementService::class);
+                $claimService->createTicketClaim($ticket);
+                Log::info("Created missing ticket claim for Ticket #{$ticket->ticket_no} during claim sync");
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to sync claim amount for Ticket #{$ticket->ticket_no}: " . $e->getMessage());
+        }
     }
 
     /**
@@ -559,7 +635,7 @@ class TicketService
                 'status'        => Ticket::STATUS_ASSIGNED,
                 'assigned_at'   => now(),
                 'accepted_at'   => null,
-                'sla_hours'     => 0,         // ← FIX: was null
+                'sla_hours'     => 0,
                 'sla_deadline'  => null,
                 'sla_status'    => null,
                 'updated_by'    => Auth::id(),

@@ -1,194 +1,176 @@
 @extends('layouts.app')
-
-@section('title', 'Claim Details - ' . $claim->claim_no)
-
+@section('title', 'Claim – ' . $claim->claim_no)
 @section('content')
-<div class="container-fluid">
-    {{-- Page Header --}}
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="page-header">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
         <div>
-            <h4 class="mb-1">Claim Details</h4>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ route('technician.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('technician.claims.index') }}">Claims</a></li>
-                    <li class="breadcrumb-item active">{{ $claim->claim_no }}</li>
-                </ol>
-            </nav>
+            <h1><i class="bi bi-receipt me-2 text-primary"></i>{{ $claim->claim_no }}</h1>
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ route('technician.dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('technician.claims.index') }}">Claims</a></li>
+                <li class="breadcrumb-item">
+                    @if($claim->claim_category === 'ticket')
+                        <a href="{{ route('technician.claims.ticket-claims') }}">Ticket Claims</a>
+                    @else
+                        <a href="{{ route('technician.claims.other-claims') }}">Other Claims</a>
+                    @endif
+                </li>
+                <li class="breadcrumb-item active">{{ $claim->claim_no }}</li>
+            </ol>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 align-items-center">
+            {!! \App\Models\Claim::getStatusBadge($claim->status) !!}
             @if($claim->claim_category === 'other' && $claim->isEditable() && ($claim->technician_id === auth()->id() || $claim->submitted_by === auth()->id()))
-            <a href="{{ route('technician.claims.edit', $claim->id) }}" class="btn btn-warning">
-                <i class="bi bi-pencil me-1"></i> Edit Claim
+            <a href="{{ route('technician.claims.edit', $claim->id) }}" class="btn btn-outline-warning btn-sm">
+                <i class="bi bi-pencil me-1"></i>Edit
             </a>
             @endif
-            <a href="{{ $claim->claim_category === 'ticket' ? route('technician.claims.ticket-claims') : route('technician.claims.other-claims') }}"
-               class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-1"></i> Back
+            <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back
             </a>
         </div>
     </div>
+</div>
 
-    <div class="row g-4">
-        {{-- Claim Information --}}
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-file-earmark-text me-2"></i>{{ $claim->claim_no }}
-                    </h5>
-                    {!! \App\Models\Claim::getStatusBadge($claim->status) !!}
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <p class="mb-1 text-muted small">Category</p>
-                            <p class="fw-medium">{{ ucfirst($claim->claim_category) }} Claim</p>
-                        </div>
-                        @if($claim->claim_type_label)
-                        <div class="col-md-6">
-                            <p class="mb-1 text-muted small">Claim Type</p>
-                            <p class="fw-medium">{{ $claim->claim_type_label }}</p>
-                        </div>
-                        @endif
-                        @if($claim->ticket)
-                        <div class="col-md-6">
-                            <p class="mb-1 text-muted small">Ticket No</p>
-                            <p class="fw-medium">{{ $claim->ticket->ticket_no }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="mb-1 text-muted small">Merchant</p>
-                            <p class="fw-medium">{{ $claim->ticket->merchant_name ?? '-' }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="mb-1 text-muted small">Vendor</p>
-                            <p class="fw-medium">{{ $claim->ticket->vendor->company_name ?? '-' }}</p>
-                        </div>
-                        @endif
-                        <div class="col-12">
-                            <p class="mb-1 text-muted small">Description</p>
-                            <p class="fw-medium">{{ $claim->description ?? '-' }}</p>
-                        </div>
-                    </div>
+<div class="row g-4">
+    <div class="col-lg-8">
+        {{-- Claim Info --}}
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-info-circle me-2"></i>Claim Information</span>
+                <span class="badge {{ $claim->claim_category === 'ticket' ? 'bg-info' : 'bg-secondary' }}">
+                    {{ ucfirst($claim->claim_category) }} Claim
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-sm-4"><div class="text-muted small mb-1">Claim No</div><div class="fw-semibold">{{ $claim->claim_no }}</div></div>
+                    <div class="col-sm-4"><div class="text-muted small mb-1">Claim Date</div><div>{{ $claim->claim_date ? $claim->claim_date->format('d/m/Y') : '-' }}</div></div>
+                    <div class="col-sm-4"><div class="text-muted small mb-1">Status</div><div>{!! \App\Models\Claim::getStatusBadge($claim->status) !!}</div></div>
+                    @if($claim->claim_category === 'other')
+                    <div class="col-sm-4"><div class="text-muted small mb-1">Claim Type</div><div>{{ $claim->claim_type_label ?? 'Other' }}</div></div>
+                    @endif
+                    <div class="col-sm-8"><div class="text-muted small mb-1">Description</div><div>{{ $claim->description ?? '-' }}</div></div>
+                    @if($claim->remarks)<div class="col-12"><div class="text-muted small mb-1">Remarks</div><div class="text-muted">{{ $claim->remarks }}</div></div>@endif
+                    @if($claim->admin_remarks)<div class="col-12"><div class="alert alert-info py-2 mb-0"><strong>Admin Remarks:</strong> {{ $claim->admin_remarks }}</div></div>@endif
                 </div>
             </div>
+        </div>
 
-            {{-- Attachments --}}
-            @if($claim->attachments->isNotEmpty())
-            <div class="card border-0 shadow-sm mt-3">
-                <div class="card-header bg-white">
-                    <h6 class="card-title mb-0"><i class="bi bi-paperclip me-2"></i>Attachments</h6>
+        {{-- Linked Ticket --}}
+        @if($claim->claim_category === 'ticket' && $claim->ticket)
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-ticket-detailed me-2 text-info"></i>Linked Ticket
+                <a href="{{ route('technician.tickets.show', $claim->ticket->id) }}" class="btn btn-sm btn-outline-info ms-2">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>View Ticket
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-sm-4"><div class="text-muted small mb-1">Ticket No</div><div class="fw-semibold text-info">{{ $claim->ticket->ticket_no }}</div></div>
+                    <div class="col-sm-4"><div class="text-muted small mb-1">Vendor</div><div>{{ $claim->ticket->vendor->company_name ?? '-' }}</div></div>
+                    <div class="col-sm-4"><div class="text-muted small mb-1">Merchant</div><div>{{ $claim->ticket->merchant_name ?? '-' }}</div></div>
+                    <div class="col-sm-4"><div class="text-muted small mb-1">Job Category</div><div>{{ $claim->ticket->jobCategory->name ?? '-' }}</div></div>
+                    <div class="col-sm-4"><div class="text-muted small mb-1">Job Type</div><div>{{ $claim->ticket->jobType->name ?? '-' }}</div></div>
+                    <div class="col-sm-4">
+                        <div class="text-muted small mb-1">Ticket Status</div>
+                        @php $ts = $claim->ticket->status; @endphp
+                        <span class="badge bg-{{ in_array($ts,['done_success','closed']) ? 'success' : (in_array($ts,['done_fail']) ? 'danger' : 'secondary') }}">
+                            {{ ucwords(str_replace('_',' ',$ts)) }}
+                        </span>
+                    </div>
+                    <div class="col-sm-4"><div class="text-muted small mb-1">Location</div><div>{{ $claim->ticket->state->name ?? '' }}{{ $claim->ticket->city ? ', '.$claim->ticket->city->name : '' }}</div></div>
+                    <div class="col-sm-4"><div class="text-muted small mb-1">Completed At</div><div>{{ $claim->ticket->completed_at ? $claim->ticket->completed_at->format('d/m/Y H:i') : '-' }}</div></div>
                 </div>
-                <div class="card-body">
-                    <div class="list-group list-group-flush">
-                        @foreach($claim->attachments as $attachment)
-                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <div>
-                                <i class="bi bi-file-earmark me-2"></i>
-                                <span>{{ $attachment->file_name }}</span>
-                                <small class="text-muted ms-2">({{ number_format(($attachment->file_size ?? 0) / 1024, 1) }} KB)</small>
-                                @if($attachment->uploadedBy)
-                                <small class="text-muted ms-1">by {{ $attachment->uploadedBy->name }}</small>
-                                @endif
+            </div>
+        </div>
+        @elseif($claim->claim_category === 'ticket')
+        <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Linked ticket not found.</div>
+        @endif
+
+        {{-- Financial Breakdown --}}
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-calculator me-2 text-success"></i>Financial Breakdown</div>
+            <div class="card-body">
+                @if($claim->claim_category === 'ticket')
+                <div class="row g-2 mb-3">
+                    <div class="col-sm-4"><div class="text-muted small">Mileage</div><div>{{ number_format($claim->total_mileage_km, 2) }} km</div></div>
+                    <div class="col-sm-4"><div class="text-muted small">Mileage Amount</div><div>RM {{ number_format($claim->total_mileage_amount, 2) }}</div></div>
+                    <div class="col-sm-4"><div class="text-muted small">Allowances</div><div>RM {{ number_format($claim->total_allowance_amount, 2) }}</div></div>
+                </div>
+                @endif
+                <div class="d-flex align-items-center justify-content-between bg-light rounded p-3">
+                    <span class="fw-semibold">Total Claim Amount</span>
+                    <span class="fw-bold fs-5 text-success">RM {{ number_format($claim->total_amount, 2) }}</span>
+                </div>
+                @if($claim->original_amount && $claim->original_amount != $claim->total_amount)
+                <div class="text-muted small mt-2"><i class="bi bi-info-circle me-1"></i>Original: RM {{ number_format($claim->original_amount, 2) }}</div>
+                @endif
+            </div>
+        </div>
+
+        {{-- Attachments --}}
+        @if($claim->attachments->isNotEmpty())
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-paperclip me-2"></i>Attachments ({{ $claim->attachments->count() }})</div>
+            <div class="card-body">
+                <div class="row g-2">
+                    @foreach($claim->attachments as $att)
+                    <div class="col-sm-6">
+                        <div class="d-flex align-items-center border rounded p-2">
+                            <i class="bi bi-file-earmark text-primary me-2 fs-5"></i>
+                            <div class="flex-grow-1 overflow-hidden">
+                                <div class="text-truncate small fw-semibold">{{ $att->file_name }}</div>
+                                <div class="text-muted" style="font-size:.75rem">{{ $att->created_at ? $att->created_at->format('d/m/Y') : '' }}</div>
                             </div>
-                            <a href="{{ asset('storage/' . $attachment->file_path) }}" class="btn btn-sm btn-outline-primary" target="_blank">
-                                <i class="bi bi-download"></i>
-                            </a>
+                            <a href="{{ asset('storage/'.$att->file_path) }}" target="_blank" class="btn btn-sm btn-outline-primary ms-2"><i class="bi bi-eye"></i></a>
                         </div>
-                        @endforeach
                     </div>
+                    @endforeach
                 </div>
             </div>
-            @endif
+        </div>
+        @endif
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-people me-2"></i>People & Timeline</div>
+            <div class="card-body">
+                <div class="mb-3"><div class="text-muted small mb-1">Claimant</div><div class="fw-semibold">{{ $claim->technician->name ?? '-' }}</div></div>
+                <div class="mb-3">
+                    <div class="text-muted small mb-1">Submitted</div>
+                    <div>{{ $claim->submitter->name ?? '-' }}</div>
+                    @if($claim->submitted_at)<div class="text-muted" style="font-size:.8rem">{{ $claim->submitted_at->format('d/m/Y H:i') }}</div>@endif
+                </div>
+                @if($claim->verifier)
+                <div class="mb-3">
+                    <div class="text-muted small mb-1">Verified By</div>
+                    <div>{{ $claim->verifier->name }}</div>
+                    @if($claim->verified_at)<div class="text-muted" style="font-size:.8rem">{{ $claim->verified_at->format('d/m/Y H:i') }}</div>@endif
+                </div>
+                @endif
+                @if($claim->payer)
+                <div class="mb-3">
+                    <div class="text-muted small mb-1">Paid By</div>
+                    <div>{{ $claim->payer->name }}</div>
+                    @if($claim->paid_at)<div class="text-muted" style="font-size:.8rem">{{ $claim->paid_at->format('d/m/Y H:i') }}</div>@endif
+                </div>
+                @endif
+            </div>
         </div>
 
-        {{-- Amounts & Timeline --}}
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white">
-                    <h6 class="card-title mb-0"><i class="bi bi-cash-stack me-2"></i>Amounts</h6>
-                </div>
-                <div class="card-body">
-                    @if($claim->claim_category === 'ticket')
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Mileage ({{ number_format((float)$claim->total_mileage_km, 2) }} KM)</span>
-                        <span>RM {{ number_format((float)$claim->total_mileage_amount, 2) }}</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Allowances</span>
-                        <span>RM {{ number_format((float)$claim->total_allowance_amount, 2) }}</span>
-                    </div>
-                    <hr>
-                    @endif
-                    @if($claim->original_amount && $claim->original_amount != $claim->total_amount)
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Original Amount</span>
-                        <span class="text-decoration-line-through">RM {{ number_format((float)$claim->original_amount, 2) }}</span>
-                    </div>
-                    @endif
-                    <div class="d-flex justify-content-between">
-                        <span class="fw-bold">Total Claim</span>
-                        <span class="fw-bold text-primary fs-5">RM {{ number_format((float)$claim->total_amount, 2) }}</span>
-                    </div>
-                </div>
+        @if($claim->status === 'submitted' && $claim->claim_category === 'other' && $claim->isEditable() && ($claim->technician_id === auth()->id() || $claim->submitted_by === auth()->id()))
+        <div class="card mt-3 border-warning">
+            <div class="card-body">
+                <p class="text-muted small mb-3">This claim can still be edited as it hasn't been verified yet.</p>
+                <a href="{{ route('technician.claims.edit', $claim->id) }}" class="btn btn-warning w-100 btn-sm">
+                    <i class="bi bi-pencil me-1"></i>Edit This Claim
+                </a>
             </div>
-
-            {{-- Remarks --}}
-            @if($claim->remarks || $claim->admin_remarks)
-            <div class="card border-0 shadow-sm mt-3">
-                <div class="card-header bg-white">
-                    <h6 class="card-title mb-0"><i class="bi bi-chat-text me-2"></i>Remarks</h6>
-                </div>
-                <div class="card-body">
-                    @if($claim->remarks)
-                    <p class="mb-2"><strong>My Remarks:</strong><br>{{ $claim->remarks }}</p>
-                    @endif
-                    @if($claim->admin_remarks)
-                    <p class="mb-0"><strong>Admin Remarks:</strong><br>{{ $claim->admin_remarks }}</p>
-                    @endif
-                </div>
-            </div>
-            @endif
-
-            {{-- Timeline --}}
-            <div class="card border-0 shadow-sm mt-3">
-                <div class="card-header bg-white">
-                    <h6 class="card-title mb-0"><i class="bi bi-clock-history me-2"></i>Timeline</h6>
-                </div>
-                <div class="card-body">
-                    <ul class="list-unstyled mb-0">
-                        <li class="mb-2">
-                            <small class="text-muted d-block">Submitted</small>
-                            <span>{{ $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-' }}</span>
-                        </li>
-                        @if($claim->verified_at)
-                        <li class="mb-2">
-                            <small class="text-muted d-block">Verified</small>
-                            <span>{{ $claim->verified_at->format('d/m/Y H:i') }}</span>
-                            <small class="text-muted d-block">by {{ $claim->verifier->name ?? '-' }}</small>
-                        </li>
-                        @endif
-                        @if($claim->paid_at)
-                        <li class="mb-2">
-                            <small class="text-muted d-block">Paid</small>
-                            <span>{{ $claim->paid_at->format('d/m/Y H:i') }}</span>
-                        </li>
-                        @endif
-                    </ul>
-                </div>
-            </div>
-
-            {{-- Edit Notice --}}
-            @if($claim->isEditable() && $claim->claim_category === 'other')
-            <div class="alert alert-warning mt-3 d-flex align-items-start">
-                <i class="bi bi-pencil-square me-2 mt-1"></i>
-                <div>
-                    <strong>Editable</strong><br>
-                    <small>This claim is still in <em>{{ ucfirst(str_replace('_', ' ', $claim->status)) }}</em> status and can be updated.</small>
-                </div>
-            </div>
-            @endif
         </div>
+        @endif
     </div>
 </div>
 @endsection

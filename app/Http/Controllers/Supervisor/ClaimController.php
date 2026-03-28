@@ -24,14 +24,14 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Landing Page (tabbed: Ticket Claims / Other Claims)
+    // Landing Page
     // ══════════════════════════════════════════════
 
     public function index(Request $request)
     {
         $this->authorize('viewAny', Claim::class);
 
-        $user = Auth::user();
+        $user    = Auth::user();
         $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
         $teamIds[] = $user->id;
 
@@ -46,6 +46,9 @@ class ClaimController extends Controller
             'other_submitted'  => Claim::otherClaims()->submitted()->where(function ($q) use ($teamIds, $user) {
                 $q->whereIn('technician_id', $teamIds)->orWhere('submitted_by', $user->id);
             })->count(),
+            'paid_total'       => Claim::where('status', Claim::STATUS_PAID)->where(function ($q) use ($teamIds, $user) {
+                $q->whereIn('technician_id', $teamIds)->orWhere('submitted_by', $user->id);
+            })->count(),
         ];
 
         $activeTab = $request->input('tab', 'ticket');
@@ -54,15 +57,13 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Ticket Claims (View Only — auto-created on ticket completion)
+    // Ticket Claims
     // ══════════════════════════════════════════════
 
     public function ticketClaims()
     {
         $this->authorize('viewAny', Claim::class);
-
         $isInternal = Auth::user()->isInternalSupervisor();
-
         return view('supervisor.claims.ticket-claims', compact('isInternal'));
     }
 
@@ -73,16 +74,16 @@ class ClaimController extends Controller
 
         $result['data'] = $result['data']->map(function ($claim) {
             return [
-                'id'              => $claim->id,
-                'claim_no'        => $claim->claim_no,
-                'ticket_no'       => $claim->ticket->ticket_no ?? '-',
-                'vendor'          => $claim->ticket->vendor->company_name ?? '-',
-                'merchant_name'   => $claim->ticket->merchant_name ?? '-',
-                'technician'      => $claim->technician->name ?? '-',
-                'total_amount'    => number_format((float) $claim->total_amount, 2),
-                'status'          => Claim::getStatusBadge($claim->status),
-                'submitted_at'    => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
-                'actions'         => '<a href="' . route('supervisor.claims.show', $claim->id) . '" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>',
+                'id'            => $claim->id,
+                'claim_no'      => $claim->claim_no,
+                'ticket_no'     => $claim->ticket->ticket_no ?? '-',
+                'vendor'        => $claim->ticket->vendor->company_name ?? '-',
+                'merchant_name' => $claim->ticket->merchant_name ?? '-',
+                'technician'    => $claim->technician->name ?? '-',
+                'total_amount'  => number_format((float) $claim->total_amount, 2),
+                'status'        => Claim::getStatusBadge($claim->status),
+                'submitted_at'  => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
+                'actions'       => '<a href="' . route('supervisor.claims.show', $claim->id) . '" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>',
             ];
         });
 
@@ -90,15 +91,13 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Other Claims (Create + View)
+    // Other Claims
     // ══════════════════════════════════════════════
 
     public function otherClaims()
     {
         $this->authorize('viewAny', Claim::class);
-
         $isInternal = Auth::user()->isInternalSupervisor();
-
         return view('supervisor.claims.other-claims', compact('isInternal'));
     }
 
@@ -117,7 +116,8 @@ class ClaimController extends Controller
                 'total_amount'    => number_format((float) $claim->total_amount, 2),
                 'status'          => Claim::getStatusBadge($claim->status),
                 'submitted_at'    => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
-                'has_attachments' => $claim->attachments->isNotEmpty() ? '<i class="bi bi-paperclip text-primary"></i>' : '',
+                'has_attachments' => $claim->attachments->isNotEmpty()
+                    ? '<i class="bi bi-paperclip text-primary"></i>' : '',
                 'actions'         => '<a href="' . route('supervisor.claims.show', $claim->id) . '" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>',
             ];
         });
@@ -126,7 +126,7 @@ class ClaimController extends Controller
     }
 
     /**
-     * Create Other Claim form — external supervisors only
+     * Create Other Claim — external supervisors only
      */
     public function create()
     {
@@ -134,7 +134,6 @@ class ClaimController extends Controller
 
         $user = Auth::user();
 
-        // Double-check: internal supervisors should not reach here
         if ($user->isInternalSupervisor()) {
             return redirect()->route('supervisor.claims.index')
                 ->with('error', 'Internal supervisors cannot submit claims.');
@@ -150,16 +149,12 @@ class ClaimController extends Controller
         return view('supervisor.claims.create', compact('tickets', 'claimTypes'));
     }
 
-    /**
-     * Store Other Claim — external supervisors only
-     */
     public function store(StoreOtherClaimRequest $request)
     {
         $this->authorize('create', Claim::class);
 
         $user = Auth::user();
 
-        // Double-check: internal supervisors should not reach here
         if ($user->isInternalSupervisor()) {
             return response()->json([
                 'success' => false,
@@ -168,8 +163,7 @@ class ClaimController extends Controller
         }
 
         try {
-            // Force technician_id to self for external supervisors
-            $data = $request->validated();
+            $data                  = $request->validated();
             $data['technician_id'] = $user->id;
 
             $files = $request->file('attachments', []);
@@ -181,7 +175,65 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Show (View Only)
+    // Payment History (team-scoped)
+    // ══════════════════════════════════════════════
+
+    public function paymentHistory()
+    {
+        $this->authorize('viewAny', Claim::class);
+
+        $user    = Auth::user();
+        $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
+        $teamIds[] = $user->id;
+
+        $totalPaid     = Claim::where('status', Claim::STATUS_PAID)
+            ->where(function ($q) use ($teamIds, $user) {
+                $q->whereIn('technician_id', $teamIds)->orWhere('submitted_by', $user->id);
+            })->sum('total_amount');
+
+        $paidThisMonth = Claim::where('status', Claim::STATUS_PAID)
+            ->whereMonth('paid_at', now()->month)
+            ->whereYear('paid_at', now()->year)
+            ->where(function ($q) use ($teamIds, $user) {
+                $q->whereIn('technician_id', $teamIds)->orWhere('submitted_by', $user->id);
+            })->sum('total_amount');
+
+        $paidCount     = Claim::where('status', Claim::STATUS_PAID)
+            ->where(function ($q) use ($teamIds, $user) {
+                $q->whereIn('technician_id', $teamIds)->orWhere('submitted_by', $user->id);
+            })->count();
+
+        return view('supervisor.claims.payment-history', compact('totalPaid', 'paidThisMonth', 'paidCount'));
+    }
+
+    public function paymentHistoryData(Request $request)
+    {
+        $this->authorize('viewAny', Claim::class);
+
+        $result = $this->service->getPaymentHistoryDataTable($request, Auth::user(), 'team');
+
+        $result['data'] = $result['data']->map(function ($claim) {
+            return [
+                'id'           => $claim->id,
+                'claim_no'     => $claim->claim_no,
+                'category'     => $claim->claim_category === Claim::CATEGORY_TICKET
+                    ? '<span class="badge bg-info">Ticket</span>'
+                    : '<span class="badge bg-secondary">Other</span>',
+                'claimant'     => $claim->technician->name ?? $claim->submitter->name ?? '-',
+                'ticket_no'    => $claim->ticket->ticket_no ?? '-',
+                'total_amount' => number_format((float) $claim->total_amount, 2),
+                'paid_at'      => $claim->paid_at ? $claim->paid_at->format('d/m/Y H:i') : '-',
+                'paid_by'      => $claim->payer->name ?? '-',
+                'status'       => Claim::getStatusBadge($claim->status),
+                'actions'      => '<a href="' . route('supervisor.claims.show', $claim->id) . '" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>',
+            ];
+        });
+
+        return response()->json($result);
+    }
+
+    // ══════════════════════════════════════════════
+    // Show
     // ══════════════════════════════════════════════
 
     public function show(Claim $claim)
@@ -189,8 +241,17 @@ class ClaimController extends Controller
         $this->authorize('view', $claim);
 
         $claim->load([
-            'technician', 'submitter', 'verifier', 'payer',
-            'ticket.vendor', 'ticket.supervisor', 'ticket.jobType',
+            'technician',
+            'submitter',
+            'verifier',
+            'payer',
+            'ticket.vendor',
+            'ticket.vendorBranch',
+            'ticket.supervisor',
+            'ticket.jobCategory',
+            'ticket.jobType',
+            'ticket.state',
+            'ticket.city',
             'attachments.uploadedBy',
         ]);
 

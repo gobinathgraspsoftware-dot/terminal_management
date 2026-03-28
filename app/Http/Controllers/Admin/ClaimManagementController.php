@@ -29,9 +29,6 @@ class ClaimManagementController extends Controller
     // Landing Page
     // ══════════════════════════════════════════════
 
-    /**
-     * Claim Management landing page (choose category)
-     */
     public function index()
     {
         $this->authorize('viewAny', Claim::class);
@@ -42,27 +39,25 @@ class ClaimManagementController extends Controller
             'other_submitted'   => Claim::otherClaims()->submitted()->count(),
             'other_verified'    => Claim::otherClaims()->verified()->count(),
             'pending_payment'   => Claim::pendingPayment()->count(),
+            'paid_this_month'   => Claim::where('status', Claim::STATUS_PAID)
+                                        ->whereMonth('paid_at', now()->month)
+                                        ->whereYear('paid_at', now()->year)
+                                        ->count(),
         ];
 
         return view('admin.claims.index', compact('stats'));
     }
 
     // ══════════════════════════════════════════════
-    // Ticket Claims (View Only — auto-created on ticket completion)
+    // Ticket Claims
     // ══════════════════════════════════════════════
 
-    /**
-     * Ticket Claims listing
-     */
     public function ticketClaims()
     {
         $this->authorize('viewAny', Claim::class);
         return view('admin.claims.ticket-claims');
     }
 
-    /**
-     * DataTable AJAX for ticket claims
-     */
     public function ticketClaimsData(Request $request)
     {
         $this->authorize('viewAny', Claim::class);
@@ -70,17 +65,17 @@ class ClaimManagementController extends Controller
 
         $result['data'] = $result['data']->map(function ($claim) {
             return [
-                'id'              => $claim->id,
-                'claim_no'        => $claim->claim_no,
-                'ticket_no'       => $claim->ticket->ticket_no ?? '-',
-                'vendor'          => $claim->ticket->vendor->company_name ?? '-',
-                'merchant_name'   => $claim->ticket->merchant_name ?? '-',
-                'supervisor'      => $claim->ticket->supervisor->name ?? '-',
-                'technician'      => $claim->technician->name ?? '-',
-                'total_amount'    => number_format((float) $claim->total_amount, 2),
-                'status'          => Claim::getStatusBadge($claim->status),
-                'submitted_at'    => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
-                'actions'         => $this->getActionButtons($claim, 'ticket'),
+                'id'            => $claim->id,
+                'claim_no'      => $claim->claim_no,
+                'ticket_no'     => $claim->ticket->ticket_no ?? '-',
+                'vendor'        => $claim->ticket->vendor->company_name ?? '-',
+                'merchant_name' => $claim->ticket->merchant_name ?? '-',
+                'supervisor'    => $claim->ticket->supervisor->name ?? '-',
+                'technician'    => $claim->technician->name ?? '-',
+                'total_amount'  => number_format((float) $claim->total_amount, 2),
+                'status'        => Claim::getStatusBadge($claim->status),
+                'submitted_at'  => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
+                'actions'       => $this->getActionButtons($claim),
             ];
         });
 
@@ -91,18 +86,12 @@ class ClaimManagementController extends Controller
     // Other Claims
     // ══════════════════════════════════════════════
 
-    /**
-     * Other Claims listing
-     */
     public function otherClaims()
     {
         $this->authorize('viewAny', Claim::class);
         return view('admin.claims.other-claims');
     }
 
-    /**
-     * DataTable AJAX for other claims
-     */
     public function otherClaimsData(Request $request)
     {
         $this->authorize('viewAny', Claim::class);
@@ -119,17 +108,15 @@ class ClaimManagementController extends Controller
                 'status'          => Claim::getStatusBadge($claim->status),
                 'ticket_no'       => $claim->ticket->ticket_no ?? '-',
                 'submitted_at'    => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
-                'has_attachments' => $claim->attachments->isNotEmpty() ? '<i class="bi bi-paperclip text-primary"></i>' : '',
-                'actions'         => $this->getActionButtons($claim, 'other'),
+                'has_attachments' => $claim->attachments->isNotEmpty()
+                    ? '<i class="bi bi-paperclip text-primary" title="Has attachments"></i>' : '',
+                'actions'         => $this->getActionButtons($claim),
             ];
         });
 
         return response()->json($result);
     }
 
-    /**
-     * Create Other Claim form
-     */
     public function createOtherClaim()
     {
         $this->authorize('create', Claim::class);
@@ -142,14 +129,18 @@ class ClaimManagementController extends Controller
             ->orderBy('ticket_no', 'desc')
             ->get(['id', 'ticket_no', 'merchant_name']);
 
-        $claimTypes  = Claim::getOtherClaimTypes();
-        $technicians = User::whereHas('roles', fn($q) => $q->where('roles.name', 'technician'))
+        $claimTypes = Claim::getOtherClaimTypes();
+
+        $technicians = User::whereHas('roles', function ($q) {
+                $q->where('roles.name', 'technician');
+            })
             ->where('status', 'active')
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        // Also include external supervisors (they can claim)
-        $externalSupervisors = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))
+        $externalSupervisors = User::whereHas('roles', function ($q) {
+                $q->where('roles.name', 'supervisor');
+            })
             ->where('supervisor_type', User::SUPERVISOR_TYPE_EXTERNAL)
             ->where('status', 'active')
             ->orderBy('name')
@@ -160,9 +151,6 @@ class ClaimManagementController extends Controller
         return view('admin.claims.create-other-claim', compact('tickets', 'claimTypes', 'claimableUsers'));
     }
 
-    /**
-     * Store Other Claim
-     */
     public function storeOtherClaim(StoreOtherClaimRequest $request)
     {
         $this->authorize('create', Claim::class);
@@ -180,25 +168,29 @@ class ClaimManagementController extends Controller
     // Show / Verify / Actions
     // ══════════════════════════════════════════════
 
-    /**
-     * Show claim detail (both categories)
-     */
     public function show(Claim $claim)
     {
         $this->authorize('view', $claim);
 
         $claim->load([
-            'technician', 'submitter', 'verifier', 'payer',
-            'ticket.vendor', 'ticket.supervisor', 'ticket.jobType',
-            'ticket.proofs', 'attachments.uploadedBy',
+            'technician',
+            'submitter',
+            'verifier',
+            'payer',
+            'ticket.vendor',
+            'ticket.vendorBranch',
+            'ticket.supervisor',
+            'ticket.jobCategory',
+            'ticket.jobType',
+            'ticket.state',
+            'ticket.city',
+            'ticket.proofs',
+            'attachments.uploadedBy',
         ]);
 
         return view('admin.claims.show', compact('claim'));
     }
 
-    /**
-     * Verify a claim
-     */
     public function verify(VerifyClaimRequest $request, Claim $claim)
     {
         $this->authorize('verify', $claim);
@@ -211,13 +203,9 @@ class ClaimManagementController extends Controller
         }
     }
 
-    /**
-     * Mark claim as non-claimable
-     */
     public function markNonClaimable(Request $request, Claim $claim)
     {
         $this->authorize('verify', $claim);
-
         $request->validate(['admin_remarks' => 'required|string|max:2000']);
 
         try {
@@ -228,9 +216,6 @@ class ClaimManagementController extends Controller
         }
     }
 
-    /**
-     * Update claim amount (AJAX)
-     */
     public function updateAmount(Request $request, Claim $claim)
     {
         $this->authorize('verify', $claim);
@@ -253,36 +238,64 @@ class ClaimManagementController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Bulk Payment
+    // Bulk Payment (redesigned — DataTable based)
     // ══════════════════════════════════════════════
 
-    /**
-     * Bulk Payment page
-     */
     public function bulkPayment(Request $request)
     {
         $this->authorize('bulkPay', Claim::class);
 
         $category = $request->input('category', 'all');
 
-        // Load both verified AND pending_payment claims
-        $query = Claim::whereIn('status', [Claim::STATUS_VERIFIED, Claim::STATUS_PENDING_PAYMENT])
-            ->with(['technician', 'submitter', 'ticket']);
+        // Summary stats for header cards
+        $verifiedCount  = Claim::where('status', Claim::STATUS_VERIFIED)
+            ->when($category !== 'all', fn($q) => $q->where('claim_category', $category))
+            ->count();
+        $pendingCount   = Claim::where('status', Claim::STATUS_PENDING_PAYMENT)
+            ->when($category !== 'all', fn($q) => $q->where('claim_category', $category))
+            ->count();
+        $verifiedAmount = Claim::where('status', Claim::STATUS_VERIFIED)
+            ->when($category !== 'all', fn($q) => $q->where('claim_category', $category))
+            ->sum('total_amount');
+        $pendingAmount  = Claim::where('status', Claim::STATUS_PENDING_PAYMENT)
+            ->when($category !== 'all', fn($q) => $q->where('claim_category', $category))
+            ->sum('total_amount');
 
-        if ($category === 'ticket') {
-            $query->ticketClaims();
-        } elseif ($category === 'other') {
-            $query->otherClaims();
-        }
-
-        $verifiedClaims = $query->orderBy('submitted_at', 'asc')->get();
-
-        return view('admin.claims.bulk-payment', compact('verifiedClaims', 'category'));
+        return view('admin.claims.bulk-payment', compact(
+            'category', 'verifiedCount', 'pendingCount', 'verifiedAmount', 'pendingAmount'
+        ));
     }
 
     /**
-     * Process bulk payment (AJAX)
+     * AJAX DataTable for bulk payment listing
      */
+    public function bulkPaymentData(Request $request)
+    {
+        $this->authorize('bulkPay', Claim::class);
+
+        $category = $request->input('category', 'all');
+        $result   = $this->service->getBulkPaymentDataTable($request, $category);
+
+        $result['data'] = $result['data']->map(function ($claim) {
+            $claimant = $claim->technician->name ?? $claim->submitter->name ?? '-';
+            return [
+                'id'           => $claim->id,
+                'claim_no'     => $claim->claim_no,
+                'category'     => $claim->claim_category === Claim::CATEGORY_TICKET
+                    ? '<span class="badge bg-info">Ticket</span>'
+                    : '<span class="badge bg-secondary">Other</span>',
+                'claimant'     => $claimant,
+                'ticket_no'    => $claim->ticket->ticket_no ?? '-',
+                'vendor'       => $claim->ticket->vendor->company_name ?? '-',
+                'total_amount' => number_format((float) $claim->total_amount, 2),
+                'status'       => Claim::getStatusBadge($claim->status),
+                'submitted_at' => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y') : '-',
+            ];
+        });
+
+        return response()->json($result);
+    }
+
     public function processBulkPayment(BulkPaymentRequest $request)
     {
         $this->authorize('bulkPay', Claim::class);
@@ -291,21 +304,21 @@ class ClaimManagementController extends Controller
             $result = $this->service->processBulkPayment($request->input('claim_ids'));
             return response()->json([
                 'success' => true,
-                'message' => "{$result['processed']} claim(s) marked as Pending Payment. Total: RM " . number_format($result['total_amount'], 2),
+                'message' => "{$result['processed']} claim(s) moved to Pending Payment. Total: RM " . number_format($result['total_amount'], 2),
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Mark selected claims as paid (AJAX)
-     */
     public function markPaid(Request $request)
     {
         $this->authorize('bulkPay', Claim::class);
 
-        $request->validate(['claim_ids' => 'required|array|min:1', 'claim_ids.*' => 'integer|exists:claims,id']);
+        $request->validate([
+            'claim_ids'   => 'required|array|min:1',
+            'claim_ids.*' => 'integer|exists:claims,id',
+        ]);
 
         try {
             $count = $this->service->markAsPaid($request->input('claim_ids'));
@@ -316,12 +329,54 @@ class ClaimManagementController extends Controller
     }
 
     // ══════════════════════════════════════════════
+    // Payment History
+    // ══════════════════════════════════════════════
+
+    public function paymentHistory(Request $request)
+    {
+        $this->authorize('viewAny', Claim::class);
+
+        $totalPaid       = Claim::where('status', Claim::STATUS_PAID)->sum('total_amount');
+        $paidThisMonth   = Claim::where('status', Claim::STATUS_PAID)
+            ->whereMonth('paid_at', now()->month)
+            ->whereYear('paid_at', now()->year)
+            ->sum('total_amount');
+        $paidCount       = Claim::where('status', Claim::STATUS_PAID)->count();
+
+        return view('admin.claims.payment-history', compact('totalPaid', 'paidThisMonth', 'paidCount'));
+    }
+
+    public function paymentHistoryData(Request $request)
+    {
+        $this->authorize('viewAny', Claim::class);
+
+        $result = $this->service->getPaymentHistoryDataTable($request);
+
+        $result['data'] = $result['data']->map(function ($claim) {
+            return [
+                'id'           => $claim->id,
+                'claim_no'     => $claim->claim_no,
+                'category'     => $claim->claim_category === Claim::CATEGORY_TICKET
+                    ? '<span class="badge bg-info">Ticket</span>'
+                    : '<span class="badge bg-secondary">Other</span>',
+                'claimant'     => $claim->technician->name ?? $claim->submitter->name ?? '-',
+                'ticket_no'    => $claim->ticket->ticket_no ?? '-',
+                'vendor'       => $claim->ticket->vendor->company_name ?? '-',
+                'total_amount' => number_format((float) $claim->total_amount, 2),
+                'paid_at'      => $claim->paid_at ? $claim->paid_at->format('d/m/Y H:i') : '-',
+                'paid_by'      => $claim->payer->name ?? '-',
+                'status'       => Claim::getStatusBadge($claim->status),
+                'actions'      => '<a href="' . route('admin.claims.show', $claim->id) . '" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>',
+            ];
+        });
+
+        return response()->json($result);
+    }
+
+    // ══════════════════════════════════════════════
     // Export
     // ══════════════════════════════════════════════
 
-    /**
-     * Export claims
-     */
     public function export(Request $request)
     {
         $this->authorize('export', Claim::class);
@@ -339,13 +394,9 @@ class ClaimManagementController extends Controller
     // Helpers
     // ══════════════════════════════════════════════
 
-    /**
-     * Generate action buttons for DataTable
-     */
-    protected function getActionButtons(Claim $claim, string $type): string
+    protected function getActionButtons(Claim $claim): string
     {
         $showUrl = route('admin.claims.show', $claim->id);
-        $html = '<a href="' . $showUrl . '" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>';
-        return $html;
+        return '<a href="' . $showUrl . '" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>';
     }
 }

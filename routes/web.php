@@ -385,10 +385,15 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         // Export
         Route::get('/export', [AdminClaimController::class, 'export'])->name('export');
 
-        // Bulk Payment
+        // Bulk Payment (DataTable-driven redesign)
         Route::get('/bulk-payment', [AdminClaimController::class, 'bulkPayment'])->name('bulk-payment');
+        Route::get('/ajax/bulk-payment-data', [AdminClaimController::class, 'bulkPaymentData'])->name('bulk-payment-data');
         Route::post('/bulk-payment/process', [AdminClaimController::class, 'processBulkPayment'])->name('process-bulk-payment');
         Route::post('/bulk-payment/mark-paid', [AdminClaimController::class, 'markPaid'])->name('mark-paid');
+
+        // Payment History
+        Route::get('/payment-history', [AdminClaimController::class, 'paymentHistory'])->name('payment-history');
+        Route::get('/ajax/payment-history-data', [AdminClaimController::class, 'paymentHistoryData'])->name('payment-history-data');
 
         // Show / Verify / Non-Claimable / Update Amount (parameterized - MUST be last)
         Route::get('/{claim}', [AdminClaimController::class, 'show'])->name('show');
@@ -484,6 +489,10 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/ajax/other-claims-data', [SupervisorClaimController::class, 'otherClaimsData'])->name('other-claims-data');
         Route::get('/create', [SupervisorClaimController::class, 'create'])->name('create');
         Route::post('/store', [SupervisorClaimController::class, 'store'])->name('store');
+
+        // Payment History
+        Route::get('/payment-history', [SupervisorClaimController::class, 'paymentHistory'])->name('payment-history');
+        Route::get('/ajax/payment-history-data', [SupervisorClaimController::class, 'paymentHistoryData'])->name('payment-history-data');
 
         // Show (parameterized - MUST be last)
         Route::get('/{claim}', [SupervisorClaimController::class, 'show'])->name('show');
@@ -628,6 +637,10 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
 
         // Delete Attachment (specific route BEFORE parameterized /{claim})
         Route::delete('/{claim}/attachment/{attachment}', [TechnicianClaimController::class, 'deleteAttachment'])->name('delete-attachment');
+
+        // Payment History (specific route BEFORE parameterized /{claim})
+        Route::get('/payment-history', [TechnicianClaimController::class, 'paymentHistory'])->name('payment-history');
+        Route::get('/ajax/payment-history-data', [TechnicianClaimController::class, 'paymentHistoryData'])->name('payment-history-data');
 
         // Show (parameterized - MUST be last)
         Route::get('/{claim}', [TechnicianClaimController::class, 'show'])->name('show');

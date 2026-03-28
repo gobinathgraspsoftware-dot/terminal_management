@@ -1,80 +1,58 @@
 @extends('layouts.app')
-
 @section('title', 'Ticket Claims')
 
 @section('content')
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="page-header">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
         <div>
-            <h4 class="mb-1">Ticket Claims</h4>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('admin.claims.index') }}">Claim Management</a></li>
-                    <li class="breadcrumb-item active">Ticket Claims</li>
-                </ol>
-            </nav>
+            <h1><i class="bi bi-ticket-detailed me-2 text-info"></i>Ticket Claims</h1>
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('admin.claims.index') }}">Claims</a></li>
+                <li class="breadcrumb-item active">Ticket Claims</li>
+            </ol>
         </div>
         <div class="d-flex gap-2">
-            @can('export_claims')
-            <a href="{{ route('admin.claims.export', ['category' => 'ticket']) }}" class="btn btn-outline-success">
+            <a href="{{ route('admin.claims.export', ['category' => 'ticket']) }}" class="btn btn-outline-success btn-sm">
                 <i class="bi bi-download me-1"></i> Export
             </a>
-            @endcan
-            @can('bulk_pay_claims')
-            <a href="{{ route('admin.claims.bulk-payment', ['category' => 'ticket']) }}" class="btn btn-success">
-                <i class="bi bi-cash-stack me-1"></i> Bulk Payment
-            </a>
-            @endcan
         </div>
     </div>
+</div>
 
-    <!-- Filters -->
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body py-2">
-            <div class="row g-2 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label mb-1 small">Status</label>
-                    <select id="filter-status" class="form-select form-select-sm">
-                        <option value="">All Statuses</option>
-                        <option value="submitted">Submitted</option>
-                        <option value="verified">Verified</option>
-                        <option value="non_claimable">Non-Claimable</option>
-                        <option value="pending_payment">Pending Payment</option>
-                        <option value="paid">Paid</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <button id="btn-reset-filters" class="btn btn-sm btn-outline-secondary w-100">
-                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
-                    </button>
-                </div>
-            </div>
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-table me-2"></i>Ticket Claims List</span>
+        <div class="d-flex gap-2 align-items-center">
+            <select id="statusFilter" class="form-select form-select-sm" style="width:160px">
+                <option value="">All Statuses</option>
+                <option value="submitted">Submitted</option>
+                <option value="verified">Verified</option>
+                <option value="non_claimable">Non-Claimable</option>
+                <option value="pending_payment">Pending Payment</option>
+                <option value="paid">Paid</option>
+            </select>
         </div>
     </div>
-
-    <!-- DataTable -->
-    <div class="card border-0 shadow-sm">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table id="ticket-claims-table" class="table table-hover table-sm align-middle w-100">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Claim No</th>
-                            <th>Ticket No</th>
-                            <th>Vendor</th>
-                            <th>Merchant</th>
-                            <th>Supervisor</th>
-                            <th>Technician</th>
-                            <th>Amount (RM)</th>
-                            <th>Status</th>
-                            <th>Submitted</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table id="ticketClaimsTable" class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Claim No</th>
+                        <th>Ticket No</th>
+                        <th>Vendor</th>
+                        <th>Merchant</th>
+                        <th>Supervisor</th>
+                        <th>Technician</th>
+                        <th>Amount (RM)</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -82,38 +60,34 @@
 
 @push('scripts')
 <script>
-$(function() {
-    var table = $('#ticket-claims-table').DataTable({
+$(function () {
+    var table = $('#ticketClaimsTable').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
             url: '{{ route("admin.claims.ticket-claims-data") }}',
-            data: function(d) {
-                d.status = $('#filter-status').val();
+            data: function (d) {
+                d.status = $('#statusFilter').val();
             }
         },
         columns: [
-            { data: 'claim_no' },
-            { data: 'ticket_no' },
-            { data: 'vendor' },
-            { data: 'merchant_name' },
-            { data: 'supervisor' },
-            { data: 'technician' },
-            { data: 'total_amount', className: 'text-end' },
-            { data: 'status', className: 'text-center' },
-            { data: 'submitted_at' },
-            { data: 'actions', orderable: false, searchable: false, className: 'text-center' }
+            { data: 'claim_no', name: 'claim_no' },
+            { data: 'ticket_no', name: 'ticket_id', searchable: false },
+            { data: 'vendor', name: 'vendor', searchable: false, orderable: false },
+            { data: 'merchant_name', name: 'merchant_name', searchable: false, orderable: false },
+            { data: 'supervisor', name: 'supervisor', searchable: false, orderable: false },
+            { data: 'technician', name: 'technician_id', searchable: false },
+            { data: 'total_amount', name: 'total_amount', className: 'text-end' },
+            { data: 'status', name: 'status', searchable: false, orderable: false },
+            { data: 'submitted_at', name: 'submitted_at' },
+            { data: 'actions', name: 'actions', orderable: false, searchable: false, className: 'text-center' }
         ],
         order: [[8, 'desc']],
-        pageLength: 10,
-        language: { emptyTable: 'No ticket claims found.' }
+        pageLength: 25,
+        language: { processing: '<div class="spinner-border spinner-border-sm text-primary"></div>' }
     });
 
-    $('#filter-status').on('change', function() { table.ajax.reload(); });
-    $('#btn-reset-filters').on('click', function() {
-        $('#filter-status').val('');
-        table.ajax.reload();
-    });
+    $('#statusFilter').on('change', function () { table.ajax.reload(); });
 });
 </script>
 @endpush

@@ -18,21 +18,13 @@ class ClaimManagementService
 
     /**
      * Create a claim from a completed ticket.
-     *
-     * Called automatically by TicketService when a ticket transitions to
-     * done_success or done_fail. Uses ticket data directly — no user form input.
-     *
-     * @param Ticket $ticket
-     * @param array  $data  Optional overrides (legacy — kept for backward compat)
-     * @return Claim
+     * Called automatically by TicketService when a ticket transitions to done_success / done_fail.
      */
     public function createTicketClaim(Ticket $ticket, array $data = []): Claim
     {
         return DB::transaction(function () use ($ticket, $data) {
             $claimNo = NumberSeries::getNextNumber('ticket_claim');
 
-            // Determine who triggered the claim:
-            // If called via HTTP (Auth::id() available) use that, otherwise use ticket's technician
             $triggeredBy = Auth::id() ?? $ticket->technician_id;
 
             $claim = Claim::create([
@@ -42,9 +34,10 @@ class ClaimManagementService
                 'claim_date'            => now()->toDateString(),
                 'technician_id'         => $ticket->technician_id,
                 'description'           => "Ticket claim for #{$ticket->ticket_no} - {$ticket->merchant_name}",
-                'total_mileage_km'      => $data['mileage'] ?? $ticket->mileage ?? 0,
-                'total_mileage_amount'  => $data['mileage_amount'] ?? $ticket->mileage_amount ?? 0,
-                'total_allowance_amount'=> ($data['toll'] ?? $ticket->toll ?? 0) + ($data['standby_meal'] ?? $ticket->standby_meal ?? 0),
+                'total_mileage_km'      => $data['mileage']          ?? $ticket->mileage          ?? 0,
+                'total_mileage_amount'  => $data['mileage_amount']    ?? $ticket->mileage_amount    ?? 0,
+                'total_allowance_amount'=> ($data['toll'] ?? $ticket->toll ?? 0)
+                                        + ($data['standby_meal'] ?? $ticket->standby_meal ?? 0),
                 'total_amount'          => $data['total_claim_amount'] ?? $ticket->total_claim_amount ?? 0,
                 'original_amount'       => $data['total_claim_amount'] ?? $ticket->total_claim_amount ?? 0,
                 'remarks'               => $data['remarks'] ?? $ticket->mileage_remarks,
@@ -62,32 +55,28 @@ class ClaimManagementService
     // Other Claims
     // ══════════════════════════════════════
 
-    /**
-     * Create an other/manual claim
-     */
     public function createOtherClaim(array $data, array $files = []): Claim
     {
         return DB::transaction(function () use ($data, $files) {
             $claimNo = NumberSeries::getNextNumber('other_claim');
 
             $claim = Claim::create([
-                'claim_no'              => $claimNo,
-                'claim_category'        => Claim::CATEGORY_OTHER,
-                'ticket_id'             => $data['ticket_id'] ?? null,
-                'claim_date'            => now()->toDateString(),
-                'technician_id'         => $data['technician_id'] ?? Auth::id(),
-                'description'           => $data['description'],
-                'claim_type_label'      => $data['claim_type_label'] ?? 'Other',
-                'total_amount'          => $data['claim_amount'],
-                'original_amount'       => $data['claim_amount'],
-                'remarks'               => $data['remarks'] ?? null,
-                'status'                => Claim::STATUS_SUBMITTED,
-                'submitted_at'          => now(),
-                'submitted_by'          => Auth::id(),
-                'created_by'            => Auth::id(),
+                'claim_no'         => $claimNo,
+                'claim_category'   => Claim::CATEGORY_OTHER,
+                'ticket_id'        => $data['ticket_id'] ?? null,
+                'claim_date'       => now()->toDateString(),
+                'technician_id'    => $data['technician_id'] ?? Auth::id(),
+                'description'      => $data['description'],
+                'claim_type_label' => $data['claim_type_label'] ?? 'Other',
+                'total_amount'     => $data['claim_amount'],
+                'original_amount'  => $data['claim_amount'],
+                'remarks'          => $data['remarks'] ?? null,
+                'status'           => Claim::STATUS_SUBMITTED,
+                'submitted_at'     => now(),
+                'submitted_by'     => Auth::id(),
+                'created_by'       => Auth::id(),
             ]);
 
-            // Handle file attachments
             if (!empty($files)) {
                 $this->storeAttachments($claim, $files);
             }
@@ -96,32 +85,25 @@ class ClaimManagementService
         });
     }
 
-    /**
-     * Update an existing other claim (technician or external supervisor edit)
-     *
-     * Only allowed when claim is in draft or submitted status.
-     */
     public function updateOtherClaim(Claim $claim, array $data, array $files = []): Claim
     {
         return DB::transaction(function () use ($claim, $data, $files) {
             $updateData = [
                 'claim_type_label' => $data['claim_type_label'] ?? $claim->claim_type_label,
-                'description'      => $data['description'] ?? $claim->description,
-                'total_amount'     => $data['claim_amount'] ?? $claim->total_amount,
-                'original_amount'  => $data['claim_amount'] ?? $claim->total_amount,
-                'ticket_id'        => $data['ticket_id'] ?? $claim->ticket_id,
-                'remarks'          => $data['remarks'] ?? $claim->remarks,
+                'description'      => $data['description']      ?? $claim->description,
+                'total_amount'     => $data['claim_amount']     ?? $claim->total_amount,
+                'original_amount'  => $data['claim_amount']     ?? $claim->total_amount,
+                'ticket_id'        => $data['ticket_id']        ?? $claim->ticket_id,
+                'remarks'          => $data['remarks']          ?? $claim->remarks,
                 'updated_by'       => Auth::id(),
             ];
 
-            // Admin can reassign technician
             if (Auth::user()->hasRole('admin') && isset($data['technician_id'])) {
                 $updateData['technician_id'] = $data['technician_id'];
             }
 
             $claim->update($updateData);
 
-            // Handle new file attachments (append, do not replace)
             if (!empty($files)) {
                 $this->storeAttachments($claim, $files);
             }
@@ -130,9 +112,6 @@ class ClaimManagementService
         });
     }
 
-    /**
-     * Delete a specific claim attachment
-     */
     public function deleteAttachment(ClaimAttachment $attachment): bool
     {
         $filePath = $_SERVER['DOCUMENT_ROOT'] . '/storage/' . $attachment->file_path;
@@ -142,9 +121,6 @@ class ClaimManagementService
         return $attachment->delete();
     }
 
-    /**
-     * Store claim attachments using cPanel-compatible file upload
-     */
     protected function storeAttachments(Claim $claim, array $files): void
     {
         $uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/storage/claim-proofs/' . $claim->id;
@@ -155,7 +131,6 @@ class ClaimManagementService
         foreach ($files as $file) {
             if (!$file || !$file->isValid()) continue;
 
-            // Capture metadata BEFORE move (temp file is deleted after move)
             $originalName = $file->getClientOriginalName();
             $fileSize     = $file->getSize();
             $mimeType     = $file->getClientMimeType();
@@ -179,9 +154,6 @@ class ClaimManagementService
     // Admin Verification
     // ══════════════════════════════════════
 
-    /**
-     * Verify a claim (admin action)
-     */
     public function verifyClaim(Claim $claim, array $data): Claim
     {
         return DB::transaction(function () use ($claim, $data) {
@@ -193,7 +165,6 @@ class ClaimManagementService
                 'updated_by'    => Auth::id(),
             ];
 
-            // If admin edited the amount
             if (isset($data['total_amount']) && $data['total_amount'] != $claim->total_amount) {
                 if (is_null($claim->original_amount)) {
                     $updateData['original_amount'] = $claim->total_amount;
@@ -206,9 +177,6 @@ class ClaimManagementService
         });
     }
 
-    /**
-     * Mark a claim as non-claimable (admin action)
-     */
     public function markNonClaimable(Claim $claim, array $data): Claim
     {
         return DB::transaction(function () use ($claim, $data) {
@@ -223,9 +191,6 @@ class ClaimManagementService
         });
     }
 
-    /**
-     * Update claim amount (admin edit before verification)
-     */
     public function updateClaimAmount(Claim $claim, float $newAmount, ?string $adminRemarks = null): Claim
     {
         if (is_null($claim->original_amount)) {
@@ -243,9 +208,6 @@ class ClaimManagementService
     // Bulk Payment
     // ══════════════════════════════════════
 
-    /**
-     * Process bulk payment for verified claims
-     */
     public function processBulkPayment(array $claimIds): array
     {
         return DB::transaction(function () use ($claimIds) {
@@ -257,7 +219,7 @@ class ClaimManagementService
                 throw new \Exception('No verified claims found for payment processing.');
             }
 
-            $processed = 0;
+            $processed   = 0;
             $totalAmount = 0;
 
             foreach ($claims as $claim) {
@@ -269,36 +231,30 @@ class ClaimManagementService
                 $totalAmount += (float) $claim->total_amount;
             }
 
-            return [
-                'processed'    => $processed,
-                'total_amount' => $totalAmount,
-            ];
+            return ['processed' => $processed, 'total_amount' => $totalAmount];
         });
     }
 
-    /**
-     * Mark claims as paid
-     */
     public function markAsPaid(array $claimIds): int
     {
         return DB::transaction(function () use ($claimIds) {
             return Claim::whereIn('id', $claimIds)
                 ->where('status', Claim::STATUS_PENDING_PAYMENT)
                 ->update([
-                    'status'   => Claim::STATUS_PAID,
-                    'paid_at'  => now(),
-                    'paid_by'  => Auth::id(),
+                    'status'     => Claim::STATUS_PAID,
+                    'paid_at'    => now(),
+                    'paid_by'    => Auth::id(),
                     'updated_by' => Auth::id(),
                 ]);
         });
     }
 
     // ══════════════════════════════════════
-    // DataTable Helpers (manual server-side)
+    // DataTable Helpers
     // ══════════════════════════════════════
 
     /**
-     * Build DataTable response for claims
+     * Build DataTable response for claims listing
      */
     public function getClaimsDataTable(
         $request,
@@ -306,18 +262,17 @@ class ClaimManagementService
         ?User $user = null,
         ?string $scopeType = null
     ): array {
-        $draw            = (int) $request->input('draw', 1);
-        $start           = (int) $request->input('start', 0);
-        $length          = (int) $request->input('length', 10);
-        $searchValue     = $request->input('search.value', '');
-        $orderColumnIdx  = (int) $request->input('order.0.column', 0);
-        $orderDir        = $request->input('order.0.dir', 'desc') === 'asc' ? 'asc' : 'desc';
+        $draw           = (int) $request->input('draw', 1);
+        $start          = (int) $request->input('start', 0);
+        $length         = (int) $request->input('length', 10);
+        $searchValue    = $request->input('search.value', '');
+        $orderColumnIdx = (int) $request->input('order.0.column', 0);
+        $orderDir       = $request->input('order.0.dir', 'desc') === 'asc' ? 'asc' : 'desc';
 
         $query = Claim::query()->where('claim_category', $category);
 
-        // Scope by role
         if ($user && $scopeType === 'team') {
-            $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
+            $teamIds   = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
             $teamIds[] = $user->id;
             $query->where(function ($q) use ($teamIds, $user) {
                 $q->whereIn('technician_id', $teamIds)
@@ -330,21 +285,19 @@ class ClaimManagementService
             });
         }
 
-        // Status filter
         if ($request->filled('status')) {
             $query->where('status', $request->input('status'));
         }
 
-        // Eager-load
+        // Eager-load ticket relationship for ticket claims
         if ($category === Claim::CATEGORY_TICKET) {
-            $query->with(['ticket.vendor', 'ticket.supervisor', 'technician']);
+            $query->with(['ticket.vendor', 'ticket.supervisor', 'ticket.jobCategory', 'ticket.jobType', 'technician']);
         } else {
-            $query->with(['submitter', 'technician', 'attachments']);
+            $query->with(['submitter', 'technician', 'ticket', 'attachments']);
         }
 
         $recordsTotal = $query->count();
 
-        // Search
         if ($searchValue) {
             $query->where(function ($q) use ($searchValue, $category) {
                 $q->where('claim_no', 'like', "%{$searchValue}%")
@@ -366,11 +319,145 @@ class ClaimManagementService
 
         $recordsFiltered = $query->count();
 
-        // Ordering
-        $columns = $category === Claim::CATEGORY_TICKET
+        $columns     = $category === Claim::CATEGORY_TICKET
             ? ['claim_no', 'ticket_id', 'technician_id', 'total_amount', 'status', 'submitted_at']
             : ['claim_no', 'submitted_by', 'claim_type_label', 'total_amount', 'status', 'submitted_at'];
         $orderColumn = $columns[$orderColumnIdx] ?? 'submitted_at';
+        $query->orderBy($orderColumn, $orderDir);
+
+        $data = $query->skip($start)->take($length)->get();
+
+        return [
+            'draw'            => $draw,
+            'recordsTotal'    => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data,
+        ];
+    }
+
+    /**
+     * Build DataTable response for bulk payment (verified + pending_payment claims)
+     */
+    public function getBulkPaymentDataTable($request, string $category = 'all'): array
+    {
+        $draw           = (int) $request->input('draw', 1);
+        $start          = (int) $request->input('start', 0);
+        $length         = (int) $request->input('length', 25);
+        $searchValue    = $request->input('search.value', '');
+        $orderColumnIdx = (int) $request->input('order.0.column', 0);
+        $orderDir       = $request->input('order.0.dir', 'asc') === 'desc' ? 'desc' : 'asc';
+
+        $query = Claim::whereIn('status', [Claim::STATUS_VERIFIED, Claim::STATUS_PENDING_PAYMENT])
+            ->with(['technician', 'submitter', 'ticket.vendor']);
+
+        if ($category === 'ticket') {
+            $query->ticketClaims();
+        } elseif ($category === 'other') {
+            $query->otherClaims();
+        }
+
+        if ($request->filled('status_filter')) {
+            $query->where('status', $request->input('status_filter'));
+        }
+
+        $recordsTotal = $query->count();
+
+        if ($searchValue) {
+            $query->where(function ($q) use ($searchValue) {
+                $q->where('claim_no', 'like', "%{$searchValue}%")
+                  ->orWhereHas('technician', fn($tq) => $tq->where('name', 'like', "%{$searchValue}%"))
+                  ->orWhereHas('submitter',  fn($sq) => $sq->where('name', 'like', "%{$searchValue}%"))
+                  ->orWhereHas('ticket',     fn($tq) => $tq->where('ticket_no', 'like', "%{$searchValue}%"));
+            });
+        }
+
+        $recordsFiltered = $query->count();
+
+        $columns     = ['claim_no', 'claim_category', 'technician_id', 'total_amount', 'status', 'submitted_at'];
+        $orderColumn = $columns[$orderColumnIdx] ?? 'submitted_at';
+        $query->orderBy($orderColumn, $orderDir);
+
+        $data = $query->skip($start)->take($length)->get();
+
+        // Summary totals for selected category
+        $totals = Claim::whereIn('status', [Claim::STATUS_VERIFIED, Claim::STATUS_PENDING_PAYMENT]);
+        if ($category !== 'all') {
+            $totals->where('claim_category', $category);
+        }
+        $totalVerified = (clone $totals)->where('status', Claim::STATUS_VERIFIED)->sum('total_amount');
+        $totalPending  = (clone $totals)->where('status', Claim::STATUS_PENDING_PAYMENT)->sum('total_amount');
+
+        return [
+            'draw'            => $draw,
+            'recordsTotal'    => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data,
+            'meta'            => [
+                'total_verified' => (float) $totalVerified,
+                'total_pending'  => (float) $totalPending,
+            ],
+        ];
+    }
+
+    /**
+     * Build DataTable response for payment history (paid claims)
+     */
+    public function getPaymentHistoryDataTable(
+        $request,
+        ?User $user = null,
+        ?string $scopeType = null
+    ): array {
+        $draw           = (int) $request->input('draw', 1);
+        $start          = (int) $request->input('start', 0);
+        $length         = (int) $request->input('length', 25);
+        $searchValue    = $request->input('search.value', '');
+        $orderColumnIdx = (int) $request->input('order.0.column', 0);
+        $orderDir       = $request->input('order.0.dir', 'desc') === 'asc' ? 'asc' : 'desc';
+
+        $query = Claim::where('status', Claim::STATUS_PAID)
+            ->with(['technician', 'submitter', 'payer', 'ticket.vendor']);
+
+        // Scope by role
+        if ($user && $scopeType === 'team') {
+            $teamIds   = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
+            $teamIds[] = $user->id;
+            $query->where(function ($q) use ($teamIds, $user) {
+                $q->whereIn('technician_id', $teamIds)
+                  ->orWhere('submitted_by', $user->id);
+            });
+        } elseif ($user && $scopeType === 'own') {
+            $query->where(function ($q) use ($user) {
+                $q->where('technician_id', $user->id)
+                  ->orWhere('submitted_by', $user->id);
+            });
+        }
+
+        // Filters
+        if ($request->filled('category')) {
+            $query->where('claim_category', $request->input('category'));
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('paid_at', '>=', $request->input('date_from'));
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('paid_at', '<=', $request->input('date_to'));
+        }
+
+        $recordsTotal = $query->count();
+
+        if ($searchValue) {
+            $query->where(function ($q) use ($searchValue) {
+                $q->where('claim_no', 'like', "%{$searchValue}%")
+                  ->orWhereHas('technician', fn($tq) => $tq->where('name', 'like', "%{$searchValue}%"))
+                  ->orWhereHas('submitter',  fn($sq) => $sq->where('name', 'like', "%{$searchValue}%"))
+                  ->orWhereHas('ticket',     fn($tq) => $tq->where('ticket_no', 'like', "%{$searchValue}%"));
+            });
+        }
+
+        $recordsFiltered = $query->count();
+
+        $columns     = ['claim_no', 'claim_category', 'technician_id', 'total_amount', 'paid_at', 'paid_by'];
+        $orderColumn = $columns[$orderColumnIdx] ?? 'paid_at';
         $query->orderBy($orderColumn, $orderDir);
 
         $data = $query->skip($start)->take($length)->get();

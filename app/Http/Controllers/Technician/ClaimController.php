@@ -25,7 +25,7 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Landing Page (tabbed: Ticket Claims / Other Claims)
+    // Landing Page
     // ══════════════════════════════════════════════
 
     public function index(Request $request)
@@ -43,6 +43,9 @@ class ClaimController extends Controller
             'other_submitted'  => Claim::otherClaims()->submitted()->where(function ($q) use ($user) {
                 $q->where('technician_id', $user->id)->orWhere('submitted_by', $user->id);
             })->count(),
+            'paid_total'       => Claim::where('status', Claim::STATUS_PAID)->where(function ($q) use ($user) {
+                $q->where('technician_id', $user->id)->orWhere('submitted_by', $user->id);
+            })->count(),
         ];
 
         $activeTab = $request->input('tab', 'ticket');
@@ -51,7 +54,7 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Ticket Claims (View Only — auto-created on ticket completion)
+    // Ticket Claims
     // ══════════════════════════════════════════════
 
     public function ticketClaims()
@@ -67,15 +70,15 @@ class ClaimController extends Controller
 
         $result['data'] = $result['data']->map(function ($claim) {
             return [
-                'id'              => $claim->id,
-                'claim_no'        => $claim->claim_no,
-                'ticket_no'       => $claim->ticket->ticket_no ?? '-',
-                'vendor'          => $claim->ticket->vendor->company_name ?? '-',
-                'merchant_name'   => $claim->ticket->merchant_name ?? '-',
-                'total_amount'    => number_format((float) $claim->total_amount, 2),
-                'status'          => Claim::getStatusBadge($claim->status),
-                'submitted_at'    => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
-                'actions'         => $this->getTicketClaimActions($claim),
+                'id'            => $claim->id,
+                'claim_no'      => $claim->claim_no,
+                'ticket_no'     => $claim->ticket->ticket_no ?? '-',
+                'vendor'        => $claim->ticket->vendor->company_name ?? '-',
+                'merchant_name' => $claim->ticket->merchant_name ?? '-',
+                'total_amount'  => number_format((float) $claim->total_amount, 2),
+                'status'        => Claim::getStatusBadge($claim->status),
+                'submitted_at'  => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
+                'actions'       => $this->getTicketClaimActions($claim),
             ];
         });
 
@@ -83,7 +86,7 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Other Claims (Create + Edit + View)
+    // Other Claims
     // ══════════════════════════════════════════════
 
     public function otherClaims()
@@ -106,7 +109,8 @@ class ClaimController extends Controller
                 'total_amount'    => number_format((float) $claim->total_amount, 2),
                 'status'          => Claim::getStatusBadge($claim->status),
                 'submitted_at'    => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y H:i') : '-',
-                'has_attachments' => $claim->attachments->isNotEmpty() ? '<i class="bi bi-paperclip text-primary"></i>' : '',
+                'has_attachments' => $claim->attachments->isNotEmpty()
+                    ? '<i class="bi bi-paperclip text-primary"></i>' : '',
                 'actions'         => $this->getOtherClaimActions($claim),
             ];
         });
@@ -114,9 +118,6 @@ class ClaimController extends Controller
         return response()->json($result);
     }
 
-    /**
-     * Create Other Claim form
-     */
     public function create()
     {
         $this->authorize('create', Claim::class);
@@ -133,9 +134,6 @@ class ClaimController extends Controller
         return view('technician.claims.create', compact('tickets', 'claimTypes'));
     }
 
-    /**
-     * Store Other Claim
-     */
     public function store(Request $request)
     {
         $this->authorize('create', Claim::class);
@@ -151,8 +149,7 @@ class ClaimController extends Controller
         ]);
 
         try {
-            // Force technician_id to self
-            $data = $request->all();
+            $data                  = $request->all();
             $data['technician_id'] = Auth::id();
 
             $files = $request->file('attachments', []);
@@ -163,21 +160,16 @@ class ClaimController extends Controller
         }
     }
 
-    /**
-     * Edit Other Claim form (technician can edit own claims in draft/submitted status)
-     */
     public function edit(Claim $claim)
     {
         $this->authorize('update', $claim);
 
-        // Only other claims can be edited by technician
         if ($claim->claim_category !== Claim::CATEGORY_OTHER) {
             return redirect()->route('technician.claims.show', $claim->id)
                 ->with('error', 'Ticket claims cannot be edited directly.');
         }
 
         $user = Auth::user();
-
         $claim->load(['attachments.uploadedBy']);
 
         $tickets = Ticket::where('technician_id', $user->id)
@@ -190,14 +182,10 @@ class ClaimController extends Controller
         return view('technician.claims.edit', compact('claim', 'tickets', 'claimTypes'));
     }
 
-    /**
-     * Update Other Claim (technician can update own claims in draft/submitted status)
-     */
     public function update(UpdateClaimRequest $request, Claim $claim)
     {
         $this->authorize('update', $claim);
 
-        // Only other claims can be updated by technician
         if ($claim->claim_category !== Claim::CATEGORY_OTHER) {
             return response()->json([
                 'success' => false,
@@ -206,20 +194,14 @@ class ClaimController extends Controller
         }
 
         try {
-            $files = $request->file('attachments', []);
+            $files   = $request->file('attachments', []);
             $updated = $this->service->updateOtherClaim($claim, $request->validated(), is_array($files) ? $files : [$files]);
-            return response()->json([
-                'success' => true,
-                'message' => "Claim {$updated->claim_no} updated successfully.",
-            ]);
+            return response()->json(['success' => true, 'message' => "Claim {$updated->claim_no} updated successfully."]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Delete an attachment from a claim (AJAX)
-     */
     public function deleteAttachment(Claim $claim, ClaimAttachment $attachment)
     {
         $this->authorize('update', $claim);
@@ -237,6 +219,58 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
+    // Payment History (own claims only)
+    // ══════════════════════════════════════════════
+
+    public function paymentHistory()
+    {
+        $this->authorize('viewAny', Claim::class);
+
+        $user = Auth::user();
+
+        $totalPaid     = Claim::where('status', Claim::STATUS_PAID)->where(function ($q) use ($user) {
+            $q->where('technician_id', $user->id)->orWhere('submitted_by', $user->id);
+        })->sum('total_amount');
+
+        $paidThisMonth = Claim::where('status', Claim::STATUS_PAID)
+            ->whereMonth('paid_at', now()->month)
+            ->whereYear('paid_at', now()->year)
+            ->where(function ($q) use ($user) {
+                $q->where('technician_id', $user->id)->orWhere('submitted_by', $user->id);
+            })->sum('total_amount');
+
+        $paidCount     = Claim::where('status', Claim::STATUS_PAID)->where(function ($q) use ($user) {
+            $q->where('technician_id', $user->id)->orWhere('submitted_by', $user->id);
+        })->count();
+
+        return view('technician.claims.payment-history', compact('totalPaid', 'paidThisMonth', 'paidCount'));
+    }
+
+    public function paymentHistoryData(Request $request)
+    {
+        $this->authorize('viewAny', Claim::class);
+
+        $result = $this->service->getPaymentHistoryDataTable($request, Auth::user(), 'own');
+
+        $result['data'] = $result['data']->map(function ($claim) {
+            return [
+                'id'           => $claim->id,
+                'claim_no'     => $claim->claim_no,
+                'category'     => $claim->claim_category === Claim::CATEGORY_TICKET
+                    ? '<span class="badge bg-info">Ticket</span>'
+                    : '<span class="badge bg-secondary">Other</span>',
+                'ticket_no'    => $claim->ticket->ticket_no ?? '-',
+                'total_amount' => number_format((float) $claim->total_amount, 2),
+                'paid_at'      => $claim->paid_at ? $claim->paid_at->format('d/m/Y H:i') : '-',
+                'status'       => Claim::getStatusBadge($claim->status),
+                'actions'      => '<a href="' . route('technician.claims.show', $claim->id) . '" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>',
+            ];
+        });
+
+        return response()->json($result);
+    }
+
+    // ══════════════════════════════════════════════
     // Show
     // ══════════════════════════════════════════════
 
@@ -245,8 +279,17 @@ class ClaimController extends Controller
         $this->authorize('view', $claim);
 
         $claim->load([
-            'technician', 'submitter', 'verifier', 'payer',
-            'ticket.vendor', 'ticket.supervisor', 'ticket.jobType',
+            'technician',
+            'submitter',
+            'verifier',
+            'payer',
+            'ticket.vendor',
+            'ticket.vendorBranch',
+            'ticket.supervisor',
+            'ticket.jobCategory',
+            'ticket.jobType',
+            'ticket.state',
+            'ticket.city',
             'attachments.uploadedBy',
         ]);
 
@@ -254,33 +297,26 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Action Button Helpers
+    // Helpers
     // ══════════════════════════════════════════════
 
-    /**
-     * Generate action buttons for ticket claims DataTable
-     */
     protected function getTicketClaimActions(Claim $claim): string
     {
         $showUrl = route('technician.claims.show', $claim->id);
         return '<a href="' . $showUrl . '" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>';
     }
 
-    /**
-     * Generate action buttons for other claims DataTable
-     */
     protected function getOtherClaimActions(Claim $claim): string
     {
         $showUrl = route('technician.claims.show', $claim->id);
-        $html = '<div class="btn-group btn-group-sm">';
-        $html .= '<a href="' . $showUrl . '" class="btn btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>';
+        $html    = '<div class="btn-group btn-group-sm">';
+        $html   .= '<a href="' . $showUrl . '" class="btn btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>';
 
-        // Show edit button only for editable claims (draft/submitted)
         if ($claim->isEditable() && (
             $claim->technician_id === Auth::id() || $claim->submitted_by === Auth::id()
         )) {
             $editUrl = route('technician.claims.edit', $claim->id);
-            $html .= '<a href="' . $editUrl . '" class="btn btn-outline-warning" title="Edit"><i class="bi bi-pencil"></i></a>';
+            $html   .= '<a href="' . $editUrl . '" class="btn btn-outline-warning" title="Edit"><i class="bi bi-pencil"></i></a>';
         }
 
         $html .= '</div>';
