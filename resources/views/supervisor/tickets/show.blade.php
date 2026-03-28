@@ -155,6 +155,7 @@
         </div>
 
         {{-- Assign technician (Internal Supervisor only) --}}
+        {{-- FIX 1: $technicians already filtered by supervisor_id in controller --}}
         @if($isInternal)
             @can('assign', $ticket)
             <div class="card">
@@ -163,25 +164,47 @@
                     <div class="row g-3 align-items-end">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">
-                                {{ $ticket->technician_id ? 'Reassign' : 'Assign' }} Technician
+                                @if($ticket->technician_id)
+                                    Reassign Technician
+                                    <span class="badge bg-secondary ms-1 fw-normal">
+                                        Current: {{ $ticket->technician?->name ?? '—' }}
+                                    </span>
+                                @else
+                                    Assign Technician
+                                @endif
                             </label>
                             <select id="assignTechnicianSelect" class="form-select">
                                 <option value="">— Select Technician —</option>
-                                @foreach($technicians as $tech)
-                                    <option value="{{ $tech->id }}" {{ $ticket->technician_id == $tech->id ? 'selected' : '' }}>{{ $tech->name }}</option>
-                                @endforeach
+                                @forelse($technicians as $tech)
+                                    <option value="{{ $tech->id }}" {{ $ticket->technician_id == $tech->id ? 'selected' : '' }}>
+                                        {{ $tech->name }}
+                                    </option>
+                                @empty
+                                    <option value="" disabled>No technicians in your team</option>
+                                @endforelse
                             </select>
+                            @if($technicians->isEmpty())
+                                <div class="form-text text-warning">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>No active technicians in your team.
+                                </div>
+                            @endif
                         </div>
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Remarks</label>
                             <input type="text" id="assignRemarks" class="form-control" placeholder="Optional">
                         </div>
+                        {{-- FIX 2: Single unified button with data-has-technician for dynamic swap --}}
                         <div class="col-md-2">
-                            @if(!$ticket->technician_id)
-                                <button class="btn btn-primary w-100" onclick="assignTechnician()"><i class="bi bi-person-plus me-1"></i>Assign</button>
-                            @else
-                                <button class="btn btn-warning w-100" onclick="reassignTechnician()"><i class="bi bi-arrow-repeat me-1"></i>Reassign</button>
-                            @endif
+                            <button class="btn w-100 {{ $ticket->technician_id ? 'btn-warning' : 'btn-primary' }}"
+                                    id="assignActionBtn"
+                                    data-has-technician="{{ $ticket->technician_id ? '1' : '0' }}"
+                                    onclick="doAssign()">
+                                @if($ticket->technician_id)
+                                    <i class="bi bi-arrow-repeat me-1"></i>Reassign
+                                @else
+                                    <i class="bi bi-person-plus me-1"></i>Assign
+                                @endif
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -189,17 +212,89 @@
             @endcan
         @endif
 
-        {{-- Claim Update (External Supervisor only) --}}
+        {{-- ═══ Claim Update (External Supervisor) ═══ --}}
         @can('updateClaim', $ticket)
-        <div class="card">
-            <div class="card-header"><i class="bi bi-receipt me-2"></i>Claim Update</div>
+        @php $mileageRate = $ticket->mileage_rate ?? $ticket->supervisor?->mileage_rate ?? 0; @endphp
+        <div class="card border-0 shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-receipt me-2 text-primary"></i><strong>Claim Update</strong></span>
+                <span class="badge bg-info text-dark">
+                    Mileage Rate: RM {{ number_format($mileageRate, 2) }} / km
+                </span>
+            </div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-sm-3"><label class="form-label">Mileage (km)</label><input type="number" step="0.01" class="form-control" id="claimMileage" value="{{ $ticket->mileage ?? 0 }}"></div>
-                    <div class="col-sm-3"><label class="form-label">Toll (RM)</label><input type="number" step="0.01" class="form-control" id="claimToll" value="{{ $ticket->toll ?? 0 }}"></div>
-                    <div class="col-sm-3"><label class="form-label">Standby / Meal (RM)</label><input type="number" step="0.01" class="form-control" id="claimMeal" value="{{ $ticket->standby_meal ?? 0 }}"></div>
-                    <div class="col-sm-3"><label class="form-label">Mileage Remarks</label><input type="text" class="form-control" id="claimMileageRemarks" value="{{ $ticket->mileage_remarks ?? '' }}"></div>
-                    <div class="col-12 text-end"><button class="btn btn-primary" onclick="saveClaim()"><i class="bi bi-save me-1"></i>Update Claim</button></div>
+                    {{-- Mileage --}}
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Mileage (km)</label>
+                        <input type="number" step="0.01" min="0" class="form-control claim-input"
+                               id="claimMileage" value="{{ $ticket->mileage ?? 0 }}"
+                               placeholder="0.00">
+                        <div class="form-text">
+                            Amount: RM <span id="mileageAmtDisplay">{{ number_format(($ticket->mileage ?? 0) * $mileageRate, 2) }}</span>
+                        </div>
+                    </div>
+                    {{-- Toll --}}
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Toll (RM)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input type="number" step="0.01" min="0" class="form-control claim-input"
+                                   id="claimToll" value="{{ $ticket->toll ?? 0 }}"
+                                   placeholder="0.00">
+                        </div>
+                    </div>
+                    {{-- Standby / Meal --}}
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Standby / Meal (RM)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input type="number" step="0.01" min="0" class="form-control claim-input"
+                                   id="claimMeal" value="{{ $ticket->standby_meal ?? 0 }}"
+                                   placeholder="0.00">
+                        </div>
+                    </div>
+                    {{-- Mileage Remarks --}}
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Mileage Remarks</label>
+                        <input type="text" class="form-control" id="claimMileageRemarks"
+                               value="{{ $ticket->mileage_remarks ?? '' }}"
+                               placeholder="e.g. KL to Subang">
+                    </div>
+                </div>
+
+                {{-- Live Claim Total Preview --}}
+                <div class="mt-3 p-3 rounded" style="background:#f8f9fa;border:1px solid #e2e8f0;">
+                    <div class="row text-center g-2">
+                        <div class="col">
+                            <div class="small text-muted">Mileage Amount</div>
+                            <div class="fw-bold" id="previewMileage">RM {{ number_format(($ticket->mileage ?? 0) * $mileageRate, 2) }}</div>
+                        </div>
+                        <div class="col-auto d-flex align-items-center text-muted">+</div>
+                        <div class="col">
+                            <div class="small text-muted">Toll</div>
+                            <div class="fw-bold" id="previewToll">RM {{ number_format($ticket->toll ?? 0, 2) }}</div>
+                        </div>
+                        <div class="col-auto d-flex align-items-center text-muted">+</div>
+                        <div class="col">
+                            <div class="small text-muted">Meal</div>
+                            <div class="fw-bold" id="previewMeal">RM {{ number_format($ticket->standby_meal ?? 0, 2) }}</div>
+                        </div>
+                        <div class="col-auto d-flex align-items-center text-muted">=</div>
+                        <div class="col">
+                            <div class="small text-muted fw-semibold">Total Claim</div>
+                            <div class="fw-bold text-primary fs-5" id="previewTotal">RM {{ number_format($ticket->total_claim_amount ?? 0, 2) }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end mt-3 gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetClaim()">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveClaimBtn" onclick="saveClaim()">
+                        <i class="bi bi-save me-1"></i>Save Claim
+                    </button>
                 </div>
             </div>
         </div>
@@ -361,6 +456,7 @@ const ASSIGN_URL        = '{{ route('supervisor.tickets.assign', $ticket->id) }}
 const REASSIGN_URL      = '{{ route('supervisor.tickets.reassign', $ticket->id) }}';
 const CLAIM_URL         = '{{ route('supervisor.tickets.update-claim', $ticket->id) }}';
 const COMMENT_URL       = '{{ route('supervisor.tickets.comment', $ticket->id) }}';
+const MILEAGE_RATE      = {{ (float)($ticket->mileage_rate ?? $ticket->supervisor?->mileage_rate ?? 0) }};
 
 @php $proofTypeLabels = \App\Models\Ticket::getProofTypeLabels(); @endphp
 const proofTypeLabels = @json($proofTypeLabels);
@@ -437,28 +533,118 @@ function submitStatus() {
     });
 }
 
-function assignTechnician() {
-    const tid = $('#assignTechnicianSelect').val();
-    if (!tid) { showToast('Select a technician.','warning'); return; }
-    $.post(ASSIGN_URL, { _token: $('meta[name="csrf-token"]').attr('content'), technician_id: tid, remarks: $('#assignRemarks').val() })
-        .done(r => { showToast(r.message,'success'); setTimeout(()=>location.reload(),1000); })
-        .fail(xhr => showToast(xhr.responseJSON?.message||'Failed.','error'));
+// ── FIX 2: Unified assign/reassign with dynamic button swap ──
+function doAssign() {
+    const tid     = $('#assignTechnicianSelect').val();
+    const remarks = $('#assignRemarks').val();
+    const btn     = $('#assignActionBtn');
+    const hasTech = btn.data('has-technician') === '1' || btn.data('has-technician') === 1;
+
+    if (!tid) { showToast('Select a technician.', 'warning'); return; }
+
+    const url = hasTech ? REASSIGN_URL : ASSIGN_URL;
+
+    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving…');
+
+    $.post(url, {
+        _token: $('meta[name="csrf-token"]').attr('content'),
+        technician_id: tid,
+        remarks: remarks,
+    })
+    .done(function(r) {
+        showToast(r.message, 'success');
+        // Swap button to Reassign immediately — no wait for page reload
+        btn.removeClass('btn-primary').addClass('btn-warning')
+           .html('<i class="bi bi-arrow-repeat me-1"></i>Reassign')
+           .data('has-technician', '1');
+        const selectedText = $('#assignTechnicianSelect option:selected').text();
+        $('.col-md-6 .form-label').first().html(
+            'Reassign Technician <span class="badge bg-secondary ms-1 fw-normal">Current: ' + selectedText + '</span>'
+        );
+        setTimeout(() => location.reload(), 1500);
+    })
+    .fail(function(xhr) {
+        showToast(xhr.responseJSON?.message || 'Failed to assign technician.', 'error');
+    })
+    .always(function() {
+        btn.prop('disabled', false);
+    });
 }
 
-function reassignTechnician() {
-    const tid = $('#assignTechnicianSelect').val();
-    if (!tid) { showToast('Select a technician.','warning'); return; }
-    $.post(REASSIGN_URL, { _token: $('meta[name="csrf-token"]').attr('content'), technician_id: tid, remarks: $('#assignRemarks').val() })
-        .done(r => { showToast(r.message,'success'); setTimeout(()=>location.reload(),1000); })
-        .fail(xhr => showToast(xhr.responseJSON?.message||'Failed.','error'));
+// ── Claim Live Calculation ──
+function recalcClaim() {
+    const mileage  = parseFloat($('#claimMileage').val()) || 0;
+    const toll     = parseFloat($('#claimToll').val())    || 0;
+    const meal     = parseFloat($('#claimMeal').val())    || 0;
+    const mileageAmt = mileage * MILEAGE_RATE;
+    const total      = mileageAmt + toll + meal;
+    $('#mileageAmtDisplay').text(mileageAmt.toFixed(2));
+    $('#previewMileage').text('RM ' + mileageAmt.toFixed(2));
+    $('#previewToll').text('RM ' + toll.toFixed(2));
+    $('#previewMeal').text('RM ' + meal.toFixed(2));
+    $('#previewTotal').text('RM ' + total.toFixed(2));
+}
+
+$(document).on('input', '.claim-input', recalcClaim);
+
+function resetClaim() {
+    $('#claimMileage').val(0);
+    $('#claimToll').val(0);
+    $('#claimMeal').val(0);
+    $('#claimMileageRemarks').val('');
+    recalcClaim();
 }
 
 function saveClaim() {
-    $.post(CLAIM_URL, { _token: $('meta[name="csrf-token"]').attr('content'),
-        mileage: $('#claimMileage').val(), toll: $('#claimToll').val(),
-        standby_meal: $('#claimMeal').val(), mileage_remarks: $('#claimMileageRemarks').val() })
-        .done(r => showToast(r.message,'success'))
-        .fail(xhr => showToast(xhr.responseJSON?.message||'Failed.','error'));
+    const mileage  = parseFloat($('#claimMileage').val()) || 0;
+    const toll     = parseFloat($('#claimToll').val())    || 0;
+    const meal     = parseFloat($('#claimMeal').val())    || 0;
+    const remarks  = $('#claimMileageRemarks').val();
+
+    if (mileage < 0 || toll < 0 || meal < 0) {
+        showToast('Claim values cannot be negative.', 'warning');
+        return;
+    }
+
+    $('#saveClaimBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving…');
+
+    $.post(CLAIM_URL, {
+        _token:          $('meta[name="csrf-token"]').attr('content'),
+        mileage:         mileage,
+        toll:            toll,
+        standby_meal:    meal,
+        mileage_remarks: remarks,
+    })
+    .done(function(r) {
+        showToast(r.message, 'success');
+        recalcClaim();
+        // FIX 3: Append claim history entry live
+        const now        = new Date().toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        const mileageAmt = mileage * MILEAGE_RATE;
+        const total      = mileageAmt + toll + meal;
+        const histHtml   = `<div class="timeline-item">
+            <div class="d-flex justify-content-between align-items-start">
+                <div><span class="fw-semibold"><span class="badge bg-info">Claim Updated</span></span>
+                <span class="text-muted small ms-2">by You</span></div>
+                <small class="text-muted">${now}</small>
+            </div>
+            <div class="small text-secondary mt-1">
+                Mileage: ${mileage.toFixed(2)} km × RM ${MILEAGE_RATE.toFixed(2)} = RM ${mileageAmt.toFixed(2)} |
+                Toll: RM ${toll.toFixed(2)} |
+                Meal: RM ${meal.toFixed(2)} |
+                <strong>Total: RM ${total.toFixed(2)}</strong>
+                ${remarks ? ' | Note: ' + $('<div>').text(remarks).html() : ''}
+            </div>
+        </div>`;
+        const histContainer = $('.timeline-item').first().parent();
+        histContainer.prepend(histHtml);
+    })
+    .fail(function(xhr) {
+        showToast(xhr.responseJSON?.message || 'Failed to save claim.', 'error');
+    })
+    .always(function() {
+        $('#saveClaimBtn').prop('disabled', false).html('<i class="bi bi-save me-1"></i>Save Claim');
+    });
 }
 
 function submitComment() {

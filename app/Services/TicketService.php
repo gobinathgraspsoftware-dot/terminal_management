@@ -457,7 +457,8 @@ class TicketService
     }
 
     /**
-     * Update claim fields on ticket
+     * Update claim fields on ticket.
+     * FIX #3: logs every claim update into ticket_status_history for audit trail.
      */
     public function updateClaim(Ticket $ticket, array $data): Ticket
     {
@@ -467,11 +468,11 @@ class TicketService
             $mileageRate = $supervisor?->mileage_rate ?? 0;
         }
 
-        $mileage      = $data['mileage'] ?? 0;
-        $toll         = $data['toll'] ?? 0;
-        $standbyMeal  = $data['standby_meal'] ?? 0;
+        $mileage       = $data['mileage'] ?? 0;
+        $toll          = $data['toll'] ?? 0;
+        $standbyMeal   = $data['standby_meal'] ?? 0;
         $mileageAmount = $mileage * $mileageRate;
-        $totalClaim   = $mileageAmount + $toll + $standbyMeal;
+        $totalClaim    = $mileageAmount + $toll + $standbyMeal;
 
         $ticket->update([
             'mileage'            => $mileage,
@@ -482,6 +483,27 @@ class TicketService
             'standby_meal'       => $standbyMeal,
             'total_claim_amount' => $totalClaim,
             'updated_by'         => Auth::id(),
+        ]);
+
+        // Log claim update as a history entry (same from/to status — this is not a status change)
+        $remarkParts = [
+            'Claim updated',
+            'Mileage: ' . number_format($mileage, 2) . ' km × RM ' . number_format($mileageRate, 2) . ' = RM ' . number_format($mileageAmount, 2),
+            'Toll: RM ' . number_format($toll, 2),
+            'Standby/Meal: RM ' . number_format($standbyMeal, 2),
+            'Total Claim: RM ' . number_format($totalClaim, 2),
+        ];
+        if (!empty($data['mileage_remarks'])) {
+            $remarkParts[] = 'Note: ' . $data['mileage_remarks'];
+        }
+
+        TicketStatusHistory::create([
+            'ticket_id'   => $ticket->id,
+            'from_status' => $ticket->status,
+            'to_status'   => $ticket->status,
+            'changed_by'  => Auth::id(),
+            'remarks'     => implode(' | ', $remarkParts),
+            'created_at'  => now(),
         ]);
 
         return $ticket->fresh();

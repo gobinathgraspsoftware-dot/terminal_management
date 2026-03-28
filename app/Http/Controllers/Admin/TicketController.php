@@ -121,7 +121,17 @@ class TicketController extends Controller
 
         $allowedTransitions = Ticket::getAllowedTransitions($ticket->status);
         $statuses           = Ticket::getStatuses();
-        $technicians        = User::role('technician')->where('status', 'active')->orderBy('name')->get();
+
+        // FIX: Filter technicians by the ticket's supervisor — not all technicians
+        if ($ticket->supervisor_id) {
+            $supervisor  = User::find($ticket->supervisor_id);
+            $technicians = ($supervisor && $supervisor->isInternalSupervisor())
+                ? User::where('supervisor_id', $ticket->supervisor_id)->where('status', 'active')->orderBy('name')->get()
+                : collect(); // external supervisor has no technicians
+        } else {
+            // No supervisor set — admin can pick from all technicians
+            $technicians = User::role('technician')->where('status', 'active')->orderBy('name')->get();
+        }
 
         // FIX #4: Supervisor pricing for grand total breakdown
         $supervisorPrice = null;

@@ -182,24 +182,50 @@
             <div class="card-body">
                 <div class="row g-3 align-items-end">
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">Assign Technician</label>
+                        {{-- FIX 1: Technicians filtered by supervisor. Label shows current assignee. --}}
+                        <label class="form-label fw-semibold">
+                            @if($ticket->technician_id)
+                                Reassign Technician
+                                <span class="badge bg-secondary ms-1 fw-normal">
+                                    Current: {{ $ticket->technician?->name ?? '—' }}
+                                </span>
+                            @else
+                                Assign Technician
+                            @endif
+                        </label>
                         <select id="assignTechnicianSelect" class="form-select">
                             <option value="">— Select Technician —</option>
-                            @foreach($technicians as $tech)
-                                <option value="{{ $tech->id }}" {{ $ticket->technician_id == $tech->id ? 'selected' : '' }}>{{ $tech->name }}</option>
-                            @endforeach
+                            @forelse($technicians as $tech)
+                                <option value="{{ $tech->id }}" {{ $ticket->technician_id == $tech->id ? 'selected' : '' }}>
+                                    {{ $tech->name }}
+                                </option>
+                            @empty
+                                <option value="" disabled>No technicians available for this supervisor</option>
+                            @endforelse
                         </select>
+                        @if($technicians->isEmpty() && $ticket->supervisor_id)
+                            <div class="form-text text-warning">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                No active technicians found under this supervisor.
+                            </div>
+                        @endif
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">Remarks</label>
                         <input type="text" id="assignRemarks" class="form-control" placeholder="Optional remarks">
                     </div>
+                    {{-- FIX 2: Button is dynamic via JS — swaps to Reassign after first assign --}}
                     <div class="col-md-2">
-                        @if(!$ticket->technician_id)
-                            <button class="btn btn-primary w-100" onclick="assignTechnician()"><i class="bi bi-person-plus me-1"></i>Assign</button>
-                        @else
-                            <button class="btn btn-warning w-100" onclick="reassignTechnician()"><i class="bi bi-arrow-repeat me-1"></i>Reassign</button>
-                        @endif
+                        <button class="btn w-100 {{ $ticket->technician_id ? 'btn-warning' : 'btn-primary' }}"
+                                id="assignActionBtn"
+                                data-has-technician="{{ $ticket->technician_id ? '1' : '0' }}"
+                                onclick="doAssign()">
+                            @if($ticket->technician_id)
+                                <i class="bi bi-arrow-repeat me-1"></i>Reassign
+                            @else
+                                <i class="bi bi-person-plus me-1"></i>Assign
+                            @endif
+                        </button>
                     </div>
                 </div>
             </div>
@@ -439,6 +465,7 @@ const ASSIGN_URL        = '{{ route('admin.tickets.assign', $ticket->id) }}';
 const REASSIGN_URL      = '{{ route('admin.tickets.reassign', $ticket->id) }}';
 const CLAIM_URL         = '{{ route('admin.tickets.update-claim', $ticket->id) }}';
 const COMMENT_URL       = '{{ route('admin.tickets.comment', $ticket->id) }}';
+const MILEAGE_RATE      = {{ (float)($ticket->mileage_rate ?? $ticket->supervisor?->mileage_rate ?? 0) }};
 
 @php $proofTypeLabels = \App\Models\Ticket::getProofTypeLabels(); @endphp
 const proofTypeLabels = @json($proofTypeLabels);
@@ -534,33 +561,102 @@ function submitStatus() {
     });
 }
 
-function assignTechnician() {
+// ── FIX 2: Unified assign/reassign — button swaps dynamically, no page reload required ──
+function doAssign() {
     const tid     = $('#assignTechnicianSelect').val();
     const remarks = $('#assignRemarks').val();
-    if (!tid) { showToast('Please select a technician.', 'warning'); return; }
-    $.post(ASSIGN_URL, { _token: $('meta[name="csrf-token"]').attr('content'), technician_id: tid, remarks: remarks })
-        .done(r => { showToast(r.message, 'success'); setTimeout(() => location.reload(), 1000); })
-        .fail(xhr => showToast(xhr.responseJSON?.message || 'Failed.', 'error'));
-}
+    const btn     = $('#assignActionBtn');
+    const hasTech = btn.data('has-technician') === '1' || btn.data('has-technician') === 1;
 
-function reassignTechnician() {
-    const tid     = $('#assignTechnicianSelect').val();
-    const remarks = $('#assignRemarks').val();
     if (!tid) { showToast('Please select a technician.', 'warning'); return; }
-    $.post(REASSIGN_URL, { _token: $('meta[name="csrf-token"]').attr('content'), technician_id: tid, remarks: remarks })
-        .done(r => { showToast(r.message, 'success'); setTimeout(() => location.reload(), 1000); })
-        .fail(xhr => showToast(xhr.responseJSON?.message || 'Failed.', 'error'));
+
+    const url = hasTech ? REASSIGN_URL : ASSIGN_URL;
+
+    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving…');
+
+    $.post(url, {
+        _token: $('meta[name="csrf-token"]').attr('content'),
+        technician_id: tid,
+        remarks: remarks,
+    })
+    .done(function(r) {
+        showToast(r.message, 'success');
+        // FIX 2: Dynamically swap button to Reassign — no full reload needed
+        btn.removeClass('btn-primary').addClass('btn-warning')
+           .html('<i class="bi bi-arrow-repeat me-1"></i>Reassign')
+           .data('has-technician', '1');
+        // Update the label
+        const selectedText = $('#assignTechnicianSelect option:selected').text();
+        $('label[for="assignTechnicianSelect"], .col-md-6 .form-label').first().html(
+            'Reassign Technician <span class="badge bg-secondary ms-1 fw-normal">Current: ' + selectedText + '</span>'
+        );
+        // Reload after short delay to sync all status/SLA data
+        setTimeout(() => location.reload(), 1500);
+    })
+    .fail(function(xhr) {
+        showToast(xhr.responseJSON?.message || 'Failed to assign technician.', 'error');
+    })
+    .always(function() {
+        btn.prop('disabled', false);
+    });
 }
 
 function saveClaim() {
+    const mileage  = parseFloat($('#claimMileage').val())  || 0;
+    const toll     = parseFloat($('#claimToll').val())     || 0;
+    const meal     = parseFloat($('#claimMeal').val())     || 0;
+    const remarks  = $('#claimMileageRemarks').val();
+
+    if (mileage < 0 || toll < 0 || meal < 0) {
+        showToast('Claim values cannot be negative.', 'warning');
+        return;
+    }
+
+    const btn = $('#saveClaimBtn');
+    if (btn.length) btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving…');
+
     $.post(CLAIM_URL, {
-        _token: $('meta[name="csrf-token"]').attr('content'),
-        mileage: $('#claimMileage').val(),
-        toll: $('#claimToll').val(),
-        standby_meal: $('#claimMeal').val(),
-        mileage_remarks: $('#claimMileageRemarks').val(),
-    }).done(r => showToast(r.message, 'success'))
-      .fail(xhr => showToast(xhr.responseJSON?.message || 'Failed.', 'error'));
+        _token:          $('meta[name="csrf-token"]').attr('content'),
+        mileage:         mileage,
+        toll:            toll,
+        standby_meal:    meal,
+        mileage_remarks: remarks,
+    })
+    .done(function(r) {
+        showToast(r.message, 'success');
+        // FIX 3: Append new claim history entry to timeline immediately (no full reload)
+        const now = new Date().toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        const mileageAmt = mileage * MILEAGE_RATE;
+        const total      = mileageAmt + toll + meal;
+        const histHtml   = `<div class="timeline-item">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="fw-semibold">
+                        <span class="badge bg-info">Claim Updated</span>
+                    </span>
+                    <span class="text-muted small ms-2">by You</span>
+                </div>
+                <small class="text-muted">${now}</small>
+            </div>
+            <div class="small text-secondary mt-1">
+                Mileage: ${mileage.toFixed(2)} km × RM ${MILEAGE_RATE.toFixed(2)} = RM ${mileageAmt.toFixed(2)} |
+                Toll: RM ${toll.toFixed(2)} |
+                Meal: RM ${meal.toFixed(2)} |
+                <strong>Total: RM ${total.toFixed(2)}</strong>
+                ${remarks ? ' | Note: ' + $('<div>').text(remarks).html() : ''}
+            </div>
+        </div>`;
+        // Prepend to history container (newest first)
+        const histContainer = $('.timeline-item').first().parent();
+        histContainer.prepend(histHtml);
+        $('#noHistory').remove();
+    })
+    .fail(function(xhr) {
+        showToast(xhr.responseJSON?.message || 'Failed to save claim.', 'error');
+    })
+    .always(function() {
+        if (btn.length) btn.prop('disabled', false).html('<i class="bi bi-save me-1"></i>Update Claim');
+    });
 }
 
 function submitComment() {
