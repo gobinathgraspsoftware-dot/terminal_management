@@ -63,7 +63,7 @@
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-sm-4"><div class="text-muted small mb-1">Ticket No</div><div class="fw-semibold text-info">{{ $claim->ticket->ticket_no }}</div></div>
-                    <div class="col-sm-4"><div class="text-muted small mb-1">Vendor</div><div>{{ $claim->ticket->vendor->company_name ?? '-' }}</div></div>
+                    <div class="col-sm-4"><div class="text-muted small mb-1">Vendor</div><div>{{ ($claim->ticket->vendor->vendor_name ?? $claim->ticket->vendor->company_name) ?? '-' }}</div></div>
                     <div class="col-sm-4"><div class="text-muted small mb-1">Merchant</div><div>{{ $claim->ticket->merchant_name ?? '-' }}</div></div>
                     <div class="col-sm-4"><div class="text-muted small mb-1">Job Category</div><div>{{ $claim->ticket->jobCategory->name ?? '-' }}</div></div>
                     <div class="col-sm-4"><div class="text-muted small mb-1">Job Type</div><div>{{ $claim->ticket->jobType->name ?? '-' }}</div></div>

@@ -62,18 +62,27 @@ class Claim extends Model
     // Relationships
     // ══════════════════════════════════════
 
-    public function technician()   { return $this->belongsTo(User::class, 'technician_id'); }
-    public function ticket()       { return $this->belongsTo(Ticket::class); }
-    public function submitter()    { return $this->belongsTo(User::class, 'submitted_by'); }
-    public function verifier()     { return $this->belongsTo(User::class, 'verified_by'); }
-    public function approver()     { return $this->belongsTo(User::class, 'approved_by'); }
-    public function payer()        { return $this->belongsTo(User::class, 'paid_by'); }
-    public function payoutBatch()  { return $this->belongsTo(PayoutBatch::class); }
-    public function lines()        { return $this->hasMany(ClaimLine::class); }
-    public function attachments()  { return $this->hasMany(ClaimAttachment::class); }
-    public function approvals()    { return $this->hasMany(ClaimApproval::class); }
-    public function creator()      { return $this->belongsTo(User::class, 'created_by'); }
-    public function updater()      { return $this->belongsTo(User::class, 'updated_by'); }
+    public function technician()  { return $this->belongsTo(User::class, 'technician_id'); }
+
+    /**
+     * BUG FIX: Ticket relationship MUST include withTrashed().
+     *
+     * The Ticket model uses SoftDeletes. Without withTrashed(), completed tickets
+     * that have been soft-deleted return null, causing all ticket columns
+     * (ticket_no, vendor, merchant, supervisor) to display "-" in the claims list.
+     */
+    public function ticket()      { return $this->belongsTo(Ticket::class)->withTrashed(); }
+
+    public function submitter()   { return $this->belongsTo(User::class, 'submitted_by'); }
+    public function verifier()    { return $this->belongsTo(User::class, 'verified_by'); }
+    public function approver()    { return $this->belongsTo(User::class, 'approved_by'); }
+    public function payer()       { return $this->belongsTo(User::class, 'paid_by'); }
+    public function payoutBatch() { return $this->belongsTo(PayoutBatch::class); }
+    public function lines()       { return $this->hasMany(ClaimLine::class); }
+    public function attachments() { return $this->hasMany(ClaimAttachment::class); }
+    public function approvals()   { return $this->hasMany(ClaimApproval::class); }
+    public function creator()     { return $this->belongsTo(User::class, 'created_by'); }
+    public function updater()     { return $this->belongsTo(User::class, 'updated_by'); }
 
     // ══════════════════════════════════════
     // Scopes
@@ -91,7 +100,7 @@ class Claim extends Model
             return $query;
         }
         if ($user->hasRole('supervisor')) {
-            $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
+            $teamIds   = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
             $teamIds[] = $user->id;
             return $query->where(function ($q) use ($teamIds, $user) {
                 $q->whereIn('technician_id', $teamIds)
@@ -159,6 +168,19 @@ class Claim extends Model
             'accommodation'         => 'Accommodation',
             'other'                 => 'Other',
         ];
+    }
+
+    /**
+     * Get the vendor display name from the linked ticket.
+     * Uses vendor_name (NOT NULL) with company_name as fallback.
+     */
+    public function getVendorDisplayName(): string
+    {
+        $vendor = $this->ticket?->vendor;
+        if (!$vendor) return '-';
+        return $vendor->vendor_name
+            ?? $vendor->company_name
+            ?? '-';
     }
 
     public function canBeVerified(): bool

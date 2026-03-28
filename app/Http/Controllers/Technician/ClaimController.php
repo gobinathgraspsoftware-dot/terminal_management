@@ -72,8 +72,11 @@ class ClaimController extends Controller
             return [
                 'id'            => $claim->id,
                 'claim_no'      => $claim->claim_no,
-                'ticket_no'     => $claim->ticket->ticket_no ?? '-',
-                'vendor'        => $claim->ticket->vendor->company_name ?? '-',
+                'ticket_no'     => $claim->ticket->ticket_no    ?? '-',
+                // BUG FIX: vendor_name (NOT NULL) is the correct display field
+                'vendor'        => $claim->ticket->vendor->vendor_name
+                                ?? $claim->ticket->vendor->company_name
+                                ?? '-',
                 'merchant_name' => $claim->ticket->merchant_name ?? '-',
                 'total_amount'  => number_format((float) $claim->total_amount, 2),
                 'status'        => Claim::getStatusBadge($claim->status),
@@ -219,7 +222,7 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Payment History (own claims only)
+    // Payment History
     // ══════════════════════════════════════════════
 
     public function paymentHistory()
@@ -239,7 +242,7 @@ class ClaimController extends Controller
                 $q->where('technician_id', $user->id)->orWhere('submitted_by', $user->id);
             })->sum('total_amount');
 
-        $paidCount     = Claim::where('status', Claim::STATUS_PAID)->where(function ($q) use ($user) {
+        $paidCount = Claim::where('status', Claim::STATUS_PAID)->where(function ($q) use ($user) {
             $q->where('technician_id', $user->id)->orWhere('submitted_by', $user->id);
         })->count();
 
@@ -283,7 +286,9 @@ class ClaimController extends Controller
             'submitter',
             'verifier',
             'payer',
-            'ticket.vendor',
+            // BUG FIX: withTrashed() so soft-deleted tickets still display all details
+            'ticket'        => fn($q) => $q->withTrashed(),
+            'ticket.vendor' => fn($q) => $q->withTrashed(),
             'ticket.vendorBranch',
             'ticket.supervisor',
             'ticket.jobCategory',

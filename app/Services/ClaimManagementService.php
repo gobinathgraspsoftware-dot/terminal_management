@@ -18,13 +18,12 @@ class ClaimManagementService
 
     /**
      * Create a claim from a completed ticket.
-     * Called automatically by TicketService when a ticket transitions to done_success / done_fail.
+     * Called automatically by TicketService when ticket transitions to done_success / done_fail.
      */
     public function createTicketClaim(Ticket $ticket, array $data = []): Claim
     {
         return DB::transaction(function () use ($ticket, $data) {
-            $claimNo = NumberSeries::getNextNumber('ticket_claim');
-
+            $claimNo     = NumberSeries::getNextNumber('ticket_claim');
             $triggeredBy = Auth::id() ?? $ticket->technician_id;
 
             $claim = Claim::create([
@@ -34,13 +33,13 @@ class ClaimManagementService
                 'claim_date'            => now()->toDateString(),
                 'technician_id'         => $ticket->technician_id,
                 'description'           => "Ticket claim for #{$ticket->ticket_no} - {$ticket->merchant_name}",
-                'total_mileage_km'      => $data['mileage']          ?? $ticket->mileage          ?? 0,
-                'total_mileage_amount'  => $data['mileage_amount']    ?? $ticket->mileage_amount    ?? 0,
-                'total_allowance_amount'=> ($data['toll'] ?? $ticket->toll ?? 0)
-                                        + ($data['standby_meal'] ?? $ticket->standby_meal ?? 0),
+                'total_mileage_km'      => $data['mileage']           ?? $ticket->mileage           ?? 0,
+                'total_mileage_amount'  => $data['mileage_amount']     ?? $ticket->mileage_amount     ?? 0,
+                'total_allowance_amount'=> ($data['toll']              ?? $ticket->toll              ?? 0)
+                                        + ($data['standby_meal']       ?? $ticket->standby_meal       ?? 0),
                 'total_amount'          => $data['total_claim_amount'] ?? $ticket->total_claim_amount ?? 0,
                 'original_amount'       => $data['total_claim_amount'] ?? $ticket->total_claim_amount ?? 0,
-                'remarks'               => $data['remarks'] ?? $ticket->mileage_remarks,
+                'remarks'               => $data['remarks']            ?? $ticket->mileage_remarks,
                 'status'                => Claim::STATUS_SUBMITTED,
                 'submitted_at'          => now(),
                 'submitted_by'          => $triggeredBy,
@@ -63,14 +62,14 @@ class ClaimManagementService
             $claim = Claim::create([
                 'claim_no'         => $claimNo,
                 'claim_category'   => Claim::CATEGORY_OTHER,
-                'ticket_id'        => $data['ticket_id'] ?? null,
+                'ticket_id'        => $data['ticket_id']        ?? null,
                 'claim_date'       => now()->toDateString(),
-                'technician_id'    => $data['technician_id'] ?? Auth::id(),
+                'technician_id'    => $data['technician_id']    ?? Auth::id(),
                 'description'      => $data['description'],
                 'claim_type_label' => $data['claim_type_label'] ?? 'Other',
                 'total_amount'     => $data['claim_amount'],
                 'original_amount'  => $data['claim_amount'],
-                'remarks'          => $data['remarks'] ?? null,
+                'remarks'          => $data['remarks']          ?? null,
                 'status'           => Claim::STATUS_SUBMITTED,
                 'submitted_at'     => now(),
                 'submitted_by'     => Auth::id(),
@@ -254,7 +253,11 @@ class ClaimManagementService
     // ══════════════════════════════════════
 
     /**
-     * Build DataTable response for claims listing
+     * Build DataTable response for claims listing.
+     *
+     * BUG FIX: Eager-load ticket with withTrashed() so soft-deleted tickets
+     * still return their data (ticket_no, vendor, merchant, supervisor).
+     * Without this, soft-deleted tickets return null and all columns show "-".
      */
     public function getClaimsDataTable(
         $request,
@@ -271,6 +274,7 @@ class ClaimManagementService
 
         $query = Claim::query()->where('claim_category', $category);
 
+        // Role scoping
         if ($user && $scopeType === 'team') {
             $teamIds   = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
             $teamIds[] = $user->id;
@@ -285,19 +289,35 @@ class ClaimManagementService
             });
         }
 
+        // Status filter
         if ($request->filled('status')) {
             $query->where('status', $request->input('status'));
         }
 
-        // Eager-load ticket relationship for ticket claims
+        // BUG FIX: Use closure-based eager loading with withTrashed() for ticket
+        // so soft-deleted tickets still return their data.
         if ($category === Claim::CATEGORY_TICKET) {
-            $query->with(['ticket.vendor', 'ticket.supervisor', 'ticket.jobCategory', 'ticket.jobType', 'technician']);
+            $query->with([
+                'ticket'             => fn($q) => $q->withTrashed(),
+                'ticket.vendor'      => fn($q) => $q->withTrashed(),
+                'ticket.supervisor',
+                'ticket.jobCategory',
+                'ticket.jobType',
+                'technician',
+            ]);
         } else {
-            $query->with(['submitter', 'technician', 'ticket', 'attachments']);
+            $query->with([
+                'submitter',
+                'technician',
+                'ticket'        => fn($q) => $q->withTrashed(),
+                'ticket.vendor' => fn($q) => $q->withTrashed(),
+                'attachments',
+            ]);
         }
 
         $recordsTotal = $query->count();
 
+        // Search
         if ($searchValue) {
             $query->where(function ($q) use ($searchValue, $category) {
                 $q->where('claim_no', 'like', "%{$searchValue}%")
@@ -305,8 +325,10 @@ class ClaimManagementService
                   ->orWhere('total_amount', 'like', "%{$searchValue}%");
 
                 if ($category === Claim::CATEGORY_TICKET) {
+                    // Search in tickets including soft-deleted
                     $q->orWhereHas('ticket', function ($tq) use ($searchValue) {
-                        $tq->where('ticket_no', 'like', "%{$searchValue}%")
+                        $tq->withTrashed()
+                           ->where('ticket_no', 'like', "%{$searchValue}%")
                            ->orWhere('merchant_name', 'like', "%{$searchValue}%");
                     });
                 }
@@ -319,6 +341,7 @@ class ClaimManagementService
 
         $recordsFiltered = $query->count();
 
+        // Ordering
         $columns     = $category === Claim::CATEGORY_TICKET
             ? ['claim_no', 'ticket_id', 'technician_id', 'total_amount', 'status', 'submitted_at']
             : ['claim_no', 'submitted_by', 'claim_type_label', 'total_amount', 'status', 'submitted_at'];
@@ -336,7 +359,7 @@ class ClaimManagementService
     }
 
     /**
-     * Build DataTable response for bulk payment (verified + pending_payment claims)
+     * Build DataTable response for bulk payment (verified + pending_payment claims).
      */
     public function getBulkPaymentDataTable($request, string $category = 'all'): array
     {
@@ -348,7 +371,11 @@ class ClaimManagementService
         $orderDir       = $request->input('order.0.dir', 'asc') === 'desc' ? 'desc' : 'asc';
 
         $query = Claim::whereIn('status', [Claim::STATUS_VERIFIED, Claim::STATUS_PENDING_PAYMENT])
-            ->with(['technician', 'submitter', 'ticket.vendor']);
+            ->with([
+                'technician', 'submitter',
+                'ticket'        => fn($q) => $q->withTrashed(),
+                'ticket.vendor' => fn($q) => $q->withTrashed(),
+            ]);
 
         if ($category === 'ticket') {
             $query->ticketClaims();
@@ -367,7 +394,7 @@ class ClaimManagementService
                 $q->where('claim_no', 'like', "%{$searchValue}%")
                   ->orWhereHas('technician', fn($tq) => $tq->where('name', 'like', "%{$searchValue}%"))
                   ->orWhereHas('submitter',  fn($sq) => $sq->where('name', 'like', "%{$searchValue}%"))
-                  ->orWhereHas('ticket',     fn($tq) => $tq->where('ticket_no', 'like', "%{$searchValue}%"));
+                  ->orWhereHas('ticket',     fn($tq) => $tq->withTrashed()->where('ticket_no', 'like', "%{$searchValue}%"));
             });
         }
 
@@ -379,8 +406,7 @@ class ClaimManagementService
 
         $data = $query->skip($start)->take($length)->get();
 
-        // Summary totals for selected category
-        $totals = Claim::whereIn('status', [Claim::STATUS_VERIFIED, Claim::STATUS_PENDING_PAYMENT]);
+        $totals       = Claim::whereIn('status', [Claim::STATUS_VERIFIED, Claim::STATUS_PENDING_PAYMENT]);
         if ($category !== 'all') {
             $totals->where('claim_category', $category);
         }
@@ -400,7 +426,7 @@ class ClaimManagementService
     }
 
     /**
-     * Build DataTable response for payment history (paid claims)
+     * Build DataTable response for payment history (paid claims).
      */
     public function getPaymentHistoryDataTable(
         $request,
@@ -415,9 +441,12 @@ class ClaimManagementService
         $orderDir       = $request->input('order.0.dir', 'desc') === 'asc' ? 'asc' : 'desc';
 
         $query = Claim::where('status', Claim::STATUS_PAID)
-            ->with(['technician', 'submitter', 'payer', 'ticket.vendor']);
+            ->with([
+                'technician', 'submitter', 'payer',
+                'ticket'        => fn($q) => $q->withTrashed(),
+                'ticket.vendor' => fn($q) => $q->withTrashed(),
+            ]);
 
-        // Scope by role
         if ($user && $scopeType === 'team') {
             $teamIds   = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
             $teamIds[] = $user->id;
@@ -432,7 +461,6 @@ class ClaimManagementService
             });
         }
 
-        // Filters
         if ($request->filled('category')) {
             $query->where('claim_category', $request->input('category'));
         }
@@ -450,7 +478,7 @@ class ClaimManagementService
                 $q->where('claim_no', 'like', "%{$searchValue}%")
                   ->orWhereHas('technician', fn($tq) => $tq->where('name', 'like', "%{$searchValue}%"))
                   ->orWhereHas('submitter',  fn($sq) => $sq->where('name', 'like', "%{$searchValue}%"))
-                  ->orWhereHas('ticket',     fn($tq) => $tq->where('ticket_no', 'like', "%{$searchValue}%"));
+                  ->orWhereHas('ticket',     fn($tq) => $tq->withTrashed()->where('ticket_no', 'like', "%{$searchValue}%"));
             });
         }
 

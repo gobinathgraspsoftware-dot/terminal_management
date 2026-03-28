@@ -67,8 +67,14 @@ class ClaimManagementController extends Controller
             return [
                 'id'            => $claim->id,
                 'claim_no'      => $claim->claim_no,
-                'ticket_no'     => $claim->ticket->ticket_no ?? '-',
-                'vendor'        => $claim->ticket->vendor->company_name ?? '-',
+                // BUG FIX: ticket relationship now uses withTrashed() in service,
+                // so ticket data loads even for soft-deleted tickets.
+                'ticket_no'     => $claim->ticket->ticket_no    ?? '-',
+                // BUG FIX: vendor_name is NOT NULL; company_name is nullable.
+                // Use vendor_name as primary, company_name as fallback.
+                'vendor'        => $claim->ticket->vendor->vendor_name
+                                ?? $claim->ticket->vendor->company_name
+                                ?? '-',
                 'merchant_name' => $claim->ticket->merchant_name ?? '-',
                 'supervisor'    => $claim->ticket->supervisor->name ?? '-',
                 'technician'    => $claim->technician->name ?? '-',
@@ -177,7 +183,9 @@ class ClaimManagementController extends Controller
             'submitter',
             'verifier',
             'payer',
-            'ticket.vendor',
+            // BUG FIX: withTrashed() so soft-deleted tickets still display
+            'ticket'             => fn($q) => $q->withTrashed(),
+            'ticket.vendor'      => fn($q) => $q->withTrashed(),
             'ticket.vendorBranch',
             'ticket.supervisor',
             'ticket.jobCategory',
@@ -238,7 +246,7 @@ class ClaimManagementController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Bulk Payment (redesigned — DataTable based)
+    // Bulk Payment
     // ══════════════════════════════════════════════
 
     public function bulkPayment(Request $request)
@@ -247,7 +255,6 @@ class ClaimManagementController extends Controller
 
         $category = $request->input('category', 'all');
 
-        // Summary stats for header cards
         $verifiedCount  = Claim::where('status', Claim::STATUS_VERIFIED)
             ->when($category !== 'all', fn($q) => $q->where('claim_category', $category))
             ->count();
@@ -266,9 +273,6 @@ class ClaimManagementController extends Controller
         ));
     }
 
-    /**
-     * AJAX DataTable for bulk payment listing
-     */
     public function bulkPaymentData(Request $request)
     {
         $this->authorize('bulkPay', Claim::class);
@@ -286,7 +290,10 @@ class ClaimManagementController extends Controller
                     : '<span class="badge bg-secondary">Other</span>',
                 'claimant'     => $claimant,
                 'ticket_no'    => $claim->ticket->ticket_no ?? '-',
-                'vendor'       => $claim->ticket->vendor->company_name ?? '-',
+                // BUG FIX: use vendor_name (NOT NULL) as primary display field
+                'vendor'       => $claim->ticket->vendor->vendor_name
+                               ?? $claim->ticket->vendor->company_name
+                               ?? '-',
                 'total_amount' => number_format((float) $claim->total_amount, 2),
                 'status'       => Claim::getStatusBadge($claim->status),
                 'submitted_at' => $claim->submitted_at ? $claim->submitted_at->format('d/m/Y') : '-',
@@ -336,12 +343,12 @@ class ClaimManagementController extends Controller
     {
         $this->authorize('viewAny', Claim::class);
 
-        $totalPaid       = Claim::where('status', Claim::STATUS_PAID)->sum('total_amount');
-        $paidThisMonth   = Claim::where('status', Claim::STATUS_PAID)
+        $totalPaid     = Claim::where('status', Claim::STATUS_PAID)->sum('total_amount');
+        $paidThisMonth = Claim::where('status', Claim::STATUS_PAID)
             ->whereMonth('paid_at', now()->month)
             ->whereYear('paid_at', now()->year)
             ->sum('total_amount');
-        $paidCount       = Claim::where('status', Claim::STATUS_PAID)->count();
+        $paidCount     = Claim::where('status', Claim::STATUS_PAID)->count();
 
         return view('admin.claims.payment-history', compact('totalPaid', 'paidThisMonth', 'paidCount'));
     }
@@ -361,7 +368,10 @@ class ClaimManagementController extends Controller
                     : '<span class="badge bg-secondary">Other</span>',
                 'claimant'     => $claim->technician->name ?? $claim->submitter->name ?? '-',
                 'ticket_no'    => $claim->ticket->ticket_no ?? '-',
-                'vendor'       => $claim->ticket->vendor->company_name ?? '-',
+                // BUG FIX: vendor_name is the correct primary display field
+                'vendor'       => $claim->ticket->vendor->vendor_name
+                               ?? $claim->ticket->vendor->company_name
+                               ?? '-',
                 'total_amount' => number_format((float) $claim->total_amount, 2),
                 'paid_at'      => $claim->paid_at ? $claim->paid_at->format('d/m/Y H:i') : '-',
                 'paid_by'      => $claim->payer->name ?? '-',

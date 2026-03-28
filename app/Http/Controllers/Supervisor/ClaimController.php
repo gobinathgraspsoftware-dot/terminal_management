@@ -31,10 +31,9 @@ class ClaimController extends Controller
     {
         $this->authorize('viewAny', Claim::class);
 
-        $user    = Auth::user();
-        $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
+        $user      = Auth::user();
+        $teamIds   = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
         $teamIds[] = $user->id;
-
         $isInternal = $user->isInternalSupervisor();
 
         $stats = [
@@ -76,8 +75,11 @@ class ClaimController extends Controller
             return [
                 'id'            => $claim->id,
                 'claim_no'      => $claim->claim_no,
-                'ticket_no'     => $claim->ticket->ticket_no ?? '-',
-                'vendor'        => $claim->ticket->vendor->company_name ?? '-',
+                'ticket_no'     => $claim->ticket->ticket_no    ?? '-',
+                // BUG FIX: vendor_name (NOT NULL) is the correct display field
+                'vendor'        => $claim->ticket->vendor->vendor_name
+                                ?? $claim->ticket->vendor->company_name
+                                ?? '-',
                 'merchant_name' => $claim->ticket->merchant_name ?? '-',
                 'technician'    => $claim->technician->name ?? '-',
                 'total_amount'  => number_format((float) $claim->total_amount, 2),
@@ -125,9 +127,6 @@ class ClaimController extends Controller
         return response()->json($result);
     }
 
-    /**
-     * Create Other Claim — external supervisors only
-     */
     public function create()
     {
         $this->authorize('create', Claim::class);
@@ -175,15 +174,15 @@ class ClaimController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    // Payment History (team-scoped)
+    // Payment History
     // ══════════════════════════════════════════════
 
     public function paymentHistory()
     {
         $this->authorize('viewAny', Claim::class);
 
-        $user    = Auth::user();
-        $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
+        $user      = Auth::user();
+        $teamIds   = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
         $teamIds[] = $user->id;
 
         $totalPaid     = Claim::where('status', Claim::STATUS_PAID)
@@ -245,7 +244,9 @@ class ClaimController extends Controller
             'submitter',
             'verifier',
             'payer',
-            'ticket.vendor',
+            // BUG FIX: withTrashed() so soft-deleted tickets still display all details
+            'ticket'        => fn($q) => $q->withTrashed(),
+            'ticket.vendor' => fn($q) => $q->withTrashed(),
             'ticket.vendorBranch',
             'ticket.supervisor',
             'ticket.jobCategory',
