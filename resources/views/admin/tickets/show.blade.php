@@ -175,7 +175,8 @@
             </div>
         </div>
 
-        {{-- Assign / Reassign (Admin) --}}
+        {{-- Assign / Reassign (Admin) — hidden when supervisor is external (they work alone) --}}
+        @if(!($ticket->supervisor && $ticket->supervisor->isExternalSupervisor()))
         @can('assign', $ticket)
         <div class="card">
             <div class="card-header"><i class="bi bi-person-check me-2"></i>Technician Assignment</div>
@@ -231,8 +232,7 @@
             </div>
         </div>
         @endcan
-
-        {{-- Claim Update --}}
+        @endif {{-- external supervisor check --}}
         @can('updateClaim', $ticket)
         <div class="card">
             <div class="card-header"><i class="bi bi-receipt me-2"></i>Claim Update</div>
