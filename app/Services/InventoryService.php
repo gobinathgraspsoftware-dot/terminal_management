@@ -569,6 +569,198 @@ class InventoryService
     }
 
     // ══════════════════════════════════════════════════════════
+    // AUTO STOCK OPERATIONS (Triggered by TicketService)
+    // ══════════════════════════════════════════════════════════
+
+    /**
+     * Auto stock-out triggered when an installation ticket is created.
+     *
+     * Reads the ticket's router_ids, finds the matching inventory item
+     * by looking up which item had those IDs stocked into the warehouse,
+     * then calls stockOut() with all required data.
+     *
+     * Called by: TicketService::handleAutoStockOut()
+     */
+    public function autoStockOutForInstallation(\App\Models\Ticket $ticket): void
+    {
+        $routerIds = $ticket->router_ids;
+
+        if (empty($routerIds) || !is_array($routerIds)) {
+            Log::warning('autoStockOutForInstallation: no router_ids on ticket', [
+                'ticket_id' => $ticket->id,
+            ]);
+            return;
+        }
+
+        // Find which inventory item these router IDs belong to.
+        // Search stock_in / stock_return movements that brought them into warehouse.
+        $inventoryItemId = $this->findInventoryItemForRouterIds($routerIds);
+
+        if (!$inventoryItemId) {
+            Log::warning('autoStockOutForInstallation: could not find inventory item for router IDs', [
+                'ticket_id'  => $ticket->id,
+                'router_ids' => $routerIds,
+            ]);
+            return;
+        }
+
+        // Prevent duplicate stock-out for the same ticket
+        $alreadyDone = StockMovement::where('ticket_id', $ticket->id)
+            ->where('movement_type', StockMovement::TYPE_STOCK_OUT)
+            ->where('inventory_item_id', $inventoryItemId)
+            ->exists();
+
+        if ($alreadyDone) {
+            Log::info('autoStockOutForInstallation: stock-out already recorded for ticket', [
+                'ticket_id' => $ticket->id,
+            ]);
+            return;
+        }
+
+        $this->stockOut([
+            'inventory_item_id' => $inventoryItemId,
+            'router_ids'        => $routerIds,
+            'quantity'          => count($routerIds),
+            'ticket_id'         => $ticket->id,
+            'to_holder_type'    => $ticket->technician_id ? 'technician' : 'supervisor',
+            'to_holder_id'      => $ticket->technician_id ?? $ticket->supervisor_id,
+            'technician_id'     => $ticket->technician_id ?? $ticket->supervisor_id,
+            'reference_type'    => 'ticket',
+            'reference_id'      => $ticket->id,
+            'reason'            => 'Auto stock-out for installation ticket #' . $ticket->ticket_no,
+            'remarks'           => 'Router IDs: ' . implode(', ', $routerIds),
+            'movement_date'     => now()->toDateString(),
+        ]);
+
+        Log::info('autoStockOutForInstallation: completed', [
+            'ticket_id'          => $ticket->id,
+            'inventory_item_id'  => $inventoryItemId,
+            'router_ids'         => $routerIds,
+        ]);
+    }
+
+    /**
+     * Auto stock-return triggered when a replacement ticket is created.
+     *
+     * Reads the ticket's old_router_ids, finds the matching inventory item
+     * by looking up which item had those IDs stocked out of the warehouse,
+     * then calls stockReturn() with all required data.
+     *
+     * Called by: TicketService::handleAutoStockReturn()
+     */
+    public function autoStockReturnForReplacement(\App\Models\Ticket $ticket): void
+    {
+        $oldRouterIds = $ticket->old_router_ids;
+
+        if (empty($oldRouterIds) || !is_array($oldRouterIds)) {
+            Log::warning('autoStockReturnForReplacement: no old_router_ids on ticket', [
+                'ticket_id' => $ticket->id,
+            ]);
+            return;
+        }
+
+        // Find which inventory item these old router IDs belong to.
+        // They were stocked out previously — look in stock_out movements.
+        $inventoryItemId = $this->findInventoryItemForRouterIds($oldRouterIds, 'stock_out');
+
+        // Fallback: also check stock_in / stock_return if not found in stock_out
+        if (!$inventoryItemId) {
+            $inventoryItemId = $this->findInventoryItemForRouterIds($oldRouterIds);
+        }
+
+        if (!$inventoryItemId) {
+            // Last fallback: try to find any active router item
+            $routerItem = InventoryItem::routers()->active()->first();
+            if ($routerItem) {
+                $inventoryItemId = $routerItem->id;
+                Log::warning('autoStockReturnForReplacement: using fallback router item', [
+                    'ticket_id'          => $ticket->id,
+                    'inventory_item_id'  => $inventoryItemId,
+                ]);
+            } else {
+                Log::warning('autoStockReturnForReplacement: could not find inventory item for old router IDs', [
+                    'ticket_id'     => $ticket->id,
+                    'old_router_ids'=> $oldRouterIds,
+                ]);
+                return;
+            }
+        }
+
+        // Prevent duplicate stock-return for the same ticket
+        $alreadyDone = StockMovement::where('ticket_id', $ticket->id)
+            ->where('movement_type', StockMovement::TYPE_STOCK_RETURN)
+            ->where('inventory_item_id', $inventoryItemId)
+            ->exists();
+
+        if ($alreadyDone) {
+            Log::info('autoStockReturnForReplacement: stock-return already recorded for ticket', [
+                'ticket_id' => $ticket->id,
+            ]);
+            return;
+        }
+
+        $this->stockReturn([
+            'inventory_item_id' => $inventoryItemId,
+            'router_ids'        => $oldRouterIds,
+            'quantity'          => count($oldRouterIds),
+            'ticket_id'         => $ticket->id,
+            'from_holder_type'  => $ticket->technician_id ? 'technician' : 'supervisor',
+            'from_holder_id'    => $ticket->technician_id ?? $ticket->supervisor_id,
+            'reference_type'    => 'ticket',
+            'reference_id'      => $ticket->id,
+            'reason'            => 'Auto stock-return for replacement ticket #' . $ticket->ticket_no,
+            'remarks'           => 'Returned old router IDs: ' . implode(', ', $oldRouterIds),
+            'item_condition'    => 'faulty',
+            'movement_date'     => now()->toDateString(),
+        ]);
+
+        Log::info('autoStockReturnForReplacement: completed', [
+            'ticket_id'         => $ticket->id,
+            'inventory_item_id' => $inventoryItemId,
+            'old_router_ids'    => $oldRouterIds,
+        ]);
+    }
+
+    /**
+     * Find which inventory item a set of router IDs belongs to.
+     *
+     * Searches stock movements for any movement that contains ALL or ANY
+     * of the given router IDs, returning the inventory_item_id.
+     *
+     * @param array  $routerIds     Router IDs to search for
+     * @param string $movementType  'stock_in'|'stock_return'|'stock_out' or null for in/return
+     */
+    protected function findInventoryItemForRouterIds(array $routerIds, ?string $movementType = null): ?int
+    {
+        if (empty($routerIds)) return null;
+
+        $query = StockMovement::whereNotNull('router_ids');
+
+        if ($movementType) {
+            $query->where('movement_type', $movementType);
+        } else {
+            // Default: look in inbound movements (stock_in + stock_return)
+            $query->whereIn('movement_type', [
+                StockMovement::TYPE_STOCK_IN,
+                StockMovement::TYPE_STOCK_RETURN,
+            ]);
+        }
+
+        // Use JSON_CONTAINS or LIKE fallback to find any movement containing a router ID
+        $firstRouterId = $routerIds[0];
+
+        $movement = $query->where(function ($q) use ($routerIds) {
+            foreach ($routerIds as $rid) {
+                // JSON search — works for both JSON array and plain string
+                $q->orWhereRaw('JSON_CONTAINS(router_ids, ?)', [json_encode($rid)])
+                  ->orWhere('router_ids', 'like', '%' . $rid . '%');
+            }
+        })->first();
+
+        return $movement?->inventory_item_id;
+    }
+
+    // ══════════════════════════════════════════════════════════
     // MOVEMENTS DATATABLE (All Types)
     // ══════════════════════════════════════════════════════════
 
