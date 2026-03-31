@@ -303,9 +303,10 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::get('/stock-out', [AdminInventoryController::class, 'stockOutIndex'])->name('stock-out');
         Route::get('/stock-out/datatable', [AdminInventoryController::class, 'stockOutDatatable'])->name('stock-out.datatable');
 
-        // Stock Return (list + manual create form)
+        // Stock Return (list-only index + dedicated create page)
         Route::get('/stock-return', [AdminInventoryController::class, 'stockReturnIndex'])->name('stock-return');
         Route::get('/stock-return/datatable', [AdminInventoryController::class, 'stockReturnDatatable'])->name('stock-return.datatable');
+        Route::get('/stock-return/create', [AdminInventoryController::class, 'stockReturnCreate'])->name('stock-return.create');
         Route::post('/stock-return', [AdminInventoryController::class, 'stockReturn'])->name('stock-return.process');
 
         // Stock Adjustment
@@ -559,6 +560,7 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         // Stock Return (list + manual create form)
         Route::get('/stock-return', [SupervisorInventoryController::class, 'stockReturnIndex'])->name('stock-return');
         Route::get('/stock-return/datatable', [SupervisorInventoryController::class, 'stockReturnDatatable'])->name('stock-return.datatable');
+        Route::get('/stock-return/create', [SupervisorInventoryController::class, 'stockReturnCreate'])->name('stock-return.create');
         Route::post('/stock-return', [SupervisorInventoryController::class, 'stockReturn'])->name('stock-return.process');
 
         // Movements

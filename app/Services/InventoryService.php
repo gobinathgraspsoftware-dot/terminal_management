@@ -330,7 +330,7 @@ class InventoryService
                 'to_holder_type'    => isset($data['technician_id']) ? 'technician' : null,
                 'to_holder_id'      => $data['technician_id'] ?? null,
                 'ticket_id'         => $data['ticket_id'] ?? null,
-                'reference_type'    => $data['ticket_id'] ? 'ticket' : 'manual',
+                'reference_type'    => !empty($data['ticket_id']) ? 'ticket' : 'manual',
                 'reference_id'      => $data['ticket_id'] ?? null,
                 'reason'            => $data['reason'] ?? 'Stock Out',
                 'remarks'           => $data['remarks'] ?? null,
@@ -412,7 +412,7 @@ class InventoryService
                 'to_holder_type'    => 'warehouse',
                 'to_holder_id'      => null,
                 'ticket_id'         => $data['ticket_id'] ?? null,
-                'reference_type'    => $data['ticket_id'] ? 'ticket' : ($data['reference_type'] ?? 'manual'),
+                'reference_type'    => !empty($data['ticket_id']) ? 'ticket' : ($data['reference_type'] ?? 'manual'),
                 'reference_id'      => $data['ticket_id'] ?? ($data['reference_id'] ?? null),
                 'reason'            => $data['reason'] ?? 'Stock Return',
                 'remarks'           => $data['remarks'] ?? null,
@@ -574,12 +574,6 @@ class InventoryService
 
     /**
      * Auto stock-out triggered when an installation ticket is created.
-     *
-     * Reads the ticket's router_ids, finds the matching inventory item
-     * by looking up which item had those IDs stocked into the warehouse,
-     * then calls stockOut() with all required data.
-     *
-     * Called by: TicketService::handleAutoStockOut()
      */
     public function autoStockOutForInstallation(\App\Models\Ticket $ticket): void
     {
@@ -592,8 +586,6 @@ class InventoryService
             return;
         }
 
-        // Find which inventory item these router IDs belong to.
-        // Search stock_in / stock_return movements that brought them into warehouse.
         $inventoryItemId = $this->findInventoryItemForRouterIds($routerIds);
 
         if (!$inventoryItemId) {
@@ -604,7 +596,6 @@ class InventoryService
             return;
         }
 
-        // Prevent duplicate stock-out for the same ticket
         $alreadyDone = StockMovement::where('ticket_id', $ticket->id)
             ->where('movement_type', StockMovement::TYPE_STOCK_OUT)
             ->where('inventory_item_id', $inventoryItemId)
@@ -641,12 +632,6 @@ class InventoryService
 
     /**
      * Auto stock-return triggered when a replacement ticket is created.
-     *
-     * Reads the ticket's old_router_ids, finds the matching inventory item
-     * by looking up which item had those IDs stocked out of the warehouse,
-     * then calls stockReturn() with all required data.
-     *
-     * Called by: TicketService::handleAutoStockReturn()
      */
     public function autoStockReturnForReplacement(\App\Models\Ticket $ticket): void
     {
@@ -659,17 +644,13 @@ class InventoryService
             return;
         }
 
-        // Find which inventory item these old router IDs belong to.
-        // They were stocked out previously — look in stock_out movements.
         $inventoryItemId = $this->findInventoryItemForRouterIds($oldRouterIds, 'stock_out');
 
-        // Fallback: also check stock_in / stock_return if not found in stock_out
         if (!$inventoryItemId) {
             $inventoryItemId = $this->findInventoryItemForRouterIds($oldRouterIds);
         }
 
         if (!$inventoryItemId) {
-            // Last fallback: try to find any active router item
             $routerItem = InventoryItem::routers()->active()->first();
             if ($routerItem) {
                 $inventoryItemId = $routerItem->id;
@@ -686,7 +667,6 @@ class InventoryService
             }
         }
 
-        // Prevent duplicate stock-return for the same ticket
         $alreadyDone = StockMovement::where('ticket_id', $ticket->id)
             ->where('movement_type', StockMovement::TYPE_STOCK_RETURN)
             ->where('inventory_item_id', $inventoryItemId)
@@ -723,12 +703,6 @@ class InventoryService
 
     /**
      * Find which inventory item a set of router IDs belongs to.
-     *
-     * Searches stock movements for any movement that contains ALL or ANY
-     * of the given router IDs, returning the inventory_item_id.
-     *
-     * @param array  $routerIds     Router IDs to search for
-     * @param string $movementType  'stock_in'|'stock_return'|'stock_out' or null for in/return
      */
     protected function findInventoryItemForRouterIds(array $routerIds, ?string $movementType = null): ?int
     {
@@ -739,19 +713,14 @@ class InventoryService
         if ($movementType) {
             $query->where('movement_type', $movementType);
         } else {
-            // Default: look in inbound movements (stock_in + stock_return)
             $query->whereIn('movement_type', [
                 StockMovement::TYPE_STOCK_IN,
                 StockMovement::TYPE_STOCK_RETURN,
             ]);
         }
 
-        // Use JSON_CONTAINS or LIKE fallback to find any movement containing a router ID
-        $firstRouterId = $routerIds[0];
-
         $movement = $query->where(function ($q) use ($routerIds) {
             foreach ($routerIds as $rid) {
-                // JSON search — works for both JSON array and plain string
                 $q->orWhereRaw('JSON_CONTAINS(router_ids, ?)', [json_encode($rid)])
                   ->orWhere('router_ids', 'like', '%' . $rid . '%');
             }
@@ -766,21 +735,33 @@ class InventoryService
 
     /**
      * Server-side DataTable for all stock movements.
+     *
+     * Supported filters:
+     *  - movement_type      : StockMovement type constant
+     *  - inventory_item_id  : specific item (also covers "Item Name" filter from UI)
+     *  - item_type          : 'router' | 'accessory'
+     *  - brand              : partial match on inventory_items.brand
+     *  - model              : partial match on inventory_items.model
+     *  - accessory_type     : 'sim_card' | 'antenna'
+     *  - date_from / date_to: movement_date range
      */
     public function getMovementsDatatable(array $params): array
     {
         $query = StockMovement::with(['inventoryItem', 'performer', 'ticket']);
 
-        // Filters
+        // ── Existing filters ────────────────────────────────
         if (!empty($params['movement_type'])) {
             $query->ofType($params['movement_type']);
         }
         if (!empty($params['inventory_item_id'])) {
-            $query->forItem($params['inventory_item_id']);
+            $query->where('stock_movements.inventory_item_id', (int) $params['inventory_item_id']);
         }
         if (!empty($params['date_from']) || !empty($params['date_to'])) {
             $query->dateRange($params['date_from'] ?? null, $params['date_to'] ?? null);
         }
+
+        // ── NEW: item-level filters via whereHas ────────────
+        $this->applyInventoryItemFilters($query, $params);
 
         $totalRecords = StockMovement::count();
 
@@ -802,9 +783,9 @@ class InventoryService
 
         // Sorting
         $sortableColumns = [
-            0 => 'id',
-            1 => 'movement_no',
-            2 => 'movement_type',
+            0  => 'id',
+            1  => 'movement_no',
+            2  => 'movement_type',
             10 => 'movement_date',
         ];
 
@@ -824,6 +805,9 @@ class InventoryService
                 'movement_type' => $m->getTypeBadge(),
                 'item_code'     => $m->inventoryItem?->item_code ?? 'N/A',
                 'item_name'     => $m->inventoryItem?->item_name ?? 'N/A',
+                'item_type'     => $m->inventoryItem?->getTypeBadge() ?? '-',
+                'brand'         => $m->inventoryItem?->brand ?? '-',
+                'model'         => $m->inventoryItem?->model ?? '-',
                 'router_ids'    => $m->getRouterIdsDisplay(),
                 'quantity'      => $m->quantity,
                 'from_location' => $m->getFromLocation(),
@@ -866,19 +850,30 @@ class InventoryService
 
     /**
      * Shared filtered movement datatable for Stock Out / Stock Return.
+     *
+     * Supported filters:
+     *  - inventory_item_id : specific item (also covers "Item Name" filter from UI)
+     *  - item_type         : 'router' | 'accessory'
+     *  - brand             : partial match on inventory_items.brand
+     *  - model             : partial match on inventory_items.model
+     *  - accessory_type    : 'sim_card' | 'antenna'
+     *  - date_from / date_to
      */
     protected function getFilteredMovementsDatatable(array $params, string $movementType): array
     {
         $query = StockMovement::with(['inventoryItem', 'performer', 'ticket'])
             ->where('movement_type', $movementType);
 
-        // Filters
+        // ── Existing filters ────────────────────────────────
         if (!empty($params['inventory_item_id'])) {
-            $query->forItem($params['inventory_item_id']);
+            $query->where('stock_movements.inventory_item_id', (int) $params['inventory_item_id']);
         }
         if (!empty($params['date_from']) || !empty($params['date_to'])) {
             $query->dateRange($params['date_from'] ?? null, $params['date_to'] ?? null);
         }
+
+        // ── NEW: item-level filters via whereHas ────────────
+        $this->applyInventoryItemFilters($query, $params);
 
         $totalRecords = StockMovement::where('movement_type', $movementType)->count();
 
@@ -916,26 +911,29 @@ class InventoryService
             $formattedDate = $m->movement_date?->format('d M Y');
 
             return [
-                'DT_RowIndex'     => $start + $index + 1,
-                'id'              => $m->id,
-                'movement_no'     => $m->movement_no,
-                'item_code'       => $m->inventoryItem?->item_code ?? 'N/A',
-                'item_name'       => $m->inventoryItem?->item_name ?? 'N/A',
-                'router_ids'      => $m->getRouterIdsDisplay(),
-                'movement_type'   => $m->getTypeBadge(),
-                'quantity'        => $m->quantity,
-                'from_location'   => $m->getFromLocation(),
-                'to_location'     => $m->getToLocation(),
-                'ticket_no'       => $m->ticket?->ticket_no ?? '-',
-                'condition'       => $m->getConditionBadge(),
-                'item_condition'  => ucfirst($m->item_condition ?? 'good'),
-                'reason'          => $m->reason ?? '-',
-                'remarks'         => $m->remarks ?? '-',
-                'movement_date'   => $formattedDate,
-                'stockout_date'   => $formattedDate,
-                'stockreturn_date'=> $formattedDate,
-                'performed_by'    => $m->performer?->name ?? 'N/A',
-                'created_at'      => $m->created_at?->format('d M Y H:i'),
+                'DT_RowIndex'      => $start + $index + 1,
+                'id'               => $m->id,
+                'movement_no'      => $m->movement_no,
+                'item_code'        => $m->inventoryItem?->item_code ?? 'N/A',
+                'item_name'        => $m->inventoryItem?->item_name ?? 'N/A',
+                'item_type'        => $m->inventoryItem?->getTypeBadge() ?? '-',
+                'brand'            => $m->inventoryItem?->brand ?? '-',
+                'model'            => $m->inventoryItem?->model ?? '-',
+                'router_ids'       => $m->getRouterIdsDisplay(),
+                'movement_type'    => $m->getTypeBadge(),
+                'quantity'         => $m->quantity,
+                'from_location'    => $m->getFromLocation(),
+                'to_location'      => $m->getToLocation(),
+                'ticket_no'        => $m->ticket?->ticket_no ?? '-',
+                'condition'        => $m->getConditionBadge(),
+                'item_condition'   => ucfirst($m->item_condition ?? 'good'),
+                'reason'           => $m->reason ?? '-',
+                'remarks'          => $m->remarks ?? '-',
+                'movement_date'    => $formattedDate,
+                'stockout_date'    => $formattedDate,
+                'stockreturn_date' => $formattedDate,
+                'performed_by'     => $m->performer?->name ?? 'N/A',
+                'created_at'       => $m->created_at?->format('d M Y H:i'),
             ];
         });
 
@@ -948,6 +946,53 @@ class InventoryService
     }
 
     // ══════════════════════════════════════════════════════════
+    // PRIVATE HELPERS
+    // ══════════════════════════════════════════════════════════
+
+    /**
+     * Apply item-level filters (item_type, brand, model, accessory_type)
+     * to a StockMovement query via a single combined whereHas subquery.
+     *
+     * These filters are applied only when at least one item-level param is present.
+     * Uses a single whereHas for efficiency (one subquery instead of many).
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param array $params
+     */
+    protected function applyInventoryItemFilters($query, array $params): void
+    {
+        $hasItemTypeFilter     = !empty($params['item_type']);
+        $hasBrandFilter        = !empty($params['brand']);
+        $hasModelFilter        = !empty($params['model']);
+        $hasAccessoryTypeFilter = !empty($params['accessory_type']);
+
+        if (!$hasItemTypeFilter && !$hasBrandFilter && !$hasModelFilter && !$hasAccessoryTypeFilter) {
+            return; // Nothing to filter — skip the subquery entirely
+        }
+
+        $query->whereHas('inventoryItem', function ($q) use (
+            $params,
+            $hasItemTypeFilter,
+            $hasBrandFilter,
+            $hasModelFilter,
+            $hasAccessoryTypeFilter
+        ) {
+            if ($hasItemTypeFilter) {
+                $q->where('item_type', $params['item_type']);
+            }
+            if ($hasBrandFilter) {
+                $q->where('brand', 'like', '%' . $params['brand'] . '%');
+            }
+            if ($hasModelFilter) {
+                $q->where('model', 'like', '%' . $params['model'] . '%');
+            }
+            if ($hasAccessoryTypeFilter) {
+                $q->where('accessory_type', $params['accessory_type']);
+            }
+        });
+    }
+
+    // ══════════════════════════════════════════════════════════
     // SUMMARY STATS
     // ══════════════════════════════════════════════════════════
 
@@ -957,13 +1002,13 @@ class InventoryService
     public function getSummaryStats(): array
     {
         return [
-            'total_items'          => InventoryItem::count(),
-            'active_items'         => InventoryItem::active()->count(),
-            'total_routers'        => InventoryItem::routers()->count(),
-            'total_accessories'    => InventoryItem::accessories()->count(),
-            'low_stock_count'      => $this->getLowStockCount(),
-            'total_warehouse_stock'=> StockBalance::where('holder_type', 'warehouse')->sum('quantity'),
-            'today_movements'      => StockMovement::whereDate('movement_date', today())->count(),
+            'total_items'           => InventoryItem::count(),
+            'active_items'          => InventoryItem::active()->count(),
+            'total_routers'         => InventoryItem::routers()->count(),
+            'total_accessories'     => InventoryItem::accessories()->count(),
+            'low_stock_count'       => $this->getLowStockCount(),
+            'total_warehouse_stock' => StockBalance::where('holder_type', 'warehouse')->sum('quantity'),
+            'today_movements'       => StockMovement::whereDate('movement_date', today())->count(),
         ];
     }
 

@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StockInRequest;
 use App\Http\Requests\StockReturnRequest;
 use App\Models\InventoryItem;
-use App\Models\StockBalance;
 use App\Models\StockMovement;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
@@ -25,71 +24,42 @@ class InventoryController extends Controller
     // INDEX + DATATABLE
     // ══════════════════════════════════════════════════════════
 
-    /**
-     * Inventory items list (view-only for supervisors).
-     */
     public function index()
     {
         Gate::authorize('viewAny', InventoryItem::class);
-
         $stats = $this->service->getSummaryStats();
-
         return view('supervisor.inventory.index', compact('stats'));
     }
 
-    /**
-     * DataTable AJAX endpoint.
-     */
     public function datatable(Request $request)
     {
         Gate::authorize('viewAny', InventoryItem::class);
-
-        $result = $this->service->getDatatable($request->all());
-        return response()->json($result);
+        return response()->json($this->service->getDatatable($request->all()));
     }
 
-    /**
-     * AJAX - Get stock for a specific item.
-     */
     public function getItemStock(Request $request)
     {
         $request->validate(['item_id' => 'required|exists:inventory_items,id']);
-
-        $stock = $this->service->getItemStock($request->item_id);
-        return response()->json($stock);
+        return response()->json($this->service->getItemStock($request->item_id));
     }
 
     // ══════════════════════════════════════════════════════════
     // STOCK IN
     // ══════════════════════════════════════════════════════════
 
-    /**
-     * Stock In form.
-     */
     public function stockInForm()
     {
         Gate::authorize('stockIn', InventoryItem::class);
-
-        $routerItems = InventoryItem::routers()->active()->orderBy('item_name')->get();
+        $routerItems    = InventoryItem::routers()->active()->orderBy('item_name')->get();
         $accessoryItems = InventoryItem::accessories()->active()->orderBy('item_name')->get();
-
         return view('supervisor.inventory.stock-in', compact('routerItems', 'accessoryItems'));
     }
 
-    /**
-     * Process Stock In.
-     *
-     * FIX: router_ids[] are now included in validated data and passed
-     *      directly to service.
-     */
     public function stockIn(StockInRequest $request)
     {
         Gate::authorize('stockIn', InventoryItem::class);
-
         try {
             $data = $request->validated();
-
-            // If stock type is router and creating a new router item
             if ($data['stock_type'] === 'router' && empty($data['inventory_item_id'])) {
                 $item = $this->service->createItem([
                     'item_name'     => $data['item_name'],
@@ -101,16 +71,11 @@ class InventoryController extends Controller
                 ]);
                 $data['inventory_item_id'] = $item->id;
             }
-
             $movement = $this->service->stockIn($data);
-
-            return redirect()
-                ->route('supervisor.inventory.stock-in')
+            return redirect()->route('supervisor.inventory.stock-in')
                 ->with('success', "Stock In {$movement->movement_no} processed successfully.");
         } catch (\Exception $e) {
-            return redirect()
-                ->back()
-                ->withInput()
+            return redirect()->back()->withInput()
                 ->with('error', 'Stock In failed: ' . $e->getMessage());
         }
     }
@@ -119,71 +84,65 @@ class InventoryController extends Controller
     // STOCK OUT (List-Only View)
     // ══════════════════════════════════════════════════════════
 
-    /**
-     * Stock Out list (view only).
-     */
     public function stockOutIndex()
     {
         Gate::authorize('stockOut', InventoryItem::class);
-
-        return view('supervisor.inventory.stock-out');
+        $items  = InventoryItem::active()->orderBy('item_name')->get(['id', 'item_code', 'item_name', 'item_type', 'brand', 'model']);
+        $brands = InventoryItem::whereNotNull('brand')->where('brand', '!=', '')->distinct()->orderBy('brand')->pluck('brand');
+        $models = InventoryItem::whereNotNull('model')->where('model', '!=', '')->distinct()->orderBy('model')->pluck('model');
+        return view('supervisor.inventory.stock-out', compact('items', 'brands', 'models'));
     }
 
-    /**
-     * Stock Out DataTable AJAX.
-     */
     public function stockOutDatatable(Request $request)
     {
         Gate::authorize('stockOut', InventoryItem::class);
-
-        $result = $this->service->getStockOutDatatable($request->all());
-        return response()->json($result);
+        return response()->json($this->service->getStockOutDatatable($request->all()));
     }
 
     // ══════════════════════════════════════════════════════════
-    // STOCK RETURN (Manual + Auto from Replacement)
+    // STOCK RETURN
     // ══════════════════════════════════════════════════════════
 
     /**
-     * Stock Return form + list.
+     * Stock Return list page (filter + datatable only — no form here).
      */
     public function stockReturnIndex()
     {
         Gate::authorize('stockReturn', InventoryItem::class);
-
-        $allItems = InventoryItem::active()->orderBy('item_name')->get();
-
-        return view('supervisor.inventory.stock-return', compact('allItems'));
+        $brands = InventoryItem::whereNotNull('brand')->where('brand', '!=', '')->distinct()->orderBy('brand')->pluck('brand');
+        $models = InventoryItem::whereNotNull('model')->where('model', '!=', '')->distinct()->orderBy('model')->pluck('model');
+        $items  = InventoryItem::active()->orderBy('item_name')->get(['id', 'item_code', 'item_name', 'item_type', 'brand', 'model']);
+        return view('supervisor.inventory.stock-return', compact('items', 'brands', 'models'));
     }
 
     /**
-     * Stock Return DataTable AJAX.
+     * Stock Return dedicated create form.
      */
+    public function stockReturnCreate()
+    {
+        Gate::authorize('stockReturn', InventoryItem::class);
+        $allItems = InventoryItem::active()->orderBy('item_name')->get();
+        return view('supervisor.inventory.stock-return-create', compact('allItems'));
+    }
+
     public function stockReturnDatatable(Request $request)
     {
         Gate::authorize('stockReturn', InventoryItem::class);
-
-        $result = $this->service->getStockReturnDatatable($request->all());
-        return response()->json($result);
+        return response()->json($this->service->getStockReturnDatatable($request->all()));
     }
 
     /**
-     * Process manual Stock Return.
+     * Process manual Stock Return (handles both router_ids and plain quantity).
      */
     public function stockReturn(StockReturnRequest $request)
     {
         Gate::authorize('stockReturn', InventoryItem::class);
-
         try {
             $movement = $this->service->stockReturn($request->validated());
-
-            return redirect()
-                ->route('supervisor.inventory.stock-return')
+            return redirect()->route('supervisor.inventory.stock-return')
                 ->with('success', "Stock Return {$movement->movement_no} processed successfully.");
         } catch (\Exception $e) {
-            return redirect()
-                ->back()
-                ->withInput()
+            return redirect()->back()->withInput()
                 ->with('error', 'Stock Return failed: ' . $e->getMessage());
         }
     }
@@ -192,27 +151,19 @@ class InventoryController extends Controller
     // MOVEMENTS (Read-Only)
     // ══════════════════════════════════════════════════════════
 
-    /**
-     * Movements listing page.
-     */
     public function movementsIndex()
     {
         Gate::authorize('viewMovements', InventoryItem::class);
-
         $movementTypes = StockMovement::getMovementTypes();
-        $items = InventoryItem::active()->orderBy('item_name')->get();
-
-        return view('supervisor.inventory.movements', compact('movementTypes', 'items'));
+        $items  = InventoryItem::active()->orderBy('item_name')->get(['id', 'item_code', 'item_name', 'item_type', 'brand', 'model']);
+        $brands = InventoryItem::whereNotNull('brand')->where('brand', '!=', '')->distinct()->orderBy('brand')->pluck('brand');
+        $models = InventoryItem::whereNotNull('model')->where('model', '!=', '')->distinct()->orderBy('model')->pluck('model');
+        return view('supervisor.inventory.movements', compact('movementTypes', 'items', 'brands', 'models'));
     }
 
-    /**
-     * Movements DataTable AJAX.
-     */
     public function movementsDatatable(Request $request)
     {
         Gate::authorize('viewMovements', InventoryItem::class);
-
-        $result = $this->service->getMovementsDatatable($request->all());
-        return response()->json($result);
+        return response()->json($this->service->getMovementsDatatable($request->all()));
     }
 }

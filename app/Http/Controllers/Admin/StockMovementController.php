@@ -27,10 +27,20 @@ class StockMovementController extends Controller
     {
         Gate::authorize('viewMovements', InventoryItem::class);
 
-        $items = InventoryItem::active()->orderBy('item_name')->get(['id', 'item_code', 'item_name']);
+        $items         = InventoryItem::active()->orderBy('item_name')->get(['id', 'item_code', 'item_name', 'item_type', 'brand', 'model']);
         $movementTypes = StockMovement::getMovementTypes();
+        $brands        = InventoryItem::whereNotNull('brand')
+                            ->where('brand', '!=', '')
+                            ->distinct()
+                            ->orderBy('brand')
+                            ->pluck('brand');
+        $models        = InventoryItem::whereNotNull('model')
+                            ->where('model', '!=', '')
+                            ->distinct()
+                            ->orderBy('model')
+                            ->pluck('model');
 
-        return view('admin.inventory.movements', compact('items', 'movementTypes'));
+        return view('admin.inventory.movements', compact('items', 'movementTypes', 'brands', 'models'));
     }
 
     /**
@@ -51,7 +61,16 @@ class StockMovementController extends Controller
     {
         Gate::authorize('viewMovements', InventoryItem::class);
 
-        $filters = $request->only(['movement_type', 'date_from', 'date_to', 'inventory_item_id']);
+        $filters = $request->only([
+            'movement_type',
+            'date_from',
+            'date_to',
+            'inventory_item_id',
+            'item_type',
+            'brand',
+            'model',
+            'accessory_type',
+        ]);
 
         return Excel::download(
             new StockMovementExport($filters),
