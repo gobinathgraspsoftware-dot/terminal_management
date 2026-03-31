@@ -1,327 +1,596 @@
 @extends('layouts.app')
 
-@section('title', 'Vendor - ' . $vendor->vendor_name)
+@section('title', 'Vendor — ' . $vendor->vendor_name)
 
 @section('content')
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+
+    {{-- ── Page Header ──────────────────────────────────────────── --}}
+    <div class="d-flex align-items-center justify-content-between mb-4">
         <div>
-            <h1 class="h3 mb-1">{{ $vendor->vendor_name }}</h1>
+            <h4 class="mb-1 fw-bold">
+                <i class="bi bi-truck me-2 text-primary"></i>Vendor Details
+            </h4>
             <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('admin.vendors.index') }}">Vendors</a></li>
+                <ol class="breadcrumb mb-0 small">
+                    <li class="breadcrumb-item">
+                        <a href="{{ route('admin.dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{{ route('admin.vendors.index') }}">Vendors</a>
+                    </li>
                     <li class="breadcrumb-item active">{{ $vendor->vendor_code }}</li>
                 </ol>
             </nav>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
             @can('edit_vendors')
-            <a href="{{ route('admin.vendors.edit', $vendor->id) }}" class="btn btn-primary">
-                <i class="bi bi-pencil me-1"></i> Edit
+            @unless($vendor->trashed())
+            <a href="{{ route('admin.vendors.edit', $vendor->id) }}"
+               class="btn btn-primary btn-sm">
+                <i class="bi bi-pencil me-1"></i>Edit
             </a>
+            @endunless
             @endcan
-            <a href="{{ route('admin.vendors.index') }}" class="btn btn-secondary">
-                <i class="bi bi-arrow-left me-1"></i> Back
-            </a>
-        </div>
-    </div>
 
-    {{-- Statistics --}}
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-md-2">
-            <div class="card text-center">
-                <div class="card-body py-3">
-                    <div class="h4 mb-0 text-primary">{{ $statistics['total_pos'] ?? 0 }}</div>
-                    <small class="text-muted">Total POs</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-2">
-            <div class="card text-center">
-                <div class="card-body py-3">
-                    <div class="h4 mb-0 text-warning">{{ $statistics['active_pos'] ?? 0 }}</div>
-                    <small class="text-muted">Active POs</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-2">
-            <div class="card text-center">
-                <div class="card-body py-3">
-                    <div class="h4 mb-0 text-success">{{ $statistics['total_grns'] ?? 0 }}</div>
-                    <small class="text-muted">GRNs</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-2">
-            <div class="card text-center">
-                <div class="card-body py-3">
-                    <div class="h4 mb-0 text-info">{{ $statistics['total_branches'] ?? 0 }}</div>
-                    <small class="text-muted">Branches</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-md-2">
-            <div class="card text-center">
-                <div class="card-body py-3">
-                    <div class="h4 mb-0 text-danger">RM {{ number_format($statistics['outstanding_amount'] ?? 0, 2) }}</div>
-                    <small class="text-muted">Outstanding</small>
-                </div>
-            </div>
-        </div>
-    </div>
+            @can('edit_vendors')
+            @unless($vendor->trashed())
+            <button type="button" id="btnToggleStatus" class="btn btn-outline-secondary btn-sm"
+                    data-id="{{ $vendor->id }}"
+                    data-status="{{ $vendor->status }}">
+                @if($vendor->status === 'active')
+                    <i class="bi bi-toggle-on text-success me-1"></i>Deactivate
+                @else
+                    <i class="bi bi-toggle-off text-secondary me-1"></i>Activate
+                @endif
+            </button>
+            @endunless
+            @endcan
 
-    {{-- Tabs --}}
-    <ul class="nav nav-tabs mb-4" role="tablist">
-        <li class="nav-item">
-            <a class="nav-link active" data-bs-toggle="tab" href="#details">
-                <i class="bi bi-info-circle me-1"></i> Details
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#branches">
-                <i class="bi bi-building me-1"></i> Branches
-                <span class="badge bg-primary ms-1">{{ $vendor->branches->count() }}</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#purchaseOrders">
-                <i class="bi bi-file-earmark-text me-1"></i> Purchase Orders
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#grns">
-                <i class="bi bi-box-seam me-1"></i> GRNs
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#aging">
-                <i class="bi bi-clock-history me-1"></i> AP Aging
-            </a>
-        </li>
-    </ul>
-
-    <div class="tab-content">
-        {{-- Details Tab --}}
-        <div class="tab-pane fade show active" id="details">
-            <div class="row g-4">
-                <div class="col-md-6">
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">Basic Information</h5>
-                        </div>
-                        <div class="card-body">
-                            <table class="table table-borderless mb-0">
-                                <tr><th class="text-muted" style="width:35%">Vendor Code</th><td>{{ $vendor->vendor_code }}</td></tr>
-                                <tr><th class="text-muted">Vendor Name</th><td>{{ $vendor->vendor_name }}</td></tr>
-                                <tr><th class="text-muted">Type</th><td>{!! match($vendor->vendor_type) {
-                                    'supplier' => '<span class="badge bg-primary">Supplier</span>',
-                                    'subcon' => '<span class="badge bg-info">Sub-contractor</span>',
-                                    'courier' => '<span class="badge bg-warning">Courier</span>',
-                                    default => '<span class="badge bg-secondary">Other</span>',
-                                } !!}</td></tr>
-                                <tr><th class="text-muted">Company Name</th><td>{{ $vendor->company_name ?? '-' }}</td></tr>
-                                <tr><th class="text-muted">Registration No</th><td>{{ $vendor->registration_no ?? '-' }}</td></tr>
-                                <tr><th class="text-muted">Tax ID</th><td>{{ $vendor->tax_id ?? '-' }}</td></tr>
-                                <tr><th class="text-muted">Status</th><td>{!! $vendor->status_badge !!}</td></tr>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">Person In Charge</h5>
-                        </div>
-                        <div class="card-body">
-                            <table class="table table-borderless mb-0">
-                                <tr><th class="text-muted" style="width:35%">Name</th><td>{{ $vendor->pic_name ?? '-' }}</td></tr>
-                                <tr><th class="text-muted">Email</th><td>{{ $vendor->pic_email ?? '-' }}</td></tr>
-                                <tr><th class="text-muted">Phone</th><td>{{ $vendor->pic_phone ?? '-' }}</td></tr>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">Bank & Payment</h5>
-                        </div>
-                        <div class="card-body">
-                            <table class="table table-borderless mb-0">
-                                <tr><th class="text-muted" style="width:35%">Bank</th><td>{{ $vendor->bank_name ?? '-' }}</td></tr>
-                                <tr><th class="text-muted">Account No</th><td>{{ $vendor->bank_account_no ?? '-' }}</td></tr>
-                                <tr><th class="text-muted">Account Name</th><td>{{ $vendor->bank_account_name ?? '-' }}</td></tr>
-                                <tr><th class="text-muted">Payment Terms</th><td>{{ $vendor->payment_terms }} days</td></tr>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            @if($vendor->notes)
-            <div class="card mt-4">
-                <div class="card-header"><h5 class="card-title mb-0">Notes</h5></div>
-                <div class="card-body">{{ $vendor->notes }}</div>
-            </div>
+            @can('delete_vendors')
+            @if($vendor->trashed())
+            <button type="button" id="btnRestore" class="btn btn-outline-success btn-sm"
+                    data-id="{{ $vendor->id }}">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+            </button>
+            @else
+            <button type="button" id="btnDelete" class="btn btn-outline-danger btn-sm"
+                    data-id="{{ $vendor->id }}">
+                <i class="bi bi-trash me-1"></i>Delete
+            </button>
             @endif
-            <div class="card mt-4">
+            @endcan
+
+            <a href="{{ route('admin.vendors.index') }}"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back
+            </a>
+        </div>
+    </div>
+
+    {{-- ── Deleted Banner ─────────────────────────────────────────  --}}
+    @if($vendor->trashed())
+    <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2 flex-shrink-0"></i>
+        <div>
+            This vendor has been <strong>deleted</strong> on
+            {{ $vendor->deleted_at ? $vendor->deleted_at->format('d M Y, h:i A') : '—' }}.
+            @can('delete_vendors')
+            <a href="#" id="btnRestoreInline" data-id="{{ $vendor->id }}"
+               class="alert-link ms-1">Restore it</a>
+            @endcan
+        </div>
+    </div>
+    @endif
+
+    <div class="row g-4">
+
+        {{-- ════════════════════════════════════════════
+             LEFT COLUMN — main details
+        ════════════════════════════════════════════ --}}
+        <div class="col-lg-8">
+
+            {{-- ── Vendor Info Card ─────────────────────────────── --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-info-circle me-2 text-primary"></i>Vendor Information
+                    </h6>
+                    @if($vendor->trashed())
+                        <span class="badge bg-danger">Deleted</span>
+                    @elseif($vendor->status === 'active')
+                        <span class="badge bg-success">Active</span>
+                    @else
+                        <span class="badge bg-secondary">Inactive</span>
+                    @endif
+                </div>
                 <div class="card-body">
-                    <small class="text-muted">
-                        Created: {{ $vendor->created_at?->format('Y-m-d H:i') }}
-                        @if($vendor->createdBy) by {{ $vendor->createdBy->name }} @endif
-                        | Updated: {{ $vendor->updated_at?->format('Y-m-d H:i') }}
-                        @if($vendor->updatedBy) by {{ $vendor->updatedBy->name }} @endif
-                    </small>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Vendor Code</label>
+                            <div class="fw-bold font-monospace">{{ $vendor->vendor_code }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Vendor Name</label>
+                            <div class="fw-semibold">{{ $vendor->vendor_name }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Company / Legal Name</label>
+                            <div>{{ $vendor->company_name ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Vendor Type</label>
+                            <div>
+                                {{--
+                                    FIX: $vendor->vendorType is a belongsTo — returns NULL when no
+                                    vendor_type_id is set. Calling ->isEmpty() on NULL was the crash.
+                                    Guard with @if($vendor->vendorType) before accessing any property.
+                                --}}
+                                @if($vendor->vendorType)
+                                    <span class="badge bg-primary">{{ $vendor->vendorType->title }}</span>
+                                @elseif($vendor->vendor_type)
+                                    @php
+                                        $legacyLabels = [
+                                            'supplier' => ['bg-primary',   'Supplier'],
+                                            'subcon'   => ['bg-info',      'Sub-contractor'],
+                                            'courier'  => ['bg-warning',   'Courier'],
+                                            'other'    => ['bg-secondary', 'Other'],
+                                        ];
+                                        [$cls, $lbl] = $legacyLabels[$vendor->vendor_type]
+                                            ?? ['bg-dark', ucfirst($vendor->vendor_type)];
+                                    @endphp
+                                    <span class="badge {{ $cls }}">{{ $lbl }}</span>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Registration No.</label>
+                            <div>{{ $vendor->registration_no ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Tax ID</label>
+                            <div>{{ $vendor->tax_id ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Payment Terms</label>
+                            <div>{{ $vendor->payment_terms ? $vendor->payment_terms . ' days' : '—' }}</div>
+                        </div>
+                        @if($vendor->notes)
+                        <div class="col-12">
+                            <label class="form-label small text-muted fw-semibold mb-1">Notes</label>
+                            <div class="p-2 bg-light rounded small">{{ $vendor->notes }}</div>
+                        </div>
+                        @endif
+                    </div>
                 </div>
             </div>
-        </div>
 
-        {{-- Branches Tab --}}
-        <div class="tab-pane fade" id="branches">
-            @if($vendor->branches->isEmpty())
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i> No branches found for this vendor.
+            {{-- ── PIC Card ─────────────────────────────────────── --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-person-badge me-2 text-primary"></i>Person-in-Charge (PIC)
+                    </h6>
                 </div>
-            @else
-                <div class="row g-3">
-                    @foreach($vendor->branches as $branch)
-                    <div class="col-md-6">
-                        <div class="card h-100 {{ $branch->is_primary ? 'border-primary' : '' }}">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0">
-                                    <i class="bi bi-geo-alt me-1"></i> {{ $branch->branch_name }}
-                                </h6>
-                                <div>
-                                    @if($branch->is_primary)
-                                        <span class="badge bg-primary me-1">Primary</span>
-                                    @endif
-                                    <span class="badge {{ $branch->status === 'active' ? 'bg-success' : 'bg-secondary' }}">
-                                        {{ ucfirst($branch->status) }}
-                                    </span>
-                                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted fw-semibold mb-1">Name</label>
+                            <div>{{ $vendor->pic_name ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted fw-semibold mb-1">Email</label>
+                            <div>
+                                @if($vendor->pic_email)
+                                    <a href="mailto:{{ $vendor->pic_email }}" class="text-decoration-none">
+                                        <i class="bi bi-envelope me-1"></i>{{ $vendor->pic_email }}
+                                    </a>
+                                @else
+                                    —
+                                @endif
                             </div>
-                            <div class="card-body">
-                                <table class="table table-sm table-borderless mb-0">
-                                    <tr><th class="text-muted" style="width:30%">Address</th><td>{{ $branch->address ?? '-' }}</td></tr>
-                                    <tr><th class="text-muted">State</th><td>{{ $branch->state?->name ?? '-' }}</td></tr>
-                                    <tr><th class="text-muted">City</th><td>{{ $branch->city?->name ?? '-' }}</td></tr>
-                                    <tr><th class="text-muted">Postcode</th><td>{{ $branch->postcode ?? '-' }}</td></tr>
-                                    <tr><th class="text-muted">Country</th><td>{{ $branch->country ?? 'Malaysia' }}</td></tr>
-                                    <tr><th class="text-muted">Contact</th><td>{{ $branch->contact_person ?? '-' }}</td></tr>
-                                    <tr><th class="text-muted">Email</th><td>{{ $branch->contact_email ?? '-' }}</td></tr>
-                                    <tr><th class="text-muted">Phone</th><td>{{ $branch->contact_phone ?? '-' }}</td></tr>
-                                </table>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted fw-semibold mb-1">Phone</label>
+                            <div>
+                                @if($vendor->pic_phone)
+                                    <a href="tel:{{ $vendor->pic_phone }}" class="text-decoration-none">
+                                        <i class="bi bi-telephone me-1"></i>{{ $vendor->pic_phone }}
+                                    </a>
+                                @else
+                                    —
+                                @endif
                             </div>
                         </div>
                     </div>
-                    @endforeach
                 </div>
-            @endif
-        </div>
+            </div>
 
-        {{-- Purchase Orders Tab --}}
-        <div class="tab-pane fade" id="purchaseOrders">
-            @if($vendor->purchaseOrders->isEmpty())
-                <div class="alert alert-info"><i class="bi bi-info-circle me-2"></i> No purchase orders found.</div>
-            @else
-                <div class="card">
-                    <div class="card-body">
+            {{-- ── Branches Card ────────────────────────────────── --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-building me-2 text-primary"></i>Branches
+                    </h6>
+                    {{--
+                        SAFE: $vendor->branches is a HasMany collection (always a Collection, never null).
+                        ->count() and ->isEmpty() are safe to call directly.
+                    --}}
+                    <span class="badge bg-info text-dark">
+                        {{ $vendor->branches->count() }}
+                        branch{{ $vendor->branches->count() !== 1 ? 'es' : '' }}
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    @if($vendor->branches->isEmpty())
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-building-x fs-2 d-block mb-2"></i>
+                            No branches registered for this vendor.
+                        </div>
+                    @else
                         <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
                                     <tr>
-                                        <th>PO Number</th>
-                                        <th>Date</th>
-                                        <th>Total</th>
-                                        <th>Status</th>
+                                        <th class="ps-3">Branch Name</th>
+                                        <th>State / City</th>
+                                        <th>Contact</th>
+                                        <th class="text-center">Primary</th>
+                                        <th class="text-center">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($vendor->purchaseOrders as $po)
+                                    @foreach($vendor->branches as $branch)
                                     <tr>
-                                        <td>
-                                            <a href="{{ route('admin.purchase-orders.show', $po->id) }}">
-                                                {{ $po->po_number }}
-                                            </a>
+                                        <td class="ps-3">
+                                            <div class="fw-semibold">{{ $branch->branch_name }}</div>
+                                            @if($branch->address)
+                                                <small class="text-muted">{{ $branch->address }}</small>
+                                            @endif
+                                            @if($branch->postcode)
+                                                <small class="text-muted d-block">{{ $branch->postcode }}</small>
+                                            @endif
                                         </td>
-                                        <td>{{ $po->po_date ? \Carbon\Carbon::parse($po->po_date)->format('Y-m-d') : '-' }}</td>
-                                        <td>RM {{ number_format($po->total_amount, 2) }}</td>
-                                        <td><span class="badge bg-info">{{ ucfirst(str_replace('_', ' ', $po->status)) }}</span></td>
+                                        <td>
+                                            {{--
+                                                FIX: $branch->state & $branch->city are eager-loaded
+                                                belongsTo — guard with @if before accessing ->name.
+                                            --}}
+                                            @if($branch->state)
+                                                <div class="small">{{ $branch->state->name }}</div>
+                                            @endif
+                                            @if($branch->city)
+                                                <small class="text-muted">{{ $branch->city->name }}</small>
+                                            @endif
+                                            @if(!$branch->state && !$branch->city)
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($branch->contact_person)
+                                                <div class="small fw-semibold">{{ $branch->contact_person }}</div>
+                                            @endif
+                                            @if($branch->contact_email)
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-envelope me-1"></i>{{ $branch->contact_email }}
+                                                </small>
+                                            @endif
+                                            @if($branch->contact_phone)
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-telephone me-1"></i>{{ $branch->contact_phone }}
+                                                </small>
+                                            @endif
+                                            @if(!$branch->contact_person && !$branch->contact_email && !$branch->contact_phone)
+                                                <span class="text-muted small">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-center">
+                                            @if($branch->is_primary)
+                                                <span class="badge bg-primary">
+                                                    <i class="bi bi-star-fill me-1"></i>Primary
+                                                </span>
+                                            @else
+                                                <span class="text-muted small">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-center">
+                                            @if($branch->status === 'active')
+                                                <span class="badge bg-success">Active</span>
+                                            @else
+                                                <span class="badge bg-secondary">Inactive</span>
+                                            @endif
+                                        </td>
                                     </tr>
                                     @endforeach
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                    @endif
                 </div>
-            @endif
-        </div>
+            </div>
 
-        {{-- GRNs Tab --}}
-        <div class="tab-pane fade" id="grns">
-            @if($vendor->grns->isEmpty())
-                <div class="alert alert-info"><i class="bi bi-info-circle me-2"></i> No GRNs found.</div>
-            @else
-                <div class="card">
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>GRN Number</th>
-                                        <th>Date</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($vendor->grns as $grn)
-                                    <tr>
-                                        <td>
-                                            <a href="{{ route('admin.grns.show', $grn->id) }}">
-                                                {{ $grn->grn_number }}
-                                            </a>
-                                        </td>
-                                        <td>{{ $grn->grn_date ? \Carbon\Carbon::parse($grn->grn_date)->format('Y-m-d') : '-' }}</td>
-                                        <td><span class="badge bg-info">{{ ucfirst($grn->status) }}</span></td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+            {{-- ── AP Aging Card (stub — enabled when Invoice module built) ──── --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-calendar-range me-2 text-primary"></i>AP Aging
+                        <small class="text-muted fw-normal">(pending Invoice module)</small>
+                    </h6>
                 </div>
-            @endif
-        </div>
-
-        {{-- AP Aging Tab --}}
-        <div class="tab-pane fade" id="aging">
-            <div class="card">
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered text-center">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Current</th>
-                                    <th>1-30 Days</th>
-                                    <th>31-60 Days</th>
-                                    <th>61-90 Days</th>
-                                    <th>Over 90 Days</th>
-                                    <th class="table-warning">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>RM {{ number_format($apAging['current'] ?? 0, 2) }}</td>
-                                    <td>RM {{ number_format($apAging['1_30'] ?? 0, 2) }}</td>
-                                    <td>RM {{ number_format($apAging['31_60'] ?? 0, 2) }}</td>
-                                    <td>RM {{ number_format($apAging['61_90'] ?? 0, 2) }}</td>
-                                    <td class="text-danger">RM {{ number_format($apAging['over_90'] ?? 0, 2) }}</td>
-                                    <td class="table-warning fw-bold">RM {{ number_format($apAging['total'] ?? 0, 2) }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="row g-3 text-center">
+                        @php
+                            $agingLabels = [
+                                'current' => 'Current',
+                                '1_30'    => '1–30 days',
+                                '31_60'   => '31–60 days',
+                                '61_90'   => '61–90 days',
+                                'over_90' => '> 90 days',
+                                'total'   => 'Total',
+                            ];
+                        @endphp
+                        @foreach($agingLabels as $key => $label)
+                        <div class="col-6 col-md-2">
+                            <div class="fw-bold {{ $key === 'total' ? 'text-danger' : 'text-dark' }}">
+                                RM {{ number_format($apAging[$key] ?? 0, 2) }}
+                            </div>
+                            <div class="text-muted small">{{ $label }}</div>
+                        </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+
+        </div>{{-- /col-lg-8 --}}
+
+        {{-- ════════════════════════════════════════════
+             RIGHT COLUMN — sidebar
+        ════════════════════════════════════════════ --}}
+        <div class="col-lg-4">
+
+            {{-- ── Statistics Card ─────────────────────────────── --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-bar-chart me-2 text-primary"></i>Statistics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 text-center">
+                        <div class="col-6">
+                            <div class="fw-bold fs-4 text-primary">
+                                {{ $statistics['total_branches'] ?? 0 }}
+                            </div>
+                            <div class="text-muted small">Total Branches</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="fw-bold fs-4 text-success">
+                                {{ $statistics['active_branches'] ?? 0 }}
+                            </div>
+                            <div class="text-muted small">Active Branches</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- ── Bank Details Card ────────────────────────────── --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-bank me-2 text-primary"></i>Bank Details
+                    </h6>
+                </div>
+                <div class="card-body">
+                    @if($vendor->bank_name || $vendor->bank_account_no)
+                        <div class="mb-2">
+                            <label class="form-label small text-muted fw-semibold mb-1">Bank Name</label>
+                            <div>{{ $vendor->bank_name ?: '—' }}</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small text-muted fw-semibold mb-1">Account Number</label>
+                            <div class="font-monospace">{{ $vendor->bank_account_no ?: '—' }}</div>
+                        </div>
+                        <div>
+                            <label class="form-label small text-muted fw-semibold mb-1">Account Name</label>
+                            <div>{{ $vendor->bank_account_name ?: '—' }}</div>
+                        </div>
+                    @else
+                        <div class="text-center text-muted py-2">
+                            <i class="bi bi-bank2 d-block mb-1"></i>
+                            <small>No bank details on record.</small>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- ── Record Audit Card ────────────────────────────── --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-clock-history me-2 text-primary"></i>Record Info
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-semibold mb-1">Created At</label>
+                        <div class="small">
+                            {{ $vendor->created_at ? $vendor->created_at->format('d M Y, h:i A') : '—' }}
+                        </div>
+                        {{--
+                            FIX: $vendor->createdBy is a belongsTo — guard with @if
+                            before calling ->name. created_by column is nullable in DB.
+                        --}}
+                        @if($vendor->createdBy)
+                            <small class="text-muted">by {{ $vendor->createdBy->name }}</small>
+                        @endif
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-semibold mb-1">Last Updated</label>
+                        <div class="small">
+                            {{ $vendor->updated_at ? $vendor->updated_at->format('d M Y, h:i A') : '—' }}
+                        </div>
+                        {{--
+                            FIX: Same pattern — guard before accessing ->name on updatedBy.
+                        --}}
+                        @if($vendor->updatedBy)
+                            <small class="text-muted">by {{ $vendor->updatedBy->name }}</small>
+                        @endif
+                    </div>
+                    @if($vendor->trashed())
+                    <div>
+                        <label class="form-label small text-muted fw-semibold mb-1">Deleted At</label>
+                        <div class="small text-danger">
+                            {{ $vendor->deleted_at ? $vendor->deleted_at->format('d M Y, h:i A') : '—' }}
+                        </div>
+                    </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- ── Quick Actions Card ───────────────────────────── --}}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-lightning me-2 text-primary"></i>Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body d-grid gap-2">
+                    @can('edit_vendors')
+                    @unless($vendor->trashed())
+                    <a href="{{ route('admin.vendors.edit', $vendor->id) }}"
+                       class="btn btn-primary btn-sm">
+                        <i class="bi bi-pencil me-1"></i>Edit Vendor
+                    </a>
+                    @endunless
+                    @endcan
+
+                    <a href="{{ route('admin.vendors.index') }}"
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i>Back to Vendor List
+                    </a>
+
+                    <a href="{{ route('admin.vendors.export') }}"
+                       class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-file-earmark-excel me-1"></i>Export Vendors
+                    </a>
+
+                    @can('create_vendors')
+                    <a href="{{ route('admin.vendors.create') }}"
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-plus-circle me-1"></i>Add New Vendor
+                    </a>
+                    @endcan
+                </div>
+            </div>
+
+        </div>{{-- /col-lg-4 --}}
+    </div>{{-- /row --}}
+
 </div>
 @endsection
+
+@push('scripts')
+<script>
+$(function () {
+    'use strict';
+
+    var CSRF      = $('meta[name="csrf-token"]').attr('content');
+    var vendorId  = {{ $vendor->id }};
+    var indexUrl  = '{{ route("admin.vendors.index") }}';
+
+    // ── Toggle Status ─────────────────────────────────────────────
+    $('#btnToggleStatus').on('click', function () {
+        var currentStatus = $(this).data('status');
+        var actionText    = currentStatus === 'active' ? 'deactivate' : 'activate';
+
+        confirmAction(
+            'Toggle vendor status?',
+            'This vendor will be ' + actionText + 'd.',
+            'warning'
+        ).then(function (result) {
+            if (!result.isConfirmed) return;
+            $.ajax({
+                url:    '/admin/vendors/' + vendorId + '/toggle-status',
+                method: 'POST',
+                data:   { _token: CSRF },
+                success: function (res) {
+                    if (res.success) {
+                        showToast(res.message, 'success');
+                        setTimeout(function () { location.reload(); }, 800);
+                    } else {
+                        showToast(res.message, 'danger');
+                    }
+                },
+                error: function () {
+                    showToast('Failed to update status.', 'danger');
+                }
+            });
+        });
+    });
+
+    // ── Delete ────────────────────────────────────────────────────
+    $('#btnDelete').on('click', function () {
+        confirmAction(
+            'Delete this vendor?',
+            'The vendor will be soft-deleted. It can be restored later.',
+            'danger'
+        ).then(function (result) {
+            if (!result.isConfirmed) return;
+            $.ajax({
+                url:    '/admin/vendors/' + vendorId,
+                method: 'DELETE',
+                data:   { _token: CSRF },
+                success: function (res) {
+                    if (res.success) {
+                        showToast(res.message, 'success');
+                        setTimeout(function () {
+                            window.location.href = indexUrl;
+                        }, 900);
+                    } else {
+                        showToast(res.message, 'danger');
+                    }
+                },
+                error: function () {
+                    showToast('Failed to delete vendor.', 'danger');
+                }
+            });
+        });
+    });
+
+    // ── Restore (header button + inline alert link) ───────────────
+    function doRestore() {
+        confirmAction(
+            'Restore this vendor?',
+            'The vendor will be made active again.',
+            'info'
+        ).then(function (result) {
+            if (!result.isConfirmed) return;
+            $.ajax({
+                url:    '/admin/vendors/' + vendorId + '/restore',
+                method: 'POST',
+                data:   { _token: CSRF },
+                success: function (res) {
+                    if (res.success) {
+                        showToast(res.message, 'success');
+                        setTimeout(function () { location.reload(); }, 800);
+                    } else {
+                        showToast(res.message, 'danger');
+                    }
+                },
+                error: function () {
+                    showToast('Failed to restore vendor.', 'danger');
+                }
+            });
+        });
+    }
+
+    $('#btnRestore, #btnRestoreInline').on('click', function (e) {
+        e.preventDefault();
+        doRestore();
+    });
+
+});
+</script>
+@endpush

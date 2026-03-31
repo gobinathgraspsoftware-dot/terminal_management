@@ -42,17 +42,18 @@ class VendorController extends Controller implements HasMiddleware
 
     /**
      * Display a listing of vendors (view-only)
+     * Passes $vendorTypes from DB for the filter dropdown.
      */
     public function index(): View
     {
-        $statistics = $this->vendorService->getStatistics();
+        $statistics  = $this->vendorService->getStatistics();
         $vendorTypes = VendorType::where('is_active', true)->orderBy('title')->get();
 
         return view('supervisor.vendors.index', compact('statistics', 'vendorTypes'));
     }
 
     /**
-     * DataTables server-side processing (view-only, no action buttons)
+     * DataTables server-side processing (view-only, no action buttons except View)
      */
     public function datatable(Request $request): JsonResponse
     {
@@ -67,18 +68,19 @@ class VendorController extends Controller implements HasMiddleware
         // ─────────────────────────────────────────────────────────────
 
         return DataTables::of($query)
+            ->addIndexColumn()
             ->addColumn('status_badge', function ($vendor) {
                 $badgeClass = $vendor->status === Vendor::STATUS_ACTIVE ? 'bg-success' : 'bg-secondary';
                 return '<span class="badge ' . $badgeClass . '">' . ucfirst($vendor->status) . '</span>';
             })
             ->addColumn('vendor_type_badge', function ($vendor) {
                 $type = $vendor->vendor_type ?? '';
-                return match($type) {
+                return match ($type) {
                     Vendor::TYPE_SUPPLIER => '<span class="badge bg-primary">Supplier</span>',
-                    Vendor::TYPE_SUBCON => '<span class="badge bg-info">Sub-contractor</span>',
-                    Vendor::TYPE_COURIER => '<span class="badge bg-warning">Courier</span>',
-                    Vendor::TYPE_OTHER => '<span class="badge bg-secondary">Other</span>',
-                    default => '<span class="badge bg-dark">' . ucfirst($type ?: 'Unknown') . '</span>',
+                    Vendor::TYPE_SUBCON   => '<span class="badge bg-info text-dark">Sub-contractor</span>',
+                    Vendor::TYPE_COURIER  => '<span class="badge bg-warning text-dark">Courier</span>',
+                    Vendor::TYPE_OTHER    => '<span class="badge bg-secondary">Other</span>',
+                    default               => '<span class="badge bg-dark">' . ucfirst($type ?: 'Unknown') . '</span>',
                 };
             })
             ->addColumn('pic_info', function ($vendor) {
@@ -93,7 +95,9 @@ class VendorController extends Controller implements HasMiddleware
             })
             ->addColumn('branches_count_display', function ($vendor) {
                 $count = $vendor->branches_count ?? 0;
-                return '<span class="badge bg-light text-dark">' . $count . ' branch' . ($count !== 1 ? 'es' : '') . '</span>';
+                return '<span class="badge bg-light text-dark">'
+                    . $count . ' branch' . ($count !== 1 ? 'es' : '')
+                    . '</span>';
             })
             ->addColumn('purchase_orders_count', function ($vendor) {
                 // TODO: Re-enable when PO module is built
@@ -101,7 +105,7 @@ class VendorController extends Controller implements HasMiddleware
             })
             ->addColumn('actions', function ($vendor) {
                 return '<a href="' . route('supervisor.vendors.show', $vendor->id) . '"
-                            class="btn btn-sm btn-info" title="View">
+                            class="btn btn-sm btn-info" title="View Details">
                             <i class="bi bi-eye"></i>
                         </a>';
             })
@@ -116,12 +120,12 @@ class VendorController extends Controller implements HasMiddleware
                             ->orWhere('pic_email', 'like', "%{$searchValue}%")
                             ->orWhereHas('branches', function ($bq) use ($searchValue) {
                                 $bq->where('branch_name', 'like', "%{$searchValue}%")
-                                   ->orWhereHas('city', function ($cq) use ($searchValue) {
-                                       $cq->where('name', 'like', "%{$searchValue}%");
-                                   })
-                                   ->orWhereHas('state', function ($sq) use ($searchValue) {
-                                       $sq->where('name', 'like', "%{$searchValue}%");
-                                   });
+                                    ->orWhereHas('city', function ($cq) use ($searchValue) {
+                                        $cq->where('name', 'like', "%{$searchValue}%");
+                                    })
+                                    ->orWhereHas('state', function ($sq) use ($searchValue) {
+                                        $sq->where('name', 'like', "%{$searchValue}%");
+                                    });
                             });
                     });
                 }
@@ -130,6 +134,7 @@ class VendorController extends Controller implements HasMiddleware
                     $query->where('status', $request->status);
                 }
 
+                // Supports both vendor_type_id (FK, numeric) and vendor_type (legacy enum string)
                 if ($request->filled('vendor_type')) {
                     $typeFilter = $request->vendor_type;
                     if (is_numeric($typeFilter)) {
@@ -151,6 +156,7 @@ class VendorController extends Controller implements HasMiddleware
 
     /**
      * Display the specified vendor (view-only)
+     * All relationships eager-loaded; statistics computed via VendorService.
      */
     public function show(Vendor $vendor): View
     {
@@ -159,13 +165,13 @@ class VendorController extends Controller implements HasMiddleware
             'branches.city',
             'vendorType',
             'createdBy',
-            'updatedBy'
+            'updatedBy',
         ]);
 
         // ─────────────────────────────────────────────────────────────
         // TODO: Re-add when PO/GRN modules are built:
         // 'purchaseOrders' => function ($query) { $query->latest()->limit(10); },
-        // 'grns' => function ($query) { $query->latest()->limit(10); },
+        // 'grns'           => function ($query) { $query->latest()->limit(10); },
         // ─────────────────────────────────────────────────────────────
 
         $statistics = $this->vendorService->getVendorStatistics($vendor);
@@ -189,7 +195,7 @@ class VendorController extends Controller implements HasMiddleware
     }
 
     /**
-     * Get vendors list for dropdowns (AJAX) - used by tickets, quotations etc.
+     * Get vendors list for dropdowns (AJAX) — used by tickets etc.
      */
     public function getList(Request $request): JsonResponse
     {
@@ -211,11 +217,11 @@ class VendorController extends Controller implements HasMiddleware
             'success' => true,
             'vendors' => $vendors->map(function ($vendor) {
                 return [
-                    'id' => $vendor->id,
-                    'text' => "[{$vendor->vendor_code}] {$vendor->vendor_name}",
-                    'vendor_type' => $vendor->vendor_type
+                    'id'          => $vendor->id,
+                    'text'        => "[{$vendor->vendor_code}] {$vendor->vendor_name}",
+                    'vendor_type' => $vendor->vendor_type,
                 ];
-            })
+            }),
         ]);
     }
 }

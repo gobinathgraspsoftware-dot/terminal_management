@@ -1,359 +1,388 @@
 @extends('layouts.app')
 
-@section('title', 'View Vendor - TMS')
+@section('title', 'Vendor Details — ' . $vendor->vendor_name)
 
 @section('content')
 <div class="container-fluid">
-    {{-- Page Header --}}
-    <div class="d-flex justify-content-between align-items-center mb-4">
+
+    {{-- ── Page Header ──────────────────────────────────────────── --}}
+    <div class="d-flex align-items-center justify-content-between mb-4">
         <div>
-            <h4 class="mb-1"><i class="bi bi-truck"></i> {{ $vendor->vendor_name }}</h4>
+            <h4 class="mb-1 fw-bold">
+                <i class="bi bi-truck me-2 text-primary"></i>Vendor Details
+            </h4>
             <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ route('supervisor.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item"><a href="{{ route('supervisor.vendors.index') }}">Vendors</a></li>
+                <ol class="breadcrumb mb-0 small">
+                    <li class="breadcrumb-item">
+                        <a href="{{ route('supervisor.dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{{ route('supervisor.vendors.index') }}">Vendors</a>
+                    </li>
                     <li class="breadcrumb-item active">{{ $vendor->vendor_code }}</li>
                 </ol>
             </nav>
         </div>
-        <a href="{{ route('supervisor.vendors.index') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back to List
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{{ route('supervisor.vendors.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back to List
+            </a>
+        </div>
     </div>
 
-    <div class="row">
-        {{-- Left Column --}}
-        <div class="col-md-8">
-            {{-- Basic Information --}}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="bi bi-info-circle"></i> Basic Information</h5>
+    {{-- ── Flash Messages ────────────────────────────────────────── --}}
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>{{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
+    <div class="row g-4">
+
+        {{-- ════════════════════════════════════════════
+             LEFT COLUMN — main details
+        ════════════════════════════════════════════ --}}
+        <div class="col-lg-8">
+
+            {{-- ── Vendor Info Card ─────────────────────────────── --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-info-circle me-2 text-primary"></i>Vendor Information
+                    </h6>
+                    {{-- Status badge — null-safe: $vendor->status is an enum with a default, but guard anyway --}}
+                    @if($vendor->status === 'active')
+                        <span class="badge bg-success">Active</span>
+                    @else
+                        <span class="badge bg-secondary">Inactive</span>
+                    @endif
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label text-muted">Vendor Code</label>
-                            <p class="fw-bold mb-0">{{ $vendor->vendor_code }}</p>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Vendor Code</label>
+                            <div class="fw-bold font-monospace">{{ $vendor->vendor_code }}</div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label text-muted">Vendor Name</label>
-                            <p class="fw-bold mb-0">{{ $vendor->vendor_name }}</p>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Vendor Name</label>
+                            <div class="fw-semibold">{{ $vendor->vendor_name }}</div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label text-muted">Vendor Type</label>
-                            <p class="mb-0">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Company / Legal Name</label>
+                            <div>{{ $vendor->company_name ?: '—' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Vendor Type</label>
+                            <div>
+                                {{--
+                                    FIX: $vendor->vendorType is a belongsTo — it can be NULL when no
+                                    vendor_type_id is set. Calling ->isEmpty() on null was the crash.
+                                    Guard with a simple @if($vendor->vendorType) check instead.
+                                --}}
                                 @if($vendor->vendorType)
                                     <span class="badge bg-primary">{{ $vendor->vendorType->title }}</span>
+                                @elseif($vendor->vendor_type)
+                                    {{-- Legacy enum fallback --}}
+                                    @php
+                                        $legacyLabels = [
+                                            'supplier' => ['bg-primary',   'Supplier'],
+                                            'subcon'   => ['bg-info',      'Sub-contractor'],
+                                            'courier'  => ['bg-warning',   'Courier'],
+                                            'other'    => ['bg-secondary', 'Other'],
+                                        ];
+                                        [$cls, $lbl] = $legacyLabels[$vendor->vendor_type] ?? ['bg-dark', ucfirst($vendor->vendor_type)];
+                                    @endphp
+                                    <span class="badge {{ $cls }}">{{ $lbl }}</span>
                                 @else
-                                    <span class="badge bg-secondary">{{ ucfirst($vendor->vendor_type ?? 'N/A') }}</span>
+                                    <span class="text-muted">—</span>
                                 @endif
-                            </p>
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label text-muted">Company Name</label>
-                            <p class="mb-0">{{ $vendor->company_name ?? '-' }}</p>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Registration No.</label>
+                            <div>{{ $vendor->registration_no ?: '—' }}</div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label text-muted">Registration No</label>
-                            <p class="mb-0">{{ $vendor->registration_no ?? '-' }}</p>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Tax ID</label>
+                            <div>{{ $vendor->tax_id ?: '—' }}</div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label text-muted">Tax ID</label>
-                            <p class="mb-0">{{ $vendor->tax_id ?? '-' }}</p>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted fw-semibold mb-1">Payment Terms</label>
+                            <div>{{ $vendor->payment_terms ? $vendor->payment_terms . ' days' : '—' }}</div>
                         </div>
+                        @if($vendor->notes)
+                        <div class="col-12">
+                            <label class="form-label small text-muted fw-semibold mb-1">Notes</label>
+                            <div class="p-2 bg-light rounded small">{{ $vendor->notes }}</div>
+                        </div>
+                        @endif
                     </div>
                 </div>
             </div>
 
-            {{-- Contact Information --}}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="bi bi-person-lines-fill"></i> Person In Charge</h5>
+            {{-- ── PIC Card ─────────────────────────────────────── --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-person-badge me-2 text-primary"></i>Person-in-Charge (PIC)
+                    </h6>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <label class="form-label text-muted">PIC Name</label>
-                            <p class="mb-0">{{ $vendor->pic_name ?? '-' }}</p>
+                            <label class="form-label small text-muted fw-semibold mb-1">Name</label>
+                            <div>{{ $vendor->pic_name ?: '—' }}</div>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label text-muted">PIC Email</label>
-                            <p class="mb-0">
+                            <label class="form-label small text-muted fw-semibold mb-1">Email</label>
+                            <div>
                                 @if($vendor->pic_email)
-                                    <a href="mailto:{{ $vendor->pic_email }}">{{ $vendor->pic_email }}</a>
+                                    <a href="mailto:{{ $vendor->pic_email }}" class="text-decoration-none">
+                                        <i class="bi bi-envelope me-1"></i>{{ $vendor->pic_email }}
+                                    </a>
                                 @else
-                                    -
+                                    —
                                 @endif
-                            </p>
+                            </div>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label text-muted">PIC Phone</label>
-                            <p class="mb-0">
+                            <label class="form-label small text-muted fw-semibold mb-1">Phone</label>
+                            <div>
                                 @if($vendor->pic_phone)
-                                    <a href="tel:{{ $vendor->pic_phone }}">{{ $vendor->pic_phone }}</a>
+                                    <a href="tel:{{ $vendor->pic_phone }}" class="text-decoration-none">
+                                        <i class="bi bi-telephone me-1"></i>{{ $vendor->pic_phone }}
+                                    </a>
                                 @else
-                                    -
+                                    —
                                 @endif
-                            </p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {{-- Branches --}}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="bi bi-geo-alt"></i> Branches
-                        <span class="badge bg-primary ms-2">{{ $vendor->branches->count() }}</span>
-                    </h5>
+            {{-- ── Branches Card ────────────────────────────────── --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-building me-2 text-primary"></i>Branches
+                    </h6>
+                    {{--
+                        FIX: use ->count() on a HasMany relation (always returns int, never null).
+                        Never use ->isEmpty() on a belongsTo that might be null.
+                    --}}
+                    <span class="badge bg-info text-dark">
+                        {{ $vendor->branches->count() }} branch{{ $vendor->branches->count() !== 1 ? 'es' : '' }}
+                    </span>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Branch Name</th>
-                                    <th>Address</th>
-                                    <th>State / City</th>
-                                    <th>Contact</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($vendor->branches as $branch)
-                                <tr>
-                                    <td>
-                                        <strong>{{ $branch->branch_name }}</strong>
-                                        @if($branch->is_primary)
-                                            <span class="badge bg-warning text-dark ms-1">Primary</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        {{ $branch->address ?? '-' }}
-                                        @if($branch->postcode)
-                                            <br><small class="text-muted">{{ $branch->postcode }}</small>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        {{ $branch->state?->name ?? '-' }}
-                                        @if($branch->city)
-                                            / {{ $branch->city->name }}
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if($branch->contact_person)
-                                            <strong>{{ $branch->contact_person }}</strong><br>
-                                        @endif
-                                        @if($branch->contact_phone)
-                                            <small class="text-muted"><i class="bi bi-telephone"></i> {{ $branch->contact_phone }}</small><br>
-                                        @endif
-                                        @if($branch->contact_email)
-                                            <small class="text-muted"><i class="bi bi-envelope"></i> {{ $branch->contact_email }}</small>
-                                        @endif
-                                        @if(!$branch->contact_person && !$branch->contact_phone && !$branch->contact_email)
-                                            -
-                                        @endif
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-{{ ($branch->status ?? 'active') === 'active' ? 'success' : 'secondary' }}">
-                                            {{ ucfirst($branch->status ?? 'active') }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="5" class="text-center text-muted py-3">No branches found</td>
-                                </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Recent Purchase Orders --}}
-            @if($vendor->purchaseOrders && $vendor->purchaseOrders->count() > 0)
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="bi bi-cart"></i> Recent Purchase Orders</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>PO Number</th>
-                                    <th>Date</th>
-                                    <th>Total</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($vendor->purchaseOrders as $po)
-                                <tr>
-                                    <td>{{ $po->po_number ?? '-' }}</td>
-                                    <td>{{ $po->po_date ? \Carbon\Carbon::parse($po->po_date)->format('d/m/Y') : '-' }}</td>
-                                    <td>RM {{ number_format($po->total_amount ?? 0, 2) }}</td>
-                                    <td><span class="badge bg-info">{{ ucfirst($po->status ?? '-') }}</span></td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            @endif
-
-            {{-- Recent GRNs --}}
-            @if($vendor->grns && $vendor->grns->count() > 0)
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="bi bi-box-seam"></i> Recent GRNs</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>GRN Number</th>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($vendor->grns as $grn)
-                                <tr>
-                                    <td>{{ $grn->grn_number ?? '-' }}</td>
-                                    <td>{{ $grn->grn_date ? \Carbon\Carbon::parse($grn->grn_date)->format('d/m/Y') : '-' }}</td>
-                                    <td><span class="badge bg-info">{{ ucfirst($grn->status ?? '-') }}</span></td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            @endif
-        </div>
-
-        {{-- Right Column --}}
-        <div class="col-md-4">
-            {{-- Status Card --}}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="bi bi-gear"></i> Status & Payment</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label text-muted">Status</label>
-                        <div>
-                            <span class="badge bg-{{ $vendor->status === 'active' ? 'success' : 'secondary' }} fs-6">
-                                {{ ucfirst($vendor->status ?? 'N/A') }}
-                            </span>
+                    @if($vendor->branches->isEmpty())
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-building-x fs-2 d-block mb-2"></i>
+                            No branches registered for this vendor.
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-muted">Payment Terms</label>
-                        <p class="mb-0">{{ $vendor->payment_terms ? $vendor->payment_terms . ' days' : 'Not Set' }}</p>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Bank Details --}}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="bi bi-bank"></i> Bank Details</h5>
-                </div>
-                <div class="card-body">
-                    @if($vendor->bank_name)
-                    <div class="mb-2">
-                        <label class="form-label text-muted">Bank Name</label>
-                        <p class="mb-0">{{ $vendor->bank_name }}</p>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label text-muted">Account No</label>
-                        <p class="mb-0">{{ $vendor->bank_account_no ?? '-' }}</p>
-                    </div>
-                    <div class="mb-0">
-                        <label class="form-label text-muted">Account Name</label>
-                        <p class="mb-0">{{ $vendor->bank_account_name ?? '-' }}</p>
-                    </div>
                     @else
-                    <p class="text-muted mb-0">No bank details provided</p>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-3">Branch Name</th>
+                                        <th>State / City</th>
+                                        <th>Contact</th>
+                                        <th class="text-center">Primary</th>
+                                        <th class="text-center">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($vendor->branches as $branch)
+                                    <tr>
+                                        <td class="ps-3">
+                                            <div class="fw-semibold">{{ $branch->branch_name }}</div>
+                                            @if($branch->address)
+                                                <small class="text-muted">{{ $branch->address }}</small>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            {{--
+                                                FIX: $branch->state and $branch->city are eager-loaded
+                                                belongsTo — guard with ?-> to avoid null method calls.
+                                            --}}
+                                            @if($branch->state)
+                                                <div class="small">{{ $branch->state->name }}</div>
+                                            @endif
+                                            @if($branch->city)
+                                                <small class="text-muted">{{ $branch->city->name }}</small>
+                                            @endif
+                                            @if(!$branch->state && !$branch->city)
+                                                <span class="text-muted">—</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($branch->contact_person)
+                                                <div class="small fw-semibold">{{ $branch->contact_person }}</div>
+                                            @endif
+                                            @if($branch->contact_email)
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-envelope me-1"></i>{{ $branch->contact_email }}
+                                                </small>
+                                            @endif
+                                            @if($branch->contact_phone)
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-telephone me-1"></i>{{ $branch->contact_phone }}
+                                                </small>
+                                            @endif
+                                            @if(!$branch->contact_person && !$branch->contact_email && !$branch->contact_phone)
+                                                <span class="text-muted small">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-center">
+                                            @if($branch->is_primary)
+                                                <span class="badge bg-primary"><i class="bi bi-star-fill me-1"></i>Primary</span>
+                                            @else
+                                                <span class="text-muted small">—</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-center">
+                                            @if($branch->status === 'active')
+                                                <span class="badge bg-success">Active</span>
+                                            @else
+                                                <span class="badge bg-secondary">Inactive</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     @endif
                 </div>
             </div>
 
-            {{-- Statistics --}}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="bi bi-graph-up"></i> Statistics</h5>
+        </div>{{-- /col-lg-8 --}}
+
+        {{-- ════════════════════════════════════════════
+             RIGHT COLUMN — sidebar info
+        ════════════════════════════════════════════ --}}
+        <div class="col-lg-4">
+
+            {{-- ── Statistics Card ─────────────────────────────── --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-bar-chart me-2 text-primary"></i>Statistics
+                    </h6>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Total POs</span>
-                        <strong>{{ $statistics['total_pos'] ?? 0 }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Active POs</span>
-                        <strong>{{ $statistics['active_pos'] ?? 0 }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Total GRNs</span>
-                        <strong>{{ $statistics['total_grns'] ?? 0 }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Total Branches</span>
-                        <strong>{{ $statistics['total_branches'] ?? 0 }}</strong>
-                    </div>
-                    <hr>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Total PO Amount</span>
-                        <strong>RM {{ number_format($statistics['total_amount_po'] ?? 0, 2) }}</strong>
+                    <div class="row g-3 text-center">
+                        <div class="col-6">
+                            <div class="fw-bold fs-4 text-primary">{{ $statistics['total_branches'] ?? 0 }}</div>
+                            <div class="text-muted small">Total Branches</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="fw-bold fs-4 text-success">{{ $statistics['active_branches'] ?? 0 }}</div>
+                            <div class="text-muted small">Active Branches</div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {{-- Notes --}}
-            @if($vendor->notes)
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="bi bi-sticky"></i> Notes</h5>
+            {{-- ── Bank Details Card ────────────────────────────── --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-bank me-2 text-primary"></i>Bank Details
+                    </h6>
                 </div>
                 <div class="card-body">
-                    <p class="mb-0">{{ $vendor->notes }}</p>
+                    @if($vendor->bank_name || $vendor->bank_account_no)
+                        <div class="mb-2">
+                            <label class="form-label small text-muted fw-semibold mb-1">Bank Name</label>
+                            <div>{{ $vendor->bank_name ?: '—' }}</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small text-muted fw-semibold mb-1">Account Number</label>
+                            <div class="font-monospace">{{ $vendor->bank_account_no ?: '—' }}</div>
+                        </div>
+                        <div>
+                            <label class="form-label small text-muted fw-semibold mb-1">Account Name</label>
+                            <div>{{ $vendor->bank_account_name ?: '—' }}</div>
+                        </div>
+                    @else
+                        <div class="text-center text-muted py-2">
+                            <i class="bi bi-bank2 d-block mb-1"></i>
+                            <small>No bank details on record.</small>
+                        </div>
+                    @endif
                 </div>
             </div>
-            @endif
 
-            {{-- Audit Info --}}
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="bi bi-clock-history"></i> Audit</h5>
+            {{-- ── Record Audit Card ────────────────────────────── --}}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-clock-history me-2 text-primary"></i>Record Info
+                    </h6>
                 </div>
                 <div class="card-body">
-                    <div class="mb-2">
-                        <small class="text-muted">Created</small>
-                        <p class="mb-0">
-                            {{ $vendor->created_at?->format('d/m/Y H:i') ?? '-' }}
-                            @if($vendor->createdBy)
-                                <br><small class="text-muted">by {{ $vendor->createdBy->name }}</small>
-                            @endif
-                        </p>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-semibold mb-1">Created At</label>
+                        <div class="small">
+                            {{ $vendor->created_at ? $vendor->created_at->format('d M Y, h:i A') : '—' }}
+                        </div>
+                        {{--
+                            FIX: $vendor->createdBy is a belongsTo — guard with ?-> to avoid
+                            calling ->name on null when created_by is NULL.
+                        --}}
+                        @if($vendor->createdBy)
+                            <small class="text-muted">by {{ $vendor->createdBy->name }}</small>
+                        @endif
                     </div>
-                    <div class="mb-0">
-                        <small class="text-muted">Last Updated</small>
-                        <p class="mb-0">
-                            {{ $vendor->updated_at?->format('d/m/Y H:i') ?? '-' }}
-                            @if($vendor->updatedBy)
-                                <br><small class="text-muted">by {{ $vendor->updatedBy->name }}</small>
-                            @endif
-                        </p>
+                    <div>
+                        <label class="form-label small text-muted fw-semibold mb-1">Last Updated</label>
+                        <div class="small">
+                            {{ $vendor->updated_at ? $vendor->updated_at->format('d M Y, h:i A') : '—' }}
+                        </div>
+                        {{--
+                            FIX: same pattern — guard before accessing ->name on updatedBy.
+                        --}}
+                        @if($vendor->updatedBy)
+                            <small class="text-muted">by {{ $vendor->updatedBy->name }}</small>
+                        @endif
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+
+            {{-- ── Quick Actions Card ───────────────────────────── --}}
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="mb-0 fw-semibold">
+                        <i class="bi bi-lightning me-2 text-primary"></i>Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body d-grid gap-2">
+                    <a href="{{ route('supervisor.vendors.index') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i>Back to Vendor List
+                    </a>
+                    <a href="{{ route('supervisor.vendors.export') }}"
+                       class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-file-earmark-excel me-1"></i>Export Vendors
+                    </a>
+                </div>
+            </div>
+
+        </div>{{-- /col-lg-4 --}}
+    </div>{{-- /row --}}
+
 </div>
 @endsection
+
+@push('scripts')
+<script>
+$(function () {
+    'use strict';
+    // No interactive actions on this view-only page.
+    // SweetAlert2 + showToast() available from app.blade.php if needed in future.
+});
+</script>
+@endpush
