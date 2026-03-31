@@ -9,6 +9,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ClaimManagementService
 {
@@ -18,20 +19,51 @@ class ClaimManagementService
 
     /**
      * Create a claim from a completed ticket.
-     * Called automatically by TicketService when ticket transitions to done_success / done_fail.
+     *
+     * Called automatically by TicketService when a ticket transitions to
+     * done_success or done_fail. Uses ticket data directly.
+     *
+     * ROOT CAUSE FIX — "Ticket claims not listed in any role":
+     * ─────────────────────────────────────────────────────────
+     * External supervisor tickets have ticket->technician_id = NULL because
+     * external supervisors work alone with no assigned technician.
+     *
+     * The claims table has a NOT NULL constraint on technician_id.
+     * Previously: claim->technician_id = ticket->technician_id = NULL
+     * → DB insert failed with an integrity constraint violation
+     * → Error was silently caught in TicketService::autoCreateTicketClaim()
+     * → Claim was NEVER stored → nothing appeared in the claims list for any role
+     *
+     * Fix: when ticket->technician_id is NULL (external supervisor ticket),
+     * fall back to ticket->supervisor_id as the claimant.
+     * This correctly represents the external supervisor as the claimant
+     * and satisfies the NOT NULL constraint.
+     *
+     * The same fallback is applied to triggeredBy (submitted_by / created_by)
+     * to ensure those audit fields are also never null.
      */
     public function createTicketClaim(Ticket $ticket, array $data = []): Claim
     {
         return DB::transaction(function () use ($ticket, $data) {
-            $claimNo     = NumberSeries::getNextNumber('ticket_claim');
-            $triggeredBy = Auth::id() ?? $ticket->technician_id;
+            $claimNo = NumberSeries::getNextNumber('ticket_claim');
+
+            // FIX: For external supervisor tickets, technician_id is NULL on the ticket.
+            // Fall back to supervisor_id so the NOT NULL constraint is satisfied and
+            // the claim is correctly attributed to the external supervisor as claimant.
+            $claimantId = $ticket->technician_id
+                ?? $ticket->supervisor_id
+                ?? Auth::id();
+
+            // Who triggered the claim (for audit fields submitted_by / created_by).
+            // Priority: HTTP auth user → claimant → fail-safe fallback.
+            $triggeredBy = Auth::id() ?? $claimantId;
 
             $claim = Claim::create([
                 'claim_no'              => $claimNo,
                 'claim_category'        => Claim::CATEGORY_TICKET,
                 'ticket_id'             => $ticket->id,
                 'claim_date'            => now()->toDateString(),
-                'technician_id'         => $ticket->technician_id,
+                'technician_id'         => $claimantId,   // ← FIX: never null
                 'description'           => "Ticket claim for #{$ticket->ticket_no} - {$ticket->merchant_name}",
                 'total_mileage_km'      => $data['mileage']           ?? $ticket->mileage           ?? 0,
                 'total_mileage_amount'  => $data['mileage_amount']     ?? $ticket->mileage_amount     ?? 0,
@@ -44,6 +76,13 @@ class ClaimManagementService
                 'submitted_at'          => now(),
                 'submitted_by'          => $triggeredBy,
                 'created_by'            => $triggeredBy,
+            ]);
+
+            Log::info("Ticket claim created", [
+                'claim_no'      => $claim->claim_no,
+                'ticket_no'     => $ticket->ticket_no,
+                'claimant_id'   => $claimantId,
+                'total_amount'  => $claim->total_amount,
             ]);
 
             return $claim;
@@ -133,8 +172,7 @@ class ClaimManagementService
             $originalName = $file->getClientOriginalName();
             $fileSize     = $file->getSize();
             $mimeType     = $file->getClientMimeType();
-
-            $fileName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $originalName);
+            $fileName     = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $originalName);
             $file->move($uploadDir, $fileName);
 
             ClaimAttachment::create([
@@ -199,7 +237,6 @@ class ClaimManagementService
         $claim->admin_remarks = $adminRemarks;
         $claim->updated_by    = Auth::id();
         $claim->save();
-
         return $claim;
     }
 
@@ -222,10 +259,7 @@ class ClaimManagementService
             $totalAmount = 0;
 
             foreach ($claims as $claim) {
-                $claim->update([
-                    'status'     => Claim::STATUS_PENDING_PAYMENT,
-                    'updated_by' => Auth::id(),
-                ]);
+                $claim->update(['status' => Claim::STATUS_PENDING_PAYMENT, 'updated_by' => Auth::id()]);
                 $processed++;
                 $totalAmount += (float) $claim->total_amount;
             }
@@ -255,9 +289,16 @@ class ClaimManagementService
     /**
      * Build DataTable response for claims listing.
      *
-     * BUG FIX: Eager-load ticket with withTrashed() so soft-deleted tickets
-     * still return their data (ticket_no, vendor, merchant, supervisor).
-     * Without this, soft-deleted tickets return null and all columns show "-".
+     * Scoping rules per role:
+     *  - Admin (no $user / $scopeType): sees ALL claims — no WHERE clause added.
+     *  - Supervisor 'team': sees claims where technician is in their team OR
+     *    they submitted. For external supervisors with no team, teamIds = [$user->id],
+     *    which now correctly matches because their ticket claims have
+     *    technician_id = supervisor_id after the fix above.
+     *  - Technician 'own': sees claims where technician_id = their ID OR
+     *    submitted_by = their ID.
+     *
+     * Eager-loads use withTrashed() on ticket so soft-deleted tickets still display.
      */
     public function getClaimsDataTable(
         $request,
@@ -274,28 +315,36 @@ class ClaimManagementService
 
         $query = Claim::query()->where('claim_category', $category);
 
-        // Role scoping
+        // ── Role Scoping ─────────────────────────────────────────────────────
         if ($user && $scopeType === 'team') {
+            // Supervisor team scope.
+            // teamIds includes the supervisor's own ID, so external supervisors
+            // (who are the claimant on their own ticket claims) are covered.
             $teamIds   = User::where('supervisor_id', $user->id)->pluck('id')->toArray();
             $teamIds[] = $user->id;
+
             $query->where(function ($q) use ($teamIds, $user) {
                 $q->whereIn('technician_id', $teamIds)
-                  ->orWhere('submitted_by', $user->id);
+                  ->orWhere('submitted_by', $user->id)
+                  ->orWhere('created_by', $user->id);
             });
+
         } elseif ($user && $scopeType === 'own') {
+            // Technician own scope.
             $query->where(function ($q) use ($user) {
                 $q->where('technician_id', $user->id)
-                  ->orWhere('submitted_by', $user->id);
+                  ->orWhere('submitted_by', $user->id)
+                  ->orWhere('created_by', $user->id);
             });
         }
+        // Admin: no scope added — sees everything.
 
-        // Status filter
+        // ── Status Filter ────────────────────────────────────────────────────
         if ($request->filled('status')) {
             $query->where('status', $request->input('status'));
         }
 
-        // BUG FIX: Use closure-based eager loading with withTrashed() for ticket
-        // so soft-deleted tickets still return their data.
+        // ── Eager Loads (withTrashed on ticket relationships) ────────────────
         if ($category === Claim::CATEGORY_TICKET) {
             $query->with([
                 'ticket'             => fn($q) => $q->withTrashed(),
@@ -317,7 +366,7 @@ class ClaimManagementService
 
         $recordsTotal = $query->count();
 
-        // Search
+        // ── Search ───────────────────────────────────────────────────────────
         if ($searchValue) {
             $query->where(function ($q) use ($searchValue, $category) {
                 $q->where('claim_no', 'like', "%{$searchValue}%")
@@ -325,7 +374,6 @@ class ClaimManagementService
                   ->orWhere('total_amount', 'like', "%{$searchValue}%");
 
                 if ($category === Claim::CATEGORY_TICKET) {
-                    // Search in tickets including soft-deleted
                     $q->orWhereHas('ticket', function ($tq) use ($searchValue) {
                         $tq->withTrashed()
                            ->where('ticket_no', 'like', "%{$searchValue}%")
@@ -341,7 +389,7 @@ class ClaimManagementService
 
         $recordsFiltered = $query->count();
 
-        // Ordering
+        // ── Ordering ─────────────────────────────────────────────────────────
         $columns     = $category === Claim::CATEGORY_TICKET
             ? ['claim_no', 'ticket_id', 'technician_id', 'total_amount', 'status', 'submitted_at']
             : ['claim_no', 'submitted_by', 'claim_type_label', 'total_amount', 'status', 'submitted_at'];
@@ -404,9 +452,8 @@ class ClaimManagementService
         $orderColumn = $columns[$orderColumnIdx] ?? 'submitted_at';
         $query->orderBy($orderColumn, $orderDir);
 
-        $data = $query->skip($start)->take($length)->get();
-
-        $totals       = Claim::whereIn('status', [Claim::STATUS_VERIFIED, Claim::STATUS_PENDING_PAYMENT]);
+        $data        = $query->skip($start)->take($length)->get();
+        $totals      = Claim::whereIn('status', [Claim::STATUS_VERIFIED, Claim::STATUS_PENDING_PAYMENT]);
         if ($category !== 'all') {
             $totals->where('claim_category', $category);
         }
@@ -452,12 +499,14 @@ class ClaimManagementService
             $teamIds[] = $user->id;
             $query->where(function ($q) use ($teamIds, $user) {
                 $q->whereIn('technician_id', $teamIds)
-                  ->orWhere('submitted_by', $user->id);
+                  ->orWhere('submitted_by', $user->id)
+                  ->orWhere('created_by', $user->id);
             });
         } elseif ($user && $scopeType === 'own') {
             $query->where(function ($q) use ($user) {
                 $q->where('technician_id', $user->id)
-                  ->orWhere('submitted_by', $user->id);
+                  ->orWhere('submitted_by', $user->id)
+                  ->orWhere('created_by', $user->id);
             });
         }
 

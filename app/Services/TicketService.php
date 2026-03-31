@@ -87,7 +87,6 @@ class TicketService
             $data['created_by'] = Auth::id();
             $data['updated_by'] = Auth::id();
 
-            // Lookup price from SupervisorJobPricing
             if (!empty($data['supervisor_id']) && !empty($data['job_category_id']) && !empty($data['job_type_id'])) {
                 $pricing = SupervisorJobPricing::where('supervisor_id', $data['supervisor_id'])
                     ->where('job_category_id', $data['job_category_id'])
@@ -164,7 +163,10 @@ class TicketService
                 'router_ids' => $routerIds,
             ]);
         } catch (\Exception $e) {
-            Log::warning('Auto stock-out on ticket creation failed', ['ticket_id' => $ticket->id, 'error' => $e->getMessage()]);
+            Log::warning('Auto stock-out on ticket creation failed', [
+                'ticket_id' => $ticket->id,
+                'error'     => $e->getMessage(),
+            ]);
         }
     }
 
@@ -192,11 +194,14 @@ class TicketService
         try {
             app(InventoryService::class)->autoStockReturnForReplacement($ticket->fresh());
             Log::info('Auto stock-return triggered for replacement ticket', [
-                'ticket_id'     => $ticket->id,
+                'ticket_id'      => $ticket->id,
                 'old_router_ids' => $oldRouterIds,
             ]);
         } catch (\Exception $e) {
-            Log::warning('Auto stock-return on ticket creation failed', ['ticket_id' => $ticket->id, 'error' => $e->getMessage()]);
+            Log::warning('Auto stock-return on ticket creation failed', [
+                'ticket_id' => $ticket->id,
+                'error'     => $e->getMessage(),
+            ]);
         }
     }
 
@@ -242,7 +247,7 @@ class TicketService
     public function update(Ticket $ticket, array $data): Ticket
     {
         return DB::transaction(function () use ($ticket, $data) {
-            $oldStatus      = $ticket->status;
+            $oldStatus          = $ticket->status;
             $data['updated_by'] = Auth::id();
 
             if (!empty($data['supervisor_id']) && !empty($data['job_category_id']) && !empty($data['job_type_id'])) {
@@ -254,12 +259,15 @@ class TicketService
             }
 
             if (!empty($data['supervisor_id'])) {
-                $supervisor = User::find($data['supervisor_id']);
+                $supervisor           = User::find($data['supervisor_id']);
                 $data['mileage_rate'] = $supervisor?->mileage_rate ?? 0;
             }
 
-            $data['mileage_amount']     = ($data['mileage'] ?? $ticket->mileage ?? 0) * ($data['mileage_rate'] ?? $ticket->mileage_rate ?? 0);
-            $data['total_claim_amount'] = ($data['mileage_amount'] ?? 0) + ($data['toll'] ?? $ticket->toll ?? 0) + ($data['standby_meal'] ?? $ticket->standby_meal ?? 0);
+            $data['mileage_amount']     = ($data['mileage'] ?? $ticket->mileage ?? 0)
+                                        * ($data['mileage_rate'] ?? $ticket->mileage_rate ?? 0);
+            $data['total_claim_amount'] = ($data['mileage_amount'] ?? 0)
+                                        + ($data['toll'] ?? $ticket->toll ?? 0)
+                                        + ($data['standby_meal'] ?? $ticket->standby_meal ?? 0);
 
             if (!empty($data['technician_id']) && !$ticket->technician_id && $ticket->status === Ticket::STATUS_OPEN) {
                 $data['status']      = Ticket::STATUS_ASSIGNED;
@@ -300,9 +308,6 @@ class TicketService
 
     /**
      * Change ticket status with proof handling.
-     *
-     * FIX #1: sla_hours set to 0 (not null) on reject/reassign to avoid NOT NULL DB constraint.
-     * FIX #3: scheduled_date saved when status → scheduled.
      */
     public function changeStatus(
         Ticket $ticket,
@@ -314,7 +319,6 @@ class TicketService
     ): Ticket {
         $user = Auth::user();
 
-        // Determine allowed transitions based on role
         if ($user->hasRole('technician')) {
             $allowed = Ticket::getTechnicianTransitions($ticket->status);
         } elseif ($user->hasRole('supervisor') && $user->isExternalSupervisor()) {
@@ -331,7 +335,6 @@ class TicketService
             $oldStatus  = $ticket->status;
             $updateData = ['status' => $newStatus, 'updated_by' => Auth::id()];
 
-            // ── ACCEPTED: Start SLA countdown (24 hours from now) ──
             if ($newStatus === Ticket::STATUS_ACCEPTED) {
                 $updateData['accepted_at']  = now();
                 $updateData['sla_hours']    = 24;
@@ -339,14 +342,13 @@ class TicketService
                 $updateData['sla_status']   = Ticket::SLA_ON_TRACK;
             }
 
-            // ── REJECTED: Reset SLA — use 0 (NOT null) to satisfy NOT NULL constraint ──
             if ($newStatus === Ticket::STATUS_REJECTED) {
-                $updateData['rejected_at']    = now();
-                $updateData['technician_id']  = null;
-                $updateData['sla_hours']      = 0;
-                $updateData['sla_deadline']   = null;
-                $updateData['sla_status']     = null;
-                $updateData['accepted_at']    = null;
+                $updateData['rejected_at']   = now();
+                $updateData['technician_id'] = null;
+                $updateData['sla_hours']     = 0;
+                $updateData['sla_deadline']  = null;
+                $updateData['sla_status']    = null;
+                $updateData['accepted_at']   = null;
             }
 
             if ($newStatus === Ticket::STATUS_IN_PROGRESS && !$ticket->started_at) {
@@ -358,7 +360,6 @@ class TicketService
             if ($newStatus === Ticket::STATUS_CLOSED) {
                 $updateData['closed_at'] = now();
             }
-            // ── SCHEDULED: Save reschedule reason AND target date/time ──
             if ($newStatus === Ticket::STATUS_SCHEDULED) {
                 $updateData['rescheduled_at']    = now();
                 $updateData['reschedule_reason'] = $rescheduleReason;
@@ -370,21 +371,19 @@ class TicketService
             $ticket->update($updateData);
 
             $history = TicketStatusHistory::create([
-                'ticket_id'        => $ticket->id,
-                'from_status'      => $oldStatus,
-                'to_status'        => $newStatus,
-                'changed_by'       => Auth::id(),
-                'remarks'          => $remarks,
+                'ticket_id'         => $ticket->id,
+                'from_status'       => $oldStatus,
+                'to_status'         => $newStatus,
+                'changed_by'        => Auth::id(),
+                'remarks'           => $remarks,
                 'reschedule_reason' => $rescheduleReason,
-                'created_at'       => now(),
+                'created_at'        => now(),
             ]);
 
             if (!empty($proofFiles)) {
                 $this->uploadProofs($ticket, $history, $proofFiles);
             }
 
-            // BUG FIX: Always attempt to auto-create claim on completion
-            // regardless of claim amount (amount may be updated later)
             if (in_array($newStatus, [Ticket::STATUS_DONE_SUCCESS, Ticket::STATUS_DONE_FAIL])) {
                 $this->autoCreateTicketClaim($ticket->fresh());
             }
@@ -396,33 +395,71 @@ class TicketService
     /**
      * Auto-create a ticket claim when ticket is completed.
      *
-     * BUG FIX: Removed the `if ($totalClaim <= 0) return` guard.
-     * Claims are now always created when a ticket is completed, even with RM 0
-     * amount — admin can update the amount afterwards.
-     * Also skips if claim already exists (idempotent).
+     * ══════════════════════════════════════════════════════════════════════
+     * BUG FIX — "Technician ticket claims not listed":
+     * ══════════════════════════════════════════════════════════════════════
+     * BEFORE (wrong):
+     *   if ($supervisor->isInternalSupervisor()) { return; }
+     *   ↳ This skipped claim creation for ALL tickets under internal
+     *     supervisors — including tickets that have a technician assigned.
+     *     A technician's mileage/toll claim is THEIR claim, not the
+     *     supervisor's. Blocking it based on supervisor type was wrong.
+     *
+     * AFTER (fixed):
+     *   Skip ONLY when supervisor is internal AND there is NO technician.
+     *   This covers the case where the supervisor themselves would be the
+     *   claimant — internal supervisors don't claim, so skip.
+     *   But when a TECHNICIAN is assigned, always create the claim for them
+     *   regardless of whether their supervisor is internal or external.
+     *
+     * Claim responsibility matrix:
+     *   Internal supervisor + no technician  → SKIP  (internal sup doesn't claim)
+     *   Internal supervisor + technician     → CREATE claim for technician ✓
+     *   External supervisor + no technician  → CREATE claim for supervisor ✓
+     *   External supervisor + technician     → CREATE claim for technician ✓
+     * ══════════════════════════════════════════════════════════════════════
      */
     protected function autoCreateTicketClaim(Ticket $ticket): void
     {
         try {
-            // Skip for internal supervisor tickets — internal supervisors do not claim
-            if ($ticket->supervisor_id) {
-                $supervisor = User::find($ticket->supervisor_id);
-                if ($supervisor && $supervisor->isInternalSupervisor()) {
-                    return;
-                }
+            // Resolve the supervisor if present
+            $supervisor = $ticket->supervisor_id
+                ? User::find($ticket->supervisor_id)
+                : null;
+
+            // Skip ONLY when:
+            //   - supervisor is internal (company employee — does not claim), AND
+            //   - there is NO technician on the ticket
+            //     (meaning the supervisor themselves would be the claimant)
+            //
+            // DO NOT skip when a technician is assigned — they always get a claim.
+            if (!$ticket->technician_id
+                && $supervisor
+                && $supervisor->isInternalSupervisor()) {
+                return;
             }
 
             // Skip if claim already exists (idempotent — prevent duplicates)
-            $exists = Claim::ticketClaims()->where('ticket_id', $ticket->id)->exists();
+            $exists = Claim::ticketClaims()
+                ->where('ticket_id', $ticket->id)
+                ->exists();
             if ($exists) {
                 return;
             }
 
             $claimService = app(\App\Services\ClaimManagementService::class);
             $claimService->createTicketClaim($ticket);
-            Log::info("Auto-created ticket claim for Ticket #{$ticket->ticket_no}");
+
+            Log::info('Auto-created ticket claim', [
+                'ticket_no'   => $ticket->ticket_no,
+                'technician'  => $ticket->technician_id,
+                'supervisor'  => $ticket->supervisor_id,
+            ]);
         } catch (\Exception $e) {
-            Log::error("Failed to auto-create ticket claim for Ticket #{$ticket->ticket_no}: " . $e->getMessage());
+            Log::error('Failed to auto-create ticket claim', [
+                'ticket_no' => $ticket->ticket_no,
+                'error'     => $e->getMessage(),
+            ]);
         }
     }
 
@@ -451,14 +488,14 @@ class TicketService
                 $file->move($destinationPath, $storedName);
 
                 TicketProof::create([
-                    'ticket_id'               => $ticket->id,
+                    'ticket_id'                => $ticket->id,
                     'ticket_status_history_id' => $history->id,
-                    'proof_type'              => $proofType,
-                    'file_name'               => $fileName,
-                    'file_path'               => $filePath . '/' . $storedName,
-                    'file_size'               => $fileSize,
-                    'mime_type'               => $mimeType,
-                    'uploaded_by'             => Auth::id(),
+                    'proof_type'               => $proofType,
+                    'file_name'                => $fileName,
+                    'file_path'                => $filePath . '/' . $storedName,
+                    'file_size'                => $fileSize,
+                    'mime_type'                => $mimeType,
+                    'uploaded_by'              => Auth::id(),
                 ]);
             }
         }
@@ -466,10 +503,7 @@ class TicketService
 
     /**
      * Update claim fields on ticket.
-     *
-     * BUG FIX: After updating the ticket's claim fields, also sync the
-     * associated Claim record (update if exists, or create if missing).
-     * This ensures the Claim module always reflects the latest claim amount.
+     * Syncs updated amounts back to the associated Claim record.
      */
     public function updateClaim(Ticket $ticket, array $data): Ticket
     {
@@ -496,7 +530,6 @@ class TicketService
             'updated_by'         => Auth::id(),
         ]);
 
-        // Log claim update as a history entry
         $remarkParts = [
             'Claim updated',
             'Mileage: ' . number_format($mileage, 2) . ' km × RM ' . number_format($mileageRate, 2) . ' = RM ' . number_format($mileageAmount, 2),
@@ -517,8 +550,6 @@ class TicketService
             'created_at'  => now(),
         ]);
 
-        // BUG FIX: Sync claim amount back to the Claim record
-        // This ensures tickets appear in the Claim module after amount is updated
         $this->syncClaimAmount($ticket->fresh(), $totalClaim, $mileage, $mileageAmount, $toll, $standbyMeal);
 
         return $ticket->fresh();
@@ -527,9 +558,16 @@ class TicketService
     /**
      * Sync the ticket claim amount to the associated Claim record.
      *
-     * If the Claim record exists: update total_amount and allowance breakdowns.
-     * If no Claim record exists yet: attempt to create one (handles cases where
-     * ticket was completed with 0 amount and claim was skipped).
+     * ══════════════════════════════════════════════════════════════════════
+     * BUG FIX — same guard correction as autoCreateTicketClaim():
+     *
+     * BEFORE: skipped syncing for ALL internal supervisor tickets
+     * AFTER:  only skip when internal supervisor AND no technician
+     *
+     * This ensures that when a technician updates their claim fields on a
+     * ticket (even under an internal supervisor), the Claim record is
+     * created or updated correctly so it appears in the claims list.
+     * ══════════════════════════════════════════════════════════════════════
      */
     protected function syncClaimAmount(
         Ticket $ticket,
@@ -540,12 +578,16 @@ class TicketService
         float $standbyMeal
     ): void {
         try {
-            // Skip for internal supervisor tickets
-            if ($ticket->supervisor_id) {
-                $supervisor = User::find($ticket->supervisor_id);
-                if ($supervisor && $supervisor->isInternalSupervisor()) {
-                    return;
-                }
+            $supervisor = $ticket->supervisor_id
+                ? User::find($ticket->supervisor_id)
+                : null;
+
+            // Skip ONLY when internal supervisor has no technician
+            // (same logic as autoCreateTicketClaim)
+            if (!$ticket->technician_id
+                && $supervisor
+                && $supervisor->isInternalSupervisor()) {
+                return;
             }
 
             // Only sync for completed tickets
@@ -562,7 +604,7 @@ class TicketService
                 ->first();
 
             if ($existingClaim) {
-                // Update existing claim — only if still in editable/submitted state
+                // Update existing claim only if still in editable state
                 if (in_array($existingClaim->status, [Claim::STATUS_DRAFT, Claim::STATUS_SUBMITTED])) {
                     $existingClaim->update([
                         'total_mileage_km'       => $mileage,
@@ -572,16 +614,24 @@ class TicketService
                         'original_amount'        => $totalClaim,
                         'updated_by'             => Auth::id(),
                     ]);
-                    Log::info("Synced claim amount for Ticket #{$ticket->ticket_no}: RM {$totalClaim}");
+                    Log::info('Synced claim amount', [
+                        'ticket_no'    => $ticket->ticket_no,
+                        'total_amount' => $totalClaim,
+                    ]);
                 }
             } else {
-                // No claim exists — create one now (handles late amount updates)
+                // No claim exists yet — create one now
                 $claimService = app(\App\Services\ClaimManagementService::class);
                 $claimService->createTicketClaim($ticket);
-                Log::info("Created missing ticket claim for Ticket #{$ticket->ticket_no} during claim sync");
+                Log::info('Created missing ticket claim during sync', [
+                    'ticket_no' => $ticket->ticket_no,
+                ]);
             }
         } catch (\Exception $e) {
-            Log::error("Failed to sync claim amount for Ticket #{$ticket->ticket_no}: " . $e->getMessage());
+            Log::error('Failed to sync claim amount', [
+                'ticket_no' => $ticket->ticket_no,
+                'error'     => $e->getMessage(),
+            ]);
         }
     }
 
@@ -621,7 +671,6 @@ class TicketService
 
     /**
      * Reassign technician — resets SLA.
-     * FIX #1: sla_hours = 0 instead of null.
      */
     public function reassignTechnician(Ticket $ticket, int $technicianId, ?string $remarks = null): Ticket
     {
@@ -722,10 +771,13 @@ class TicketService
      */
     public function updateSlaStatuses(): int
     {
-        $count = 0;
+        $count         = 0;
         $activeTickets = Ticket::whereNotIn('status', [
-            Ticket::STATUS_DONE_SUCCESS, Ticket::STATUS_DONE_FAIL,
-            Ticket::STATUS_CLOSED, Ticket::STATUS_SCHEDULED, Ticket::STATUS_REJECTED,
+            Ticket::STATUS_DONE_SUCCESS,
+            Ticket::STATUS_DONE_FAIL,
+            Ticket::STATUS_CLOSED,
+            Ticket::STATUS_SCHEDULED,
+            Ticket::STATUS_REJECTED,
         ])->whereNotNull('sla_deadline')->get();
 
         foreach ($activeTickets as $ticket) {
