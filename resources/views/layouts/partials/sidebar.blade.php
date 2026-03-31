@@ -213,6 +213,14 @@
                         </a>
                     </li>
                     @endcan
+                    @can('bulk_pay_claims')
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'admin.claims.payment-history') ? 'active' : '' }}"
+                           href="{{ route('admin.claims.payment-history') }}">
+                            <i class="bi bi-clock-history me-2"></i> Payment History
+                        </a>
+                    </li>
+                    @endcan
                 </ul>
             </div>
             @endcanany
@@ -507,6 +515,12 @@
                         </a>
                     </li>
                     @endif
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.claims.payment-history') ? 'active' : '' }}"
+                           href="{{ route('supervisor.claims.payment-history') }}">
+                            <i class="bi bi-file-earmark-text me-2"></i> Payment History
+                        </a>
+                    </li>
                 </ul>
             </div>
             @endcanany
