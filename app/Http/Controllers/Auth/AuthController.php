@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\LoginHistory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,6 +40,23 @@ class AuthController extends Controller
             // Increment rate limiter on failed attempt
             RateLimiter::hit($this->throttleKey($request));
 
+            // ════════════════════════════════════════════════════════
+            // FIX: Record FAILED login attempt in LoginHistory
+            // ════════════════════════════════════════════════════════
+            try {
+                $failedUser = \App\Models\User::where('email', $request->input('email'))->first();
+                if ($failedUser) {
+                    LoginHistory::recordLogin(
+                        $failedUser->id,
+                        $request->ip(),
+                        $request->userAgent(),
+                        'failed'
+                    );
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed login history recording: ' . $e->getMessage());
+            }
+
             throw ValidationException::withMessages([
                 'email' => __('These credentials do not match our records.'),
             ]);
@@ -60,12 +78,30 @@ class AuthController extends Controller
         // Update last login timestamp
         $user->update(['last_login_at' => now()]);
 
+        // ════════════════════════════════════════════════════════
+        // FIX: Record SUCCESSFUL login in LoginHistory
+        // ════════════════════════════════════════════════════════
+        try {
+            $loginRecord = LoginHistory::recordLogin(
+                $user->id,
+                $request->ip(),
+                $request->userAgent(),
+                'success'
+            );
+        } catch (\Exception $e) {
+            Log::warning('Login history recording failed: ' . $e->getMessage());
+        }
+
         // Regenerate session
         $request->session()->regenerate();
 
+        // Store login history ID in session (after regenerate to ensure persistence)
+        if (isset($loginRecord)) {
+            $request->session()->put('login_history_id', $loginRecord->id);
+        }
+
         // ============================================================
         // FIX #1: Clean up old Sanctum tokens BEFORE creating new one
-        // Prevents token accumulation on remember-me re-logins
         // ============================================================
         try {
             $user->tokens()->delete();
@@ -83,7 +119,6 @@ class AuthController extends Controller
 
         // ============================================================
         // FIX #2: Wrap activity log in try-catch
-        // Prevents silent 500 errors if activity log package has issues
         // ============================================================
         try {
             activity()
@@ -108,8 +143,23 @@ class AuthController extends Controller
     {
         $user = Auth::user();
 
-        // Log logout activity
         if ($user) {
+            // ════════════════════════════════════════════════════════
+            // FIX: Record logout + calculate session duration
+            // ════════════════════════════════════════════════════════
+            try {
+                $loginHistoryId = $request->session()->get('login_history_id');
+                if ($loginHistoryId) {
+                    $loginRecord = LoginHistory::find($loginHistoryId);
+                    if ($loginRecord) {
+                        $loginRecord->recordLogout();
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Logout history recording failed: ' . $e->getMessage());
+            }
+
+            // Log logout activity
             try {
                 activity()
                     ->causedBy($user)
@@ -139,24 +189,9 @@ class AuthController extends Controller
 
     /**
      * Redirect user based on their role.
-     *
-     * ============================================================
-     * FIX #3: Use redirect()->route() instead of redirect()->intended()
-     *
-     * WHY: redirect()->intended() stores/reads from session flash data
-     *      ('url.intended'). When remember-me cookie re-authenticates
-     *      after session expiry, the flash data is EMPTY (session was
-     *      cleared). On cPanel reverse proxy, this causes 302 redirect
-     *      loops because intended() falls back to the raw path argument
-     *      which may not match the proxy's URL scheme.
-     *
-     *      redirect()->route() generates a proper named route URL
-     *      every time, independent of session state.
-     * ============================================================
      */
     protected function redirectBasedOnRole($user): RedirectResponse
     {
-        // Get user's primary role
         $role = $user->roles->first()?->name;
 
         return match ($role) {
