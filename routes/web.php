@@ -27,9 +27,8 @@ use App\Http\Controllers\Technician\ClaimController as TechnicianClaimController
 use App\Http\Controllers\Admin\JobCategoryController as AdminJobCategoryController;
 use App\Http\Controllers\Admin\InventoryController as AdminInventoryController;
 use App\Http\Controllers\Admin\StockMovementController as AdminStockMovementController;
-use App\Http\Controllers\Supervisor\InventoryController as SupervisorInventoryController;
-use App\Http\Controllers\Supervisor\StockMovementController as SupervisorStockMovementController;
-use App\Http\Controllers\Technician\InventoryController as TechnicianInventoryController;
+// REMOVED: Supervisor\InventoryController, Supervisor\StockMovementController, Technician\InventoryController
+// Inventory module is now Admin-only
 use App\Http\Controllers\Admin\ReportController as AdminReportController;
 use App\Http\Controllers\Supervisor\ReportController as SupervisorReportController;
 use App\Http\Controllers\Technician\ReportController as TechnicianReportController;
@@ -285,7 +284,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
     });
 
     /* ══════════════════════════════════════════════════════════
-     * INVENTORY MANAGEMENT (Updated)
+     * INVENTORY MANAGEMENT (Admin-Only)
      * Stock Out = list-only (auto-triggered from tickets)
      * Stock Return = list + manual create form
      * ══════════════════════════════════════════════════════════ */
@@ -540,37 +539,7 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::get('/rejected-rescheduled/export', [SupervisorReportController::class, 'rejectedRescheduledExport'])->name('rejected-rescheduled.export');
     });
 
-    /* ══════════════════════════════════════════════════════════
-     * SUPERVISOR INVENTORY (Updated)
-     * Stock Out = list-only (auto-triggered from tickets)
-     * Stock Return = list + manual create form
-     * ══════════════════════════════════════════════════════════ */
-    Route::prefix('inventory')->name('inventory.')->group(function () {
-        // DataTable + AJAX (before parameterized routes)
-        Route::get('/datatable', [SupervisorInventoryController::class, 'datatable'])->name('datatable');
-        Route::get('/ajax/item-stock', [SupervisorInventoryController::class, 'getItemStock'])->name('get-item-stock');
-
-        // Stock In
-        Route::get('/stock-in', [SupervisorInventoryController::class, 'stockInForm'])->name('stock-in');
-        Route::post('/stock-in', [SupervisorInventoryController::class, 'stockIn'])->name('stock-in.process');
-
-        // Stock Out (list-only — no POST route, auto-triggered from ticket creation)
-        Route::get('/stock-out', [SupervisorInventoryController::class, 'stockOutIndex'])->name('stock-out');
-        Route::get('/stock-out/datatable', [SupervisorInventoryController::class, 'stockOutDatatable'])->name('stock-out.datatable');
-
-        // Stock Return (list + manual create form)
-        Route::get('/stock-return', [SupervisorInventoryController::class, 'stockReturnIndex'])->name('stock-return');
-        Route::get('/stock-return/datatable', [SupervisorInventoryController::class, 'stockReturnDatatable'])->name('stock-return.datatable');
-        Route::get('/stock-return/create', [SupervisorInventoryController::class, 'stockReturnCreate'])->name('stock-return.create');
-        Route::post('/stock-return', [SupervisorInventoryController::class, 'stockReturn'])->name('stock-return.process');
-
-        // Movements
-        Route::get('/movements', [SupervisorInventoryController::class, 'movementsIndex'])->name('movements');
-        Route::get('/movements/datatable', [SupervisorInventoryController::class, 'movementsDatatable'])->name('movements.datatable');
-
-        // Index
-        Route::get('/', [SupervisorInventoryController::class, 'index'])->name('index');
-    });
+    /* REMOVED: Supervisor Inventory Routes — Inventory is now Admin-only */
 
     /* Job Assignment (supervisor or admin) */
     Route::middleware(['role:admin,supervisor'])->group(function () {
@@ -665,11 +634,7 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/claim/export', [TechnicianReportController::class, 'claimReportExport'])->name('claim.export');
     });
 
-    /* Technician Inventory (view-only) */
-    Route::prefix('inventory')->name('inventory.')->group(function () {
-        Route::get('/datatable', [TechnicianInventoryController::class, 'datatable'])->name('datatable');
-        Route::get('/', [TechnicianInventoryController::class, 'index'])->name('index');
-    });
+    /* REMOVED: Technician Inventory Routes — Inventory is now Admin-only */
 });
 
 // =====================================================

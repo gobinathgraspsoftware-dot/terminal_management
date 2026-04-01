@@ -10,6 +10,9 @@ class RolePermissionSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * CHANGE: Removed ALL inventory-related permissions from Supervisor and Technician roles.
+     * Inventory module is now Admin-only. Admin still gets all permissions via syncPermissions(all).
      */
     public function run(): void
     {
@@ -35,6 +38,7 @@ class RolePermissionSeeder extends Seeder
 
         // ==============================================
         // SUPERVISOR ROLE - Team Management + Operations
+        // REMOVED: All inventory permissions
         // ==============================================
         $supervisorPermissions = [
             // Users - Can view and manage their team
@@ -45,12 +49,10 @@ class RolePermissionSeeder extends Seeder
             'view_models', 'view_categories', 'view_charges', 'view_rate_cards',
 
             // ============================================================
-            // INVENTORY MANAGEMENT
-            // ============================================================
-            'view_inventory', 'create_inventory', 'edit_inventory', 'export_inventory',
-            'view_stock_movements',
-            'create_stock_in', 'create_stock_out', 'create_stock_return',
-            // NOTE: create_stock_transfer REMOVED — Transfer no longer in module
+            // INVENTORY MANAGEMENT — REMOVED (Admin-only now)
+            // Previously had: view_inventory, create_inventory, edit_inventory,
+            //   export_inventory, view_stock_movements, create_stock_in,
+            //   create_stock_out, create_stock_return
             // ============================================================
 
             // Job Orders - Full team access
@@ -103,6 +105,7 @@ class RolePermissionSeeder extends Seeder
 
         // ==============================================
         // TECHNICIAN ROLE - Field Operations Only
+        // REMOVED: All inventory permissions
         // ==============================================
         $technicianPermissions = [
             // Users
@@ -112,10 +115,8 @@ class RolePermissionSeeder extends Seeder
             'view_clients', 'view_sites', 'view_models',
 
             // ============================================================
-            // INVENTORY MANAGEMENT - View own stock only
-            // ============================================================
-            'view_own_inventory',
-            'view_stock_movements',
+            // INVENTORY MANAGEMENT — REMOVED (Admin-only now)
+            // Previously had: view_own_inventory, view_stock_movements
             // ============================================================
 
             // Job Orders

@@ -5,6 +5,12 @@ namespace App\Policies;
 use App\Models\InventoryItem;
 use App\Models\User;
 
+/**
+ * InventoryItemPolicy — Admin-Only Access
+ *
+ * CHANGE: All policy methods now restrict access to admin role only.
+ * Supervisor and Technician roles no longer have any inventory access.
+ */
 class InventoryItemPolicy
 {
     /**
@@ -12,11 +18,7 @@ class InventoryItemPolicy
      */
     public function viewAny(User $user): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        return $user->hasAnyPermission(['view_inventory', 'view_own_inventory']);
+        return $user->hasRole('admin');
     }
 
     /**
@@ -24,11 +26,7 @@ class InventoryItemPolicy
      */
     public function view(User $user, InventoryItem $item): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        return $user->hasPermissionTo('view_inventory');
+        return $user->hasRole('admin');
     }
 
     /**
@@ -36,11 +34,7 @@ class InventoryItemPolicy
      */
     public function create(User $user): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        return $user->hasPermissionTo('create_inventory');
+        return $user->hasRole('admin');
     }
 
     /**
@@ -48,11 +42,7 @@ class InventoryItemPolicy
      */
     public function update(User $user, InventoryItem $item): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        return $user->hasPermissionTo('edit_inventory');
+        return $user->hasRole('admin');
     }
 
     /**
@@ -60,11 +50,7 @@ class InventoryItemPolicy
      */
     public function delete(User $user, InventoryItem $item): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        return $user->hasPermissionTo('delete_inventory');
+        return $user->hasRole('admin');
     }
 
     /**
@@ -72,11 +58,7 @@ class InventoryItemPolicy
      */
     public function export(User $user): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        return $user->hasPermissionTo('export_inventory');
+        return $user->hasRole('admin');
     }
 
     /**
@@ -84,11 +66,7 @@ class InventoryItemPolicy
      */
     public function stockIn(User $user): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        return $user->hasPermissionTo('create_stock_in');
+        return $user->hasRole('admin');
     }
 
     /**
@@ -96,11 +74,7 @@ class InventoryItemPolicy
      */
     public function stockOut(User $user): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        return $user->hasPermissionTo('create_stock_out');
+        return $user->hasRole('admin');
     }
 
     /**
@@ -108,11 +82,7 @@ class InventoryItemPolicy
      */
     public function stockReturn(User $user): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        return $user->hasPermissionTo('create_stock_return');
+        return $user->hasRole('admin');
     }
 
     /**
@@ -120,11 +90,7 @@ class InventoryItemPolicy
      */
     public function stockAdjustment(User $user): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        return $user->hasPermissionTo('create_stock_adjustment');
+        return $user->hasRole('admin');
     }
 
     /**
@@ -132,10 +98,6 @@ class InventoryItemPolicy
      */
     public function viewMovements(User $user): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        return $user->hasPermissionTo('view_stock_movements');
+        return $user->hasRole('admin');
     }
 }

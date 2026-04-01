@@ -225,6 +225,7 @@
             </div>
             @endcanany
 
+            <!-- Inventory Section (Admin-Only) -->
             @php
                 $isInventoryRoute = str_contains($currentRoute ?? '', 'admin.inventory');
             @endphp
@@ -525,54 +526,7 @@
             </div>
             @endcanany
 
-            @php
-                $isInventoryRoute = str_contains($currentRoute ?? '', 'supervisor.inventory');
-            @endphp
-            @canany(['view_inventory', 'create_stock_in', 'create_stock_out', 'create_stock_return'])
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Inventory</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isInventoryRoute && !str_contains($currentRoute, 'stock-') && !str_contains($currentRoute, 'movements') ? 'active' : '' }}"
-                        href="{{ route('supervisor.inventory.index') }}">
-                            <i class="bi bi-box-seam me-2"></i> Items
-                        </a>
-                    </li>
-                    @can('create_stock_in')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.inventory.stock-in') ? 'active' : '' }}"
-                        href="{{ route('supervisor.inventory.stock-in') }}">
-                            <i class="bi bi-box-arrow-in-down me-2"></i> Stock In
-                        </a>
-                    </li>
-                    @endcan
-                    @can('create_stock_out')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.inventory.stock-out') ? 'active' : '' }}"
-                        href="{{ route('supervisor.inventory.stock-out') }}">
-                            <i class="bi bi-box-arrow-right me-2"></i> Stock Out
-                        </a>
-                    </li>
-                    @endcan
-                    @can('create_stock_return')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.inventory.stock-return') ? 'active' : '' }}"
-                        href="{{ route('supervisor.inventory.stock-return') }}">
-                            <i class="bi bi-box-arrow-up me-2"></i> Stock Return
-                        </a>
-                    </li>
-                    @endcan
-                    @can('view_stock_movements')
-                    <li class="nav-item">
-                        <a class="nav-link {{ str_contains($currentRoute, 'supervisor.inventory.movements') ? 'active' : '' }}"
-                        href="{{ route('supervisor.inventory.movements') }}">
-                            <i class="bi bi-arrow-left-right me-2"></i> Movements
-                        </a>
-                    </li>
-                    @endcan
-                </ul>
-            </div>
-            @endcanany
+            {{-- REMOVED: Supervisor Inventory Section — Inventory is now Admin-only --}}
 
             <!-- Reports Section -->
             @canany(['view_reports', 'export_reports'])
@@ -737,22 +691,7 @@
                 </ul>
             </div>
 
-            @php
-                $isInventoryRoute = str_contains($currentRoute ?? '', 'technician.inventory');
-            @endphp
-            @canany(['view_own_inventory', 'view_stock_movements'])
-            <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">My Inventory</small>
-                <ul class="nav flex-column mt-2">
-                    <li class="nav-item">
-                        <a class="nav-link {{ $isInventoryRoute ? 'active' : '' }}"
-                           href="{{ route('technician.inventory.index') }}">
-                            <i class="bi bi-box-seam me-2"></i> My Stock
-                        </a>
-                    </li>
-                </ul>
-            </div>
-            @endcanany
+            {{-- REMOVED: Technician Inventory Section — Inventory is now Admin-only --}}
 
             <!-- Reports Section -->
             @can('view_reports')

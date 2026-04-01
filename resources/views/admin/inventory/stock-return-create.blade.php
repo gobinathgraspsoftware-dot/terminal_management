@@ -1,361 +1,215 @@
 @extends('layouts.app')
 
-@section('title', 'New Stock Return — Inventory')
+@section('title', 'Manual Stock Return')
 
 @section('content')
-<div class="container-fluid py-4">
+<div class="container-fluid">
 
-    {{-- ── Page Header ─────────────────────────────────────────────────── --}}
+    <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1 fw-bold">
-                <i class="bi bi-box-arrow-in-left text-info me-2"></i>New Stock Return
-            </h4>
+            <h4 class="mb-1"><i class="bi bi-box-arrow-up me-2"></i>Manual Stock Return</h4>
             <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0 small">
+                <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
                     <li class="breadcrumb-item"><a href="{{ route('admin.inventory.index') }}">Inventory</a></li>
                     <li class="breadcrumb-item"><a href="{{ route('admin.inventory.stock-return') }}">Stock Return</a></li>
-                    <li class="breadcrumb-item active">New Return</li>
+                    <li class="breadcrumb-item active">Create</li>
                 </ol>
             </nav>
         </div>
-        <a href="{{ route('admin.inventory.stock-return') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Back to List
+        <a href="{{ route('admin.inventory.stock-return') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to List
         </a>
     </div>
 
-    {{-- ── Validation Errors ────────────────────────────────────────────── --}}
-    @if($errors->any())
-        <div class="alert alert-danger alert-dismissible fade show">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            <strong>Please fix the following errors:</strong>
-            <ul class="mb-0 mt-1">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>{{ session('error') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
 
-    {{-- ── Form Card ───────────────────────────────────────────────────── --}}
+    <!-- Form Card -->
     <div class="card shadow-sm border-0">
         <div class="card-header bg-white py-3">
-            <span class="fw-semibold">
-                <i class="bi bi-clipboard-check me-2 text-info"></i>Stock Return Details
-            </span>
+            <h6 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Return Details</h6>
         </div>
         <div class="card-body">
-
             <form action="{{ route('admin.inventory.stock-return.process') }}" method="POST" id="stockReturnForm">
                 @csrf
 
-                <div class="row g-4">
-
-                    {{-- ── Item Selection ────────────────────────────────── --}}
-                    <div class="col-md-5">
-                        <label class="form-label fw-semibold">
-                            Inventory Item <span class="text-danger">*</span>
-                        </label>
-                        <select name="inventory_item_id"
-                                id="itemSelect"
-                                class="form-select @error('inventory_item_id') is-invalid @enderror"
-                                required>
-                            <option value="">— Select an item —</option>
+                <div class="row g-3">
+                    <!-- Inventory Item -->
+                    <div class="col-md-6">
+                        <label for="inventory_item_id" class="form-label">Inventory Item <span class="text-danger">*</span></label>
+                        <select name="inventory_item_id" id="inventory_item_id" class="form-select @error('inventory_item_id') is-invalid @enderror" required>
+                            <option value="">-- Select Item --</option>
                             @foreach($allItems as $item)
                                 <option value="{{ $item->id }}"
                                         data-type="{{ $item->item_type }}"
-                                        data-name="{{ $item->item_name }}"
                                         {{ old('inventory_item_id') == $item->id ? 'selected' : '' }}>
-                                    {{ $item->item_name }}
-                                    @if($item->brand)({{ $item->brand }})@endif
-                                    — [{{ strtoupper($item->item_type) }}]
-                                    @if($item->item_code)  #{{ $item->item_code }}@endif
+                                    {{ $item->item_code }} - {{ $item->item_name }}
+                                    ({{ ucfirst($item->item_type) }})
                                 </option>
                             @endforeach
                         </select>
                         @error('inventory_item_id')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
-                        {{-- Item type badge shown after selection --}}
-                        <div id="itemTypeBadge" class="mt-2" style="display:none;"></div>
                     </div>
 
-                    {{-- ── Return Date ───────────────────────────────────── --}}
+                    <!-- Return Date -->
                     <div class="col-md-3">
-                        <label class="form-label fw-semibold">
-                            Return Date <span class="text-danger">*</span>
-                        </label>
-                        <input type="date"
-                               name="stockreturn_date"
+                        <label for="stockreturn_date" class="form-label">Return Date <span class="text-danger">*</span></label>
+                        <input type="date" name="stockreturn_date" id="stockreturn_date"
                                class="form-control @error('stockreturn_date') is-invalid @enderror"
-                               value="{{ old('stockreturn_date', date('Y-m-d')) }}"
-                               max="{{ date('Y-m-d') }}"
-                               required>
+                               value="{{ old('stockreturn_date', date('Y-m-d')) }}" required>
                         @error('stockreturn_date')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
 
-                    {{-- ── Condition ─────────────────────────────────────── --}}
-                    <div class="col-md-2">
-                        <label class="form-label fw-semibold">
-                            Condition <span class="text-danger">*</span>
-                        </label>
-                        <select name="item_condition"
-                                class="form-select @error('item_condition') is-invalid @enderror"
-                                required>
-                            <option value="">— Select —</option>
-                            <option value="good"    {{ old('item_condition', 'good') === 'good'    ? 'selected' : '' }}>Good</option>
-                            <option value="faulty"  {{ old('item_condition')         === 'faulty'  ? 'selected' : '' }}>Faulty</option>
-                            <option value="damaged" {{ old('item_condition')         === 'damaged' ? 'selected' : '' }}>Damaged</option>
+                    <!-- Item Condition -->
+                    <div class="col-md-3">
+                        <label for="item_condition" class="form-label">Condition <span class="text-danger">*</span></label>
+                        <select name="item_condition" id="item_condition" class="form-select @error('item_condition') is-invalid @enderror" required>
+                            <option value="good" {{ old('item_condition') === 'good' ? 'selected' : '' }}>Good</option>
+                            <option value="faulty" {{ old('item_condition') === 'faulty' ? 'selected' : '' }}>Faulty</option>
+                            <option value="damaged" {{ old('item_condition') === 'damaged' ? 'selected' : '' }}>Damaged</option>
                         </select>
                         @error('item_condition')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
 
-                    {{-- ── Quantity (Accessory only — hidden for Router) ─── --}}
-                    <div class="col-md-2" id="qtyWrapper" style="display:none;">
-                        <label class="form-label fw-semibold">
-                            Quantity <span class="text-danger">*</span>
-                        </label>
-                        <input type="number"
-                               name="quantity"
-                               id="quantityInput"
+                    <!-- Quantity (for accessories) -->
+                    <div class="col-md-3" id="quantity_group">
+                        <label for="quantity" class="form-label">Quantity <span class="text-danger">*</span></label>
+                        <input type="number" name="quantity" id="quantity"
                                class="form-control @error('quantity') is-invalid @enderror"
-                               value="{{ old('quantity', 1) }}"
-                               min="1">
+                               value="{{ old('quantity', 1) }}" min="1">
                         @error('quantity')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
 
-                    {{-- ── Reason ─────────────────────────────────────────── --}}
+                    <!-- Router IDs (for routers) -->
+                    <div class="col-md-9" id="router_ids_group" style="display: none;">
+                        <label class="form-label">Router IDs <span class="text-danger">*</span></label>
+                        <div id="router_ids_container">
+                            <div class="input-group mb-2">
+                                <input type="text" name="router_ids[]" class="form-control" placeholder="Enter Router ID">
+                                <button type="button" class="btn btn-outline-success btn-add-router">
+                                    <i class="bi bi-plus-circle"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <small class="text-muted">Quantity will be auto-calculated from the number of Router IDs entered.</small>
+                    </div>
+
+                    <!-- From Holder Type -->
+                    <div class="col-md-3">
+                        <label for="from_holder_type" class="form-label">Return From</label>
+                        <select name="from_holder_type" id="from_holder_type" class="form-select">
+                            <option value="technician">Technician</option>
+                            <option value="warehouse">Warehouse (internal)</option>
+                        </select>
+                    </div>
+
+                    <!-- From Holder ID (technician) -->
+                    <div class="col-md-3" id="from_holder_id_group">
+                        <label for="from_holder_id" class="form-label">Technician</label>
+                        <select name="from_holder_id" id="from_holder_id" class="form-select">
+                            <option value="">-- Optional --</option>
+                        </select>
+                    </div>
+
+                    <!-- Reason -->
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">
-                            Reason <span class="text-danger">*</span>
-                        </label>
-                        <input type="text"
-                               name="reason"
+                        <label for="reason" class="form-label">Reason</label>
+                        <input type="text" name="reason" id="reason"
                                class="form-control @error('reason') is-invalid @enderror"
-                               value="{{ old('reason') }}"
-                               placeholder="e.g. Contract ended, Defective unit, Replacement completed"
-                               maxlength="500"
-                               required>
+                               value="{{ old('reason', 'Manual Stock Return') }}" maxlength="255">
                         @error('reason')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
 
-                    {{-- ── Remarks ────────────────────────────────────────── --}}
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">
-                            Remarks
-                            <span class="text-muted small fw-normal">(optional)</span>
-                        </label>
-                        <input type="text"
-                               name="remarks"
-                               class="form-control @error('remarks') is-invalid @enderror"
-                               value="{{ old('remarks') }}"
-                               placeholder="Additional notes..."
-                               maxlength="1000">
+                    <!-- Remarks -->
+                    <div class="col-md-12">
+                        <label for="remarks" class="form-label">Remarks</label>
+                        <textarea name="remarks" id="remarks" rows="2"
+                                  class="form-control @error('remarks') is-invalid @enderror"
+                                  placeholder="Optional remarks">{{ old('remarks') }}</textarea>
                         @error('remarks')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
-
-                    {{-- ════════════════════════════════════════════════════
-                         ROUTER IDs SECTION — shown only when item_type = router
-                         Mirrors the stock-in pattern exactly.
-                         Quantity is auto-derived from number of rows entered.
-                         ════════════════════════════════════════════════════ --}}
-                    <div class="col-12" id="routerSection" style="display:none;">
-                        <div class="card border-info">
-                            <div class="card-header bg-info bg-opacity-10 py-2">
-                                <span class="fw-semibold text-info">
-                                    <i class="bi bi-router me-2"></i>Router IDs
-                                    <small class="text-muted fw-normal ms-2">
-                                        — Enter one Router ID per row. Quantity is auto-calculated from the number of IDs entered.
-                                    </small>
-                                </span>
-                            </div>
-                            <div class="card-body">
-
-                                {{-- Running count badge --}}
-                                <div class="mb-3">
-                                    <span class="badge bg-secondary" id="routerCountBadge">0 router(s) entered</span>
-                                </div>
-
-                                {{-- Router ID rows --}}
-                                <div id="routerIdsContainer">
-                                    @if(old('router_ids'))
-                                        @foreach(old('router_ids') as $oldId)
-                                            <div class="input-group mb-2 router-id-row">
-                                                <span class="input-group-text bg-light">
-                                                    <i class="bi bi-router text-info"></i>
-                                                </span>
-                                                <input type="text"
-                                                       name="router_ids[]"
-                                                       class="form-control router-id-input"
-                                                       placeholder="e.g. RTR-00001"
-                                                       value="{{ $oldId }}"
-                                                       maxlength="100">
-                                                <button type="button"
-                                                        class="btn btn-outline-danger btn-remove-router"
-                                                        title="Remove this row">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        @endforeach
-                                    @else
-                                        <div class="input-group mb-2 router-id-row">
-                                            <span class="input-group-text bg-light">
-                                                <i class="bi bi-router text-info"></i>
-                                            </span>
-                                            <input type="text"
-                                                   name="router_ids[]"
-                                                   class="form-control router-id-input"
-                                                   placeholder="e.g. RTR-00001"
-                                                   maxlength="100">
-                                            <button type="button"
-                                                    class="btn btn-outline-danger btn-remove-router"
-                                                    title="Remove this row">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
-                                    @endif
-                                </div>
-
-                                <button type="button" id="btnAddRouter"
-                                        class="btn btn-outline-info btn-sm mt-1">
-                                    <i class="bi bi-plus-circle me-1"></i>Add Another Router ID
-                                </button>
-
-                            </div>
-                        </div>
-                    </div>
-                    {{-- end routerSection --}}
-
-                </div>{{-- /.row --}}
-
-                {{-- ── Submit ─────────────────────────────────────────────── --}}
-                <div class="mt-4 pt-3 border-top d-flex gap-2">
-                    <button type="submit" class="btn btn-info text-white px-4" id="btnSubmit">
-                        <i class="bi bi-box-arrow-in-left me-1"></i>Process Stock Return
-                    </button>
-                    <a href="{{ route('admin.inventory.stock-return') }}"
-                       class="btn btn-outline-secondary px-4">
-                        <i class="bi bi-x-circle me-1"></i>Cancel
-                    </a>
                 </div>
 
-            </form>
+                <hr class="my-4">
 
-        </div>{{-- /.card-body --}}
-    </div>{{-- /.card --}}
+                <div class="d-flex justify-content-end">
+                    <a href="{{ route('admin.inventory.stock-return') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-box-arrow-up me-1"></i> Process Stock Return
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
 </div>
 @endsection
 
 @push('scripts')
 <script>
-$(function () {
+$(document).ready(function() {
+    // Initialize Select2
+    $('#inventory_item_id').select2({ theme: 'bootstrap-5', placeholder: '-- Select Item --', allowClear: true });
 
-    // ── Item type toggle ──────────────────────────────────────────────────
-    function applyItemType(type) {
-        if (type === 'router') {
-            $('#routerSection').show();
-            $('#qtyWrapper').hide();
-            $('#quantityInput').removeAttr('required');
-            $('#itemTypeBadge').html('<span class="badge bg-primary">Router — quantity derived from Router IDs</span>').show();
-        } else if (type === 'accessory') {
-            $('#routerSection').hide();
-            $('#qtyWrapper').show();
-            $('#quantityInput').attr('required', true);
-            $('#itemTypeBadge').html('<span class="badge bg-info">Accessory</span>').show();
+    // Toggle router_ids vs quantity based on item type
+    $('#inventory_item_id').on('change.select2', function() {
+        var selected = $(this).find(':selected');
+        var itemType = selected.data('type');
+
+        if (itemType === 'router') {
+            $('#router_ids_group').show();
+            $('#quantity_group').hide();
+            $('#quantity').val(1);
         } else {
-            $('#routerSection').hide();
-            $('#qtyWrapper').hide();
-            $('#quantityInput').removeAttr('required');
-            $('#itemTypeBadge').hide();
+            $('#router_ids_group').hide();
+            $('#quantity_group').show();
         }
-        updateRouterCount();
-    }
-
-    // On page load — restore old() state
-    @if(old('inventory_item_id'))
-        applyItemType('{{ old('inventory_item_id') ? optional(\App\Models\InventoryItem::find(old('inventory_item_id')))->item_type : '' }}');
-    @endif
-
-    $('#itemSelect').on('change', function () {
-        var type = $(this).find(':selected').data('type') || '';
-        applyItemType(type);
     });
 
-    // ── Router count badge ────────────────────────────────────────────────
-    function updateRouterCount() {
-        var filled = 0;
-        $('.router-id-input').each(function () {
-            if ($(this).val().trim() !== '') filled++;
-        });
-        var total = $('.router-id-row').length;
-        $('#routerCountBadge')
-            .text(filled + ' router(s) entered (' + total + ' row' + (total === 1 ? '' : 's') + ')')
-            .removeClass('bg-secondary bg-success bg-warning')
-            .addClass(filled === 0 ? 'bg-secondary' : (filled === total ? 'bg-success' : 'bg-warning'));
-    }
-
-    $(document).on('input', '.router-id-input', updateRouterCount);
-
-    // ── Add row ───────────────────────────────────────────────────────────
-    $('#btnAddRouter').on('click', function () {
-        var row = $('<div class="input-group mb-2 router-id-row">' +
-            '<span class="input-group-text bg-light"><i class="bi bi-router text-info"></i></span>' +
-            '<input type="text" name="router_ids[]" class="form-control router-id-input" placeholder="e.g. RTR-00001" maxlength="100">' +
-            '<button type="button" class="btn btn-outline-danger btn-remove-router" title="Remove this row"><i class="bi bi-trash"></i></button>' +
-            '</div>');
-        $('#routerIdsContainer').append(row);
-        row.find('input').focus();
-        updateRouterCount();
+    // Add router ID row
+    $(document).on('click', '.btn-add-router', function() {
+        var newRow = '<div class="input-group mb-2">' +
+            '<input type="text" name="router_ids[]" class="form-control" placeholder="Enter Router ID">' +
+            '<button type="button" class="btn btn-outline-danger btn-remove-router"><i class="bi bi-dash-circle"></i></button>' +
+            '</div>';
+        $('#router_ids_container').append(newRow);
     });
 
-    // ── Remove row (keep at least one) ───────────────────────────────────
-    $(document).on('click', '.btn-remove-router', function () {
-        if ($('.router-id-row').length > 1) {
-            $(this).closest('.router-id-row').remove();
-            updateRouterCount();
+    // Remove router ID row
+    $(document).on('click', '.btn-remove-router', function() {
+        $(this).closest('.input-group').remove();
+    });
+
+    // Toggle from_holder_id visibility
+    $('#from_holder_type').on('change', function() {
+        if ($(this).val() === 'technician') {
+            $('#from_holder_id_group').show();
         } else {
-            $(this).closest('.router-id-row').find('input').val('');
-            updateRouterCount();
+            $('#from_holder_id_group').hide();
+            $('#from_holder_id').val('');
         }
     });
 
-    // ── Form submit guard ─────────────────────────────────────────────────
-    $('#stockReturnForm').on('submit', function (e) {
-        var type = $('#itemSelect').find(':selected').data('type');
-        if (type === 'router') {
-            // Check at least one non-empty router ID
-            var hasIds = false;
-            $('.router-id-input').each(function () {
-                if ($(this).val().trim() !== '') { hasIds = true; return false; }
-            });
-            if (!hasIds) {
-                e.preventDefault();
-                showToast('Please enter at least one Router ID.', 'warning');
-                $('#routerSection').find('input:first').focus();
-                return false;
-            }
-        }
-        $('#btnSubmit').prop('disabled', true).html(
-            '<span class="spinner-border spinner-border-sm me-1"></span>Processing…'
-        );
-    });
-
-    // Initial count
-    updateRouterCount();
-
+    // Trigger initial state
+    $('#inventory_item_id').trigger('change.select2');
 });
 </script>
 @endpush

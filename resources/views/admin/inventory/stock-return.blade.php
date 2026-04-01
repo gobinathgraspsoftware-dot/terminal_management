@@ -1,152 +1,118 @@
 @extends('layouts.app')
 
-@section('title', 'Stock Return — Inventory')
+@section('title', 'Stock Return Records')
 
 @section('content')
-<div class="container-fluid py-4">
+<div class="container-fluid">
 
-    {{-- ── Page Header ─────────────────────────────────────────────────── --}}
+    <!-- Page Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-1 fw-bold">
-                <i class="bi bi-box-arrow-in-left text-info me-2"></i>Stock Return
-            </h4>
+            <h4 class="mb-1"><i class="bi bi-box-arrow-up me-2"></i>Stock Return Records</h4>
             <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0 small">
+                <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
                     <li class="breadcrumb-item"><a href="{{ route('admin.inventory.index') }}">Inventory</a></li>
                     <li class="breadcrumb-item active">Stock Return</li>
                 </ol>
             </nav>
         </div>
-        <div class="d-flex gap-2">
-            <a href="{{ route('admin.inventory.stock-return.create') }}"
-               class="btn btn-info text-white btn-sm">
-                <i class="bi bi-plus-circle me-1"></i>New Stock Return
+        <div>
+            <a href="{{ route('admin.inventory.stock-return.create') }}" class="btn btn-primary me-2">
+                <i class="bi bi-plus-circle me-1"></i> Manual Stock Return
             </a>
-            <a href="{{ route('admin.inventory.index') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i>Back to Inventory
+            <a href="{{ route('admin.inventory.index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back to Items
             </a>
         </div>
     </div>
 
-    {{-- ── Flash Messages ──────────────────────────────────────────────── --}}
     @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show">
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
             <i class="bi bi-check-circle me-2"></i>{{ session('success') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
     @if(session('error'))
-        <div class="alert alert-danger alert-dismissible fade show">
-            <i class="bi bi-exclamation-circle me-2"></i>{{ session('error') }}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>{{ session('error') }}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
 
-    {{-- ── Filter Card ─────────────────────────────────────────────────── --}}
+    <!-- Filter Card -->
     <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3"
-             style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#filterPanel">
-            <span class="fw-semibold text-muted">
-                <i class="bi bi-funnel me-2"></i>Filter Records
-            </span>
-            <i class="bi bi-chevron-down text-muted" id="filterChevron"></i>
+        <div class="card-header bg-white py-3">
+            <h6 class="mb-0"><i class="bi bi-funnel me-2"></i>Filters</h6>
         </div>
-        <div class="collapse show" id="filterPanel">
-            <div class="card-body pt-3 pb-4">
-                <div class="row g-3">
-
-                    <div class="col-md-3">
-                        <label class="form-label small fw-semibold text-muted text-uppercase">Item Type</label>
-                        <select id="filter_item_type" class="form-select filter-select2">
-                            <option value="">All Types</option>
-                            <option value="router">Router</option>
-                            <option value="accessory">Accessory</option>
-                        </select>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="filter_item" class="form-label">Item Name</label>
+                    <select id="filter_item" class="form-select">
+                        <option value="">All Items</option>
+                        @foreach($items as $item)
+                            <option value="{{ $item->id }}">{{ $item->item_code }} - {{ $item->item_name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="filter_item_type" class="form-label">Item Type</label>
+                    <select id="filter_item_type" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="router">Router</option>
+                        <option value="accessory">Accessory</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="filter_brand" class="form-label">Brand</label>
+                    <select id="filter_brand" class="form-select">
+                        <option value="">All Brands</option>
+                        @foreach($brands as $brand)
+                            <option value="{{ $brand }}">{{ $brand }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="filter_model" class="form-label">Model</label>
+                    <select id="filter_model" class="form-select">
+                        <option value="">All Models</option>
+                        @foreach($models as $model)
+                            <option value="{{ $model }}">{{ $model }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Date Range</label>
+                    <div class="input-group">
+                        <input type="date" id="filter_date_from" class="form-control" placeholder="From">
+                        <span class="input-group-text">to</span>
+                        <input type="date" id="filter_date_to" class="form-control" placeholder="To">
                     </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label small fw-semibold text-muted text-uppercase">Item Name</label>
-                        <select id="filter_item_name" class="form-select filter-select2">
-                            <option value="">All Items</option>
-                            @foreach($items as $item)
-                                <option value="{{ $item->id }}">
-                                    {{ $item->item_name }}
-                                    @if($item->item_code)({{ $item->item_code }})@endif
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label small fw-semibold text-muted text-uppercase">Brand</label>
-                        <select id="filter_brand" class="form-select filter-select2">
-                            <option value="">All Brands</option>
-                            @foreach($brands as $brand)
-                                <option value="{{ $brand }}">{{ $brand }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label small fw-semibold text-muted text-uppercase">Model</label>
-                        <select id="filter_model" class="form-select filter-select2">
-                            <option value="">All Models</option>
-                            @foreach($models as $model)
-                                <option value="{{ $model }}">{{ $model }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    {{-- Accessory Type — conditional --}}
-                    <div class="col-md-3" id="accessoryTypeWrapper" style="display:none;">
-                        <label class="form-label small fw-semibold text-muted text-uppercase">Accessory Type</label>
-                        <select id="filter_accessory_type" class="form-select filter-select2">
-                            <option value="">All Accessory Types</option>
-                            <option value="sim_card">SIM Card</option>
-                            <option value="antenna">Antenna</option>
-                        </select>
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label small fw-semibold text-muted text-uppercase">Date From</label>
-                        <input type="date" id="filter_date_from" class="form-control">
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label small fw-semibold text-muted text-uppercase">Date To</label>
-                        <input type="date" id="filter_date_to" class="form-control">
-                    </div>
-
-                    <div class="col-md-3 d-flex align-items-end gap-2">
-                        <button id="btn_apply_filter" class="btn btn-primary">
-                            <i class="bi bi-funnel-fill me-1"></i>Apply
-                        </button>
-                        <button id="btn_reset_filter" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-circle me-1"></i>Reset
-                        </button>
-                    </div>
-
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12 text-end">
+                    <button type="button" id="btn_reset_filters" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-x-circle me-1"></i> Reset
+                    </button>
+                    <button type="button" id="btn_apply_filters" class="btn btn-primary">
+                        <i class="bi bi-search me-1"></i> Apply Filters
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- ── DataTable ────────────────────────────────────────────────────── --}}
+    <!-- DataTable Card -->
     <div class="card shadow-sm border-0">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-            <span class="fw-semibold">
-                <i class="bi bi-table me-2 text-info"></i>Stock Return Records
-            </span>
-            <span class="badge bg-info text-white" id="totalBadge">0 records</span>
+        <div class="card-header bg-white py-3">
+            <h6 class="mb-0"><i class="bi bi-table me-2"></i>Stock Return Movements</h6>
         </div>
-        <div class="card-body p-0">
+        <div class="card-body">
             <div class="table-responsive">
-                <table id="stockReturnTable"
-                       class="table table-hover table-striped align-middle mb-0"
-                       style="width:100%">
-                    <thead class="table-dark">
+                <table id="stockReturnTable" class="table table-hover table-striped align-middle w-100">
+                    <thead class="table-light">
                         <tr>
                             <th width="50">#</th>
                             <th>Movement No</th>
@@ -161,7 +127,8 @@
                             <th>To</th>
                             <th>Ticket No</th>
                             <th>Condition</th>
-                            <th>Return Date</th>
+                            <th>Reason</th>
+                            <th>Date</th>
                             <th>Performed By</th>
                         </tr>
                     </thead>
@@ -176,86 +143,63 @@
 
 @push('scripts')
 <script>
-$(function () {
-
-    $('.filter-select2').select2({
-        theme: 'bootstrap-5', width: '100%', allowClear: true,
-        placeholder: function () { return $(this).find('option:first').text(); }
-    });
-
-    $('#filterPanel').on('show.bs.collapse hide.bs.collapse', function () {
-        $('#filterChevron').toggleClass('bi-chevron-down bi-chevron-up');
-    });
-
-    $('#filter_item_type').on('change', function () {
-        if ($(this).val() === 'accessory') {
-            $('#accessoryTypeWrapper').show();
-        } else {
-            $('#accessoryTypeWrapper').hide();
-            $('#filter_accessory_type').val(null).trigger('change.select2');
-        }
-    });
-
+$(document).ready(function() {
     var table = $('#stockReturnTable').DataTable({
         processing: true,
         serverSide: true,
         ajax: {
-            url: '{{ route('admin.inventory.stock-return.datatable') }}',
-            type: 'GET',
-            data: function (d) {
+            url: '{{ route("admin.inventory.stock-return.datatable") }}',
+            data: function(d) {
+                d.inventory_item_id = $('#filter_item').val();
                 d.item_type         = $('#filter_item_type').val();
-                d.inventory_item_id = $('#filter_item_name').val();
                 d.brand             = $('#filter_brand').val();
                 d.model             = $('#filter_model').val();
-                d.accessory_type    = $('#filter_accessory_type').val();
                 d.date_from         = $('#filter_date_from').val();
                 d.date_to           = $('#filter_date_to').val();
             }
         },
         columns: [
-            { data: 'DT_RowIndex',     orderable: false, searchable: false },
+            { data: 'DT_RowIndex', orderable: false, searchable: false },
             { data: 'movement_no' },
-            { data: 'item_code',        orderable: false, searchable: false },
-            { data: 'item_name',        orderable: false, searchable: false },
-            { data: 'item_type',        orderable: false, searchable: false },
-            { data: 'brand',            orderable: false, searchable: false },
-            { data: 'model',            orderable: false, searchable: false },
-            { data: 'router_ids',       orderable: false, searchable: false },
-            {
-                data: 'quantity', orderable: false, searchable: false,
-                render: function (val) {
-                    return '<span class="badge bg-info text-white">' + val + '</span>';
-                }
-            },
-            { data: 'from_location',    orderable: false, searchable: false },
-            { data: 'to_location',      orderable: false, searchable: false },
-            { data: 'ticket_no',        orderable: false, searchable: false },
-            { data: 'condition',        orderable: false, searchable: false },
-            { data: 'stockreturn_date', orderable: false, searchable: false },
-            { data: 'performed_by',     orderable: false, searchable: false },
+            { data: 'item_code' },
+            { data: 'item_name' },
+            { data: 'item_type', searchable: false, orderable: false },
+            { data: 'brand' },
+            { data: 'model' },
+            { data: 'router_ids', searchable: false, orderable: false },
+            { data: 'quantity' },
+            { data: 'from_location', searchable: false, orderable: false },
+            { data: 'to_location', searchable: false, orderable: false },
+            { data: 'ticket_no', searchable: false, orderable: false },
+            { data: 'condition', searchable: false, orderable: false },
+            { data: 'reason', searchable: false, orderable: false },
+            { data: 'stockreturn_date' },
+            { data: 'performed_by', searchable: false, orderable: false }
         ],
         order: [[1, 'desc']],
         pageLength: 25,
-        responsive: true,
         language: {
-            processing: '<div class="text-center py-3"><div class="spinner-border text-info" role="status"></div></div>',
-            emptyTable: '<div class="text-center py-3 text-muted"><i class="bi bi-inbox fs-2 d-block mb-2"></i>No stock return records found.</div>',
-            zeroRecords: '<div class="text-center py-3 text-muted"><i class="bi bi-search fs-2 d-block mb-2"></i>No records match your filter.</div>'
-        },
-        drawCallback: function () {
-            $('#totalBadge').text(this.api().page.info().recordsTotal + ' records');
+            emptyTable: "No stock return records found",
+            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading...'
         }
     });
 
-    $('#btn_apply_filter').on('click', function () { table.draw(); });
-    $('#btn_reset_filter').on('click', function () {
-        $('#filter_item_type, #filter_item_name, #filter_brand, #filter_model, #filter_accessory_type')
-            .val(null).trigger('change.select2');
-        $('#filter_date_from, #filter_date_to').val('');
-        $('#accessoryTypeWrapper').hide();
-        table.draw();
+    // Apply filters
+    $('#btn_apply_filters').on('click', function() {
+        table.ajax.reload();
     });
 
+    // Reset filters
+    $('#btn_reset_filters').on('click', function() {
+        $('#filter_item, #filter_item_type, #filter_brand, #filter_model').val('');
+        $('#filter_date_from, #filter_date_to').val('');
+        table.ajax.reload();
+    });
+
+    // Initialize Select2 on filter dropdowns
+    $('#filter_item').select2({ theme: 'bootstrap-5', placeholder: 'All Items', allowClear: true });
+    $('#filter_brand').select2({ theme: 'bootstrap-5', placeholder: 'All Brands', allowClear: true });
+    $('#filter_model').select2({ theme: 'bootstrap-5', placeholder: 'All Models', allowClear: true });
 });
 </script>
 @endpush

@@ -32,7 +32,7 @@ use App\Policies\InventoryItemPolicy;
 /**
  * AuthServiceProvider - Registers policies, observers, and authorization gates.
  *
- * CHANGES: Added InventoryItem model + InventoryItemPolicy imports and $policies mapping.
+ * CHANGES: Removed view_team_inventory gate — Inventory is now Admin-only.
  */
 class AuthServiceProvider extends ServiceProvider
 {
@@ -60,7 +60,7 @@ class AuthServiceProvider extends ServiceProvider
         JobCategory::class => JobCategoryPolicy::class,
 
         // ==========================================
-        // INVENTORY MANAGEMENT (NEW)
+        // INVENTORY MANAGEMENT (Admin-Only)
         // ==========================================
         InventoryItem::class => InventoryItemPolicy::class,
     ];
@@ -93,6 +93,8 @@ class AuthServiceProvider extends ServiceProvider
      * - External supervisors: NO team, cannot view team members, own-scoped data
      * - Admin: can view everything
      * - Technicians can only assign to INTERNAL supervisors
+     *
+     * CHANGE: Removed view_team_inventory gate — Inventory is Admin-only now
      */
     protected function registerTeamGates(): void
     {
@@ -153,18 +155,7 @@ class AuthServiceProvider extends ServiceProvider
             return false;
         });
 
-        // View team inventory
-        Gate::define('view_team_inventory', function (User $user) {
-            if ($user->hasRole('admin')) {
-                return true;
-            }
-
-            if ($user->hasRole('supervisor')) {
-                return $user->isInternalSupervisor();
-            }
-
-            return false;
-        });
+        // REMOVED: view_team_inventory gate — Inventory is Admin-only now
     }
 
     /**
@@ -172,7 +163,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     protected function registerInventoryGates(): void
     {
-        // Handled by InventoryItemPolicy — no additional gates needed
+        // Handled by InventoryItemPolicy (Admin-only) — no additional gates needed
     }
 
     /**
