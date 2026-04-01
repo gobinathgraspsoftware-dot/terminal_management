@@ -140,6 +140,16 @@ class TicketController extends Controller
                 $scheduledDate
             );
 
+            // After rejection, technician_id becomes null — technician loses view access
+            // Return redirect URL so the frontend navigates away from the show page
+            if ($request->status === 'rejected') {
+                return response()->json([
+                    'success'  => true,
+                    'message'  => 'Ticket rejected successfully.',
+                    'redirect' => route('technician.tickets.index'),
+                ]);
+            }
+
             return response()->json(['success' => true, 'message' => 'Ticket status updated successfully.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);

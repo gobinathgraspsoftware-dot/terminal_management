@@ -334,7 +334,23 @@ $(document).ready(function() {
         $('.proof-file').each(function() { if (this.files[0]) fd.append($(this).attr('name'), this.files[0]); });
         showLoading();
         $.ajax({ url: '{{ route("technician.tickets.change-status", $ticket->id) }}', method: 'POST', data: fd, processData: false, contentType: false,
-            success: function(r) { hideLoading(); if (r.success) { showToast(r.message); setTimeout(function(){ location.reload(); }, 1000); } else showToast(r.message||'Failed.','error'); },
+            success: function(r) {
+                hideLoading();
+                if (r.success) {
+                    showToast(r.message);
+                    // Server returns redirect URL when technician loses access (e.g. rejection)
+                    var redirectUrl = r.redirect || null;
+                    setTimeout(function(){
+                        if (redirectUrl) {
+                            window.location.href = redirectUrl;
+                        } else {
+                            location.reload();
+                        }
+                    }, 1000);
+                } else {
+                    showToast(r.message||'Failed.','error');
+                }
+            },
             error: function(x) { hideLoading(); showToast(x.responseJSON?.message||'Failed.','error'); }
         });
     });
