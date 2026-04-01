@@ -89,9 +89,12 @@ class TicketController extends Controller
         // CHANGE #3: Check if old router ID can be updated (In Progress only)
         $canUpdateOldRouterId = $ticket->canUpdateOldRouterId();
 
+        // Check if claim amount can still be edited (blocked after verification)
+        $canUpdateClaim = $ticket->isClaimEditable();
+
         return view('technician.tickets.show', compact(
             'ticket', 'allowedTransitions', 'statuses', 'isReplacement',
-            'supervisorPrice', 'canUpdateOldRouterId'
+            'supervisorPrice', 'canUpdateOldRouterId', 'canUpdateClaim'
         ));
     }
 

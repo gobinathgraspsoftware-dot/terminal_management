@@ -274,8 +274,11 @@
                     @endif
                 </div>
 
-                {{-- Internal Supervisor: Technician Assign/Reassign --}}
-                @if($isInternal && $technicians->isNotEmpty())
+                {{-- Internal Supervisor: Technician Assign/Reassign (hidden when completed) --}}
+                @php
+                    $isCompleted = in_array($ticket->status, ['done_success', 'done_fail', 'closed']);
+                @endphp
+                @if($isInternal && $technicians->isNotEmpty() && !$isCompleted)
                 <hr>
                 <h6 class="fw-bold text-primary mb-2">
                     <i class="bi bi-person-gear me-1"></i>
@@ -354,13 +357,32 @@
         {{-- Claim Update (External Supervisor only) --}}
         @if($isExternal)
         <div class="card">
-            <div class="card-header"><i class="bi bi-receipt me-2"></i>Update Claim</div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-receipt me-2"></i>Claim Details</span>
+                @if($canUpdateClaim)
+                    <span class="badge bg-success">Editable</span>
+                @else
+                    <span class="badge bg-secondary">Locked</span>
+                @endif
+            </div>
             <div class="card-body">
+                @if($canUpdateClaim)
                 <div class="mb-2"><label class="form-label small">Mileage (km)</label><input type="number" id="claimMileage" class="form-control form-control-sm" step="0.01" min="0" value="{{ $ticket->mileage ?? 0 }}"></div>
                 <div class="mb-2"><label class="form-label small">Mileage Remarks</label><input type="text" id="claimMileageRemarks" class="form-control form-control-sm" value="{{ $ticket->mileage_remarks }}" maxlength="500"></div>
                 <div class="mb-2"><label class="form-label small">Toll (RM)</label><input type="number" id="claimToll" class="form-control form-control-sm" step="0.01" min="0" value="{{ $ticket->toll ?? 0 }}"></div>
                 <div class="mb-2"><label class="form-label small">Standby/Meal (RM)</label><input type="number" id="claimStandbyMeal" class="form-control form-control-sm" step="0.01" min="0" value="{{ $ticket->standby_meal ?? 0 }}"></div>
                 <button type="button" class="btn btn-outline-primary btn-sm w-100" id="btnUpdateClaim"><i class="bi bi-save me-1"></i> Update Claim</button>
+                @else
+                <div class="row g-2">
+                    <div class="col-6"><small class="text-muted">Mileage</small><p class="mb-1">{{ number_format($ticket->mileage ?? 0, 2) }} km</p></div>
+                    <div class="col-6"><small class="text-muted">Toll</small><p class="mb-1">RM {{ number_format($ticket->toll ?? 0, 2) }}</p></div>
+                    <div class="col-6"><small class="text-muted">Standby/Meal</small><p class="mb-1">RM {{ number_format($ticket->standby_meal ?? 0, 2) }}</p></div>
+                    <div class="col-6"><small class="text-muted">Total Claim</small><p class="mb-1 fw-bold text-danger">RM {{ number_format($ticket->total_claim_amount ?? 0, 2) }}</p></div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted fst-italic"><i class="bi bi-lock me-1"></i>Claim has been verified — amounts are locked.</small>
+                </div>
+                @endif
             </div>
         </div>
         @endif

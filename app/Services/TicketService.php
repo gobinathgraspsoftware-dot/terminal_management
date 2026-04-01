@@ -489,9 +489,15 @@ class TicketService
     /**
      * Update claim fields on ticket.
      * Syncs updated amounts back to the associated Claim record.
+     * Blocked once the linked claim has been verified/paid.
      */
     public function updateClaim(Ticket $ticket, array $data): Ticket
     {
+        // Guard: block if claim has been verified/approved/paid
+        if (!$ticket->isClaimEditable()) {
+            throw new \Exception('Claim cannot be modified — it has already been verified.');
+        }
+
         $mileageRate = $ticket->mileage_rate;
         if ($ticket->supervisor_id) {
             $supervisor  = User::find($ticket->supervisor_id);

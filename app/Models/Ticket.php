@@ -386,6 +386,36 @@ class Ticket extends Model
         return $supervisor->isExternalSupervisor();
     }
 
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * Check if the ticket's claim amount can still be edited.
+     * Blocked when:
+     *   1. Ticket is completed (done_success / done_fail / closed)
+     *   2. Linked claim has been verified / approved / paid / non-claimable
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    public function isClaimEditable(): bool
+    {
+        // Block if ticket is completed or closed — no role can edit
+        if (in_array($this->status, [
+            self::STATUS_DONE_SUCCESS,
+            self::STATUS_DONE_FAIL,
+            self::STATUS_CLOSED,
+        ])) {
+            return false;
+        }
+
+        $claim = \App\Models\Claim::where('claim_category', \App\Models\Claim::CATEGORY_TICKET)
+            ->where('ticket_id', $this->id)
+            ->first();
+
+        // No claim exists yet — allow editing (claim will be created on completion)
+        if (!$claim) return true;
+
+        // Delegate to Claim model's own isEditable() — true only for draft/submitted
+        return $claim->isEditable();
+    }
+
     public static function statusRequiresProof(string $status): bool
     {
         return in_array($status, [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL]);

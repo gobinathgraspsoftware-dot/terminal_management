@@ -60,6 +60,16 @@ class TicketPolicy
     public function assign(User $user, Ticket $ticket): bool
     {
         if (!$user->can('assign_tickets')) return false;
+
+        // Block assignment on completed/closed tickets
+        if (in_array($ticket->status, [
+            Ticket::STATUS_DONE_SUCCESS,
+            Ticket::STATUS_DONE_FAIL,
+            Ticket::STATUS_CLOSED,
+        ])) {
+            return false;
+        }
+
         if ($user->hasRole('admin')) return true;
 
         if ($user->hasRole('supervisor')) {
@@ -185,15 +195,17 @@ class TicketPolicy
      * Update claim information.
      *
      * Rules:
-     * - Admin         → always allowed.
-     * - External Supervisor → works alone (no technician under them).
-     *                         Can claim directly on their own ticket.
+     * - BLOCKED for ALL roles once the linked claim is verified/paid/non-claimable.
+     * - Admin         → allowed (if claim still editable).
+     * - External Supervisor → works alone, can claim directly on their own ticket.
      * - Internal Supervisor → no claims applicable (they manage, not fieldwork).
-     * - Technician    → can claim on ANY ticket they are the assigned technician,
-     *                   regardless of whether the supervisor is internal or external.
+     * - Technician    → can claim on ANY ticket they are the assigned technician.
      */
     public function updateClaim(User $user, Ticket $ticket): bool
     {
+        // Block ALL roles once claim has been verified/approved/paid
+        if (!$ticket->isClaimEditable()) return false;
+
         if ($user->hasRole('admin')) return true;
 
         if ($user->hasRole('supervisor')) {
