@@ -308,6 +308,13 @@ class TicketService
 
     /**
      * Change ticket status with proof handling.
+     *
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #1: Internal supervisors now use getInternalSupervisorTransitions()
+     * instead of getAllowedTransitions(). This removes accept/reject from
+     * their available transitions (accept/reject is now exclusively for
+     * technicians and external supervisors).
+     * ═══════════════════════════════════════════════════════════════════
      */
     public function changeStatus(
         Ticket $ticket,
@@ -323,7 +330,11 @@ class TicketService
             $allowed = Ticket::getTechnicianTransitions($ticket->status);
         } elseif ($user->hasRole('supervisor') && $user->isExternalSupervisor()) {
             $allowed = Ticket::getExternalSupervisorTransitions($ticket->status);
+        } elseif ($user->hasRole('supervisor') && $user->isInternalSupervisor()) {
+            // CHANGE #1: Internal supervisors get their own restricted transitions
+            $allowed = Ticket::getInternalSupervisorTransitions($ticket->status);
         } else {
+            // Admin
             $allowed = Ticket::getAllowedTransitions($ticket->status);
         }
 
@@ -395,51 +406,25 @@ class TicketService
     /**
      * Auto-create a ticket claim when ticket is completed.
      *
-     * ══════════════════════════════════════════════════════════════════════
-     * BUG FIX — "Technician ticket claims not listed":
-     * ══════════════════════════════════════════════════════════════════════
-     * BEFORE (wrong):
-     *   if ($supervisor->isInternalSupervisor()) { return; }
-     *   ↳ This skipped claim creation for ALL tickets under internal
-     *     supervisors — including tickets that have a technician assigned.
-     *     A technician's mileage/toll claim is THEIR claim, not the
-     *     supervisor's. Blocking it based on supervisor type was wrong.
-     *
-     * AFTER (fixed):
-     *   Skip ONLY when supervisor is internal AND there is NO technician.
-     *   This covers the case where the supervisor themselves would be the
-     *   claimant — internal supervisors don't claim, so skip.
-     *   But when a TECHNICIAN is assigned, always create the claim for them
-     *   regardless of whether their supervisor is internal or external.
-     *
      * Claim responsibility matrix:
      *   Internal supervisor + no technician  → SKIP  (internal sup doesn't claim)
      *   Internal supervisor + technician     → CREATE claim for technician ✓
      *   External supervisor + no technician  → CREATE claim for supervisor ✓
      *   External supervisor + technician     → CREATE claim for technician ✓
-     * ══════════════════════════════════════════════════════════════════════
      */
     protected function autoCreateTicketClaim(Ticket $ticket): void
     {
         try {
-            // Resolve the supervisor if present
             $supervisor = $ticket->supervisor_id
                 ? User::find($ticket->supervisor_id)
                 : null;
 
-            // Skip ONLY when:
-            //   - supervisor is internal (company employee — does not claim), AND
-            //   - there is NO technician on the ticket
-            //     (meaning the supervisor themselves would be the claimant)
-            //
-            // DO NOT skip when a technician is assigned — they always get a claim.
             if (!$ticket->technician_id
                 && $supervisor
                 && $supervisor->isInternalSupervisor()) {
                 return;
             }
 
-            // Skip if claim already exists (idempotent — prevent duplicates)
             $exists = Claim::ticketClaims()
                 ->where('ticket_id', $ticket->id)
                 ->exists();
@@ -557,17 +542,6 @@ class TicketService
 
     /**
      * Sync the ticket claim amount to the associated Claim record.
-     *
-     * ══════════════════════════════════════════════════════════════════════
-     * BUG FIX — same guard correction as autoCreateTicketClaim():
-     *
-     * BEFORE: skipped syncing for ALL internal supervisor tickets
-     * AFTER:  only skip when internal supervisor AND no technician
-     *
-     * This ensures that when a technician updates their claim fields on a
-     * ticket (even under an internal supervisor), the Claim record is
-     * created or updated correctly so it appears in the claims list.
-     * ══════════════════════════════════════════════════════════════════════
      */
     protected function syncClaimAmount(
         Ticket $ticket,
@@ -582,15 +556,12 @@ class TicketService
                 ? User::find($ticket->supervisor_id)
                 : null;
 
-            // Skip ONLY when internal supervisor has no technician
-            // (same logic as autoCreateTicketClaim)
             if (!$ticket->technician_id
                 && $supervisor
                 && $supervisor->isInternalSupervisor()) {
                 return;
             }
 
-            // Only sync for completed tickets
             if (!in_array($ticket->status, [
                 Ticket::STATUS_DONE_SUCCESS,
                 Ticket::STATUS_DONE_FAIL,
@@ -604,7 +575,6 @@ class TicketService
                 ->first();
 
             if ($existingClaim) {
-                // Update existing claim only if still in editable state
                 if (in_array($existingClaim->status, [Claim::STATUS_DRAFT, Claim::STATUS_SUBMITTED])) {
                     $existingClaim->update([
                         'total_mileage_km'       => $mileage,
@@ -620,7 +590,6 @@ class TicketService
                     ]);
                 }
             } else {
-                // No claim exists yet — create one now
                 $claimService = app(\App\Services\ClaimManagementService::class);
                 $claimService->createTicketClaim($ticket);
                 Log::info('Created missing ticket claim during sync', [
@@ -699,6 +668,96 @@ class TicketService
                     'Reassigned from %s to %s',
                     $oldTech?->name ?? 'Unassigned',
                     $newTech?->name ?? 'Unknown'
+                ),
+                'created_at'  => now(),
+            ]);
+
+            return $ticket->fresh();
+        });
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #2 (NEW): Reassign supervisor on a ticket.
+     *
+     * Admin-only action. Blocked once ticket reaches 'accepted' or beyond.
+     * When the supervisor is changed:
+     *   - Recalculates job price from supervisor_job_pricing
+     *   - Updates mileage_rate from the new supervisor
+     *   - Resets technician (since technician belongs to old supervisor)
+     *   - Resets to ASSIGNED or OPEN depending on new supervisor type
+     *   - Resets SLA fields
+     *   - Logs status history with reassignment details
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    public function reassignSupervisor(Ticket $ticket, int $newSupervisorId, ?string $remarks = null): Ticket
+    {
+        if (!$ticket->canReassignSupervisor()) {
+            throw new \Exception('Cannot reassign supervisor after ticket has been accepted.');
+        }
+
+        $newSupervisor = User::find($newSupervisorId);
+        if (!$newSupervisor || !$newSupervisor->hasRole('supervisor')) {
+            throw new \Exception('Selected user is not a valid supervisor.');
+        }
+
+        return DB::transaction(function () use ($ticket, $newSupervisorId, $newSupervisor, $remarks) {
+            $oldSupervisor = $ticket->supervisor_id ? User::find($ticket->supervisor_id) : null;
+            $oldStatus     = $ticket->status;
+
+            // Recalculate price from new supervisor's pricing
+            $newPrice = 0;
+            if ($ticket->job_category_id && $ticket->job_type_id) {
+                $pricing = SupervisorJobPricing::where('supervisor_id', $newSupervisorId)
+                    ->where('job_category_id', $ticket->job_category_id)
+                    ->where('job_type_id', $ticket->job_type_id)
+                    ->first();
+                $newPrice = $pricing ? $pricing->price : 0;
+            }
+
+            $updateData = [
+                'supervisor_id' => $newSupervisorId,
+                'price'         => $newPrice,
+                'mileage_rate'  => $newSupervisor->mileage_rate ?? 0,
+                'updated_by'    => Auth::id(),
+            ];
+
+            // External supervisor: clear technician, set status to assigned
+            if ($newSupervisor->isExternalSupervisor()) {
+                $updateData['technician_id'] = null;
+                $updateData['status']        = Ticket::STATUS_ASSIGNED;
+                $updateData['assigned_at']   = now();
+            } else {
+                // Internal supervisor: clear technician (they need to reassign from their team)
+                $updateData['technician_id'] = null;
+                $updateData['status']        = Ticket::STATUS_OPEN;
+                $updateData['assigned_at']   = null;
+            }
+
+            // Reset SLA fields
+            $updateData['accepted_at']  = null;
+            $updateData['rejected_at']  = null;
+            $updateData['sla_hours']    = 0;
+            $updateData['sla_deadline'] = null;
+            $updateData['sla_status']   = null;
+
+            // Recalculate mileage_amount with new rate
+            $updateData['mileage_amount']     = ($ticket->mileage ?? 0) * ($updateData['mileage_rate']);
+            $updateData['total_claim_amount'] = $updateData['mileage_amount']
+                                              + ($ticket->toll ?? 0)
+                                              + ($ticket->standby_meal ?? 0);
+
+            $ticket->update($updateData);
+
+            TicketStatusHistory::create([
+                'ticket_id'   => $ticket->id,
+                'from_status' => $oldStatus,
+                'to_status'   => $ticket->status,
+                'changed_by'  => Auth::id(),
+                'remarks'     => $remarks ?? sprintf(
+                    'Supervisor reassigned from %s to %s',
+                    $oldSupervisor?->name ?? 'None',
+                    $newSupervisor->name
                 ),
                 'created_at'  => now(),
             ]);

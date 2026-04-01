@@ -353,6 +353,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/{ticket}/change-status', [AdminTicketController::class, 'changeStatus'])->name('change-status');
         Route::post('/{ticket}/assign', [AdminTicketController::class, 'assign'])->name('assign');
         Route::post('/{ticket}/reassign', [AdminTicketController::class, 'reassign'])->name('reassign');
+        Route::post('/{ticket}/reassign-supervisor', [AdminTicketController::class, 'reassignSupervisor'])->name('reassign-supervisor');
         Route::post('/{ticket}/update-claim', [AdminTicketController::class, 'updateClaim'])->name('update-claim');
         Route::post('/{ticket}/comment', [AdminTicketController::class, 'addComment'])->name('comment');
     });

@@ -142,8 +142,23 @@ class TicketController extends Controller
                 ->value('price');
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // CHANGE #2: Load all supervisors for supervisor reassignment card
+        // ═══════════════════════════════════════════════════════════════════
+        $supervisors = User::role('supervisor')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name', 'supervisor_type', 'mileage_rate']);
+
+        // CHANGE #2: Check if supervisor can be reassigned
+        $canReassignSupervisor = $ticket->canReassignSupervisor();
+
+        // CHANGE #3: Check if old router ID can be updated
+        $canUpdateOldRouterId = $ticket->canUpdateOldRouterId();
+
         return view('admin.tickets.show', compact(
-            'ticket', 'allowedTransitions', 'statuses', 'technicians', 'supervisorPrice'
+            'ticket', 'allowedTransitions', 'statuses', 'technicians',
+            'supervisorPrice', 'supervisors', 'canReassignSupervisor', 'canUpdateOldRouterId'
         ));
     }
 
@@ -215,7 +230,9 @@ class TicketController extends Controller
     }
 
     /**
-     * FIX #3: scheduled_date validation + forwarded to TicketService.
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #3: Guard old_terminal_id — only update when In Progress.
+     * ═══════════════════════════════════════════════════════════════════
      */
     public function changeStatus(Request $request, Ticket $ticket)
     {
@@ -230,7 +247,8 @@ class TicketController extends Controller
         ]);
 
         try {
-            if ($request->filled('old_terminal_id')) {
+            // CHANGE #3: Only update old_terminal_id when ticket is In Progress
+            if ($request->filled('old_terminal_id') && $ticket->canUpdateOldRouterId()) {
                 $ticket->update(['old_terminal_id' => $request->old_terminal_id]);
             }
 
@@ -290,6 +308,27 @@ class TicketController extends Controller
         }
     }
 
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #2 (NEW): Reassign supervisor on a ticket.
+     * Admin-only action. Blocked once ticket has been accepted.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    public function reassignSupervisor(Request $request, Ticket $ticket)
+    {
+        $this->authorize('reassignSupervisor', $ticket);
+        $request->validate([
+            'supervisor_id' => 'required|exists:users,id',
+            'remarks'       => 'nullable|string|max:1000',
+        ]);
+        try {
+            $this->ticketService->reassignSupervisor($ticket, $request->supervisor_id, $request->remarks);
+            return response()->json(['success' => true, 'message' => 'Supervisor reassigned successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
     public function updateClaim(Request $request, Ticket $ticket)
     {
         $this->authorize('updateClaim', $ticket);
@@ -331,11 +370,22 @@ class TicketController extends Controller
         }
     }
 
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #3: Guard old router ID — only when In Progress.
+     * ═══════════════════════════════════════════════════════════════════
+     */
     public function updateOldRouterId(Request $request, Ticket $ticket)
     {
-        $this->authorize('view', $ticket);
+        $this->authorize('updateOldRouterId', $ticket);
         $request->validate(['old_terminal_id' => 'nullable|string|max:100']);
         try {
+            if (!$ticket->canUpdateOldRouterId()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Old Router ID can only be updated when ticket is In Progress.',
+                ], 422);
+            }
             $ticket->update(['old_terminal_id' => $request->old_terminal_id, 'updated_by' => auth()->id()]);
             return response()->json(['success' => true, 'message' => 'Old Router ID updated successfully.']);
         } catch (\Exception $e) {
@@ -428,7 +478,7 @@ class TicketController extends Controller
             }
             $outIds = $outIds->filter(fn($v) => !empty(trim((string) $v)))->values();
 
-            $inCounts = array_count_values($inIds->toArray());
+            $inCounts  = array_count_values($inIds->toArray());
             $outCounts = array_count_values($outIds->toArray());
             $available = [];
             foreach ($inCounts as $rid => $cnt) {
@@ -444,7 +494,8 @@ class TicketController extends Controller
             sort($available);
 
             $label = $item->item_name;
-            $brand = trim($item->brand ?? ''); $model = trim($item->model ?? '');
+            $brand = trim($item->brand ?? '');
+            $model = trim($item->model ?? '');
             if ($brand && $model) $label = "$brand $model — {$item->item_name}";
             elseif ($brand)       $label = "$brand — {$item->item_name}";
 

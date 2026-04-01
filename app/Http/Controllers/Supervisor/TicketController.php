@@ -82,7 +82,10 @@ class TicketController extends Controller
         $user    = auth()->user();
         $statuses = Ticket::getStatuses();
 
-        // FIX #2: Internal supervisors now get accept/reject transitions
+        // ═══════════════════════════════════════════════════════════════════
+        // CHANGE #1: External supervisors get accept/reject transitions.
+        // Internal supervisors do NOT get accept/reject (removed from their transitions).
+        // ═══════════════════════════════════════════════════════════════════
         if ($user->isExternalSupervisor()) {
             $allowedTransitions = Ticket::getExternalSupervisorTransitions($ticket->status);
         } elseif ($user->isInternalSupervisor()) {
@@ -105,14 +108,19 @@ class TicketController extends Controller
                 ->value('price');
         }
 
+        // CHANGE #3: Check if old router ID can be updated (In Progress only)
+        $canUpdateOldRouterId = $ticket->canUpdateOldRouterId();
+
         return view('supervisor.tickets.show', compact(
-            'ticket', 'allowedTransitions', 'statuses', 'technicians', 'supervisorPrice'
+            'ticket', 'allowedTransitions', 'statuses', 'technicians',
+            'supervisorPrice', 'canUpdateOldRouterId'
         ));
     }
 
     /**
-     * FIX #1: sla_hours null → handled in TicketService (0 instead of null).
-     * FIX #3: scheduled_date forwarded to TicketService.
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #3: Guard old_terminal_id — only update when In Progress.
+     * ═══════════════════════════════════════════════════════════════════
      */
     public function changeStatus(Request $request, Ticket $ticket)
     {
@@ -127,7 +135,8 @@ class TicketController extends Controller
         ]);
 
         try {
-            if ($request->filled('old_terminal_id')) {
+            // CHANGE #3: Only update old_terminal_id when ticket is In Progress
+            if ($request->filled('old_terminal_id') && $ticket->canUpdateOldRouterId()) {
                 $ticket->update(['old_terminal_id' => $request->old_terminal_id]);
             }
 
@@ -172,6 +181,12 @@ class TicketController extends Controller
         }
     }
 
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #2: Technician reassignment — now allowed for internal
+     * supervisors (was already in routes, but documenting the flow).
+     * ═══════════════════════════════════════════════════════════════════
+     */
     public function reassign(Request $request, Ticket $ticket)
     {
         $this->authorize('reassign', $ticket);
@@ -228,11 +243,22 @@ class TicketController extends Controller
         }
     }
 
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #3: Guard old router ID — only when In Progress.
+     * ═══════════════════════════════════════════════════════════════════
+     */
     public function updateOldRouterId(Request $request, Ticket $ticket)
     {
-        $this->authorize('view', $ticket);
+        $this->authorize('updateOldRouterId', $ticket);
         $request->validate(['old_terminal_id' => 'nullable|string|max:100']);
         try {
+            if (!$ticket->canUpdateOldRouterId()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Old Router ID can only be updated when ticket is In Progress.',
+                ], 422);
+            }
             $ticket->update(['old_terminal_id' => $request->old_terminal_id, 'updated_by' => auth()->id()]);
             return response()->json(['success' => true, 'message' => 'Old Router ID updated successfully.']);
         } catch (\Exception $e) {

@@ -86,14 +86,21 @@ class TicketController extends Controller
                 ->value('price');
         }
 
+        // CHANGE #3: Check if old router ID can be updated (In Progress only)
+        $canUpdateOldRouterId = $ticket->canUpdateOldRouterId();
+
         return view('technician.tickets.show', compact(
-            'ticket', 'allowedTransitions', 'statuses', 'isReplacement', 'supervisorPrice'
+            'ticket', 'allowedTransitions', 'statuses', 'isReplacement',
+            'supervisorPrice', 'canUpdateOldRouterId'
         ));
     }
 
     /**
-     * FIX #1: sla_hours null → handled in TicketService (0 instead of null).
-     * FIX #3: scheduled_date forwarded to TicketService.
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #3: Guard old_terminal_id — only update when In Progress.
+     * The technician physically visits the site during In Progress,
+     * so the old router ID can only be verified at that point.
+     * ═══════════════════════════════════════════════════════════════════
      */
     public function changeStatus(Request $request, Ticket $ticket)
     {
@@ -108,7 +115,8 @@ class TicketController extends Controller
         ]);
 
         try {
-            if ($request->filled('old_terminal_id')) {
+            // CHANGE #3: Only update old_terminal_id when ticket is In Progress
+            if ($request->filled('old_terminal_id') && $ticket->canUpdateOldRouterId()) {
                 $ticket->update(['old_terminal_id' => $request->old_terminal_id]);
             }
 
@@ -176,18 +184,6 @@ class TicketController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Failed to add comment.'], 500);
-        }
-    }
-
-    public function updateOldRouterId(Request $request, Ticket $ticket)
-    {
-        $this->authorize('view', $ticket);
-        $request->validate(['old_terminal_id' => 'nullable|string|max:100']);
-        try {
-            $ticket->update(['old_terminal_id' => $request->old_terminal_id, 'updated_by' => auth()->id()]);
-            return response()->json(['success' => true, 'message' => 'Old Router ID updated successfully.']);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 }

@@ -71,7 +71,12 @@ class TicketPolicy
     }
 
     /**
-     * Reassign technician — same rules as assign.
+     * ═══════════════════════════════════════════════════════════════════
+     * Reassign technician.
+     * CHANGE #2: Now allowed for both admin AND internal supervisors.
+     * Same rules as assign — internal supervisors can reassign
+     * technicians within their own team scope.
+     * ═══════════════════════════════════════════════════════════════════
      */
     public function reassign(User $user, Ticket $ticket): bool
     {
@@ -79,9 +84,29 @@ class TicketPolicy
     }
 
     /**
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #2 (NEW): Reassign supervisor on a ticket.
+     * - Only admin can reassign a ticket to a different supervisor.
+     * - Blocked once the ticket reaches 'accepted' status or beyond.
+     *   Once a technician or external supervisor has accepted, the
+     *   supervisor assignment is locked.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    public function reassignSupervisor(User $user, Ticket $ticket): bool
+    {
+        if (!$user->hasRole('admin')) return false;
+        if (!$user->can('assign_tickets')) return false;
+
+        // Only allow when ticket is in open, assigned, or rejected
+        return $ticket->canReassignSupervisor();
+    }
+
+    /**
      * Accept an assigned ticket.
-     * - Technicians accept tickets assigned to them.
-     * - External supervisors accept tickets assigned to them (no technician).
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #1: Accept ONLY for technician and external supervisor.
+     * Admin and internal supervisor CANNOT accept tickets.
+     * ═══════════════════════════════════════════════════════════════════
      */
     public function accept(User $user, Ticket $ticket): bool
     {
@@ -95,13 +120,16 @@ class TicketPolicy
             return $ticket->supervisor_id === $user->id && !$ticket->technician_id;
         }
 
+        // Admin and internal supervisor: NOT allowed
         return false;
     }
 
     /**
      * Reject an assigned ticket.
-     * - Technicians reject tickets assigned to them.
-     * - External supervisors reject tickets assigned to them.
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #1: Reject ONLY for technician and external supervisor.
+     * Admin and internal supervisor CANNOT reject tickets.
+     * ═══════════════════════════════════════════════════════════════════
      */
     public function reject(User $user, Ticket $ticket): bool
     {
@@ -115,6 +143,7 @@ class TicketPolicy
             return $ticket->supervisor_id === $user->id && !$ticket->technician_id;
         }
 
+        // Admin and internal supervisor: NOT allowed
         return false;
     }
 
@@ -137,6 +166,22 @@ class TicketPolicy
     }
 
     /**
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #3 (NEW): Update Old Router ID.
+     * Only allowed when ticket status is 'in_progress'.
+     * The old router ID can only be accurately verified after
+     * the technician or supervisor physically visits the site.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    public function updateOldRouterId(User $user, Ticket $ticket): bool
+    {
+        if (!$this->view($user, $ticket)) return false;
+
+        // Only allow when ticket is In Progress
+        return $ticket->canUpdateOldRouterId();
+    }
+
+    /**
      * Update claim information.
      *
      * Rules:
@@ -146,7 +191,6 @@ class TicketPolicy
      * - Internal Supervisor → no claims applicable (they manage, not fieldwork).
      * - Technician    → can claim on ANY ticket they are the assigned technician,
      *                   regardless of whether the supervisor is internal or external.
-     *                   (Previously blocked on internal-supervisor tickets — this was wrong.)
      */
     public function updateClaim(User $user, Ticket $ticket): bool
     {

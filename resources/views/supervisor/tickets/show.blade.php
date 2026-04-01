@@ -1,37 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Ticket #' . $ticket->ticket_no . ' — Supervisor')
-
-@push('styles')
-<style>
-    .detail-label { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: #6c757d; font-weight: 600; margin-bottom: 2px; }
-    .detail-value { font-size: .95rem; color: #2d3748; font-weight: 500; }
-    .timeline-item { border-left: 3px solid #dee2e6; padding-left: 1rem; margin-bottom: 1.25rem; position: relative; }
-    .timeline-item::before { content: ''; width: 12px; height: 12px; border-radius: 50%; background: #0d6efd; position: absolute; left: -7.5px; top: 4px; }
-    .timeline-item.rejected::before  { background: #dc3545; }
-    .timeline-item.done_success::before { background: #198754; }
-    .timeline-item.closed::before    { background: #212529; }
-    .comment-bubble { background: #f8f9fa; border-radius: 10px; padding: .75rem 1rem; }
-    .comment-bubble.own { background: #e8f4fd; }
-    .financial-card .fin-item   { text-align: center; padding: .75rem; }
-    .financial-card .fin-label  { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: #6c757d; font-weight: 600; }
-    .financial-card .fin-val    { font-size: 1.35rem; font-weight: 700; margin-top: 4px; }
-    .financial-card .fin-divider { border-right: 1px solid #dee2e6; }
-    .proof-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #dee2e6; cursor: pointer; }
-</style>
-@endpush
+@section('title', 'Ticket: ' . $ticket->ticket_no)
 
 @section('content')
-@php
-    $user      = auth()->user();
-    $isExternal = $user->isExternalSupervisor();
-    $isInternal = $user->isInternalSupervisor();
-@endphp
-
 {{-- Page Header --}}
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap">
     <div>
-        <h1 class="mb-1"><i class="bi bi-ticket-detailed me-2"></i>{{ $ticket->ticket_no }}</h1>
+        <h1><i class="bi bi-ticket-detailed me-2"></i>{{ $ticket->ticket_no }}</h1>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-0">
                 <li class="breadcrumb-item"><a href="{{ route('supervisor.dashboard') }}">Dashboard</a></li>
@@ -40,54 +15,31 @@
             </ol>
         </nav>
     </div>
-    <a href="{{ route('supervisor.tickets.index') }}" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-arrow-left me-1"></i>Back
+    <a href="{{ route('supervisor.tickets.index') }}" class="btn btn-outline-secondary btn-sm mt-2 mt-md-0">
+        <i class="bi bi-arrow-left me-1"></i> Back
     </a>
 </div>
 
-<div class="row g-3">
+@php
+    $user = auth()->user();
+    $isExternal = $user->isExternalSupervisor();
+    $isInternal = $user->isInternalSupervisor();
+@endphp
 
-    {{-- ═══ LEFT ═══ --}}
+<div class="row">
+    {{-- LEFT COLUMN --}}
     <div class="col-lg-8">
-
-        {{-- Status Bar + Action Buttons --}}
-        {{-- FIX #2: allowedTransitions now includes accepted/rejected for internal supervisors --}}
+        {{-- Status & Priority --}}
         <div class="card">
-            <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div><div class="detail-label">Status</div><div>{!! \App\Models\Ticket::getStatusBadge($ticket->status) !!}</div></div>
-                    <div><div class="detail-label">Priority</div><div>{!! \App\Models\Ticket::getPriorityBadge($ticket->priority) !!}</div></div>
-                    @if($ticket->sla_deadline)
-                    <div>
-                        <div class="detail-label">SLA</div>
-                        <div class="small {{ $ticket->isSlaBreach() ? 'text-danger fw-bold' : 'text-success' }}">
-                            <i class="bi bi-clock me-1"></i>{{ $ticket->sla_remaining ?? '-' }}
-                        </div>
-                    </div>
-                    @endif
-                </div>
-                <div class="d-flex gap-2 flex-wrap">
-                    @if(count($allowedTransitions) > 0)
-                        @foreach($allowedTransitions as $transition)
-                            @php
-                                $btnMap = [
-                                    'accepted'     => ['class' => 'btn-success',  'icon' => 'check-circle',   'label' => 'Accept'],
-                                    'rejected'     => ['class' => 'btn-danger',   'icon' => 'x-circle',       'label' => 'Reject'],
-                                    'in_progress'  => ['class' => 'btn-primary',  'icon' => 'play-circle',    'label' => 'Start'],
-                                    'scheduled'    => ['class' => 'btn-warning',  'icon' => 'calendar-event', 'label' => 'Reschedule'],
-                                    'done_success' => ['class' => 'btn-success',  'icon' => 'check2-all',     'label' => 'Done ✓'],
-                                    'done_fail'    => ['class' => 'btn-danger',   'icon' => 'x-octagon',      'label' => 'Done ✗'],
-                                    'closed'       => ['class' => 'btn-dark',     'icon' => 'lock',           'label' => 'Close'],
-                                    'open'         => ['class' => 'btn-secondary','icon' => 'arrow-counterclockwise','label' => 'Re-open'],
-                                    'assigned'     => ['class' => 'btn-info',     'icon' => 'person-check',   'label' => 'Re-assign'],
-                                ];
-                                $btn = $btnMap[$transition] ?? ['class' => 'btn-secondary','icon' => 'arrow-right','label' => ucfirst($transition)];
-                            @endphp
-                            <button class="btn {{ $btn['class'] }} btn-sm"
-                                    onclick="openStatusModal('{{ $transition }}')">
-                                <i class="bi bi-{{ $btn['icon'] }} me-1"></i>{{ $btn['label'] }}
-                            </button>
-                        @endforeach
+            <div class="card-body d-flex justify-content-between align-items-center flex-wrap">
+                <div><span class="fw-semibold me-2">Status:</span>{!! \App\Models\Ticket::getStatusBadge($ticket->status) !!}</div>
+                <div><span class="fw-semibold me-2">Priority:</span>{!! \App\Models\Ticket::getPriorityBadge($ticket->priority) !!}</div>
+                <div>
+                    <span class="fw-semibold me-2">SLA:</span>
+                    @if($ticket->sla_remaining)
+                        <span class="badge {{ $ticket->isSlaBreach() ? 'bg-danger' : 'bg-success' }}">{{ $ticket->sla_remaining }}</span>
+                    @else
+                        <span class="text-muted">N/A</span>
                     @endif
                 </div>
             </div>
@@ -98,571 +50,409 @@
             <div class="card-header"><i class="bi bi-info-circle me-2"></i>Ticket Details</div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-sm-4"><div class="detail-label">Ticket No</div><div class="detail-value">{{ $ticket->ticket_no }}</div></div>
-                    <div class="col-sm-4"><div class="detail-label">Vendor Ref No</div><div class="detail-value">{{ $ticket->vendor_ticket_ref_no ?? '-' }}</div></div>
-                    <div class="col-sm-4"><div class="detail-label">TID</div><div class="detail-value">{{ $ticket->tid ?? '-' }}</div></div>
-                    <div class="col-sm-4"><div class="detail-label">Vendor</div><div class="detail-value">{{ $ticket->vendor?->vendor_name ?? '-' }}</div></div>
-                    <div class="col-sm-4"><div class="detail-label">Branch</div><div class="detail-value">{{ $ticket->vendorBranch?->branch_name ?? '-' }}</div></div>
-                    <div class="col-sm-4"><div class="detail-label">State / City</div><div class="detail-value">{{ $ticket->state?->name ?? '-' }} / {{ $ticket->city?->name ?? '-' }}</div></div>
-                    <div class="col-sm-4"><div class="detail-label">Merchant</div><div class="detail-value">{{ $ticket->merchant_name ?? '-' }}</div></div>
-                    <div class="col-sm-4"><div class="detail-label">Contact</div><div class="detail-value">{{ $ticket->contact_number ?? '-' }}</div></div>
-                    <div class="col-sm-4"><div class="detail-label">Terminal ID</div><div class="detail-value">{{ $ticket->terminal_id ?? '-' }}</div></div>
-                    <div class="col-12"><div class="detail-label">Address</div><div class="detail-value">{{ $ticket->merchant_address ?? '-' }}</div></div>
-                    <div class="col-sm-4"><div class="detail-label">Job Category</div><div class="detail-value">{{ $ticket->jobCategory?->category_name ?? '-' }}</div></div>
-                    <div class="col-sm-4"><div class="detail-label">Job Type</div><div class="detail-value">{{ $ticket->jobType?->job_title ?? '-' }}</div></div>
-                    <div class="col-sm-4"><div class="detail-label">Router ID(s)</div><div class="detail-value">{{ $ticket->getRouterIdsDisplay() }}</div></div>
-                    @if($ticket->isReplacementJob())
-                    <div class="col-sm-4"><div class="detail-label">Old Router ID(s)</div><div class="detail-value">{{ $ticket->getOldRouterIdsDisplay() }}</div></div>
+                    <div class="col-md-6">
+                        <small class="text-muted">Vendor</small>
+                        <p class="mb-1 fw-semibold">{{ $ticket->vendor?->vendor_name ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">Branch</small>
+                        <p class="mb-1">{{ $ticket->vendorBranch?->branch_name ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">Vendor Ref No</small>
+                        <p class="mb-1">{{ $ticket->vendor_ticket_ref_no ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">Merchant Name</small>
+                        <p class="mb-1">{{ $ticket->merchant_name ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-12">
+                        <small class="text-muted">Merchant Address</small>
+                        <p class="mb-1">{{ $ticket->merchant_address ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">Contact</small>
+                        <p class="mb-1">{{ $ticket->contact_number ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">State</small>
+                        <p class="mb-1">{{ $ticket->state?->name ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">City</small>
+                        <p class="mb-1">{{ $ticket->city?->name ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">TID</small>
+                        <p class="mb-1">{{ $ticket->tid ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">Terminal ID</small>
+                        <p class="mb-1">{{ $ticket->terminal_id ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">Router ID(s)</small>
+                        <p class="mb-1">{{ $ticket->getRouterIdsDisplay() }}</p>
+                    </div>
+                </div>
+                @if($ticket->description)
+                <hr>
+                <small class="text-muted">Description</small>
+                <p class="mb-0">{{ $ticket->description }}</p>
+                @endif
+            </div>
+        </div>
+
+        {{-- Job & Pricing --}}
+        <div class="card">
+            <div class="card-header"><i class="bi bi-briefcase me-2"></i>Job & Pricing</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <small class="text-muted">Job Category</small>
+                        <p class="mb-1 fw-semibold">{{ $ticket->jobCategory?->category_name ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">Job Type</small>
+                        <p class="mb-1">{{ $ticket->jobType?->job_title ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted">Job Price</small>
+                        <p class="mb-1 fw-semibold text-primary">RM {{ number_format($supervisorPrice ?? $ticket->price ?? 0, 2) }}</p>
+                    </div>
+                    @if($ticket->accessoryItem)
+                    <div class="col-md-4">
+                        <small class="text-muted">Accessory</small>
+                        <p class="mb-1">{{ $ticket->accessoryItem->item_name ?? '-' }} ({{ $ticket->getAccessoryTypeLabel() }}) x{{ $ticket->accessory_qty ?? 0 }}</p>
+                    </div>
                     @endif
-                    @if($ticket->scheduled_date)
-                    <div class="col-sm-4"><div class="detail-label">Scheduled Date</div><div class="detail-value text-warning fw-semibold">{{ $ticket->scheduled_date->format('d M Y H:i') }}</div></div>
-                    @endif
-                    <div class="col-12"><div class="detail-label">Description</div><div class="detail-value">{{ $ticket->description }}</div></div>
                 </div>
             </div>
         </div>
 
-        {{-- FIX #4: Financial Summary --}}
-        <div class="card financial-card">
-            <div class="card-header"><i class="bi bi-currency-dollar me-2"></i>Financial Summary</div>
-            <div class="card-body p-0">
-                <div class="row g-0">
-                    <div class="col fin-item fin-divider">
-                        <div class="fin-label">Job Price</div>
-                        <div class="fin-val text-dark">RM {{ number_format($ticket->price ?? 0, 2) }}</div>
-                        <small class="text-muted">From pricing</small>
-                    </div>
-                    <div class="col fin-item fin-divider">
-                        <div class="fin-label">Mileage</div>
-                        <div class="fin-val text-secondary">RM {{ number_format($ticket->mileage_amount ?? 0, 2) }}</div>
-                        <small class="text-muted">{{ $ticket->mileage ?? 0 }} km × RM {{ $ticket->mileage_rate ?? 0 }}</small>
-                    </div>
-                    <div class="col fin-item fin-divider">
-                        <div class="fin-label">Toll + Meal</div>
-                        <div class="fin-val text-secondary">RM {{ number_format(($ticket->toll ?? 0) + ($ticket->standby_meal ?? 0), 2) }}</div>
-                    </div>
-                    <div class="col fin-item fin-divider">
-                        <div class="fin-label">Total Claim</div>
-                        <div class="fin-val text-info">RM {{ number_format($ticket->total_claim_amount ?? 0, 2) }}</div>
-                    </div>
-                    <div class="col fin-item">
-                        <div class="fin-label">Grand Total</div>
-                        <div class="fin-val text-primary">RM {{ number_format($ticket->grand_total, 2) }}</div>
-                        <small class="text-muted">Price + Claim</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Assign technician (Internal Supervisor only) --}}
-        {{-- FIX 1: $technicians already filtered by supervisor_id in controller --}}
-        @if($isInternal)
-            @can('assign', $ticket)
-            <div class="card">
-                <div class="card-header"><i class="bi bi-person-check me-2"></i>Technician Assignment</div>
-                <div class="card-body">
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">
-                                @if($ticket->technician_id)
-                                    Reassign Technician
-                                    <span class="badge bg-secondary ms-1 fw-normal">
-                                        Current: {{ $ticket->technician?->name ?? '—' }}
-                                    </span>
-                                @else
-                                    Assign Technician
-                                @endif
-                            </label>
-                            <select id="assignTechnicianSelect" class="form-select">
-                                <option value="">— Select Technician —</option>
-                                @forelse($technicians as $tech)
-                                    <option value="{{ $tech->id }}" {{ $ticket->technician_id == $tech->id ? 'selected' : '' }}>
-                                        {{ $tech->name }}
-                                    </option>
-                                @empty
-                                    <option value="" disabled>No technicians in your team</option>
-                                @endforelse
-                            </select>
-                            @if($technicians->isEmpty())
-                                <div class="form-text text-warning">
-                                    <i class="bi bi-exclamation-triangle me-1"></i>No active technicians in your team.
-                                </div>
-                            @endif
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Remarks</label>
-                            <input type="text" id="assignRemarks" class="form-control" placeholder="Optional">
-                        </div>
-                        {{-- FIX 2: Single unified button with data-has-technician for dynamic swap --}}
-                        <div class="col-md-2">
-                            <button class="btn w-100 {{ $ticket->technician_id ? 'btn-warning' : 'btn-primary' }}"
-                                    id="assignActionBtn"
-                                    data-has-technician="{{ $ticket->technician_id ? '1' : '0' }}"
-                                    onclick="doAssign()">
-                                @if($ticket->technician_id)
-                                    <i class="bi bi-arrow-repeat me-1"></i>Reassign
-                                @else
-                                    <i class="bi bi-person-plus me-1"></i>Assign
-                                @endif
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            @endcan
-        @endif
-
-        {{-- ═══ Claim Update (External Supervisor) ═══ --}}
-        @can('updateClaim', $ticket)
-        @php $mileageRate = $ticket->mileage_rate ?? $ticket->supervisor?->mileage_rate ?? 0; @endphp
-        <div class="card border-0 shadow-sm">
+        {{-- Old Router ID — CHANGE #3: Only editable at In Progress --}}
+        <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-receipt me-2 text-primary"></i><strong>Claim Update</strong></span>
-                <span class="badge bg-info text-dark">
-                    Mileage Rate: RM {{ number_format($mileageRate, 2) }} / km
-                </span>
+                <span><i class="bi bi-router me-2"></i>Old Router / Terminal ID</span>
+                @if($canUpdateOldRouterId)
+                    <span class="badge bg-success">Editable</span>
+                @else
+                    <span class="badge bg-secondary">Read Only</span>
+                @endif
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    {{-- Mileage --}}
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Mileage (km)</label>
-                        <input type="number" step="0.01" min="0" class="form-control claim-input"
-                               id="claimMileage" value="{{ $ticket->mileage ?? 0 }}"
-                               placeholder="0.00">
-                        <div class="form-text">
-                            Amount: RM <span id="mileageAmtDisplay">{{ number_format(($ticket->mileage ?? 0) * $mileageRate, 2) }}</span>
-                        </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">Old Terminal ID</small>
+                        <p class="mb-1">{{ $ticket->old_terminal_id ?? '-' }}</p>
                     </div>
-                    {{-- Toll --}}
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Toll (RM)</label>
-                        <div class="input-group">
-                            <span class="input-group-text">RM</span>
-                            <input type="number" step="0.01" min="0" class="form-control claim-input"
-                                   id="claimToll" value="{{ $ticket->toll ?? 0 }}"
-                                   placeholder="0.00">
-                        </div>
-                    </div>
-                    {{-- Standby / Meal --}}
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Standby / Meal (RM)</label>
-                        <div class="input-group">
-                            <span class="input-group-text">RM</span>
-                            <input type="number" step="0.01" min="0" class="form-control claim-input"
-                                   id="claimMeal" value="{{ $ticket->standby_meal ?? 0 }}"
-                                   placeholder="0.00">
-                        </div>
-                    </div>
-                    {{-- Mileage Remarks --}}
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Mileage Remarks</label>
-                        <input type="text" class="form-control" id="claimMileageRemarks"
-                               value="{{ $ticket->mileage_remarks ?? '' }}"
-                               placeholder="e.g. KL to Subang">
+                    <div class="col-md-6">
+                        <small class="text-muted">Old Router ID(s)</small>
+                        <p class="mb-1">{{ $ticket->getOldRouterIdsDisplay() }}</p>
                     </div>
                 </div>
-
-                {{-- Live Claim Total Preview --}}
-                <div class="mt-3 p-3 rounded" style="background:#f8f9fa;border:1px solid #e2e8f0;">
-                    <div class="row text-center g-2">
-                        <div class="col">
-                            <div class="small text-muted">Mileage Amount</div>
-                            <div class="fw-bold" id="previewMileage">RM {{ number_format(($ticket->mileage ?? 0) * $mileageRate, 2) }}</div>
-                        </div>
-                        <div class="col-auto d-flex align-items-center text-muted">+</div>
-                        <div class="col">
-                            <div class="small text-muted">Toll</div>
-                            <div class="fw-bold" id="previewToll">RM {{ number_format($ticket->toll ?? 0, 2) }}</div>
-                        </div>
-                        <div class="col-auto d-flex align-items-center text-muted">+</div>
-                        <div class="col">
-                            <div class="small text-muted">Meal</div>
-                            <div class="fw-bold" id="previewMeal">RM {{ number_format($ticket->standby_meal ?? 0, 2) }}</div>
-                        </div>
-                        <div class="col-auto d-flex align-items-center text-muted">=</div>
-                        <div class="col">
-                            <div class="small text-muted fw-semibold">Total Claim</div>
-                            <div class="fw-bold text-primary fs-5" id="previewTotal">RM {{ number_format($ticket->total_claim_amount ?? 0, 2) }}</div>
-                        </div>
+                @if($canUpdateOldRouterId)
+                <hr>
+                <div class="row align-items-end">
+                    <div class="col-md-8">
+                        <label for="old_terminal_id_input" class="form-label">Update Old Router ID</label>
+                        <input type="text" id="old_terminal_id_input" class="form-control"
+                               value="{{ $ticket->old_terminal_id }}" placeholder="Enter Old Router / Terminal ID" maxlength="100">
+                    </div>
+                    <div class="col-md-4">
+                        <button type="button" class="btn btn-outline-primary w-100" id="btnSaveOldRouterId">
+                            <i class="bi bi-save me-1"></i> Save
+                        </button>
                     </div>
                 </div>
+                @else
+                <div class="mt-2">
+                    <small class="text-muted fst-italic">
+                        <i class="bi bi-info-circle me-1"></i>Old Router ID can only be updated when ticket is <strong>In Progress</strong>.
+                    </small>
+                </div>
+                @endif
+            </div>
+        </div>
 
-                <div class="d-flex justify-content-end mt-3 gap-2">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetClaim()">
-                        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
-                    </button>
-                    <button type="button" class="btn btn-primary" id="saveClaimBtn" onclick="saveClaim()">
-                        <i class="bi bi-save me-1"></i>Save Claim
-                    </button>
+        {{-- Financial Summary --}}
+        <div class="card">
+            <div class="card-header"><i class="bi bi-wallet2 me-2"></i>Financial Summary</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3"><small class="text-muted">Mileage</small><p class="mb-1">{{ number_format($ticket->mileage ?? 0, 2) }} km</p></div>
+                    <div class="col-md-3"><small class="text-muted">Rate</small><p class="mb-1">RM {{ number_format($ticket->mileage_rate ?? 0, 2) }}/km</p></div>
+                    <div class="col-md-3"><small class="text-muted">Mileage Amt</small><p class="mb-1">RM {{ number_format($ticket->mileage_amount ?? 0, 2) }}</p></div>
+                    <div class="col-md-3"><small class="text-muted">Toll</small><p class="mb-1">RM {{ number_format($ticket->toll ?? 0, 2) }}</p></div>
+                    <div class="col-md-4"><small class="text-muted">Standby/Meal</small><p class="mb-1">RM {{ number_format($ticket->standby_meal ?? 0, 2) }}</p></div>
+                    <div class="col-md-4"><small class="text-muted">Total Claim</small><p class="mb-1 fw-bold text-danger">RM {{ number_format($ticket->total_claim_amount ?? 0, 2) }}</p></div>
+                    <div class="col-md-4"><small class="text-muted">Grand Total</small><p class="mb-1 fw-bold text-success fs-5">RM {{ number_format($ticket->grand_total, 2) }}</p></div>
                 </div>
             </div>
         </div>
-        @endcan
 
         {{-- Status History --}}
         <div class="card">
             <div class="card-header"><i class="bi bi-clock-history me-2"></i>Status History</div>
-            <div class="card-body">
-                @forelse($ticket->statusHistory as $history)
-                <div class="timeline-item {{ $history->to_status }}">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <span class="fw-semibold">
-                                {{ $history->from_status ? ucfirst(str_replace('_',' ',$history->from_status)) . ' → ' : '' }}
-                                {!! \App\Models\Ticket::getStatusBadge($history->to_status) !!}
-                            </span>
-                            <span class="text-muted small ms-2">by {{ $history->changedBy?->name ?? 'System' }}</span>
-                        </div>
-                        <small class="text-muted">{{ $history->created_at->format('d M Y H:i') }}</small>
-                    </div>
-                    @if($history->remarks)<div class="small text-secondary mt-1">{{ $history->remarks }}</div>@endif
-                    @if($history->reschedule_reason)<div class="small text-warning mt-1"><i class="bi bi-calendar-x me-1"></i>{{ $history->reschedule_reason }}</div>@endif
-                    @if($history->proofs?->count())
-                    <div class="mt-2 d-flex flex-wrap gap-2">
-                        @foreach($history->proofs as $proof)
-                            <a href="{{ asset('storage/'.$proof->file_path) }}" target="_blank">
-                                @if(str_contains($proof->mime_type ?? '', 'image'))
-                                    <img src="{{ asset('storage/'.$proof->file_path) }}" class="proof-thumb">
-                                @else
-                                    <div class="proof-thumb d-flex align-items-center justify-content-center bg-light"><i class="bi bi-file-earmark-pdf fs-4 text-danger"></i></div>
-                                @endif
-                            </a>
-                        @endforeach
-                    </div>
-                    @endif
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light"><tr><th>From</th><th>To</th><th>Changed By</th><th>Remarks</th><th>Date</th></tr></thead>
+                        <tbody>
+                            @forelse($ticket->statusHistory as $h)
+                            <tr>
+                                <td>{!! $h->from_status ? \App\Models\Ticket::getStatusBadge($h->from_status) : '<span class="text-muted">—</span>' !!}</td>
+                                <td>{!! \App\Models\Ticket::getStatusBadge($h->to_status) !!}</td>
+                                <td>{{ $h->changedBy?->name ?? '-' }}</td>
+                                <td>{{ $h->remarks ?? '-' }}</td>
+                                <td>{{ $h->created_at->format('d/m/Y H:i') }}</td>
+                            </tr>
+                            @empty
+                            <tr><td colspan="5" class="text-center text-muted py-3">No history</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
-                @empty<p class="text-muted mb-0">No history yet.</p>@endforelse
             </div>
         </div>
 
         {{-- Comments --}}
         <div class="card">
-            <div class="card-header"><i class="bi bi-chat-square-dots me-2"></i>Comments</div>
+            <div class="card-header"><i class="bi bi-chat-dots me-2"></i>Comments</div>
             <div class="card-body">
-                <div id="commentsContainer" class="mb-3">
+                <div id="commentsList">
                     @forelse($ticket->comments as $comment)
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1">
-                            <strong class="small">{{ $comment->user->name }}
-                                <span class="badge bg-secondary ms-1">{{ $comment->user->roles->first()?->name ?? '' }}</span>
-                            </strong>
-                            <small class="text-muted">{{ $comment->created_at->format('d M Y H:i') }}</small>
+                    <div class="d-flex mb-3">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width:36px;height:36px;font-size:0.8rem;">
+                                {{ strtoupper(substr($comment->user->name ?? '?', 0, 2)) }}
+                            </div>
                         </div>
-                        <div class="comment-bubble {{ $comment->user_id === auth()->id() ? 'own' : '' }}">{{ $comment->comment }}</div>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold">{{ $comment->user->name ?? 'Unknown' }}
+                                <span class="badge bg-light text-dark ms-1">{{ ucfirst($comment->user->roles->first()?->name ?? 'user') }}</span>
+                                <small class="text-muted ms-2">{{ $comment->created_at->format('d M Y H:i') }}</small>
+                            </div>
+                            <p class="mb-0 mt-1">{{ $comment->comment }}</p>
+                        </div>
                     </div>
-                    @empty<p class="text-muted small" id="noComments">No comments yet.</p>@endforelse
+                    @empty
+                    <p class="text-muted text-center mb-0" id="noCommentsText">No comments yet.</p>
+                    @endforelse
                 </div>
-                @can('addComment', $ticket)
-                <div class="input-group">
-                    <textarea class="form-control" id="commentText" rows="2" placeholder="Write a comment…"></textarea>
-                    <button class="btn btn-primary" onclick="submitComment()"><i class="bi bi-send"></i></button>
-                </div>
-                @endcan
-            </div>
-        </div>
-
-    </div>{{-- /left --}}
-
-    {{-- ═══ RIGHT ═══ --}}
-    <div class="col-lg-4">
-
-        <div class="card">
-            <div class="card-header"><i class="bi bi-people me-2"></i>People</div>
-            <div class="card-body">
-                <div class="mb-3"><div class="detail-label">Supervisor</div><div class="detail-value">{{ $ticket->supervisor?->name ?? '-' }}</div><small class="text-muted text-capitalize">{{ $ticket->supervisor?->supervisor_type ?? '' }}</small></div>
-                <div class="mb-3"><div class="detail-label">Technician</div><div class="detail-value">{{ $ticket->technician?->name ?? 'Unassigned' }}</div></div>
                 <hr>
-                <div class="mb-2"><div class="detail-label">Created</div><div class="detail-value small">{{ $ticket->creator?->name ?? '-' }} · {{ $ticket->created_at?->format('d M Y H:i') }}</div></div>
+                <div class="input-group">
+                    <input type="text" id="commentInput" class="form-control" placeholder="Write a comment..." maxlength="5000">
+                    <button class="btn btn-primary" id="btnAddComment"><i class="bi bi-send"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- RIGHT COLUMN --}}
+    <div class="col-lg-4">
+        {{-- Assignment Info --}}
+        <div class="card">
+            <div class="card-header"><i class="bi bi-people me-2"></i>Assignment</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <small class="text-muted">Supervisor</small>
+                    <p class="fw-semibold mb-1">{{ $ticket->supervisor?->name ?? '-' }}
+                        @if($ticket->supervisor)
+                            <span class="badge {{ $ticket->supervisor->isExternalSupervisor() ? 'bg-warning text-dark' : 'bg-info' }} ms-1">
+                                {{ $ticket->supervisor->isExternalSupervisor() ? 'External' : 'Internal' }}
+                            </span>
+                        @endif
+                    </p>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">Technician</small>
+                    @if($isExternal)
+                        <p class="mb-0 fst-italic text-muted">Working directly (External)</p>
+                    @else
+                        <p class="fw-semibold mb-0">{{ $ticket->technician?->name ?? 'Not Assigned' }}</p>
+                    @endif
+                </div>
+
+                {{-- Internal Supervisor: Technician Assign/Reassign --}}
+                @if($isInternal && $technicians->isNotEmpty())
+                <hr>
+                <h6 class="fw-bold text-primary mb-2">
+                    <i class="bi bi-person-gear me-1"></i>
+                    {{ $ticket->technician_id ? 'Reassign Technician' : 'Assign Technician' }}
+                </h6>
+                <div class="mb-2">
+                    <select id="technician_id" class="form-select" style="width:100%">
+                        <option value="">-- Select Technician --</option>
+                        @foreach($technicians as $tech)
+                            <option value="{{ $tech->id }}" {{ $ticket->technician_id == $tech->id ? 'selected' : '' }}>{{ $tech->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <input type="text" id="assign_tech_remarks" class="form-control form-control-sm" placeholder="Remarks (optional)" maxlength="1000">
+                </div>
+                <button type="button" class="btn btn-outline-success btn-sm w-100" id="btnAssignTechnician">
+                    <i class="bi bi-person-check me-1"></i> {{ $ticket->technician_id ? 'Reassign Technician' : 'Assign Technician' }}
+                </button>
+                @endif
             </div>
         </div>
 
-        @if($ticket->sla_deadline)
-        <div class="card border-{{ $ticket->isSlaBreach() ? 'danger' : 'success' }}">
-            <div class="card-header bg-{{ $ticket->isSlaBreach() ? 'danger' : 'success' }} text-white"><i class="bi bi-stopwatch me-2"></i>SLA</div>
+        {{-- Meta --}}
+        <div class="card">
             <div class="card-body">
-                <div class="mb-2"><div class="detail-label">Deadline</div><div class="detail-value">{{ $ticket->sla_deadline->format('d M Y H:i') }}</div></div>
-                <div><div class="detail-label">Remaining</div><div class="detail-value {{ $ticket->isSlaBreach() ? 'text-danger' : 'text-success' }}">{{ $ticket->sla_remaining ?? '-' }}</div></div>
+                <div class="mb-2"><small class="text-muted">Created:</small> {{ $ticket->created_at?->format('d M Y H:i') }}</div>
+                @if($ticket->assigned_at)<div class="mb-2"><small class="text-muted">Assigned:</small> {{ $ticket->assigned_at->format('d M Y H:i') }}</div>@endif
+                @if($ticket->accepted_at)<div class="mb-2"><small class="text-muted">Accepted:</small> {{ $ticket->accepted_at->format('d M Y H:i') }}</div>@endif
+                @if($ticket->completed_at)<div class="mb-2"><small class="text-muted">Completed:</small> {{ $ticket->completed_at->format('d M Y H:i') }}</div>@endif
+                @if($ticket->closed_at)<div class="mb-0"><small class="text-muted">Closed:</small> {{ $ticket->closed_at->format('d M Y H:i') }}</div>@endif
+            </div>
+        </div>
+
+        {{-- Status Change --}}
+        @if(count($allowedTransitions) > 0)
+        <div class="card">
+            <div class="card-header"><i class="bi bi-arrow-right-circle me-2"></i>Change Status</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <select id="newStatus" class="form-select">
+                        <option value="">-- Select Status --</option>
+                        @foreach($allowedTransitions as $status)
+                            <option value="{{ $status }}">{{ $statuses[$status] ?? ucfirst(str_replace('_',' ',$status)) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <textarea id="statusRemarks" class="form-control form-control-sm" rows="2" placeholder="Remarks (optional)" maxlength="1000"></textarea>
+                </div>
+                <div id="scheduledFields" style="display:none;">
+                    <div class="mb-2">
+                        <label class="form-label small">Reschedule Reason <span class="text-danger">*</span></label>
+                        <input type="text" id="rescheduleReason" class="form-control form-control-sm" maxlength="1000">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Scheduled Date <span class="text-danger">*</span></label>
+                        <input type="datetime-local" id="scheduledDate" class="form-control form-control-sm">
+                    </div>
+                </div>
+                <div id="oldRouterIdField" style="display:none;">
+                    <div class="mb-2">
+                        <label class="form-label small">Old Router / Terminal ID</label>
+                        <input type="text" id="statusOldTerminalId" class="form-control form-control-sm"
+                               value="{{ $ticket->old_terminal_id }}" maxlength="100">
+                    </div>
+                </div>
+                <div id="proofFields" style="display:none;"></div>
+                <button type="button" class="btn btn-primary btn-sm w-100" id="btnChangeStatus">
+                    <i class="bi bi-check-circle me-1"></i> Update Status
+                </button>
             </div>
         </div>
         @endif
 
+        {{-- Claim Update (External Supervisor only) --}}
+        @if($isExternal)
         <div class="card">
-            <div class="card-header"><i class="bi bi-calendar-check me-2"></i>Timeline</div>
+            <div class="card-header"><i class="bi bi-receipt me-2"></i>Update Claim</div>
             <div class="card-body">
-                @foreach(['assigned_at'=>'Assigned','accepted_at'=>'Accepted','rejected_at'=>'Rejected','started_at'=>'Started','completed_at'=>'Completed','closed_at'=>'Closed'] as $field => $label)
-                    @if($ticket->$field)<div class="mb-2"><div class="detail-label">{{ $label }}</div><div class="detail-value small">{{ $ticket->$field->format('d M Y H:i') }}</div></div>@endif
-                @endforeach
+                <div class="mb-2"><label class="form-label small">Mileage (km)</label><input type="number" id="claimMileage" class="form-control form-control-sm" step="0.01" min="0" value="{{ $ticket->mileage ?? 0 }}"></div>
+                <div class="mb-2"><label class="form-label small">Mileage Remarks</label><input type="text" id="claimMileageRemarks" class="form-control form-control-sm" value="{{ $ticket->mileage_remarks }}" maxlength="500"></div>
+                <div class="mb-2"><label class="form-label small">Toll (RM)</label><input type="number" id="claimToll" class="form-control form-control-sm" step="0.01" min="0" value="{{ $ticket->toll ?? 0 }}"></div>
+                <div class="mb-2"><label class="form-label small">Standby/Meal (RM)</label><input type="number" id="claimStandbyMeal" class="form-control form-control-sm" step="0.01" min="0" value="{{ $ticket->standby_meal ?? 0 }}"></div>
+                <button type="button" class="btn btn-outline-primary btn-sm w-100" id="btnUpdateClaim"><i class="bi bi-save me-1"></i> Update Claim</button>
             </div>
         </div>
-
-    </div>{{-- /right --}}
-
-</div>
-
-{{-- ══════════ STATUS CHANGE MODAL ══════════ --}}
-<div class="modal fade" id="statusModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-arrow-repeat me-2"></i>Change Status</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="targetStatus">
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">New Status</label>
-                    <div id="newStatusDisplay" class="fw-bold text-primary fs-5"></div>
-                </div>
-                @if($ticket->isReplacementJob() && !$ticket->old_terminal_id)
-                <div class="mb-3" id="oldTerminalWrapper">
-                    <label class="form-label fw-semibold">Old Router ID <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="oldTerminalId" placeholder="Enter old router ID">
-                </div>
-                @endif
-                <div class="mb-3 d-none" id="rescheduleWrapper">
-                    <label class="form-label fw-semibold">Reschedule Reason <span class="text-danger">*</span></label>
-                    <textarea class="form-control" id="rescheduleReason" rows="2"></textarea>
-                </div>
-                {{-- FIX #3: Reschedule date/time --}}
-                <div class="mb-3 d-none" id="scheduledDateWrapper">
-                    <label class="form-label fw-semibold">Reschedule To <span class="text-danger">*</span></label>
-                    <input type="datetime-local" class="form-control" id="scheduledDate" min="{{ now()->format('Y-m-d\TH:i') }}">
-                </div>
-                <div class="mb-3 d-none" id="proofWrapper">
-                    <label class="form-label fw-semibold">Proof Files <span class="text-danger">*</span></label>
-                    <div id="proofFieldsContainer"></div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Remarks</label>
-                    <textarea class="form-control" id="statusRemarks" rows="2" placeholder="Optional…"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirmStatusBtn" onclick="submitStatus()">
-                    <i class="bi bi-check-circle me-1"></i>Confirm
-                </button>
-            </div>
-        </div>
+        @endif
     </div>
 </div>
 @endsection
 
 @push('scripts')
 <script>
-const CHANGE_STATUS_URL = '{{ route('supervisor.tickets.change-status', $ticket->id) }}';
-const ASSIGN_URL        = '{{ route('supervisor.tickets.assign', $ticket->id) }}';
-const REASSIGN_URL      = '{{ route('supervisor.tickets.reassign', $ticket->id) }}';
-const CLAIM_URL         = '{{ route('supervisor.tickets.update-claim', $ticket->id) }}';
-const COMMENT_URL       = '{{ route('supervisor.tickets.comment', $ticket->id) }}';
-const MILEAGE_RATE      = {{ (float)($ticket->mileage_rate ?? $ticket->supervisor?->mileage_rate ?? 0) }};
+$(document).ready(function() {
+    var currentStatus = '{{ $ticket->status }}';
 
-@php $proofTypeLabels = \App\Models\Ticket::getProofTypeLabels(); @endphp
-const proofTypeLabels = @json($proofTypeLabels);
-const proofRequiredMap = {
-    scheduled: ['whatsapp_screenshot','call_log_screenshot'],
-    done_success: ['test_slip'],
-    done_fail: ['service_form'],
-};
+    $('#technician_id').select2({ theme: 'bootstrap-5', placeholder: '-- Select Technician --', allowClear: true });
 
-function openStatusModal(status) {
-    $('#targetStatus').val(status);
-    const labelMap = { accepted:'Accept', rejected:'Reject', in_progress:'In Progress',
-        scheduled:'Reschedule', done_success:'Done / Success', done_fail:'Done / Fail',
-        closed:'Close', open:'Re-open', assigned:'Re-assign' };
-    $('#newStatusDisplay').text(labelMap[status] || status);
-    $('#rescheduleWrapper,#scheduledDateWrapper,#proofWrapper').addClass('d-none');
-    $('#rescheduleReason,#scheduledDate,#statusRemarks').val('');
-    $('#proofFieldsContainer').html('');
-
-    if (status === 'scheduled') {
-        $('#rescheduleWrapper,#scheduledDateWrapper').removeClass('d-none');
-    }
-    const proofTypes = proofRequiredMap[status] || [];
-    if (proofTypes.length) {
-        $('#proofWrapper').removeClass('d-none');
-        let html = '';
-        proofTypes.forEach(pt => {
-            html += `<div class="mb-2">
-                <label class="form-label small">${proofTypeLabels[pt]||pt} <span class="text-danger">*</span></label>
-                <input type="file" class="form-control form-control-sm" id="proof_${pt}" accept=".jpg,.jpeg,.png,.pdf">
-            </div>`;
+    // Technician Assign/Reassign
+    $('#btnAssignTechnician').on('click', function() {
+        var techId = $('#technician_id').val();
+        if (!techId) { showToast('Please select a technician.', 'warning'); return; }
+        var isReassign = {{ $ticket->technician_id ? 'true' : 'false' }};
+        var url = isReassign ? '{{ route("supervisor.tickets.reassign", $ticket->id) }}' : '{{ route("supervisor.tickets.assign", $ticket->id) }}';
+        confirmAction(isReassign ? 'Reassign Technician?' : 'Assign Technician?', 'Continue with this action?', function() {
+            showLoading();
+            $.ajax({ url: url, method: 'POST', data: { technician_id: techId, remarks: $('#assign_tech_remarks').val() },
+                success: function(r) { hideLoading(); if (r.success) { showToast(r.message); setTimeout(function(){ location.reload(); }, 1000); } else showToast(r.message||'Failed.','error'); },
+                error: function(x) { hideLoading(); showToast(x.responseJSON?.message||'Failed.','error'); }
+            });
         });
-        $('#proofFieldsContainer').html(html);
-    }
-    new bootstrap.Modal(document.getElementById('statusModal')).show();
-}
-
-function submitStatus() {
-    const status  = $('#targetStatus').val();
-    const remarks = $('#statusRemarks').val();
-    const fd      = new FormData();
-    fd.append('_token', $('meta[name="csrf-token"]').attr('content'));
-    fd.append('status', status);
-    if (remarks) fd.append('remarks', remarks);
-
-    if (status === 'scheduled') {
-        const reason = $('#rescheduleReason').val().trim();
-        const date   = $('#scheduledDate').val();
-        if (!reason) { showToast('Please enter a reschedule reason.', 'warning'); return; }
-        if (!date)   { showToast('Please select a reschedule date/time.', 'warning'); return; }
-        fd.append('reschedule_reason', reason);
-        fd.append('scheduled_date', date);
-    }
-
-    const proofTypes = proofRequiredMap[status] || [];
-    let ok = true;
-    proofTypes.forEach(pt => {
-        const el = document.getElementById('proof_' + pt);
-        if (el?.files[0]) fd.append('proof_files['+pt+']', el.files[0]);
-        else if (el) { showToast('Upload: ' + (proofTypeLabels[pt]||pt), 'warning'); ok = false; }
     });
-    if (!ok) return;
 
-    const oldTerm = $('#oldTerminalId');
-    if (oldTerm.length && oldTerm.val()) fd.append('old_terminal_id', oldTerm.val());
-
-    $('#confirmStatusBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving…');
-    $.ajax({
-        url: CHANGE_STATUS_URL, type: 'POST', data: fd,
-        processData: false, contentType: false,
-        success: r => { bootstrap.Modal.getInstance(document.getElementById('statusModal')).hide(); showToast(r.message,'success'); setTimeout(() => location.reload(), 1000); },
-        error: xhr => showToast(xhr.responseJSON?.message || 'Failed.', 'error'),
-        complete: () => $('#confirmStatusBtn').prop('disabled',false).html('<i class="bi bi-check-circle me-1"></i>Confirm'),
+    // Status change
+    $('#newStatus').on('change', function() {
+        var s = $(this).val();
+        $('#scheduledFields').toggle(s === 'scheduled');
+        $('#oldRouterIdField').toggle(s === 'in_progress' || currentStatus === 'in_progress');
+        var proofTypes = { 'scheduled':[['whatsapp_screenshot','WhatsApp Screenshot'],['call_log_screenshot','Call Log Screenshot']], 'done_success':[['test_slip','Test Slip Image']], 'done_fail':[['service_form','Service Form Image']] };
+        if (proofTypes[s]) {
+            var h = '';
+            proofTypes[s].forEach(function(p) { h += '<div class="mb-2"><label class="form-label small">'+p[1]+'</label><input type="file" class="form-control form-control-sm proof-file" name="proof_files['+p[0]+']" accept=".jpg,.jpeg,.png,.pdf"></div>'; });
+            $('#proofFields').html(h).show();
+        } else { $('#proofFields').hide().html(''); }
     });
-}
 
-// ── FIX 2: Unified assign/reassign with dynamic button swap ──
-function doAssign() {
-    const tid     = $('#assignTechnicianSelect').val();
-    const remarks = $('#assignRemarks').val();
-    const btn     = $('#assignActionBtn');
-    const hasTech = btn.data('has-technician') === '1' || btn.data('has-technician') === 1;
-
-    if (!tid) { showToast('Select a technician.', 'warning'); return; }
-
-    const url = hasTech ? REASSIGN_URL : ASSIGN_URL;
-
-    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving…');
-
-    $.post(url, {
-        _token: $('meta[name="csrf-token"]').attr('content'),
-        technician_id: tid,
-        remarks: remarks,
-    })
-    .done(function(r) {
-        showToast(r.message, 'success');
-        // Swap button to Reassign immediately — no wait for page reload
-        btn.removeClass('btn-primary').addClass('btn-warning')
-           .html('<i class="bi bi-arrow-repeat me-1"></i>Reassign')
-           .data('has-technician', '1');
-        const selectedText = $('#assignTechnicianSelect option:selected').text();
-        $('.col-md-6 .form-label').first().html(
-            'Reassign Technician <span class="badge bg-secondary ms-1 fw-normal">Current: ' + selectedText + '</span>'
-        );
-        setTimeout(() => location.reload(), 1500);
-    })
-    .fail(function(xhr) {
-        showToast(xhr.responseJSON?.message || 'Failed to assign technician.', 'error');
-    })
-    .always(function() {
-        btn.prop('disabled', false);
+    $('#btnChangeStatus').on('click', function() {
+        var status = $('#newStatus').val();
+        if (!status) { showToast('Select a status.','warning'); return; }
+        if (status === 'scheduled' && (!$('#rescheduleReason').val() || !$('#scheduledDate').val())) { showToast('Reschedule reason and date required.','warning'); return; }
+        var fd = new FormData();
+        fd.append('status', status);
+        fd.append('remarks', $('#statusRemarks').val());
+        if (status === 'scheduled') { fd.append('reschedule_reason', $('#rescheduleReason').val()); fd.append('scheduled_date', $('#scheduledDate').val()); }
+        if ($('#statusOldTerminalId').val() && (currentStatus === 'in_progress' || status === 'in_progress')) fd.append('old_terminal_id', $('#statusOldTerminalId').val());
+        $('.proof-file').each(function() { if (this.files[0]) fd.append($(this).attr('name'), this.files[0]); });
+        showLoading();
+        $.ajax({ url: '{{ route("supervisor.tickets.change-status", $ticket->id) }}', method: 'POST', data: fd, processData: false, contentType: false,
+            success: function(r) { hideLoading(); if (r.success) { showToast(r.message); setTimeout(function(){ location.reload(); }, 1000); } else showToast(r.message||'Failed.','error'); },
+            error: function(x) { hideLoading(); showToast(x.responseJSON?.message||'Failed.','error'); }
+        });
     });
-}
 
-// ── Claim Live Calculation ──
-function recalcClaim() {
-    const mileage  = parseFloat($('#claimMileage').val()) || 0;
-    const toll     = parseFloat($('#claimToll').val())    || 0;
-    const meal     = parseFloat($('#claimMeal').val())    || 0;
-    const mileageAmt = mileage * MILEAGE_RATE;
-    const total      = mileageAmt + toll + meal;
-    $('#mileageAmtDisplay').text(mileageAmt.toFixed(2));
-    $('#previewMileage').text('RM ' + mileageAmt.toFixed(2));
-    $('#previewToll').text('RM ' + toll.toFixed(2));
-    $('#previewMeal').text('RM ' + meal.toFixed(2));
-    $('#previewTotal').text('RM ' + total.toFixed(2));
-}
-
-$(document).on('input', '.claim-input', recalcClaim);
-
-function resetClaim() {
-    $('#claimMileage').val(0);
-    $('#claimToll').val(0);
-    $('#claimMeal').val(0);
-    $('#claimMileageRemarks').val('');
-    recalcClaim();
-}
-
-function saveClaim() {
-    const mileage  = parseFloat($('#claimMileage').val()) || 0;
-    const toll     = parseFloat($('#claimToll').val())    || 0;
-    const meal     = parseFloat($('#claimMeal').val())    || 0;
-    const remarks  = $('#claimMileageRemarks').val();
-
-    if (mileage < 0 || toll < 0 || meal < 0) {
-        showToast('Claim values cannot be negative.', 'warning');
-        return;
-    }
-
-    $('#saveClaimBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving…');
-
-    $.post(CLAIM_URL, {
-        _token:          $('meta[name="csrf-token"]').attr('content'),
-        mileage:         mileage,
-        toll:            toll,
-        standby_meal:    meal,
-        mileage_remarks: remarks,
-    })
-    .done(function(r) {
-        showToast(r.message, 'success');
-        recalcClaim();
-        // FIX 3: Append claim history entry live
-        const now        = new Date().toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-        const mileageAmt = mileage * MILEAGE_RATE;
-        const total      = mileageAmt + toll + meal;
-        const histHtml   = `<div class="timeline-item">
-            <div class="d-flex justify-content-between align-items-start">
-                <div><span class="fw-semibold"><span class="badge bg-info">Claim Updated</span></span>
-                <span class="text-muted small ms-2">by You</span></div>
-                <small class="text-muted">${now}</small>
-            </div>
-            <div class="small text-secondary mt-1">
-                Mileage: ${mileage.toFixed(2)} km × RM ${MILEAGE_RATE.toFixed(2)} = RM ${mileageAmt.toFixed(2)} |
-                Toll: RM ${toll.toFixed(2)} |
-                Meal: RM ${meal.toFixed(2)} |
-                <strong>Total: RM ${total.toFixed(2)}</strong>
-                ${remarks ? ' | Note: ' + $('<div>').text(remarks).html() : ''}
-            </div>
-        </div>`;
-        const histContainer = $('.timeline-item').first().parent();
-        histContainer.prepend(histHtml);
-    })
-    .fail(function(xhr) {
-        showToast(xhr.responseJSON?.message || 'Failed to save claim.', 'error');
-    })
-    .always(function() {
-        $('#saveClaimBtn').prop('disabled', false).html('<i class="bi bi-save me-1"></i>Save Claim');
+    // Old Router ID save
+    $('#btnSaveOldRouterId').on('click', function() {
+        showLoading();
+        $.ajax({ url: '{{ route("supervisor.tickets.change-status", $ticket->id) }}', method: 'POST',
+            data: { status: currentStatus, old_terminal_id: $('#old_terminal_id_input').val(), remarks: 'Old Router ID updated' },
+            success: function(r) { hideLoading(); showToast(r.success ? r.message : 'Failed.', r.success ? 'success' : 'error'); if (r.success) setTimeout(function(){ location.reload(); }, 1000); },
+            error: function(x) { hideLoading(); showToast(x.responseJSON?.message||'Failed.','error'); }
+        });
     });
-}
 
-function submitComment() {
-    const text = $('#commentText').val().trim();
-    if (!text) { showToast('Comment cannot be empty.','warning'); return; }
-    $.post(COMMENT_URL, { _token: $('meta[name="csrf-token"]').attr('content'), comment: text })
-        .done(r => {
-            $('#noComments').remove();
-            $('#commentsContainer').prepend(`<div class="mb-3">
-                <div class="d-flex justify-content-between mb-1">
-                    <strong class="small">${r.comment.user_name} <span class="badge bg-secondary ms-1">${r.comment.user_role}</span></strong>
-                    <small class="text-muted">${r.comment.created_at}</small>
-                </div>
-                <div class="comment-bubble own">${$('<div>').text(r.comment.comment).html()}</div>
-            </div>`);
-            $('#commentText').val('');
-        })
-        .fail(xhr => showToast(xhr.responseJSON?.message||'Failed.','error'));
-}
+    // Claim Update
+    $('#btnUpdateClaim').on('click', function() {
+        showLoading();
+        $.ajax({ url: '{{ route("supervisor.tickets.update-claim", $ticket->id) }}', method: 'POST',
+            data: { mileage: $('#claimMileage').val(), mileage_remarks: $('#claimMileageRemarks').val(), toll: $('#claimToll').val(), standby_meal: $('#claimStandbyMeal').val() },
+            success: function(r) { hideLoading(); if (r.success) { showToast(r.message); setTimeout(function(){ location.reload(); }, 1000); } else showToast(r.message||'Failed.','error'); },
+            error: function(x) { hideLoading(); showToast(x.responseJSON?.message||'Failed.','error'); }
+        });
+    });
+
+    // Comment
+    $('#btnAddComment').on('click', function() {
+        var c = $('#commentInput').val().trim();
+        if (!c) { showToast('Enter a comment.','warning'); return; }
+        $.ajax({ url: '{{ route("supervisor.tickets.comment", $ticket->id) }}', method: 'POST', data: { comment: c },
+            success: function(r) { if (r.success) { $('#noCommentsText').hide(); var d = r.comment;
+                var h = '<div class="d-flex mb-3"><div class="flex-shrink-0 me-3"><div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center" style="width:36px;height:36px;font-size:0.8rem;">'+d.user_name.substring(0,2).toUpperCase()+'</div></div>';
+                h += '<div class="flex-grow-1"><div class="fw-semibold">'+d.user_name+' <span class="badge bg-light text-dark ms-1">'+d.user_role+'</span> <small class="text-muted ms-2">'+d.created_at+'</small></div><p class="mb-0 mt-1">'+d.comment+'</p></div></div>';
+                $('#commentsList').prepend(h); $('#commentInput').val(''); showToast('Comment added.'); } },
+            error: function() { showToast('Failed.','error'); }
+        });
+    });
+    $('#commentInput').on('keypress', function(e) { if (e.which === 13) $('#btnAddComment').click(); });
+});
 </script>
 @endpush

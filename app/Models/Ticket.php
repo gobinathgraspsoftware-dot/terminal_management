@@ -183,11 +183,18 @@ class Ticket extends Model
         ];
     }
 
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #1: Admin transitions — REMOVED accept/reject
+     * Admin should NOT accept/reject tickets. Only Close or Reassign.
+     * Accept/Reject is exclusively for Technician & External Supervisor.
+     * ═══════════════════════════════════════════════════════════════════
+     */
     public static function getAllowedTransitions(string $currentStatus): array
     {
         return match ($currentStatus) {
             self::STATUS_OPEN         => [self::STATUS_ASSIGNED, self::STATUS_CLOSED],
-            self::STATUS_ASSIGNED     => [self::STATUS_ACCEPTED, self::STATUS_REJECTED, self::STATUS_CLOSED],
+            self::STATUS_ASSIGNED     => [self::STATUS_CLOSED],
             self::STATUS_ACCEPTED     => [self::STATUS_IN_PROGRESS, self::STATUS_SCHEDULED, self::STATUS_CLOSED],
             self::STATUS_REJECTED     => [self::STATUS_OPEN, self::STATUS_ASSIGNED, self::STATUS_CLOSED],
             self::STATUS_IN_PROGRESS  => [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
@@ -224,13 +231,16 @@ class Ticket extends Model
     }
 
     /**
-     * Internal supervisor transitions — same as getAllowedTransitions but limited
-     * to their own actions (no admin-level re-open/force-close).
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #1: Internal supervisor transitions — REMOVED accept/reject
+     * Internal supervisors do NOT accept/reject tickets.
+     * They can only manage workflow from Accepted onwards + reassign techs.
+     * ═══════════════════════════════════════════════════════════════════
      */
     public static function getInternalSupervisorTransitions(string $currentStatus): array
     {
         return match ($currentStatus) {
-            self::STATUS_ASSIGNED     => [self::STATUS_ACCEPTED, self::STATUS_REJECTED],
+            self::STATUS_ASSIGNED     => [],
             self::STATUS_ACCEPTED     => [self::STATUS_IN_PROGRESS, self::STATUS_SCHEDULED, self::STATUS_CLOSED],
             self::STATUS_IN_PROGRESS  => [self::STATUS_SCHEDULED, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
             self::STATUS_SCHEDULED    => [self::STATUS_IN_PROGRESS, self::STATUS_DONE_SUCCESS, self::STATUS_DONE_FAIL],
@@ -238,6 +248,32 @@ class Ticket extends Model
             self::STATUS_DONE_FAIL    => [self::STATUS_CLOSED, self::STATUS_IN_PROGRESS],
             default                   => [],
         };
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #2: Check if ticket allows supervisor reassignment.
+     * Blocked once status reaches 'accepted' or beyond.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    public function canReassignSupervisor(): bool
+    {
+        return in_array($this->status, [
+            self::STATUS_OPEN,
+            self::STATUS_ASSIGNED,
+            self::STATUS_REJECTED,
+        ]);
+    }
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * CHANGE #3: Check if Old Router ID can be updated.
+     * Only allowed when ticket is at In Progress status.
+     * ═══════════════════════════════════════════════════════════════════
+     */
+    public function canUpdateOldRouterId(): bool
+    {
+        return $this->status === self::STATUS_IN_PROGRESS;
     }
 
     public static function getStatusBadge(string $status): string
@@ -330,16 +366,12 @@ class Ticket extends Model
 
     /**
      * FIX #4: Grand total = job price + claim amount.
-     * Displayed in the ticket show view financial summary card.
      */
     public function getGrandTotalAttribute(): float
     {
         return (float) ($this->price ?? 0) + (float) ($this->total_claim_amount ?? 0);
     }
 
-    /**
-     * Auto-calculate claim totals
-     */
     public function calculateClaim(): void
     {
         $this->mileage_amount     = ($this->mileage ?? 0) * ($this->mileage_rate ?? 0);
