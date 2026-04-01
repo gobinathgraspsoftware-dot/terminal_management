@@ -91,18 +91,30 @@
                         <small class="text-muted">City</small>
                         <p class="mb-1">{{ $ticket->city?->name ?? '-' }}</p>
                     </div>
+                    @php
+                        $jobCat = $ticket->jobCategory;
+                        $showTid = $jobCat && !$jobCat->hidesDeviceIds();
+                        $showTerminalId = $jobCat && ($jobCat->requiresTerminalId() || $jobCat->showsBothDeviceIds());
+                        $showRouterId = $jobCat && ($jobCat->requiresRouterId() || $jobCat->showsBothDeviceIds());
+                    @endphp
+                    @if($showTid || $showTerminalId || $showRouterId)
                     <div class="col-md-4">
                         <small class="text-muted">TID</small>
                         <p class="mb-1">{{ $ticket->tid ?? '-' }}</p>
                     </div>
+                    @endif
+                    @if($showTerminalId)
                     <div class="col-md-4">
                         <small class="text-muted">Terminal ID</small>
                         <p class="mb-1">{{ $ticket->terminal_id ?? '-' }}</p>
                     </div>
+                    @endif
+                    @if($showRouterId)
                     <div class="col-md-4">
                         <small class="text-muted">Router ID(s)</small>
                         <p class="mb-1">{{ $ticket->getRouterIdsDisplay() }}</p>
                     </div>
+                    @endif
                 </div>
                 @if($ticket->description)
                 <hr>
