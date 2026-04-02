@@ -33,6 +33,7 @@ class UserController extends Controller
 
     /**
      * Display a listing of users
+     * CHANGED: Removed 'suspended' from stats — only total, active, inactive
      */
     public function index(): View
     {
@@ -46,7 +47,6 @@ class UserController extends Controller
             'total' => User::count(),
             'active' => User::where('status', 'active')->count(),
             'inactive' => User::where('status', 'inactive')->count(),
-            'suspended' => User::where('status', 'suspended')->count(),
         ];
 
         return view('admin.users.index', compact('roles', 'supervisors', 'stats'));
@@ -54,6 +54,7 @@ class UserController extends Controller
 
     /**
      * DataTables server-side processing
+     * CHANGED: Removed 'suspended' from status_badge match
      */
     public function datatable(Request $request): JsonResponse
     {
@@ -97,9 +98,8 @@ class UserController extends Controller
             ->addColumn('status_badge', function ($user) {
                 $badgeClass = match ($user->status) {
                     'active' => 'success',
-                    'inactive' => 'warning',
-                    'suspended' => 'danger',
-                    default => 'secondary'
+                    'inactive' => 'secondary',
+                    default => 'warning'
                 };
                 return "<span class='badge bg-{$badgeClass}'>" . ucfirst($user->status) . "</span>";
             })

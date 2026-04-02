@@ -36,8 +36,8 @@ class UpdateUserRequest extends FormRequest
             // Role
             'role' => ['required', 'string', 'exists:roles,name'],
 
-            // Status
-            'status' => ['required', 'string', Rule::in(['active', 'inactive', 'suspended'])],
+            // Status — CHANGED: Removed 'suspended', only active/inactive allowed
+            'status' => ['required', 'string', Rule::in(['active', 'inactive'])],
 
             // Supervisor Type (only for supervisor role)
             'supervisor_type' => [
@@ -101,6 +101,7 @@ class UpdateUserRequest extends FormRequest
             'role.required' => 'Please select a role for the user.',
             'role.exists' => 'The selected role is invalid.',
             'status.required' => 'Please select a status.',
+            'status.in' => 'Status must be either Active or Inactive.',
             'supervisor_type.required_if' => 'Please select a supervisor type (Internal or External).',
             'supervisor_type.in' => 'Supervisor type must be Internal or External.',
             'supervisor_id.required_if' => 'Please select a supervisor for this technician.',

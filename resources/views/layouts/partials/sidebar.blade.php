@@ -179,7 +179,7 @@
             <!-- Claim Management Section -->
             @canany(['view_all_claims', 'view_claims', 'verify_claims', 'bulk_pay_claims'])
             <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Claim Management</small>
+                <small class="text-muted text-uppercase fw-bold px-3">Payment & Claim</small>
                 <ul class="nav flex-column mt-2">
                     @can('view_all_claims')
                     <li class="nav-item">

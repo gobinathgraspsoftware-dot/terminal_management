@@ -67,8 +67,10 @@ class AuthController extends Controller
         if ($user->status !== 'active') {
             Auth::logout();
 
+            // CHANGED: Updated message — 'suspended' status no longer exists;
+            // non-active accounts are now 'inactive'
             throw ValidationException::withMessages([
-                'email' => __('Your account has been suspended. Please contact administrator.'),
+                'email' => __('Your account is currently inactive. Please contact administrator.'),
             ]);
         }
 

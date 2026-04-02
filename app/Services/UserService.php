@@ -219,6 +219,7 @@ class UserService
 
     /**
      * Get statistics for user management dashboard
+     * CHANGED: Removed 'suspended' — only total, active, inactive counted
      */
     public function getStatistics(): array
     {
@@ -226,7 +227,6 @@ class UserService
             'total' => User::count(),
             'active' => User::where('status', 'active')->count(),
             'inactive' => User::where('status', 'inactive')->count(),
-            'suspended' => User::where('status', 'suspended')->count(),
             'supervisors_internal' => User::whereHas('roles', fn ($q) => $q->where('roles.name', 'supervisor'))
                 ->where('supervisor_type', 'internal')->count(),
             'supervisors_external' => User::whereHas('roles', fn ($q) => $q->where('roles.name', 'supervisor'))

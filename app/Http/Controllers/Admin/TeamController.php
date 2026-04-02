@@ -134,7 +134,7 @@ class TeamController extends Controller implements HasMiddleware
                 }
                 return '<span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Unassigned</span>';
             })
-            ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . match($user->status) { 'active' => 'success', 'inactive' => 'secondary', 'suspended' => 'danger', default => 'warning' } . '">' . ucfirst($user->status) . '</span>')
+            ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . match($user->status) { 'active' => 'success', 'inactive' => 'secondary', default => 'warning' } . '">' . ucfirst($user->status) . '</span>')
             ->addColumn('coverage', function ($user) {
                 $states = is_array($user->coverage_states) ? $user->coverage_states : (is_string($user->coverage_states) ? json_decode($user->coverage_states, true) : null);
                 if (empty($states) || !is_array($states)) return '<span class="text-muted">-</span>';

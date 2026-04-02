@@ -100,7 +100,6 @@
                         <select name="status" class="form-select" required>
                             <option value="active" {{ $user->status === 'active' ? 'selected' : '' }}>Active</option>
                             <option value="inactive" {{ $user->status === 'inactive' ? 'selected' : '' }}>Inactive</option>
-                            <option value="suspended" {{ $user->status === 'suspended' ? 'selected' : '' }}>Suspended</option>
                         </select>
                     </div>
                     <div class="col-md-4 {{ $isSupervisor ? '' : 'd-none' }}" id="supervisorTypeField">

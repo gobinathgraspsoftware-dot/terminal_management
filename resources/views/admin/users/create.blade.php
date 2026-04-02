@@ -112,7 +112,6 @@
                         <select name="status" class="form-select" required>
                             <option value="active" selected>Active</option>
                             <option value="inactive">Inactive</option>
-                            <option value="suspended">Suspended</option>
                         </select>
                     </div>
                     <div class="col-md-4 d-none" id="supervisorTypeField">

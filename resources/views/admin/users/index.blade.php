@@ -19,18 +19,16 @@
         @endcan
     </div>
 
+    {{-- CHANGED: Removed 'Suspended' stats card — now 3 cards only (Total, Active, Inactive) --}}
     <div class="row mb-4" id="statsRow">
-        <div class="col-md-3 col-sm-6 mb-3">
+        <div class="col-md-4 col-sm-6 mb-3">
             <div class="card border-0 shadow-sm"><div class="card-body text-center"><div class="text-primary fs-3 fw-bold">{{ $stats['total'] }}</div><small class="text-muted">Total Users</small></div></div>
         </div>
-        <div class="col-md-3 col-sm-6 mb-3">
+        <div class="col-md-4 col-sm-6 mb-3">
             <div class="card border-0 shadow-sm"><div class="card-body text-center"><div class="text-success fs-3 fw-bold">{{ $stats['active'] }}</div><small class="text-muted">Active</small></div></div>
         </div>
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm"><div class="card-body text-center"><div class="text-warning fs-3 fw-bold">{{ $stats['inactive'] }}</div><small class="text-muted">Inactive</small></div></div>
-        </div>
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="card border-0 shadow-sm"><div class="card-body text-center"><div class="text-danger fs-3 fw-bold">{{ $stats['suspended'] }}</div><small class="text-muted">Suspended</small></div></div>
+        <div class="col-md-4 col-sm-6 mb-3">
+            <div class="card border-0 shadow-sm"><div class="card-body text-center"><div class="text-secondary fs-3 fw-bold">{{ $stats['inactive'] }}</div><small class="text-muted">Inactive</small></div></div>
         </div>
     </div>
 
@@ -47,12 +45,12 @@
                     </select>
                 </div>
                 <div class="col-md-2">
+                    {{-- CHANGED: Removed 'Suspended' from filter options --}}
                     <label class="form-label fw-semibold">Status</label>
                     <select id="filterStatus" class="form-select">
                         <option value="">All Status</option>
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
-                        <option value="suspended">Suspended</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -156,6 +154,7 @@ $(document).ready(function() {
     $('#btnResetFilters').on('click', function() { $('#filterRole, #filterStatus, #filterSupervisor, #filterSupervisorType').val(''); table.draw(); });
 
     // View user modal
+    // CHANGED: Removed 'suspended' => 'danger' from status badge logic
     $(document).on('click', '.view-user', function() {
         var userId = $(this).data('id');
         $('#viewUserBody').html('<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>');
@@ -171,7 +170,7 @@ $(document).ready(function() {
                         var typeClass = user.supervisor_type === 'internal' ? 'info' : 'warning';
                         roleBadge += ' <span class="badge bg-' + typeClass + '">' + user.supervisor_type.charAt(0).toUpperCase() + user.supervisor_type.slice(1) + '</span>';
                     }
-                    var statusClass = user.status === 'active' ? 'success' : (user.status === 'inactive' ? 'warning' : 'danger');
+                    var statusClass = user.status === 'active' ? 'success' : 'secondary';
                     var avatarUrl = user.avatar_url;
                     var fallbackUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&size=200&background=random';
                     var stateName = user.state ? user.state.name : '-';

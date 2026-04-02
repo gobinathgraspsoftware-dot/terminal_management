@@ -54,7 +54,7 @@
                     <div class="d-flex justify-content-around text-center">
                         <div>
                             <h6 class="text-muted mb-0">Status</h6>
-                            <span class="badge bg-{{ $user->status === 'active' ? 'success' : ($user->status === 'inactive' ? 'warning' : 'danger') }}">{{ ucfirst($user->status) }}</span>
+                            <span class="badge bg-{{ $user->status === 'active' ? 'success' : 'secondary' }}">{{ ucfirst($user->status) }}</span>
                         </div>
                         <div>
                             <h6 class="text-muted mb-0">Employee ID</h6>
@@ -120,7 +120,7 @@
                         </div>
                         <div class="col-md-6">
                             <small class="text-muted d-block">Status</small>
-                            <span class="badge bg-{{ $user->status === 'active' ? 'success' : ($user->status === 'inactive' ? 'warning' : 'danger') }}">{{ ucfirst($user->status) }}</span>
+                            <span class="badge bg-{{ $user->status === 'active' ? 'success' : 'secondary' }}">{{ ucfirst($user->status) }}</span>
                         </div>
                         @if($user->hasRole('supervisor'))
                         <div class="col-md-6">
@@ -243,7 +243,7 @@
                                     <td>{{ $member->state?->name ?? '-' }}</td>
                                     <td>{{ $member->city?->name ?? '-' }}</td>
                                     <td>{{ $member->mileage_rate ? 'RM ' . number_format($member->mileage_rate, 2) : '-' }}</td>
-                                    <td><span class="badge bg-{{ $member->status === 'active' ? 'success' : 'warning' }}">{{ ucfirst($member->status) }}</span></td>
+                                    <td><span class="badge bg-{{ $member->status === 'active' ? 'success' : 'secondary' }}">{{ ucfirst($member->status) }}</span></td>
                                     <td><a href="{{ route('admin.users.show', $member->id) }}" class="btn btn-sm btn-info"><i class="bi bi-eye"></i></a></td>
                                 </tr>
                                 @endforeach

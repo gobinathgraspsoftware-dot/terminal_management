@@ -15,10 +15,10 @@ class User extends Authenticatable
 
     /**
      * Status constants
+     * CHANGED: Removed STATUS_SUSPENDED — only Active and Inactive are supported now.
      */
     const STATUS_ACTIVE = 'active';
     const STATUS_INACTIVE = 'inactive';
-    const STATUS_SUSPENDED = 'suspended';
 
     const SUPERVISOR_TYPE_INTERNAL = 'internal';
     const SUPERVISOR_TYPE_EXTERNAL = 'external';
@@ -276,10 +276,9 @@ class User extends Authenticatable
         return $query->where('status', self::STATUS_INACTIVE);
     }
 
-    public function scopeSuspended($query)
-    {
-        return $query->where('status', self::STATUS_SUSPENDED);
-    }
+    /**
+     * REMOVED: scopeSuspended — suspended status no longer exists
+     */
 
     public function scopeByRole($query, $role)
     {
@@ -381,12 +380,14 @@ class User extends Authenticatable
         return "https://ui-avatars.com/api/?name={$initial}&size=200&background=random";
     }
 
+    /**
+     * CHANGED: Removed 'suspended' badge — only Active and Inactive remain
+     */
     public function getStatusBadgeAttribute(): string
     {
         return match($this->status) {
             self::STATUS_ACTIVE => '<span class="badge bg-success">Active</span>',
             self::STATUS_INACTIVE => '<span class="badge bg-secondary">Inactive</span>',
-            self::STATUS_SUSPENDED => '<span class="badge bg-danger">Suspended</span>',
             default => '<span class="badge bg-warning">Unknown</span>',
         };
     }
