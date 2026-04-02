@@ -19,7 +19,7 @@ use Yajra\DataTables\Facades\DataTables;
  * Internal supervisors: Full team view with DataTable + stats.
  * External supervisors: Own stats only (no technician team).
  *
- * CHANGED: Removed 'coverage' DataTable column and coverage_states JSON field.
+ * CHANGED: 'coverage' column → 'state_name' (user's state relationship)
  */
 class TeamController extends Controller implements HasMiddleware
 {
@@ -40,8 +40,6 @@ class TeamController extends Controller implements HasMiddleware
 
     /**
      * My Team — single consolidated page.
-     * Internal: shows team DataTable + team stats.
-     * External: shows own stats + info message (no team).
      */
     public function index(): View
     {
@@ -64,7 +62,7 @@ class TeamController extends Controller implements HasMiddleware
      * Server-side DataTable for team members.
      * Only available for INTERNAL supervisors.
      *
-     * CHANGED: Removed 'coverage' column — coverage_states field no longer exists.
+     * CHANGED: 'coverage' → 'state_name'
      */
     public function datatable(Request $request): JsonResponse
     {
@@ -81,6 +79,7 @@ class TeamController extends Controller implements HasMiddleware
         }
 
         $query = User::where('supervisor_id', $currentUser->id)
+            ->with('state')
             ->select('users.*');
 
         return DataTables::of($query)
@@ -90,10 +89,12 @@ class TeamController extends Controller implements HasMiddleware
                     : 'https://ui-avatars.com/api/?name=' . urlencode(substr($user->name, 0, 1)) . '&size=36&background=random&color=fff';
                 return '<img src="' . $url . '" class="rounded-circle" style="width:36px;height:36px;object-fit:cover;">';
             })
+            ->addColumn('state_name', function ($user) {
+                return $user->state ? '<span class="badge bg-light text-dark border">' . e($user->state->name) . '</span>' : '<span class="text-muted">-</span>';
+            })
             ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . match($user->status) {
                 'active' => 'success', 'inactive' => 'secondary', default => 'warning'
             } . '">' . ucfirst($user->status) . '</span>')
-            // REMOVED: 'coverage' column — coverage_states field no longer exists
             ->addColumn('skills', function ($user) {
                 $tags = is_array($user->skill_tags) ? $user->skill_tags : (is_string($user->skill_tags) ? json_decode($user->skill_tags, true) : null);
                 if (empty($tags) || !is_array($tags)) return '<span class="text-muted">-</span>';
@@ -117,21 +118,17 @@ class TeamController extends Controller implements HasMiddleware
                     $query->where('status', $request->status);
                 }
             })
-            ->rawColumns(['avatar', 'status_badge', 'skills', 'actions'])
+            ->rawColumns(['avatar', 'state_name', 'status_badge', 'skills', 'actions'])
             ->make(true);
     }
 
     /**
      * Show team member details (own team only).
-     * Only available for INTERNAL supervisors.
-     *
-     * CHANGED: Removed coverage_states from JSON response.
      */
     public function show(User $user): View|JsonResponse
     {
         $currentUser = Auth::user();
 
-        // External supervisors cannot view team members (they have none)
         if ($currentUser->isExternalSupervisor()) {
             if (request()->ajax()) {
                 return response()->json(['success' => false, 'message' => 'External supervisors do not have team members.'], 403);
@@ -146,7 +143,7 @@ class TeamController extends Controller implements HasMiddleware
             abort(403, 'Unauthorized');
         }
 
-        $user->load(['roles']);
+        $user->load(['roles', 'state', 'city']);
         $statistics = $this->teamService->getMemberStatistics($user);
         $recentJobs = $this->teamService->getMemberRecentJobs($user);
         $chartData = $this->teamService->getMemberWeeklyPerformance($user);
@@ -161,8 +158,9 @@ class TeamController extends Controller implements HasMiddleware
                     'email' => $user->email,
                     'phone' => $user->phone,
                     'status' => $user->status,
-                    // REMOVED: 'coverage_states' — field no longer exists
                     'skill_tags' => $user->skill_tags ?? [],
+                    'state' => $user->state,
+                    'city' => $user->city,
                 ],
                 'statistics' => $statistics
             ]);

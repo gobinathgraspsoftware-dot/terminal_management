@@ -163,6 +163,7 @@
                             <th>Name</th>
                             <th>Employee ID</th>
                             <th>Email</th>
+                            <th>State</th>
                             <th>Skills</th>
                             <th>Status</th>
                             <th width="80" class="text-center">Actions</th>
@@ -228,6 +229,7 @@ $(function() {
             { data: 'name', name: 'name' },
             { data: 'employee_id', name: 'employee_id' },
             { data: 'email', name: 'email' },
+            { data: 'state_name', name: 'state_name', orderable: false, searchable: false },
             { data: 'skills', name: 'skills', orderable: false, searchable: false },
             { data: 'status_badge', name: 'status', orderable: false },
             { data: 'actions', name: 'actions', orderable: false, searchable: false, className: 'text-center' },
