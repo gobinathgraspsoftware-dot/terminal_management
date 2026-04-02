@@ -199,4 +199,25 @@ class TicketController extends Controller
             return response()->json(['success' => false, 'message' => 'Failed to add comment.'], 500);
         }
     }
+
+    /**
+     * Update old router/terminal ID — only when In Progress.
+     */
+    public function updateOldRouterId(Request $request, Ticket $ticket)
+    {
+        $this->authorize('updateOldRouterId', $ticket);
+        $request->validate(['old_terminal_id' => 'nullable|string|max:100']);
+        try {
+            if (!$ticket->canUpdateOldRouterId()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Old Router ID can only be updated when ticket is In Progress.',
+                ], 422);
+            }
+            $ticket->update(['old_terminal_id' => $request->old_terminal_id, 'updated_by' => auth()->id()]);
+            return response()->json(['success' => true, 'message' => 'Old Router ID updated successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 }

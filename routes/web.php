@@ -354,6 +354,7 @@ Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function ()
         Route::post('/{ticket}/reassign', [AdminTicketController::class, 'reassign'])->name('reassign');
         Route::post('/{ticket}/reassign-supervisor', [AdminTicketController::class, 'reassignSupervisor'])->name('reassign-supervisor');
         Route::post('/{ticket}/update-claim', [AdminTicketController::class, 'updateClaim'])->name('update-claim');
+        Route::post('/{ticket}/update-old-router', [AdminTicketController::class, 'updateOldRouterId'])->name('update-old-router');
         Route::post('/{ticket}/comment', [AdminTicketController::class, 'addComment'])->name('comment');
     });
 
@@ -473,6 +474,7 @@ Route::middleware(['supervisor'])->prefix('supervisor')->name('supervisor.')->gr
         Route::post('/{ticket}/assign', [SupervisorTicketController::class, 'assign'])->name('assign');
         Route::post('/{ticket}/reassign', [SupervisorTicketController::class, 'reassign'])->name('reassign');
         Route::post('/{ticket}/update-claim', [SupervisorTicketController::class, 'updateClaim'])->name('update-claim');
+        Route::post('/{ticket}/update-old-router', [SupervisorTicketController::class, 'updateOldRouterId'])->name('update-old-router');
         Route::post('/{ticket}/comment', [SupervisorTicketController::class, 'addComment'])->name('comment');
     });
 
@@ -585,6 +587,7 @@ Route::middleware(['technician'])->prefix('technician')->name('technician.')->gr
         Route::get('/{ticket}', [TechnicianTicketController::class, 'show'])->name('show');
         Route::post('/{ticket}/change-status', [TechnicianTicketController::class, 'changeStatus'])->name('change-status');
         Route::post('/{ticket}/update-claim', [TechnicianTicketController::class, 'updateClaim'])->name('update-claim');
+        Route::post('/{ticket}/update-old-router', [TechnicianTicketController::class, 'updateOldRouterId'])->name('update-old-router');
         Route::post('/{ticket}/comment', [TechnicianTicketController::class, 'addComment'])->name('comment');
     });
 

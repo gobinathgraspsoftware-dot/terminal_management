@@ -394,7 +394,7 @@ $(document).ready(function() {
     // Old Router ID standalone save
     $('#btnSaveOldRouterId').on('click', function() {
         showLoading();
-        $.ajax({ url: '{{ route("technician.tickets.change-status", $ticket->id) }}', method: 'POST',
+        $.ajax({ url: '{{ route("technician.tickets.update-old-router", $ticket->id) }}', method: 'POST',
             data: { status: currentStatus, old_terminal_id: $('#old_terminal_id_input').val(), remarks: 'Old Router ID updated' },
             success: function(r) { hideLoading(); showToast(r.success ? r.message : 'Failed.', r.success ? 'success':'error'); if (r.success) setTimeout(function(){ location.reload(); }, 1000); },
             error: function(x) { hideLoading(); showToast(x.responseJSON?.message||'Failed.','error'); }

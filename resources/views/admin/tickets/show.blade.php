@@ -889,7 +889,7 @@ $(document).ready(function() {
         var val = $('#old_terminal_id_input').val();
         showLoading();
         $.ajax({
-            url: '{{ route("admin.tickets.show", $ticket->id) }}/../update-old-router',
+            url: '{{ route("admin.tickets.update-old-router", $ticket->id) }}',
             method: 'POST',
             data: { old_terminal_id: val },
             success: function(res) {
