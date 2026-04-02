@@ -179,7 +179,7 @@
             <!-- Claim Management Section -->
             @canany(['view_all_claims', 'view_claims', 'verify_claims', 'bulk_pay_claims'])
             <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Payment & Claim</small>
+                <small class="text-muted text-uppercase fw-bold px-3">Claims & Payouts</small>
                 <ul class="nav flex-column mt-2">
                     @can('view_all_claims')
                     <li class="nav-item">
@@ -488,7 +488,7 @@
             <!-- Claims Section -->
             @canany(['view_claims', 'view_team_claims', 'create_claims'])
             <div class="nav-section mb-3">
-                <small class="text-muted text-uppercase fw-bold px-3">Claims</small>
+                <small class="text-muted text-uppercase fw-bold px-3">Claims & Payouts</small>
                 <ul class="nav flex-column mt-2">
                     <li class="nav-item">
                         <a class="nav-link {{ $currentRoute === 'supervisor.claims.index' ? 'active' : '' }}"
@@ -686,6 +686,12 @@
                         <a class="nav-link {{ str_contains($currentRoute, 'technician.claims.create') ? 'active' : '' }}"
                            href="{{ route('technician.claims.create') }}">
                             <i class="bi bi-plus-circle me-2"></i> Submit Other Claim
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ str_contains($currentRoute, 'technician.claims.payment-history') ? 'active' : '' }}"
+                           href="{{ route('technician.claims.payment-history') }}">
+                            <i class="bi bi-file-earmark-text me-2"></i> Payments History
                         </a>
                     </li>
                 </ul>
