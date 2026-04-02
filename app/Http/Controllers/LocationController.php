@@ -17,6 +17,9 @@ use Illuminate\Http\Request;
  * - When fetching supervisors for technician assignment (default): returns INTERNAL only
  * - When type=all is passed: returns all supervisors (for admin views)
  * - When type=internal or type=external is passed: returns that specific type
+ *
+ * CHANGED: Removed coverage_states JSON fallback — field no longer exists.
+ *          Supervisor filtering now uses state_id only.
  */
 class LocationController extends Controller
 {
@@ -95,11 +98,8 @@ class LocationController extends Controller
      * Select2 AJAX: Search supervisors filtered by state_id and/or city_id
      * GET /ajax/supervisors?state_id=1&city_id=5&search=&page=1&type=internal
      *
-     * Type filter:
-     *   - type=internal  → Only internal supervisors (has team) — DEFAULT for technician assignment
-     *   - type=external  → Only external supervisors (no team)
-     *   - type=all       → All supervisors regardless of type
-     *   - (empty/none)   → Defaults to 'internal' (safe default for technician assignment)
+     * CHANGED: Removed coverage_states JSON fallback.
+     *          Now filters supervisors by state_id only (no orWhereJsonContains).
      */
     public function supervisors(Request $request): JsonResponse
     {
@@ -112,17 +112,10 @@ class LocationController extends Controller
         $query = User::whereHas('roles', fn ($q) => $q->where('roles.name', 'supervisor'))
                      ->where('status', 'active');
 
-        // Filter by state: match supervisor's state_id OR supervisor's coverage_states JSON
+        // Filter by state: match supervisor's state_id only
+        // CHANGED: Removed orWhereJsonContains('coverage_states', $stateName) fallback
         if ($stateId) {
-            $state = State::find($stateId);
-            $stateName = $state ? $state->name : null;
-
-            $query->where(function ($q) use ($stateId, $stateName) {
-                $q->where('state_id', $stateId);
-                if ($stateName) {
-                    $q->orWhereJsonContains('coverage_states', $stateName);
-                }
-            });
+            $query->where('state_id', $stateId);
         }
 
         if ($search) {

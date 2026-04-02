@@ -22,7 +22,7 @@ class UserService
         }
 
         // DO NOT Hash::make() password here — User model has 'password' => 'hashed' cast
-        // DO NOT json_encode() coverage_states/skill_tags — User model has 'array' cast
+        // DO NOT json_encode() skill_tags — User model has 'array' cast
 
         // Extract role before creating user
         $role = $data['role'] ?? null;
@@ -34,13 +34,13 @@ class UserService
         unset($data['remove_avatar']);
         unset($data['job_pricing']); // Handled separately in controller
 
+        // REMOVED: coverage_states — field no longer exists in system
+        unset($data['coverage_states']);
+
         // Clear supervisor_type if not supervisor role
         if ($role !== 'supervisor') {
             $data['supervisor_type'] = null;
         }
-
-        // External supervisor cannot have technicians — clear supervisor_id for safety
-        // (External supervisors should not appear in technician's supervisor dropdown)
 
         Log::info('UserService::createUser - Data keys: ' . implode(', ', array_keys($data)));
         Log::info('UserService::createUser - state_id: ' . ($data['state_id'] ?? 'NULL') . ', city_id: ' . ($data['city_id'] ?? 'NULL'));
@@ -84,7 +84,7 @@ class UserService
         }
         unset($data['password_confirmation']);
 
-        // DO NOT json_encode() coverage_states/skill_tags — User model has 'array' cast
+        // DO NOT json_encode() skill_tags — User model has 'array' cast
 
         // Extract role before updating user
         $role = $data['role'] ?? null;
@@ -94,6 +94,9 @@ class UserService
         unset($data['has_supervisor']);
         unset($data['remove_avatar']);
         unset($data['job_pricing']); // Handled separately in controller
+
+        // REMOVED: coverage_states — field no longer exists in system
+        unset($data['coverage_states']);
 
         // Clear supervisor_type if not supervisor role
         if ($role !== 'supervisor') {

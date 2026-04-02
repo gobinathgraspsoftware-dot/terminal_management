@@ -18,6 +18,8 @@ use Yajra\DataTables\Facades\DataTables;
  *
  * Internal supervisors: Full team view with DataTable + stats.
  * External supervisors: Own stats only (no technician team).
+ *
+ * CHANGED: Removed 'coverage' DataTable column and coverage_states JSON field.
  */
 class TeamController extends Controller implements HasMiddleware
 {
@@ -61,6 +63,8 @@ class TeamController extends Controller implements HasMiddleware
     /**
      * Server-side DataTable for team members.
      * Only available for INTERNAL supervisors.
+     *
+     * CHANGED: Removed 'coverage' column — coverage_states field no longer exists.
      */
     public function datatable(Request $request): JsonResponse
     {
@@ -87,20 +91,9 @@ class TeamController extends Controller implements HasMiddleware
                 return '<img src="' . $url . '" class="rounded-circle" style="width:36px;height:36px;object-fit:cover;">';
             })
             ->addColumn('status_badge', fn($user) => '<span class="badge bg-' . match($user->status) {
-                'active' => 'success', 'inactive' => 'secondary', 'suspended' => 'danger', default => 'warning'
+                'active' => 'success', 'inactive' => 'secondary', default => 'warning'
             } . '">' . ucfirst($user->status) . '</span>')
-            ->addColumn('coverage', function ($user) {
-                $states = is_array($user->coverage_states) ? $user->coverage_states : (is_string($user->coverage_states) ? json_decode($user->coverage_states, true) : null);
-                if (empty($states) || !is_array($states)) return '<span class="text-muted">-</span>';
-                $html = '';
-                foreach (array_slice($states, 0, 2) as $s) {
-                    $html .= '<span class="badge bg-light text-dark me-1">' . e($s) . '</span>';
-                }
-                if (count($states) > 2) {
-                    $html .= '<span class="badge bg-light text-dark">+' . (count($states) - 2) . '</span>';
-                }
-                return $html;
-            })
+            // REMOVED: 'coverage' column — coverage_states field no longer exists
             ->addColumn('skills', function ($user) {
                 $tags = is_array($user->skill_tags) ? $user->skill_tags : (is_string($user->skill_tags) ? json_decode($user->skill_tags, true) : null);
                 if (empty($tags) || !is_array($tags)) return '<span class="text-muted">-</span>';
@@ -124,13 +117,15 @@ class TeamController extends Controller implements HasMiddleware
                     $query->where('status', $request->status);
                 }
             })
-            ->rawColumns(['avatar', 'status_badge', 'coverage', 'skills', 'actions'])
+            ->rawColumns(['avatar', 'status_badge', 'skills', 'actions'])
             ->make(true);
     }
 
     /**
      * Show team member details (own team only).
      * Only available for INTERNAL supervisors.
+     *
+     * CHANGED: Removed coverage_states from JSON response.
      */
     public function show(User $user): View|JsonResponse
     {
@@ -166,7 +161,7 @@ class TeamController extends Controller implements HasMiddleware
                     'email' => $user->email,
                     'phone' => $user->phone,
                     'status' => $user->status,
-                    'coverage_states' => $user->coverage_states ?? [],
+                    // REMOVED: 'coverage_states' — field no longer exists
                     'skill_tags' => $user->skill_tags ?? [],
                 ],
                 'statistics' => $statistics

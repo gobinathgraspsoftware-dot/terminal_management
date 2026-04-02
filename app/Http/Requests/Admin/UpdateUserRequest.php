@@ -18,6 +18,7 @@ class UpdateUserRequest extends FormRequest
 
     /**
      * Get the validation rules that apply to the request.
+     * CHANGED: Removed 'coverage_states' and 'coverage_states.*' rules.
      */
     public function rules(): array
     {
@@ -48,7 +49,6 @@ class UpdateUserRequest extends FormRequest
             ],
 
             // FIX: supervisor_id is required when role is technician
-            // (independent technician concept removed — all technicians must have a supervisor)
             'supervisor_id' => [
                 'nullable',
                 'exists:users,id',
@@ -56,8 +56,8 @@ class UpdateUserRequest extends FormRequest
                 'different:id',
             ],
 
-            'coverage_states' => ['nullable', 'array'],
-            'coverage_states.*' => ['string', 'max:100'],
+            // REMOVED: 'coverage_states' => ['nullable', 'array'],
+            // REMOVED: 'coverage_states.*' => ['string', 'max:100'],
             'skill_tags' => ['nullable', 'array'],
             'skill_tags.*' => ['string', 'max:100'],
 
@@ -115,17 +115,10 @@ class UpdateUserRequest extends FormRequest
 
     /**
      * Prepare data for validation
-     *
-     * FIX: Removed has_supervisor logic entirely.
-     * The "independent technician" concept was removed — all technicians
-     * MUST have a supervisor. The old code checked for a has_supervisor
-     * checkbox that no longer exists in the form, so it always evaluated
-     * to false, which forced supervisor_id to null every time.
      */
     protected function prepareForValidation(): void
     {
         // FIX: Clear supervisor_id only if role is NOT technician
-        // (technicians MUST have a supervisor — keep supervisor_id as-is)
         if ($this->role !== 'technician') {
             $this->merge(['supervisor_id' => null]);
         }

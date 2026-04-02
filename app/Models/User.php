@@ -25,6 +25,7 @@ class User extends Authenticatable
 
     /**
      * The attributes that are mass assignable.
+     * CHANGED: Removed 'coverage_states' — field no longer used in system.
      */
     protected $fillable = [
         'employee_id',
@@ -35,9 +36,8 @@ class User extends Authenticatable
         'avatar',
         'supervisor_id',
         'supervisor_type',
-        'coverage_states',
+        // REMOVED: 'coverage_states' — no longer required in the system
         'skill_tags',
-        // Removed: 'default_rate_card_id' — rate_cards table dropped
         'mileage_rate',
         'address',
         'state_id',
@@ -65,6 +65,7 @@ class User extends Authenticatable
 
     /**
      * Get the attributes that should be cast.
+     * CHANGED: Removed 'coverage_states' => 'array' cast.
      */
     protected function casts(): array
     {
@@ -72,7 +73,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
-            'coverage_states' => 'array',
+            // REMOVED: 'coverage_states' => 'array' — no longer required
             'date_of_birth' => 'date',
             'skill_tags' => 'array',
             'mileage_rate' => 'decimal:2',
@@ -141,8 +142,6 @@ class User extends Authenticatable
     {
         return $this->belongsTo(City::class, 'city_id');
     }
-
-    // Removed: defaultRateCard() — rate_cards table dropped
 
     /**
      * Get stock balances for this technician
@@ -308,10 +307,10 @@ class User extends Authenticatable
         return $query->whereNull('supervisor_id')->role('technician');
     }
 
-    public function scopeInState($query, $state)
-    {
-        return $query->whereJsonContains('coverage_states', $state);
-    }
+    /**
+     * REMOVED: scopeInState — coverage_states field no longer exists.
+     * Use scopeByStateId() instead for state-based filtering.
+     */
 
     public function scopeByStateId($query, $stateId)
     {

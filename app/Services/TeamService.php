@@ -17,6 +17,8 @@ use Illuminate\Support\Facades\DB;
  *       Internal supervisors have technician teams.
  *       External supervisors do NOT have technician teams.
  *
+ * CHANGED: Removed all coverage_states references — field no longer exists.
+ *
  * @package App\Services
  */
 class TeamService
@@ -66,6 +68,8 @@ class TeamService
      * Used by: Admin\TeamController::stats(), Supervisor\TeamController::index() & stats()
      *
      * For external supervisors: returns zero team members and own job stats only.
+     *
+     * CHANGED: Removed coverage_states collection/stats — field no longer exists.
      */
     public function getSupervisorTeamStats(User $supervisor): array
     {
@@ -83,23 +87,7 @@ class TeamService
         $totalMembers = $allTeamMembers->count();
         $activeCount = $activeMembers->count();
 
-        // Collect unique coverage states across all active members
-        $coverageStates = $activeMembers
-            ->pluck('coverage_states')
-            ->filter()
-            ->map(function ($val) {
-                if (is_array($val)) return $val;
-                if (is_string($val)) {
-                    $decoded = json_decode($val, true);
-                    return is_array($decoded) ? $decoded : [];
-                }
-                return [];
-            })
-            ->flatten()
-            ->unique()
-            ->sort()
-            ->values()
-            ->toArray();
+        // REMOVED: coverage_states collection — field no longer exists
 
         $teamIds = $allTeamMembers->pluck('id');
 
@@ -158,8 +146,8 @@ class TeamService
                 'on_time' => $slaOnTime,
                 'total'   => $slaTotal,
             ],
-            'coverage_states'       => $coverageStates,
-            'members_with_coverage' => $activeMembers->filter(fn($m) => !empty($m->coverage_states))->count(),
+            // REMOVED: 'coverage_states' key — field no longer exists
+            // REMOVED: 'members_with_coverage' key — field no longer exists
             'total_jobs'            => ($todaysJobs + $pendingJobs + $completedThisMonth),
             'completed_jobs'        => $completedThisMonth,
             'completion_rate'       => $slaRate,
@@ -168,6 +156,7 @@ class TeamService
 
     /**
      * Get stats for an external supervisor (no team, own jobs only).
+     * CHANGED: Removed coverage_states collection — field no longer exists.
      */
     protected function getExternalSupervisorStats(User $supervisor): array
     {
@@ -217,15 +206,7 @@ class TeamService
             // job_orders table may not exist yet
         }
 
-        // Collect own coverage states
-        $coverageStates = [];
-        $raw = $supervisor->coverage_states;
-        if (is_array($raw)) {
-            $coverageStates = $raw;
-        } elseif (is_string($raw)) {
-            $decoded = json_decode($raw, true);
-            $coverageStates = is_array($decoded) ? $decoded : [];
-        }
+        // REMOVED: coverage_states collection — field no longer exists
 
         return [
             'supervisor_type'       => 'external',
@@ -239,8 +220,8 @@ class TeamService
                 'on_time' => $slaOnTime,
                 'total'   => $slaTotal,
             ],
-            'coverage_states'       => $coverageStates,
-            'members_with_coverage' => 0,
+            // REMOVED: 'coverage_states' key — field no longer exists
+            // REMOVED: 'members_with_coverage' key — field no longer exists
             'total_jobs'            => ($todaysJobs + $pendingJobs + $completedThisMonth),
             'completed_jobs'        => $completedThisMonth,
             'completion_rate'       => $slaRate,
@@ -270,11 +251,9 @@ class TeamService
                     $jobQuery->where('technician_id', $user->id);
                 } elseif ($user->hasRole('supervisor')) {
                     if ($user->isInternalSupervisor()) {
-                        // Internal supervisor: own + team jobs
                         $teamIds = User::where('supervisor_id', $user->id)->pluck('id')->push($user->id);
                         $jobQuery->whereIn('technician_id', $teamIds);
                     } else {
-                        // External supervisor: own jobs only
                         $jobQuery->where(function ($q) use ($user) {
                             $q->where('supervisor_id', $user->id)
                               ->orWhere('technician_id', $user->id);

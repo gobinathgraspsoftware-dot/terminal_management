@@ -146,13 +146,7 @@ class TicketController extends Controller
         // CHANGE #2: Load supervisors filtered by ticket's state for reassignment
         $supervisorQuery = User::role('supervisor')->where('status', 'active');
         if ($ticket->state_id) {
-            $stateName = $ticket->state?->name;
-            $supervisorQuery->where(function ($q) use ($ticket, $stateName) {
-                $q->where('state_id', $ticket->state_id);
-                if ($stateName) {
-                    $q->orWhereJsonContains('coverage_states', $stateName);
-                }
-            });
+            $supervisorQuery->where('state_id', $ticket->state_id);
         }
         $supervisors = $supervisorQuery->orderBy('name')
             ->get(['id', 'name', 'supervisor_type', 'mileage_rate']);
@@ -189,10 +183,7 @@ class TicketController extends Controller
 
         $supervisorQuery = User::role('supervisor')->where('status', 'active');
         if ($ticket->state_id) {
-            $supervisorQuery->where(function ($q) use ($ticket) {
-                $q->where('state_id', $ticket->state_id)
-                  ->orWhereJsonContains('coverage_states', (string) $ticket->state_id);
-            });
+            $supervisorQuery->where('state_id', $ticket->state_id);
         }
         $supervisors = $supervisorQuery->orderBy('name')->get();
 

@@ -104,9 +104,9 @@
         </div>
     </div>
 
-    {{-- SLA & Coverage Row --}}
+    {{-- SLA Compliance --}}
     <div class="row g-3 mb-4">
-        <div class="col-md-6">
+        <div class="col-md-12">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <h6 class="text-muted mb-3"><i class="bi bi-speedometer2 me-2"></i>SLA Compliance</h6>
@@ -123,25 +123,6 @@
                     <div class="progress" style="height: 8px;">
                         <div class="progress-bar bg-{{ $slaColor }}" style="width: {{ $sla['rate'] }}%"></div>
                     </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <h6 class="text-muted mb-3"><i class="bi bi-map me-2"></i>Coverage States</h6>
-                    @php
-                        $coverageStates = $teamStats['coverage_states'] ?? [];
-                    @endphp
-                    @if(!empty($coverageStates))
-                        <div class="d-flex flex-wrap gap-2">
-                            @foreach($coverageStates as $state)
-                                <span class="badge bg-light text-dark border px-3 py-2">{{ $state }}</span>
-                            @endforeach
-                        </div>
-                    @else
-                        <div class="text-muted">No coverage states configured.</div>
-                    @endif
                 </div>
             </div>
         </div>
@@ -170,7 +151,6 @@
                     <option value="">All Status</option>
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
-                    <option value="suspended">Suspended</option>
                 </select>
             </div>
         </div>
@@ -183,7 +163,6 @@
                             <th>Name</th>
                             <th>Employee ID</th>
                             <th>Email</th>
-                            <th>Coverage</th>
                             <th>Skills</th>
                             <th>Status</th>
                             <th width="80" class="text-center">Actions</th>
@@ -249,7 +228,6 @@ $(function() {
             { data: 'name', name: 'name' },
             { data: 'employee_id', name: 'employee_id' },
             { data: 'email', name: 'email' },
-            { data: 'coverage', name: 'coverage', orderable: false, searchable: false },
             { data: 'skills', name: 'skills', orderable: false, searchable: false },
             { data: 'status_badge', name: 'status', orderable: false },
             { data: 'actions', name: 'actions', orderable: false, searchable: false, className: 'text-center' },

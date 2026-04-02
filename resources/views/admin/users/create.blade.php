@@ -228,10 +228,6 @@
                 </div>
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">Coverage States</label>
-                        <select name="coverage_states[]" id="coverageStates" class="form-select select2" multiple></select>
-                    </div>
-                    <div class="col-md-6">
                         <label class="form-label fw-semibold">Skill Tags</label>
                         <select name="skill_tags[]" id="skillTags" class="form-select select2" multiple>
                             @foreach($skillTags as $skill)
@@ -291,17 +287,7 @@ $(document).ready(function() {
 
     // Select2 init
     $('#roleSelect').select2({ theme: 'bootstrap-5', placeholder: 'Select a role', width: '100%' });
-    $('#coverageStates').select2({
-        theme: 'bootstrap-5', placeholder: 'Select coverage states', width: '100%',
-        ajax: {
-            url: '{{ route("admin.ajax.states") }}', dataType: 'json', delay: 250,
-            data: function(params) { return { search: params.term, page: params.page || 1 }; },
-            processResults: function(data) {
-                // Map id→state name so coverage_states stores names, not numeric IDs
-                return { results: data.results.map(function(s) { return { id: s.text, text: s.text }; }), pagination: data.pagination };
-            }, cache: true
-        }
-    });
+    {{-- REMOVED: #coverageStates Select2 init — coverage_states field no longer exists --}}
     $('#skillTags').select2({ theme: 'bootstrap-5', placeholder: 'Select skills', width: '100%', tags: true });
 
     $('#stateSelect').select2({

@@ -39,7 +39,7 @@
 
                     <h5 class="mb-1">{{ $user->name }}</h5>
                     <p class="text-muted mb-2">{{ $user->employee_id ?? '-' }}</p>
-                    <span class="badge bg-{{ $user->status === 'active' ? 'success' : ($user->status === 'suspended' ? 'danger' : 'secondary') }}">{{ ucfirst($user->status) }}</span>
+                    <span class="badge bg-{{ $user->status === 'active' ? 'success' : 'secondary' }}">{{ ucfirst($user->status) }}</span>
 
                     <hr>
 
@@ -61,18 +61,7 @@
                         </div>
                         @endif
 
-                        {{-- Coverage States --}}
-                        @php
-                            $states = is_array($user->coverage_states) ? $user->coverage_states : [];
-                        @endphp
-                        @if(!empty($states))
-                        <div class="mb-2">
-                            <i class="bi bi-map me-2 text-muted"></i>
-                            @foreach($states as $s)
-                                <span class="badge bg-light text-dark">{{ $s }}</span>
-                            @endforeach
-                        </div>
-                        @endif
+                        {{-- REMOVED: Coverage States — field no longer exists --}}
 
                         {{-- Skill Tags --}}
                         @php
