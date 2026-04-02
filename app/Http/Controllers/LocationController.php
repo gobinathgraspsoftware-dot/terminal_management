@@ -150,8 +150,7 @@ class LocationController extends Controller
                              'city_id'         => $u->city_id,
                              'mileage_rate'    => $u->mileage_rate,
                              'supervisor_type' => $u->supervisor_type,
-                         ]);
-dd($results);
+                         ]); 
         return response()->json([
             'results'    => $results,
             'pagination' => ['more' => ($page * $perPage) < $total],
