@@ -423,7 +423,7 @@ class TicketController extends Controller
         $query = User::whereHas('roles', fn($q) => $q->where('roles.name', 'supervisor'))->where('status', 'active');
         if ($request->filled('state_id')) {
             $stateId = $request->state_id;
-            $query->where(fn($q) => $q->where('state_id', $stateId)->orWhereJsonContains('coverage_states', (string) $stateId));
+            $query->where(fn($q) => $q->where('state_id', $stateId));
         }
         return response()->json($query->orderBy('name')->get(['id', 'name', 'state_id', 'mileage_rate', 'supervisor_type']));
     }

@@ -88,19 +88,6 @@
                         </div>
                         @endif
 
-                        {{-- Coverage States --}}
-                        @php
-                            $states = is_array($user->coverage_states) ? $user->coverage_states : [];
-                        @endphp
-                        @if(!empty($states))
-                        <div class="mb-2">
-                            <i class="bi bi-map me-2 text-muted"></i>
-                            @foreach($states as $s)
-                                <span class="badge bg-light text-dark">{{ $s }}</span>
-                            @endforeach
-                        </div>
-                        @endif
-
                         {{-- Skill Tags --}}
                         @php
                             $skills = is_array($user->skill_tags) ? $user->skill_tags : [];
