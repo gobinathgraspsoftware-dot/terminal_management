@@ -155,6 +155,15 @@
                             </div>
                         </div>
 
+                        {{-- Serial Number — Default optional field (always visible) --}}
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Serial Number</label>
+                                <input type="text" name="serial_number" id="serial_number" class="form-control" placeholder="Enter serial number (optional)" maxlength="100">
+                                <div class="invalid-feedback"></div>
+                            </div>
+                        </div>
+
                         <div class="row g-3 mb-4">
                             <div class="col-md-4">
                                 <label class="form-label">Supervisor <span class="text-danger">*</span></label>

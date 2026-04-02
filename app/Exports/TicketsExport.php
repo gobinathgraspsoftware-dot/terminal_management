@@ -48,6 +48,7 @@ class TicketsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoS
             'Terminal ID',
             'Router ID',
             'Old Router ID',
+            'Serial Number',       // ← NEW
             'Accessory Type',
             'Accessory Item',
             'Accessory Qty',
@@ -91,6 +92,7 @@ class TicketsExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoS
             $ticket->terminal_id ?? '',
             $ticket->router_id ?? '',
             $ticket->old_terminal_id ?? '',
+            $ticket->serial_number ?? '',  // ← NEW
             $ticket->getAccessoryTypeLabel(),
             $ticket->accessoryItem?->item_name ?? '',
             $ticket->accessory_qty ?? '',

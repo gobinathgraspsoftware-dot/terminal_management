@@ -32,6 +32,8 @@ class StoreTicketRequest extends FormRequest
             'description'          => 'required|string|max:5000',
             'expected_start_date'  => 'nullable|date',
             'expected_end_date'    => 'nullable|date|after_or_equal:expected_start_date',
+            // Serial Number — optional reference field in Job Configuration
+            'serial_number'        => 'nullable|string|max:100',
             // Claim
             'mileage'              => 'nullable|numeric|min:0',
             'mileage_remarks'      => 'nullable|string|max:500',
@@ -93,6 +95,7 @@ class StoreTicketRequest extends FormRequest
             'description.required'          => 'Please enter the ticket description.',
             'terminal_id.required'          => 'Terminal ID is required for this job category.',
             'router_id.required'            => 'Router ID is required for this job category.',
+            'serial_number.max'             => 'Serial number must not exceed 100 characters.',
             'accessory_type_selected.required' => 'Please select an accessory type.',
             'accessory_item_id.required'    => 'Please select an accessory item.',
             'accessory_qty.required'        => 'Please enter the accessory quantity.',

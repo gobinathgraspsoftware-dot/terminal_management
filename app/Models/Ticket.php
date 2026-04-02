@@ -37,6 +37,7 @@ class Ticket extends Model
         'ticket_no', 'vendor_ticket_ref_no',
         'vendor_id', 'vendor_branch_id', 'state_id', 'city_id',
         'tid', 'terminal_id', 'router_id', 'router_ids', 'old_terminal_id', 'old_router_ids',
+        'serial_number', // ← NEW: Optional serial number for reference
         // Accessory inventory fields
         'accessory_type_selected', 'accessory_item_id', 'accessory_qty',
         'merchant_name', 'merchant_address', 'contact_number',

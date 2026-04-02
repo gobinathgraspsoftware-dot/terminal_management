@@ -50,6 +50,7 @@ class TicketService
                   ->orWhere('merchant_name', 'like', "%{$search}%")
                   ->orWhere('terminal_id', 'like', "%{$search}%")
                   ->orWhere('router_id', 'like', "%{$search}%")
+                  ->orWhere('serial_number', 'like', "%{$search}%") // ← NEW: search by serial number
                   ->orWhere('description', 'like', "%{$search}%")
                   ->orWhereHas('vendor', fn($q2) => $q2->where('vendor_name', 'like', "%{$search}%"))
                   ->orWhereHas('supervisor', fn($q2) => $q2->where('name', 'like', "%{$search}%"))

@@ -137,6 +137,15 @@
                             </div>
                         </div>
 
+                        {{-- Serial Number — Default optional field (always visible) --}}
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Serial Number</label>
+                                <input type="text" name="serial_number" id="serial_number" class="form-control" value="{{ old('serial_number', $ticket->serial_number) }}" placeholder="Enter serial number (optional)" maxlength="100">
+                                <div class="invalid-feedback"></div>
+                            </div>
+                        </div>
+
                         {{-- Accessories Fields --}}
                         <div class="row g-3 mb-3" id="accessoriesSection" style="display:none;">
                             <div class="col-md-4">

@@ -92,6 +92,11 @@
                         <p class="mb-1">{{ $ticket->getRouterIdsDisplay() }}</p>
                     </div>
                     @endif
+                    {{-- Serial Number — always visible, read-only --}}
+                    <div class="col-md-4">
+                        <small class="text-muted">Serial Number</small>
+                        <p class="mb-1">{{ $ticket->serial_number ?? '-' }}</p>
+                    </div>
                 </div>
                 @if($ticket->description)
                 <hr>
